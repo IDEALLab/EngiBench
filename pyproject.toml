@@ -23,6 +23,7 @@ classifiers = [
 ]
 dependencies = [
     "numpy >=2.0.0",
+    "gymnasium >= 1.0.0a1",
 ]
 dynamic = ["version"]
 
@@ -120,7 +121,10 @@ select = [
     "PERF",   # perflint
     "RUF",    # Ruff specific
     ]
-ignore = []
+ignore = [
+    "ANN101", # Typing self in function definition is not necessary
+    "E501" # Ruff black style takes care of line length
+]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
