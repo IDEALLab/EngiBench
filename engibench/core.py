@@ -2,39 +2,42 @@
 
 from __future__ import annotations
 
-from typing import Any, Generic, TypeVar
+from typing import Any, ClassVar, Generic, TypeVar
 
+from datasets import Dataset
 from gymnasium import spaces
 import numpy as np
 
+SimulatorInputType = TypeVar("SimulatorInputType")
 DesignType = TypeVar("DesignType")
-RepresentationType = TypeVar("RepresentationType")
 
 
-class Problem(Generic[DesignType, RepresentationType]):
+class Problem(Generic[SimulatorInputType, DesignType]):
     r"""Main class for defining an engineering design problem.
 
     This class assumes there is:
     - an underlying simulator that is called to evaluate the performance of a design (see `simulate` method);
-    - a dataset containing representations of designs and their performances (see `representation_space` attribute);
+    - a dataset containing representations of designs and their performances (see `design_space`, `str_id` attributes);
 
     The main API methods that users should use are:
     - :meth: `simulate` - to simulate a design and return the performance given some conditions.
+    - :meth: `optimize` - to optimize a design starting from a given point.
     - :meth: `representation_to_design` - to convert a representation (output of an algorithm) to a design (input of the simulation).
     - :meth: `design_to_representation` - to convert a design (input of the simulation) to a representation (output of an algorithm).
 
     There are some attritbutes that help understanding the problem:
-    - :attr: `design_space` - the space of designs (inputs of simulator).
-    - :attr: `representation_space` - the space of representations (outputs of algorithms).
+    - :attr: `input_space` - the inputs of simulator.
     - :attr: `objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
+    - :attr: `design_space` - the space of designs (outputs of algorithms).
     - :attr: `str_id` - a string identifier for the problem -- useful to pull datasets and singularity containers.
     """
 
     # Must be defined in subclasses
-    design_space: spaces.Space[DesignType]  # Simulator input space
-    objectives: dict[str, str]  # Objective names and types (minimize or maximize)
-    representation_space: spaces.Space[RepresentationType]  # Algorithm output space
+    input_space: SimulatorInputType  # Simulator input (internal)
+    possible_objectives: ClassVar[dict[str, str]]  # Objective names and types (minimize or maximize)
+    design_space: spaces.Space[DesignType]  # Design space (algorithm output)
     str_id: str  # String identifier for the problem (useful to pull datasets and singularity containers)
+    dataset: Dataset  # Dataset with designs and performances
 
     # This handles the RNG properly
     _np_random: np.random.Generator | None = None
@@ -52,13 +55,14 @@ class Problem(Generic[DesignType, RepresentationType]):
         """
         raise NotImplementedError
 
-    def optimize(self, starting_point: DesignType) -> tuple[DesignType, dict[str, float]]:
+    def optimize(self, starting_point: DesignType, conditions: dict[str, Any]) -> tuple[DesignType, dict[str, float]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
-        (This is optional and will probably be implemented only for some problems.)
+        This is optional and will probably be implemented only for some problems.
 
         Args:
             starting_point (DesignType): The starting point for the optimization.
+            conditions (dict): A dictionary with additional conditions that might be needed for the optimization.
 
         Returns:
             Tuple[DesignType, dict]: The optimized design and its performance.
@@ -75,24 +79,24 @@ class Problem(Generic[DesignType, RepresentationType]):
             self._np_random_seed = seed
         self._np_random = np.random.default_rng(seed)
 
-    def representation_to_design(self, representation: RepresentationType) -> DesignType:
-        r"""Convert a representation to a design.
-
-        Args:
-            representation (RepresentationType): The representation to convert.
-
-        Returns:
-            DesignType: The corresponding design.
-        """
-        raise NotImplementedError
-
-    def design_to_representation(self, design: DesignType) -> RepresentationType:
-        r"""Convert a design to a representation.
+    def design_to_simulator_input(self, design: DesignType) -> SimulatorInputType:
+        r"""Convert a design to a simulator input.
 
         Args:
             design (DesignType): The design to convert.
 
         Returns:
-            RepresentationType: The corresponding representation.
+            SimulatorInputType: The corresponding design as a simulator input.
+        """
+        raise NotImplementedError
+
+    def simulator_input_to_design(self, simulator_input: SimulatorInputType) -> DesignType:
+        r"""Convert a simulator input to a design.
+
+        Args:
+            simulator_input (SimulatorInputType): The input to convert.
+
+        Returns:
+            DesignType: The corresponding design.
         """
         raise NotImplementedError
