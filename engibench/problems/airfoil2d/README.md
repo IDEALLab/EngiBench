@@ -17,10 +17,15 @@ dataset_dict = DatasetDict({"train": datasets[0], "test": datasets[1]})
 dataset_dict.push_to_hub("ffelten/test2")
 ```
 
+Here is what it looks like on HF:
+![HF DS](image.png)
+
 Now to pull the data
 ```python
 import numpy as np
 from datasets import load_dataset
 
 dataset = load_dataset("ffelten/test2", split="train")
+# This gives a shape (2, 192)
+np.array(dataset["features"][0]).shape
 ```
