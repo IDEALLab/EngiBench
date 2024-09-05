@@ -49,5 +49,3 @@ if __name__ == "__main__":
     problem = Airfoil2D()
     problem.reset(seed=0)
     dataset = load_dataset(problem.str_id)
-
-    ## Other commetns
