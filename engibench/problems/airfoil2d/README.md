@@ -6,7 +6,7 @@ from datasets import Dataset, DatasetDict
 
 
 train_split = np.load('train.npy')
-test_split = np.load('test.npy')
+test_split = np.load('test.npy') # https://github.com/IDEALLab/OptimizingDiffusionSciTech2024/blob/main/data/optimized_data/test/opt_airfoils.npy
 datasets = []
 for split in [train_split, test_split]:
     data_dict = {"features": split.tolist()}  # Convert numpy array to list
