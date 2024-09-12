@@ -22,14 +22,16 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 dependencies = [
-    "numpy >=2.0.0",
+    "numpy",
     "gymnasium >= 1.0.0a1",
     "datasets[vision] >= 2.21.0", # imports modules with image features
+    "tyro >= 0.8.10",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
+
 all = [
     # All dependencies above
     # NOTE: No need to manually remove the duplicates, setuptools automatically does that.

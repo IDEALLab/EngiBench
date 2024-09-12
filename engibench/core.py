@@ -43,7 +43,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     _np_random: np.random.Generator | None = None
     _np_random_seed: int | None = None
 
-    def simulate(self, design: DesignType, conditions: dict[str, Any]) -> dict[str, float]:
+    def simulate(self, design: DesignType, conditions: dict[str, Any], **kwargs) -> dict[str, float]:
         r"""Launch a simulation on the given design and return the performance.
 
         Args:
@@ -55,7 +55,9 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def optimize(self, starting_point: DesignType, conditions: dict[str, Any]) -> tuple[DesignType, dict[str, float]]:
+    def optimize(
+        self, starting_point: DesignType, conditions: dict[str, Any], **kwargs
+    ) -> tuple[DesignType, dict[str, float]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
         This is optional and will probably be implemented only for some problems.
@@ -79,7 +81,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             self._np_random_seed = seed
         self._np_random = np.random.default_rng(seed)
 
-    def design_to_simulator_input(self, design: DesignType) -> SimulatorInputType:
+    def design_to_simulator_input(self, design: DesignType, **kwargs) -> SimulatorInputType:
         r"""Convert a design to a simulator input.
 
         Args:
@@ -90,7 +92,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def simulator_input_to_design(self, simulator_input: SimulatorInputType) -> DesignType:
+    def simulator_input_to_design(self, simulator_input: SimulatorInputType, **kwargs) -> DesignType:
         r"""Convert a simulator input to a design.
 
         Args:

@@ -3,3 +3,8 @@
 
 # EngiBench
 Benchmarks for automated engineering design
+
+
+## Install
+* `openmpi` -> Brew or apt
+* `pip install -e .` (Python 3.9)
