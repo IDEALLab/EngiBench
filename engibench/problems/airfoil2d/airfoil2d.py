@@ -3,7 +3,9 @@
 This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by a simulator that computes the lift and drag coefficients of the airfoil.
 """
 
-from typing import ClassVar, overload
+import os
+import subprocess
+from typing import ClassVar
 
 from datasets import load_dataset
 from gymnasium import spaces
@@ -36,7 +38,7 @@ class Airfoil2D(Problem):
         "drag": "minimize",
     }
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
-    str_id = "ffelten/test2"
+    dataset_id = "ffelten/test2"
 
     def __init__(self, objectives: tuple[str, str] = ("lift", "drag")) -> None:
         """Initialize the problem."""
@@ -60,18 +62,32 @@ class Airfoil2D(Problem):
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
 
-    @overload
-    def simulate(self, design: np.ndarray, conditions: dict[str, int], **kwargs) -> dict[str, float]:
-        print("simulate")
-        return {}
+        # Bash command:
+        command = [
+            "docker",
+            "run",
+            "-it",
+            "--rm",
+            "--name",
+            "machaero",
+            "--mount",
+            f"type=bind,src={os.getcwd()},target=/home/mdolabuser/mount/engibench",
+            "mdolab/public:u22-gcc-ompi-stable",
+            "/bin/bash",
+            "/home/mdolabuser/mount/engibench/engibench/problems/airfoil2d/init.sh",
+            "tmp.npy",
+            filename,
+        ]
+
+        subprocess.run(command, check=True)
 
 
 if __name__ == "__main__":
     problem = Airfoil2D()
     problem.reset(seed=0)
-    dataset = load_dataset(problem.str_id, split="train")
+    dataset = load_dataset(problem.dataset_id, split="train")
 
-    first_design = np.array(dataset["features"][0])
+    first_design = np.array(dataset["features"][0])  # type: ignore
     print("Design: ", first_design)
     print("Shape: ", first_design.shape)
     print(problem.design_to_simulator_input(first_design))

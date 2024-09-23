@@ -22,7 +22,7 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 dependencies = [
-    "numpy",
+    "numpy <=2.0",
     "gymnasium >= 1.0.0a1",
     "datasets[vision] >= 2.21.0", # imports modules with image features
     "tyro >= 0.8.10",
@@ -35,6 +35,10 @@ dynamic = ["version"]
 all = [
     # All dependencies above
     # NOTE: No need to manually remove the duplicates, setuptools automatically does that.
+    "numpy ==2.1.0",
+    "gymnasium >= 1.0.0a1",
+    "datasets[vision] >= 2.21.0", # imports modules with image features
+    "tyro >= 0.8.10",
 ]
 testing = ["pytest ==8.3.2"]
 
@@ -126,7 +130,8 @@ select = [
     ]
 ignore = [
     "ANN101", # Typing self in function definition is not necessary
-    "E501" # Ruff black style takes care of line length
+    "E501", # Ruff black style takes care of line length
+    "ANN003" # Kwargs type hinting is not necessary
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.

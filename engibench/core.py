@@ -29,15 +29,18 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     - :attr: `input_space` - the inputs of simulator.
     - :attr: `objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
     - :attr: `design_space` - the space of designs (outputs of algorithms).
-    - :attr: `str_id` - a string identifier for the problem -- useful to pull datasets and singularity containers.
+    - :attr: `dataset_id` - a string identifier for the problem -- useful to pull datasets.
+    - :attr: `dataset` - the dataset with designs and performances.
+    - :attr: `container_id` - a string identifier for the singularity container.
     """
 
     # Must be defined in subclasses
     input_space: SimulatorInputType  # Simulator input (internal)
     possible_objectives: ClassVar[dict[str, str]]  # Objective names and types (minimize or maximize)
     design_space: spaces.Space[DesignType]  # Design space (algorithm output)
-    str_id: str  # String identifier for the problem (useful to pull datasets and singularity containers)
+    dataset_id: str  # String identifier for the problem (useful to pull datasets)
     dataset: Dataset  # Dataset with designs and performances
+    container_id: str  # String identifier for the singularity container
 
     # This handles the RNG properly
     _np_random: np.random.Generator | None = None
@@ -49,6 +52,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         Args:
             design (DesignType): The design to simulate.
             conditions (dict): A dictionary with additional conditions that might be needed for the simulation.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
@@ -65,6 +69,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         Args:
             starting_point (DesignType): The starting point for the optimization.
             conditions (dict): A dictionary with additional conditions that might be needed for the optimization.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             Tuple[DesignType, dict]: The optimized design and its performance.
@@ -86,6 +91,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
         Args:
             design (DesignType): The design to convert.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             SimulatorInputType: The corresponding design as a simulator input.
@@ -97,6 +103,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
         Args:
             simulator_input (SimulatorInputType): The input to convert.
+            **kwargs: Additional keyword arguments.
 
         Returns:
             DesignType: The corresponding design.
