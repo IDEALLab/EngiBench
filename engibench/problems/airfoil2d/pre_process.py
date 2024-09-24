@@ -1,3 +1,9 @@
+# ruff: noqa
+"""This file is largely based on the MACHAero tutorials.
+
+https://github.com/mdolab/MACH-Aero/blob/main/tutorial/
+"""
+
 from dataclasses import dataclass
 
 import numpy as np
@@ -31,8 +37,10 @@ if __name__ == "__main__":
     # Most of this code has been modified from the MACH-Aero example: https://github.com/mdolab/MACH-Aero/tree/main
     args = tyro.cli(Args)
 
-    with open(args.input_fname, "rb") as f:
-        design = np.load(f)
+    # TODO check with Cashen if we go for .dat or npy format ?
+    # with open(args.input_fname, "rb") as f:
+    #     design = np.load(f)
+    design = np.loadtxt(args.input_fname)
     npts = design.shape[0]
     nmid = (npts + 1) // 2
 
@@ -128,3 +136,5 @@ if __name__ == "__main__":
                     for i in range(nffd):
                         f.write("%.15f " % (ffd_box[i, j, k, ell]))
                     f.write("\n")
+
+    print("Generated files FFD and mesh")
