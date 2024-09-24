@@ -37,6 +37,7 @@ class Airfoil2D(Problem):
         super().__init__()
         self.reset()
         self.objectives: set[str] = set(objectives)
+        self.dataset = load_dataset(self.dataset_id, split="train")
 
     def design_to_simulator_input(self, design: np.ndarray, filename: str = "design") -> str:
         """Converts a design to a simulator input.
@@ -48,12 +49,12 @@ class Airfoil2D(Problem):
             design (np.ndarray): The design to convert.
             filename (str): The filename to save the design to.
         """
+        # TODO decide on this
         with open("tmp.npy", "wb") as f:
             np.save(f, design)
 
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
-
         # Bash command:
         command = [
             "docker",
@@ -67,7 +68,7 @@ class Airfoil2D(Problem):
             "mdolab/public:u22-gcc-ompi-stable",
             "/bin/bash",
             "/home/mdolabuser/mount/engibench/engibench/problems/airfoil2d/pre_process.sh",
-            "tmp.npy",
+            "n0012.dat", # TODO when decided on input, change this
             filename,
         ]
 
@@ -108,7 +109,7 @@ class Airfoil2D(Problem):
 if __name__ == "__main__":
     problem = Airfoil2D()
     problem.reset(seed=0)
-    dataset = load_dataset(problem.dataset_id, split="train")
+    dataset = problem.dataset
 
     first_design = np.array(dataset["features"][0])  # type: ignore
     print("Design: ", first_design)

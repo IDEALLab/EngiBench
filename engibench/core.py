@@ -17,17 +17,17 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
     This class assumes there is:
     - an underlying simulator that is called to evaluate the performance of a design (see `simulate` method);
-    - a dataset containing representations of designs and their performances (see `design_space`, `str_id` attributes);
+    - a dataset containing representations of designs and their performances (see `design_space`, `dataset_id` attributes);
 
     The main API methods that users should use are:
     - :meth: `simulate` - to simulate a design and return the performance given some conditions.
     - :meth: `optimize` - to optimize a design starting from a given point.
-    - :meth: `representation_to_design` - to convert a representation (output of an algorithm) to a design (input of the simulation).
-    - :meth: `design_to_representation` - to convert a design (input of the simulation) to a representation (output of an algorithm).
+    - :meth: `design_to_simulator_input` - to convert a design (output of an algorithm) to an input of the simulation.
+    - :meth: `simulator_input_to_design` - to convert a simulation input to a design (output of an algorithm).
 
     There are some attritbutes that help understanding the problem:
     - :attr: `input_space` - the inputs of simulator.
-    - :attr: `objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
+    - :attr: `possible_objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
     - :attr: `design_space` - the space of designs (outputs of algorithms).
     - :attr: `dataset_id` - a string identifier for the problem -- useful to pull datasets.
     - :attr: `dataset` - the dataset with designs and performances.
