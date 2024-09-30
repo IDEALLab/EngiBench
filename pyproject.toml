@@ -35,10 +35,6 @@ dynamic = ["version"]
 all = [
     # All dependencies above
     # NOTE: No need to manually remove the duplicates, setuptools automatically does that.
-    "numpy ==2.1.0",
-    "gymnasium >= 1.0.0a1",
-    "datasets[vision] >= 2.21.0", # imports modules with image features
-    "tyro >= 0.8.10",
 ]
 testing = ["pytest ==8.3.2"]
 
@@ -90,6 +86,7 @@ exclude = [
     "dist",
     "node_modules",
     "site-packages",
+    "templates",
     "venv",
 ]
 
@@ -214,8 +211,8 @@ docstring-code-line-length = "dynamic"
 
 ###################################### PYRIGHT ########################################
 [tool.pyright]
-include = ["engibench/**", "tests/**"]
-exclude = ["**/node_modules", "**/__pycache__"]
+include = ["engibench/**"]
+exclude = ["**/node_modules", "**/__pycache__", "**/templates/**"]
 strict = []
 
 typeCheckingMode = "basic"
@@ -232,7 +229,7 @@ reportMissingTypeStubs = false
 # For warning and error, will raise an error when
 reportInvalidTypeVarUse = "none"
 
-# reportGeneralTypeIssues = "none"  # -> commented out raises 489 errors
+reportGeneralTypeIssues = "none"  # -> commented out raises 489 errors
 # reportUntypedFunctionDecorator = "none"  # -> pytest.mark.parameterize issues
 
 # reportOptionalMemberAccess = "none" # -> commented out raises warnings

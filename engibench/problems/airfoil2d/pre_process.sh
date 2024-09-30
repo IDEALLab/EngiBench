@@ -2,5 +2,5 @@
 source ~/.bashrc
 source ~/.bashrc_mdolab
 
-cd /home/mdolabuser/mount/engibench && pip install .
-cd /home/mdolabuser/mount/engibench && python engibench/problems/airfoil2d/pre_process.py --input-fname $1 --output-fname $2
+# Takes the study folder name as an argument
+cd /home/mdolabuser/mount/engibench && python $1/pre_process.py

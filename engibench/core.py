@@ -76,14 +76,16 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def reset(self, seed: int | None = None) -> None:
+    def reset(self, seed: int | None = None, **kwargs) -> None:  # noqa: ARG002
         r"""Reset the simulator and numpy random to a given seed.
 
         Args:
             seed (int, optional): The seed to reset to. If None, a random seed is used.
+            **kwargs: Additional keyword arguments.
         """
         if seed is not None:
             self._np_random_seed = seed
+        self.seed = seed
         self._np_random = np.random.default_rng(seed)
 
     def design_to_simulator_input(self, design: DesignType, **kwargs) -> SimulatorInputType:

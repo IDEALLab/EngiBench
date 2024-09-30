@@ -2,4 +2,7 @@
 source ~/.bashrc
 source ~/.bashrc_mdolab
 
-cd /home/mdolabuser/mount/engibench && mpirun -np 4 python engibench/problems/airfoil2d/airfoil_opt.py --gridFile $1 --ffdFile $2
+# Takes the number of mpi processes and study folder name as an argument
+echo "Running airfoil optimization with $1 MPI processes"
+echo "Study folder: $2"
+cd /home/mdolabuser/mount/engibench && mpirun -np $1 python $2/airfoil_opt.py > $2/airfoil_opt.log

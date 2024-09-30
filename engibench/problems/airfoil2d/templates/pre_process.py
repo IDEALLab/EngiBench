@@ -2,13 +2,17 @@
 """This file is largely based on the MACHAero tutorials.
 
 https://github.com/mdolab/MACH-Aero/blob/main/tutorial/
-"""
 
-from dataclasses import dataclass
+TEMPLATED VARS:
+- $design_fname: Path to the design file.
+- $tmp_xyz_fname: Path to the temporary xyz file.
+- $mesh_fname: Path to the generated mesh file.
+- $ffd_fname: Path to the generated FFD file.
+
+"""
 
 import numpy as np
 from pyhyp import pyHyp
-import tyro
 
 
 def _getupper(design: np.ndarray, npts: int, xtemp):
@@ -27,20 +31,12 @@ def _getlower(design: np.ndarray, npts: int, xtemp):
     return design[myi, 1]
 
 
-@dataclass
-class Args:
-    input_fname: str
-    output_fname: str = "design"
-
-
 if __name__ == "__main__":
-    # Most of this code has been modified from the MACH-Aero example: https://github.com/mdolab/MACH-Aero/tree/main
-    args = tyro.cli(Args)
 
     # TODO check with Cashen if we go for .dat or npy format ?
     # with open(args.input_fname, "rb") as f:
     #     design = np.load(f)
-    design = np.loadtxt(args.input_fname)
+    design = np.loadtxt($design_fname)
     npts = design.shape[0]
     nmid = (npts + 1) // 2
 
@@ -57,7 +53,7 @@ if __name__ == "__main__":
     airfoil3d[:, 0, 2] = 0.0
     airfoil3d[:, 1, 2] = 1.0
     # write out plot3d - this is used by pyHyp
-    P3D_fname = args.output_fname + ".xyz"
+    P3D_fname = $tmp_xyz_fname
     with open(P3D_fname, "w") as p3d:
         p3d.write(str(1) + "\n")
         p3d.write(str(ndim) + " " + str(2) + " " + str(1) + "\n")
@@ -87,7 +83,7 @@ if __name__ == "__main__":
 
     hyp = pyHyp(options=options)
     hyp.run()
-    hyp.writeCGNS(args.output_fname + ".cgns")
+    hyp.writeCGNS($mesh_fname)
 
     ######## STEP 2: Generate FFD
     # FFDBox1
@@ -127,7 +123,7 @@ if __name__ == "__main__":
     # Z
     ffd_box[:, :, 1, 2] = 1.0
 
-    with open(args.output_fname + "_ffd.xyz", "w") as f:
+    with open($ffd_fname, "w") as f:
         f.write("1\n")
         f.write(str(nffd) + " 2 2\n")
         for ell in range(3):

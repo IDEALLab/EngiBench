@@ -2,13 +2,22 @@
 """This file is largely based on the MACHAero tutorials.
 
 https://github.com/mdolab/MACH-Aero/blob/main/tutorial/
+
+TEMPLATED VARS:
+- $cl: The lift coefficient constraint (float).
+- $alpha: The angle of attack (float).
+- $mach: The Mach number (float).
+- $altitude: The cruising altitude (int).
+- $ffd_fname: Path to the FFD file.
+- $mesh_fname: Path to the mesh file.
+- $output_dir: Path to the output directory.
+- $opt: The optimization algorithm: SLSQP or SNOPT.
+- $opt_options: The optimization options (dict).
 """
 
 # ======================================================================
 #         Import modules
 # ======================================================================
-import argparse
-import ast
 import os
 
 from adflow import ADFLOW
@@ -21,16 +30,6 @@ from pygeo import DVConstraints
 from pygeo import DVGeometry
 from pyoptsparse import OPT
 from pyoptsparse import Optimization
-
-# Use Python's built-in Argument parser to get commandline options
-parser = argparse.ArgumentParser()
-parser.add_argument("--output", type=str, default="output")
-parser.add_argument("--opt", type=str, default="SLSQP", choices=["SLSQP", "SNOPT"])
-parser.add_argument("--gridFile", type=str)
-parser.add_argument("--ffdFile", type=str)
-parser.add_argument("--optOptions", type=ast.literal_eval, default={}, help="additional optimizer options to be added")
-args = parser.parse_args()
-
 
 # ======================================================================
 #         Functions:
@@ -77,30 +76,33 @@ if __name__ == "__main__":
     #         Specify parameters for optimization
     # ======================================================================
     # cL constraint
-    mycl = 0.5
+    mycl = $cl
     # angle of attack
-    alpha = 1.5
+    alpha = $alpha
     # mach number
-    mach = 0.75
+    mach = $mach
     # cruising altitude
-    alt = 10000
+    alt = $altitude
+    # Optimization parameters
+    opt = $opt
+    opt_options = $opt_options
     # ======================================================================
     #         Create multipoint communication object
     # ======================================================================
     MP = multiPointSparse(MPI.COMM_WORLD)
     MP.addProcessorSet("cruise", nMembers=1, memberSizes=MPI.COMM_WORLD.size)
     comm, setComm, setFlags, groupFlags, ptID = MP.createCommunicators()
-    if not os.path.exists(args.output):
+    if not os.path.exists($output_dir):
         if comm.rank == 0:
-            os.mkdir(args.output)
+            os.mkdir($output_dir)
 
     # ======================================================================
     #         ADflow Set-up
     # ======================================================================
     aeroOptions = {
         # Common Parameters
-        "gridFile": args.gridFile,
-        "outputDirectory": args.output,
+        "gridFile": $mesh_fname,
+        "outputDirectory": $output_dir,
         # Physics Parameters
         "equationType": "RANS",
         "smoother": "DADI",
@@ -149,7 +151,7 @@ if __name__ == "__main__":
     #         Geometric Design Variable Set-up
     # ======================================================================
     # Create DVGeometry object
-    DVGeo = DVGeometry(args.ffdFile)
+    DVGeo = DVGeometry($ffd_fname)
     DVGeo.addLocalDV("shape", lower=-0.05, upper=0.05, axis="y", scale=1.0)
 
     span = 1.0
@@ -200,12 +202,12 @@ if __name__ == "__main__":
     DVCon.addThicknessConstraints2D(leList, teList, 2, 100, lower=0.1, upper=3.0)
 
     if comm.rank == 0:
-        fileName = os.path.join(args.output, "constraints.dat")
+        fileName = os.path.join($output_dir, "constraints.dat")
         DVCon.writeTecplot(fileName)
     # ======================================================================
     #         Mesh Warping Set-up
     # ======================================================================
-    meshOptions = {"gridFile": args.gridFile}
+    meshOptions = {"gridFile": $mesh_fname}
 
     mesh = USMesh(options=meshOptions, comm=comm)
     CFDSolver.setMesh(mesh)
@@ -237,21 +239,21 @@ if __name__ == "__main__":
     MP.setOptProb(optProb)
     optProb.printSparsity()
     # Set up optimizer
-    if args.opt == "SLSQP":
-        optOptions = {"IFILE": os.path.join(args.output, "SLSQP.out")}
-    elif args.opt == "SNOPT":
+    if opt == "SLSQP":
+        optOptions = {"IFILE": os.path.join($output_dir, "SLSQP.out")}
+    elif opt == "SNOPT":
         optOptions = {
             "Major feasibility tolerance": 1e-4,
             "Major optimality tolerance": 1e-4,
             "Hessian full memory": None,
             "Function precision": 1e-8,
-            "Print file": os.path.join(args.output, "SNOPT_print.out"),
-            "Summary file": os.path.join(args.output, "SNOPT_summary.out"),
+            "Print file": os.path.join($output_dir, "SNOPT_print.out"),
+            "Summary file": os.path.join($output_dir, "SNOPT_summary.out"),
         }
-    optOptions.update(args.optOptions)
-    opt = OPT(args.opt, options=optOptions)
+    optOptions.update(opt_options)
+    opt = OPT(opt, options=optOptions)
 
     # Run Optimization
-    sol = opt(optProb, MP.sens, storeHistory=os.path.join(args.output, "opt.hst"))
+    sol = opt(optProb, MP.sens, storeHistory=os.path.join($output_dir, "opt.hst"))
     if MPI.COMM_WORLD.rank == 0:
         print(sol)
