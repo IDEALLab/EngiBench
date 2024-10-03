@@ -12,6 +12,7 @@ from typing import Any, ClassVar, overload
 from datasets import load_dataset
 from gymnasium import spaces
 import numpy as np
+import pyoptsparse
 
 from engibench.core import Problem
 from engibench.utils.files import clone_template
@@ -42,8 +43,10 @@ class Airfoil2D(Problem):
     study_dir = common_dir + "study"
 
     def __init__(self, objectives: tuple[str, str] = ("lift", "drag")) -> None:
-        """Initialize the problem."""
         super().__init__()
+        # docker pull image
+        subprocess.run(["docker", "pull", self.container_id], check=True)
+
         self.objectives: set[str] = set(objectives)
         self.dataset = load_dataset(self.dataset_id, split="train")
 
@@ -55,7 +58,6 @@ class Airfoil2D(Problem):
         self.current_study_dir = self.study_dir + f"_{self.seed}/"
         clone_template(template_dir=self.template_dir, study_dir=self.current_study_dir)
 
-    @overload
     def design_to_simulator_input(self, design: np.ndarray, filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
@@ -101,11 +103,48 @@ class Airfoil2D(Problem):
         return filename
 
     @overload
-    def optimize(self, starting_point: str, config: dict[str, Any], mpicores: int = 4) -> tuple[Any, dict[str, float]]:
-        """Optimize the design starting from `starting_point`.
+    def simulate(self, design: str, config: dict[str, Any], mpicores: int = 4) -> dict[str, float]:
+        # Prepares the airfoil_analysis.py script with the simulation configuration
+        base_config = {  # TODO Cashen Check those default values (in optimize too)
+            "alpha": 1.5,
+            "mach": 0.8,
+            "reynolds": 1e6,
+            "altitude": 10000,
+            "temperature": 1.0,
+            "output_dir": "'" + self.current_study_dir + "output/'",
+            "mesh_fname": "'" + self.current_study_dir + design + ".cgns'",
+            "task": "'analysis'",
+        }
 
-        It assumes the designs are saved in the current directory with the name "$starting_point.cgns" and "$starting_point_ffd.xyz".
-        """
+        base_config.update(config)
+        replace_template_values(
+            self.current_study_dir + "/airfoil_analysis.py",
+            base_config,
+        )
+
+        # Launches a docker container with the airfoil_analysis.py script
+        # The script takes a mesh and ffd and performs an optimization
+        # Bash command:
+        command = [
+            "docker",
+            "run",
+            "-it",
+            "--rm",
+            "--name",
+            "machaero",
+            "--mount",
+            f"type=bind,src={os.getcwd()},target=/home/mdolabuser/mount/engibench",
+            self.container_id,
+            "/bin/bash",
+            "/home/mdolabuser/mount/engibench/engibench/problems/airfoil2d/analyze.sh",
+            str(mpicores),
+            self.current_study_dir,
+        ]
+
+        subprocess.run(command, check=True)
+        return {"lift": 0.0, "drag": 0.0}
+
+    def optimize(self, starting_point: str, config: dict[str, Any], mpicores: int = 4) -> tuple[Any, dict[str, float]]:
         # Prepares the optimize_airfoil.py script with the optimization configuration
         base_config = {
             "cl": 0.5,
@@ -145,8 +184,14 @@ class Airfoil2D(Problem):
         ]
 
         subprocess.run(command, check=True)
-        # TODO extract the design and performance from the output files
-        return (starting_point, {"lift": 0.0, "drag": 0.0})
+
+        # post process -- extract the shape and objective values
+        history = pyoptsparse.History(self.current_study_dir + "output/opt.hst")
+        objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
+            -1, -1
+        ]
+
+        return starting_point, {"obj": objective}
 
 
 if __name__ == "__main__":
@@ -155,7 +200,44 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     first_design = np.array(dataset["features"][0])  # type: ignore
-    print("Design: ", first_design)
-    print("Shape: ", first_design.shape)
+    # print("Design: ", first_design)
+    # print("Shape: ", first_design.shape)
     print(problem.design_to_simulator_input(first_design, filename="initial_design"))
-    print(problem.optimize(starting_point="initial_design", config={}, mpicores=8))
+    # print(problem.optimize(starting_point="initial_design", config={}, mpicores=8))
+    print(problem.simulate("initial_design", config={}, mpicores=8))
+    # history = pyoptsparse.History(problem.current_study_dir + "output/opt.hst")
+    # print(history.getObjNames())
+    # print(history.getValues(names=["obj"], callCounters=None, allowSens=True, major=False, scale=True)["obj"][-1, -1])
+
+    # Get the file named fc_x_slices.dat with the highest x value
+    # last_slice_file = None
+    # largest_x = -1
+    # for file in os.listdir(problem.current_study_dir + "output/"):
+    #     if file.startswith("fc_") and file.endswith("_slices.dat"):
+    #         x = int(file.split("_")[1])
+    #         if last_slice_file is None or x > largest_x:
+    #             last_slice_file = problem.current_study_dir + "output/" + file
+    #             largest_x = x
+    # var_names = [
+    #     "CoordinateX",
+    #     "CoordinateY",
+    #     "CoordinateZ",
+    #     "XoC",
+    #     "YoC",
+    #     "ZoC",
+    #     "VelocityX",
+    #     "VelocityY",
+    #     "VelocityZ",
+    #     "CoefPressure",
+    #     "Mach",
+    # ]
+    # print("Last slice file: ", last_slice_file)
+    # # TODO see with Cashen how to extract shape from the file and convert to his format
+    # print(
+    #     pd.read_csv(
+    #         last_slice_file, sep=r"\s+", names=["fill1", "Nodes", "fill2", "Elements", "ZONETYPE"], skiprows=3, nrows=1
+    #     )
+    # )
+    # slice = pd.read_csv(last_slice_file, sep=r"\s+", names=var_names, skiprows=5)[["CoordinateX", "CoordinateY"]]
+    # slice = pd.read_csv(last_slice_file, sep=r"\s+", names=["NodeC1", "NodeC2"], skiprows=5)
+    # print(slice)

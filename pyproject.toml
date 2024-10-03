@@ -25,17 +25,18 @@ dependencies = [
     "numpy <=2.0",
     "gymnasium >= 1.0.0a1",
     "datasets[vision] >= 2.21.0", # imports modules with image features
-    "tyro >= 0.8.10",
+    "pandas >= 2.2.3",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
-
+airfoil = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
 all = [
     # All dependencies above
     # NOTE: No need to manually remove the duplicates, setuptools automatically does that.
 ]
+
 testing = ["pytest ==8.3.2"]
 
 [project.urls]

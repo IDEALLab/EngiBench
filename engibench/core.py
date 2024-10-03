@@ -46,12 +46,12 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     _np_random: np.random.Generator | None = None
     _np_random_seed: int | None = None
 
-    def simulate(self, design: DesignType, conditions: dict[str, Any], **kwargs) -> dict[str, float]:
+    def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> dict[str, float]:
         r"""Launch a simulation on the given design and return the performance.
 
         Args:
             design (DesignType): The design to simulate.
-            conditions (dict): A dictionary with additional conditions that might be needed for the simulation.
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
             **kwargs: Additional keyword arguments.
 
         Returns:
@@ -59,16 +59,14 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def optimize(
-        self, starting_point: DesignType, conditions: dict[str, Any], **kwargs
-    ) -> tuple[DesignType, dict[str, float]]:
+    def optimize(self, starting_point: DesignType, config: dict[str, Any], **kwargs) -> tuple[DesignType, dict[str, float]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
         This is optional and will probably be implemented only for some problems.
 
         Args:
             starting_point (DesignType): The starting point for the optimization.
-            conditions (dict): A dictionary with additional conditions that might be needed for the optimization.
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
             **kwargs: Additional keyword arguments.
 
         Returns:
