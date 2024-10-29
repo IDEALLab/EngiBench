@@ -86,7 +86,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         self.seed = seed
         self._np_random = np.random.default_rng(seed)
 
-    def design_to_simulator_input(self, design: DesignType, **kwargs) -> SimulatorInputType:
+    def __design_to_simulator_input(self, design: DesignType, **kwargs) -> SimulatorInputType:
         r"""Convert a design to a simulator input.
 
         Args:
@@ -98,7 +98,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def simulator_input_to_design(self, simulator_input: SimulatorInputType, **kwargs) -> DesignType:
+    def __simulator_input_to_design(self, simulator_input: SimulatorInputType, **kwargs) -> DesignType:
         r"""Convert a simulator input to a design.
 
         Args:

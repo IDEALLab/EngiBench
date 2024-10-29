@@ -12,25 +12,23 @@ pip install -e .
 ```
 
 ## API
+
 ```python
 from engibench.problems.airfoil2d import Airfoil2D
-import numpy as np
 
 problem = Airfoil2D()
 problem.reset(seed=0)
-
 # Inspect problem
-problem.design_space # Box(0.0, 1.0, (2, 192), float32)
-problem.possible_objectives # frozenset({('lift', 'maximize'), ('drag', 'minimize')})
+problem.design_space  # Box(0.0, 1.0, (2, 192), float32)
+problem.possible_objectives  # frozenset({('lift', 'maximize'), ('drag', 'minimize')})
 
 # Get the dataset
 dataset = problem.dataset
-first_design = np.array(dataset["features"][0])
+# Train your model and use it to predict designs!
+my_design = model.predict(desired_objs)
 
-# Evaluate a design
-problem.design_to_simulator_input(design=first_design, filename="first_design")
-problem.simulate(filename="first_design")
-
-# Optimize a design
-problem.optimize(starting_point="first_design")
+# Evaluate a design using a simulator
+objs = problem.simulate(design=my_design, config={"mach": 0.2, "reynolds": 1e6})
+# or optimize a design if available!
+opt_design, objs = problem.optimize(starting_point=my_design, config={"mach": 0.2, "reynolds": 1e6})
 ```

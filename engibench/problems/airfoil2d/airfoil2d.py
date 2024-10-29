@@ -65,7 +65,7 @@ class Airfoil2D(Problem):
         self.current_study_dir = self.__study_dir + f"_{self.seed}/"
         clone_template(template_dir=self.__template_dir, study_dir=self.current_study_dir)
 
-    def design_to_simulator_input(self, design: np.ndarray, filename: str = "design") -> str:
+    def __design_to_simulator_input(self, design: np.ndarray, filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
@@ -110,7 +110,11 @@ class Airfoil2D(Problem):
         return filename
 
     @overload
-    def simulate(self, design: str, config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, float]:
+    def simulate(self, design: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, float]:
+        # pre-process the design and run the simulation
+        filename = "candidate_design"
+        self.__design_to_simulator_input(design, filename)
+
         # Prepares the airfoil_analysis.py script with the simulation configuration
         base_config = {  # TODO Cashen Check those default values (in optimize too)
             "alpha": 1.5,
@@ -119,7 +123,7 @@ class Airfoil2D(Problem):
             "altitude": 10000,
             "temperature": 1.0,
             "output_dir": "'" + self.current_study_dir + "output/'",
-            "mesh_fname": "'" + self.current_study_dir + design + ".cgns'",
+            "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
             "task": "'analysis'",
         }
 
@@ -151,7 +155,13 @@ class Airfoil2D(Problem):
         subprocess.run(command, check=True)
         return {"lift": 0.0, "drag": 0.0}
 
-    def optimize(self, starting_point: str, config: dict[str, Any], mpicores: int = 4) -> tuple[Any, dict[str, float]]:
+    def optimize(
+        self, starting_point: np.ndarray, config: dict[str, Any], mpicores: int = 4
+    ) -> tuple[Any, dict[str, float]]:
+        # pre-process the design and run the simulation
+        filename = "candidate_design"
+        self.__design_to_simulator_input(starting_point, filename)
+
         # Prepares the optimize_airfoil.py script with the optimization configuration
         base_config = {
             "cl": 0.5,
@@ -161,8 +171,8 @@ class Airfoil2D(Problem):
             "opt": "'SLSQP'",
             "opt_options": {},
             "output_dir": "'" + self.current_study_dir + "output/'",
-            "ffd_fname": "'" + self.current_study_dir + starting_point + "_ffd.xyz'",
-            "mesh_fname": "'" + self.current_study_dir + starting_point + ".cgns'",
+            "ffd_fname": "'" + self.current_study_dir + filename + "_ffd.xyz'",
+            "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
         }
         base_config.update(config)
 
@@ -209,7 +219,7 @@ if __name__ == "__main__":
     first_design = np.array(dataset["features"][0])  # type: ignore
     # print("Design: ", first_design)
     # print("Shape: ", first_design.shape)
-    print(problem.design_to_simulator_input(first_design, filename="initial_design"))
+    print(problem.__design_to_simulator_input(first_design, filename="initial_design"))
     # print(problem.optimize(starting_point="initial_design", config={}, mpicores=8))
     print(problem.simulate("initial_design", config={}, mpicores=8))
     # history = pyoptsparse.History(problem._current_study_dir + "output/opt.hst")
