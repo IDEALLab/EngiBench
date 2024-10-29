@@ -20,7 +20,7 @@ problem = Airfoil2D()
 problem.reset(seed=0)
 
 # Inspect problem
-problem.design_space # Box(0.0, 1.0, (192,), float32)
+problem.design_space # Box(0.0, 1.0, (2, 192), float32)
 problem.possible_objectives # frozenset({('lift', 'maximize'), ('drag', 'minimize')})
 
 # Get the dataset
