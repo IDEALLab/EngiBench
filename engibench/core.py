@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import Any, ClassVar, Generic, TypeVar
+from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
 from gymnasium import spaces
@@ -21,26 +21,26 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
     The main API methods that users should use are:
     - :meth: `simulate` - to simulate a design and return the performance given some conditions.
-    - :meth: `optimize` - to optimize a design starting from a given point.
+    - :meth: `optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.
     - :meth: `design_to_simulator_input` - to convert a design (output of an algorithm) to an input of the simulation.
     - :meth: `simulator_input_to_design` - to convert a simulation input to a design (output of an algorithm).
 
-    There are some attritbutes that help understanding the problem:
-    - :attr: `input_space` - the inputs of simulator.
+    There are some attributes that help understanding the problem:
     - :attr: `possible_objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
     - :attr: `design_space` - the space of designs (outputs of algorithms).
     - :attr: `dataset_id` - a string identifier for the problem -- useful to pull datasets.
     - :attr: `dataset` - the dataset with designs and performances.
     - :attr: `container_id` - a string identifier for the singularity container.
+    - :attr: `input_space` - the inputs of simulator.
     """
 
     # Must be defined in subclasses
-    input_space: SimulatorInputType  # Simulator input (internal)
-    possible_objectives: ClassVar[dict[str, str]]  # Objective names and types (minimize or maximize)
+    possible_objectives: frozenset[[str, str]]  # Objective names and types (minimize or maximize)
     design_space: spaces.Space[DesignType]  # Design space (algorithm output)
     dataset_id: str  # String identifier for the problem (useful to pull datasets)
     dataset: Dataset  # Dataset with designs and performances
     container_id: str  # String identifier for the singularity container
+    input_space: SimulatorInputType  # Simulator input (internal)
 
     # This handles the RNG properly
     _np_random: np.random.Generator | None = None

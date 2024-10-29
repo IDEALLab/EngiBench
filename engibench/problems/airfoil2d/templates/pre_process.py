@@ -133,4 +133,4 @@ if __name__ == "__main__":
                         f.write("%.15f " % (ffd_box[i, j, k, ell]))
                     f.write("\n")
 
-    print("Generated files FFD and mesh")
+    print(f"Generated files FFD and mesh in ${ffd_fname}, ${mesh_fname}")
