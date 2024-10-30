@@ -35,7 +35,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     """
 
     # Must be defined in subclasses
-    possible_objectives: frozenset[[str, str]]  # Objective names and types (minimize or maximize)
+    possible_objectives: frozenset[tuple[str, str]]  # Objective names and types (minimize or maximize)
     design_space: spaces.Space[DesignType]  # Design space (algorithm output)
     dataset_id: str  # String identifier for the problem (useful to pull datasets)
     dataset: Dataset  # Dataset with designs and performances

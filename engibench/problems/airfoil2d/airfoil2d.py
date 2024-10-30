@@ -8,7 +8,7 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-from typing import Any, overload
+from typing import Any
 
 from datasets import load_dataset
 from gymnasium import spaces
@@ -31,17 +31,18 @@ class Airfoil2D(Problem):
     """
 
     input_space = str
-    possible_objectives: frozenset[[str, str]] = frozenset(
+    possible_objectives: frozenset[tuple[str, str]] = frozenset(
         {
             ("lift", "maximize"),
             ("drag", "minimize"),
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
-    dataset_id = "ffelten/test2"
+    dataset_id = "ffelten/airfoil_dataset"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
 
     def __init__(self, objectives: tuple[str, str] = ("lift", "drag")) -> None:
+        """Initializes the Airfoil2D problem."""
         super().__init__()
         self.seed = None
         # docker pull image
@@ -57,7 +58,12 @@ class Airfoil2D(Problem):
         self.dataset = load_dataset(self.dataset_id, split="train")
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
-        # Cleanup the previous study directory -- requires seed number
+        """Resets the simulator and numpy random to a given seed.
+
+        Args:
+            seed (int, optional): The seed to reset to. If None, a random seed is used.
+            cleanup (bool): Deletes the previous study directory if True.
+        """
         if cleanup:
             shutil.rmtree(self.__study_dir + f"_{self.seed}")
 
@@ -75,13 +81,13 @@ class Airfoil2D(Problem):
             design (np.ndarray): The design to convert.
             filename (str): The filename to save the design to.
         """
-        d
-        d = "n0012.dat"
+        # Save the design to a temporary file
+        np.savetxt(self.current_study_dir + filename + ".dat", design.transpose())
         # Prepares the preprocess.py script with the design
         replace_template_values(
             self.current_study_dir + "/pre_process.py",
             {
-                "design_fname": f"'{d}'",
+                "design_fname": f"'{self.current_study_dir}{filename}.dat'",
                 "tmp_xyz_fname": "'" + self.current_study_dir + "tmp.xyz'",
                 "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
                 "ffd_fname": "'" + self.current_study_dir + filename + "_ffd.xyz'",
@@ -109,8 +115,17 @@ class Airfoil2D(Problem):
         subprocess.run(command, check=True)
         return filename
 
-    @overload
     def simulate(self, design: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, float]:
+        """Simulates the performance of an airfoil design.
+
+        Args:
+            design (np.ndarray): The design to simulate.
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
+            mpicores (int): The number of MPI cores to use in the simulation.
+
+        Returns:
+            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
+        """
         # pre-process the design and run the simulation
         filename = "candidate_design"
         self.__design_to_simulator_input(design, filename)
@@ -156,8 +171,18 @@ class Airfoil2D(Problem):
         return {"lift": 0.0, "drag": 0.0}
 
     def optimize(
-        self, starting_point: np.ndarray, config: dict[str, Any], mpicores: int = 4
+        self, starting_point: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4
     ) -> tuple[Any, dict[str, float]]:
+        """Optimizes the design of an airfoil.
+
+        Args:
+            starting_point (np.ndarray): The starting point for the optimization.
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
+            mpicores (int): The number of MPI cores to use in the optimization.
+
+        Returns:
+            Tuple[np.ndarray, dict]: The optimized design and its performance.
+        """
         # pre-process the design and run the simulation
         filename = "candidate_design"
         self.__design_to_simulator_input(starting_point, filename)
@@ -208,7 +233,7 @@ class Airfoil2D(Problem):
             -1, -1
         ]
 
-        return starting_point, {"obj": objective}
+        return starting_point, {"obj": objective}  # TODO Cashen check the objective name
 
 
 if __name__ == "__main__":
@@ -216,45 +241,9 @@ if __name__ == "__main__":
     problem.reset(seed=0, cleanup=False)
     dataset = problem.dataset
 
-    first_design = np.array(dataset["features"][0])  # type: ignore
-    # print("Design: ", first_design)
-    # print("Shape: ", first_design.shape)
-    print(problem.__design_to_simulator_input(first_design, filename="initial_design"))
-    # print(problem.optimize(starting_point="initial_design", config={}, mpicores=8))
-    print(problem.simulate("initial_design", config={}, mpicores=8))
-    # history = pyoptsparse.History(problem._current_study_dir + "output/opt.hst")
-    # print(history.getObjNames())
-    # print(history.getValues(names=["obj"], callCounters=None, allowSens=True, major=False, scale=True)["obj"][-1, -1])
+    # Get design and conditions from the dataset
+    design = np.array(dataset["initial"][0])  # type: ignore
+    config_keys = dataset.features.keys() - ["initial", "optimized"]
+    config = {key: dataset[key][0] for key in config_keys}
 
-    # Get the file named fc_x_slices.dat with the highest x value
-    # last_slice_file = None
-    # largest_x = -1
-    # for file in os.listdir(problem._current_study_dir + "output/"):
-    #     if file.startswith("fc_") and file.endswith("_slices.dat"):
-    #         x = int(file.split("_")[1])
-    #         if last_slice_file is None or x > largest_x:
-    #             last_slice_file = problem._current_study_dir + "output/" + file
-    #             largest_x = x
-    # var_names = [
-    #     "CoordinateX",
-    #     "CoordinateY",
-    #     "CoordinateZ",
-    #     "XoC",
-    #     "YoC",
-    #     "ZoC",
-    #     "VelocityX",
-    #     "VelocityY",
-    #     "VelocityZ",
-    #     "CoefPressure",
-    #     "Mach",
-    # ]
-    # print("Last slice file: ", last_slice_file)
-    # # TODO see with Cashen how to extract shape from the file and convert to his format
-    # print(
-    #     pd.read_csv(
-    #         last_slice_file, sep=r"\s+", names=["fill1", "Nodes", "fill2", "Elements", "ZONETYPE"], skiprows=3, nrows=1
-    #     )
-    # )
-    # slice = pd.read_csv(last_slice_file, sep=r"\s+", names=var_names, skiprows=5)[["CoordinateX", "CoordinateY"]]
-    # slice = pd.read_csv(last_slice_file, sep=r"\s+", names=["NodeC1", "NodeC2"], skiprows=5)
-    # print(slice)
+    print(problem.optimize(design, config=config, mpicores=8))

@@ -31,10 +31,12 @@ dynamic = ["version"]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
-airfoil = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
+airfoil2d = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
 all = [
     # All dependencies above
     # NOTE: No need to manually remove the duplicates, setuptools automatically does that.
+    # Airfoil 2D
+    "pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0",
 ]
 
 testing = ["pytest ==8.3.2"]
@@ -129,7 +131,8 @@ select = [
 ignore = [
     "ANN101", # Typing self in function definition is not necessary
     "E501", # Ruff black style takes care of line length
-    "ANN003" # Kwargs type hinting is not necessary
+    "ANN003", # Kwargs type hinting is not necessary
+    "B006", # Do not use mutable default arguments
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
@@ -213,7 +216,7 @@ docstring-code-line-length = "dynamic"
 ###################################### PYRIGHT ########################################
 [tool.pyright]
 include = ["engibench/**"]
-exclude = ["**/node_modules", "**/__pycache__", "**/templates/**"]
+exclude = ["**/node_modules", "**/__pycache__", "**/templates/**", "**/study*"]
 strict = []
 
 typeCheckingMode = "basic"
@@ -229,6 +232,7 @@ reportMissingImports = "none"
 reportMissingTypeStubs = false
 # For warning and error, will raise an error when
 reportInvalidTypeVarUse = "none"
+reportOptionalSubscript = "none"
 
 reportGeneralTypeIssues = "none"  # -> commented out raises 489 errors
 # reportUntypedFunctionDecorator = "none"  # -> pytest.mark.parameterize issues
