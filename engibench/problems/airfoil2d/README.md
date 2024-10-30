@@ -1,31 +1,99 @@
+# Airfoil 2D
+
+**Lead**: Cashen Diniz @cashend
+
+Airfoil 2D is a benchmark problem that aims to optimize the shape of an airfoil to maximize the lift-to-drag ratio.
+We rely on MachAERO for the simulations. 
+
+## Side notes
+
 Here is the script I've used to upload the data to HF:
 
 ```python
+import pandas as pd
 import numpy as np
+import datasets
 from datasets import Dataset, DatasetDict
 
 
-train_split = np.load('train.npy')
-test_split = np.load('test.npy') # https://github.com/IDEALLab/OptimizingDiffusionSciTech2024/blob/main/data/optimized_data/test/opt_airfoils.npy
-datasets = []
-for split in [train_split, test_split]:
-    data_dict = {"features": split.tolist()}  # Convert numpy array to list
-    dataset = Dataset.from_dict(data_dict)
-    datasets.append(dataset)
+opt_train_airfoils, opt_test_airfoils, opt_val_airfoils = pd.read_pickle(
+    "train_test_val_opt_airfoils.pkl"
+)
+init_train_airfoils, init_test_airfoils, init_val_airfoils = pd.read_pickle(
+    "train_test_val_init_airfoils.pkl"
+)
+train_params, test_params, val_params = pd.read_pickle("train_test_val_opt_params.pkl")
 
-dataset_dict = DatasetDict({"train": datasets[0], "test": datasets[1]})
-dataset_dict.push_to_hub("ffelten/test2")
-```
+# For each airfoil, we need one row containing the initial and optimized airfoil, as well as the parameters
 
-Here is what it looks like on HF:
-![HF DS](image.png)
+dataset_train = []
 
-Now to pull the data
-```python
-import numpy as np
-from datasets import load_dataset
+for o, i, p in zip(opt_train_airfoils, init_train_airfoils, train_params):
+    dataset_train.append(
+        {
+            "initial": i,
+            "optimized": o,
+            "mach": p[0],
+            "reynolds": p[1],
+            "cl_target": p[2],
+            "area_target": p[3],
+            "alpha": p[4],
+            "area_initial": p[5],
+            "cd_val": p[6],
+            "cl_val": p[7],
+            "cl_con": p[8],
+            "area_con": p[9],
+        }
+    )
 
-dataset = load_dataset("ffelten/test2", split="train")
-# This gives a shape (2, 192)
-np.array(dataset["features"][0]).shape
+dataset_val = []
+
+for o, i, p in zip(opt_test_airfoils, init_test_airfoils, test_params):
+    dataset_val.append(
+        {
+            "initial": i,
+            "optimized": o,
+            "mach": p[0],
+            "reynolds": p[1],
+            "cl_target": p[2],
+            "area_target": p[3],
+            "alpha": p[4],
+            "area_initial": p[5],
+            "cd_val": p[6],
+            "cl_val": p[7],
+            "cl_con": p[8],
+            "area_con": p[9],
+        }
+    )
+
+dataset_testt = []
+
+for o, i, p in zip(opt_val_airfoils, init_val_airfoils, val_params):
+    dataset_testt.append(
+        {
+            "initial": i,
+            "optimized": o,
+            "mach": p[0],
+            "reynolds": p[1],
+            "cl_target": p[2],
+            "area_target": p[3],
+            "alpha": p[4],
+            "area_initial": p[5],
+            "cd_val": p[6],
+            "cl_val": p[7],
+            "cl_con": p[8],
+            "area_con": p[9],
+        }
+    )
+
+
+print("heh")
+# Create a huggingface dataset from the three splits above
+train_spit = Dataset.from_list(dataset_train)
+print(train_spit.shape)
+val_spit = Dataset.from_list(dataset_val)
+test_spit = Dataset.from_list(dataset_testt)
+dataset_dict = DatasetDict({"train": train_spit, "val": val_spit, "test": test_spit})
+dataset_dict.push_to_hub("IDEALLab/airfoil_2d")
+
 ```
