@@ -13,6 +13,7 @@ from typing import Any
 from datasets import load_dataset
 from gymnasium import spaces
 import numpy as np
+import pandas as pd
 import pyoptsparse
 
 from engibench.core import Problem
@@ -114,6 +115,55 @@ class Airfoil2D(Problem):
 
         subprocess.run(command, check=True)
         return filename
+
+    def simulator_output_to_design(self, simulator_output: str = None) -> np.ndarray:
+        """Converts a simulator input to a design.
+
+        Args:
+            simulator_output (str): The simulator input to convert.
+
+        Returns:
+            np.ndarray: The corresponding design.
+        """
+        if simulator_output is None:
+            # Take latest slice file
+            files = os.listdir(self.current_study_dir + "/output")
+            files = [f for f in files if f.endswith("_slices.dat")]
+            file_numbers = [int(f.split("_")[1]) for f in files]
+            simulator_output = files[file_numbers.index(max(file_numbers))]
+
+        slice_file = self.current_study_dir + "/output/" + simulator_output
+
+        # Define the variable names for columns
+        var_names = [
+            "CoordinateX",
+            "CoordinateY",
+            "CoordinateZ",
+            "XoC",
+            "YoC",
+            "ZoC",
+            "VelocityX",
+            "VelocityY",
+            "VelocityZ",
+            "CoefPressure",
+            "Mach",
+        ]
+
+        nelems = pd.read_csv(
+            slice_file, sep=r"\s+", names=["fill1", "Nodes", "fill2", "Elements", "ZONETYPE"], skiprows=3, nrows=1
+        )
+        nnodes = int(nelems["Nodes"].iloc[0])
+
+        # Read the main data and node connections
+        slice_df = pd.read_csv(slice_file, sep=r"\s+", names=var_names, skiprows=5, nrows=nnodes, engine="c")
+        # TODO Cashen is this necessary to extract the shape?
+        #  nodes_arr = pd.read_csv(slice_file, sep=r"\s+", names=["NodeC1", "NodeC2"], skiprows=5 + nnodes, engine="c")
+
+        # Concatenate node connections to the main data
+        # slice_df = pd.concat([slice_df, nodes_arr], axis=1)
+
+        design = slice_df[["CoordinateX", "CoordinateY"]].values.transpose()
+        return design
 
     def simulate(self, design: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, float]:
         """Simulates the performance of an airfoil design.
@@ -233,12 +283,15 @@ class Airfoil2D(Problem):
             -1, -1
         ]
 
-        return starting_point, {"obj": objective}  # TODO Cashen check the objective name
+        optimized_design = self.__simulator_output_to_design()
+
+        return optimized_design, {"obj": objective}  # TODO Cashen check the objective name
 
 
 if __name__ == "__main__":
     problem = Airfoil2D()
     problem.reset(seed=0, cleanup=False)
+
     dataset = problem.dataset
 
     # Get design and conditions from the dataset

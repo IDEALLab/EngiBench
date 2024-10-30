@@ -98,11 +98,11 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def __simulator_input_to_design(self, simulator_input: SimulatorInputType, **kwargs) -> DesignType:
+    def __simulator_output_to_design(self, simulator_output: SimulatorInputType, **kwargs) -> DesignType:
         r"""Convert a simulator input to a design.
 
         Args:
-            simulator_input (SimulatorInputType): The input to convert.
+            simulator_output (SimulatorInputType): The input to convert.
             **kwargs: Additional keyword arguments.
 
         Returns:
