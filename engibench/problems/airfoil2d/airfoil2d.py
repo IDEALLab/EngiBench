@@ -1,8 +1,4 @@
-"""Airfoil 2D problem.
-
-This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the MACHAERO simulator that computes the lift and drag coefficients of the airfoil.
-The Dataset linked to this problem is hosted on the Hugging Face Datasets Hub and is called "IDEALLab/airfoil_2d".
-"""
+"""Airfoil 2D problem."""
 
 from __future__ import annotations
 
@@ -23,19 +19,13 @@ from engibench.utils.files import replace_template_values
 
 
 class Airfoil2D(Problem):
-    r"""Airfoil 2D problem.
+    r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
-    This problem simulates the performance of an airfoil in a 2D environment. The performance is evaluated by a simulator that computes the lift and drag coefficients of the airfoil.
+    This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the [MACH-Aero](https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/) simulator that computes the lift and drag coefficients of the airfoil.
 
     ## Design space
-    The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in [0., 1.) per design) that define the airfoil shape.
-
-    ## Dataset
-    The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
-
-    ## Simulator
-    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+    The design space is represented by a 3D numpy array (vector of 192 `x`, `y` coordinates in `[0., 1.)` per design) that define the airfoil shape.
 
     ## Lead
     Cashen Diniz @cashend
