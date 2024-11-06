@@ -37,10 +37,12 @@ problem.possible_objectives  # frozenset({('lift', 'maximize'), ('drag', 'minimi
 # Get the dataset
 dataset = problem.dataset
 # Train your model and use it to predict designs!
-my_design = model.predict(desired_objs)
+for i in range(100):
+    desired_objs = ...
+    my_design = model.predict(desired_objs)
+    # Evaluate a design using a simulator
+    objs = problem.simulate(design=my_design, config={"mach": 0.2, "reynolds": 1e6})
 
-# Evaluate a design using a simulator
-objs = problem.simulate(design=my_design, config={"mach": 0.2, "reynolds": 1e6})
 # or optimize a design if available!
 opt_design, objs = problem.optimize(starting_point=my_design, config={"mach": 0.2, "reynolds": 1e6})
 ```

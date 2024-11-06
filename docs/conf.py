@@ -20,8 +20,7 @@ import os
 import engibench
 
 project = "EngiBench"
-copyright = "2025"
-author = "IDEALLab"
+author = "ETH Zurich's IDEAL Lab"
 
 # The full version, including alpha/beta/rc tags
 release = engibench.__version__
@@ -61,6 +60,7 @@ napoleon_custom_sections = [("Returns", "params_style")]
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+
 html_theme = "sphinx_book_theme"
 html_title = "EngiBench Documentation"
 html_baseurl = ""
@@ -80,6 +80,7 @@ html_theme_options = {
 
 html_static_path = ["_static"]
 html_css_files = []
+pygments_style = "native"
 
 # -- Generate Changelog -------------------------------------------------
 
