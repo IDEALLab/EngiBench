@@ -1,11 +1,11 @@
-![tests](https://github.com/IDEALLab/engibench/workflows/Python%20tests/badge.svg)
-[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 <p align="center">
 <img src="docs/\_static/img/logo_text_large.png" align="center" width="25%"/>
 </p>
 
+![tests](https://github.com/IDEALLab/engibench/workflows/Python%20tests/badge.svg)
+[![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
+[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 <!-- start elevator-pitch -->
 EngiBench offers a collection of engineering design problems, datasets, and benchmarks to facilitate the development and evaluation of optimization and machine learning algorithms for engineering design. Our goal is to provide a standard API to enable researchers to easily compare and evaluate their algorithms on a wide range of engineering design problems.
