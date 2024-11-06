@@ -33,7 +33,7 @@ problem.reset(seed=0)
 # Inspect problem
 problem.design_space  # Box(0.0, 1.0, (2, 192), float32)
 problem.possible_objectives  # frozenset({('lift', 'maximize'), ('drag', 'minimize')})
-problem.dataset
+problem.dataset # A HuggingFace Dataset object
 
 # Train your model and use it to predict designs!
 for i in range(100):
