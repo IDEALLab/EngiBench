@@ -3,6 +3,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
 <img src="docs/\_static/img/logo.png" align="right" width="20%"/>
+
 # EngiBench
 
 
