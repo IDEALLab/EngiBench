@@ -76,11 +76,12 @@ html_theme_options = {
     "source_repository": "https://github.com/IDEALLab/EngiBench",
     "source_branch": "main",
     "source_directory": "docs/",
+    "pygment_light_style": "default",
+    "pygment_dark_style": "native",
 }
 
 html_static_path = ["_static"]
 html_css_files = []
-pygments_style = "native"
 
 # -- Generate Changelog -------------------------------------------------
 
