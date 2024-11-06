@@ -66,12 +66,12 @@ html_title = "EngiBench Documentation"
 html_baseurl = ""
 html_logo = "_static/img/logo_text.png"
 html_copy_source = False
-html_favicon = "_static/img/logo.png"
+html_favicon = "_static/img/logo_2.png"
 html_theme_options = {
-    "light_logo": "_static/img/logo_text.png",
-    "dark_logo": "_static/img/logo_text.png",
+    "light_logo": "_static/img/logo_2.png",
+    "dark_logo": "_static/img/logo_2.png",
     "description": "EngiBench: A Benchmark Suite for Engineering Design Optimization",
-    "image": "_static/img/logo_text.png",
+    "image": "_static/img/logo_2.png",
     "versioning": True,
     "source_repository": "https://github.com/IDEALLab/EngiBench",
     "source_branch": "main",

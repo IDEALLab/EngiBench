@@ -1,6 +1,6 @@
 
 <p align="center">
-<img src="docs/\_static/img/logo_text_large.png" align="center" width="75%"/>
+<img src="docs/\_static/img/logo_text_large2.png" align="center" width="75%"/>
 </p>
 
 ![tests](https://github.com/IDEALLab/engibench/workflows/Python%20tests/badge.svg)
