@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
+from datasets import load_dataset
 from gymnasium import spaces
 import numpy as np
 
@@ -39,19 +40,34 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     - :attr:`dataset` - the dataset with designs and performances.
     - :attr:`container_id` - a string identifier for the singularity container.
     - :attr:`input_space` - the inputs of simulator.
+
+    Note:
+        This class is generic and should be subclassed to define the specific problem.
+
+    Note:
+        This class is parameterized with two types: `SimulatorInputType` and `DesignType`. `SimulatorInputType` is the type
+        of the input to the simulator (e.g. a file containing a mesh), while `DesignType` is the type of the design that is
+        optimized (e.g. a Numpy array representing the design).
     """
 
     # Must be defined in subclasses
     possible_objectives: frozenset[tuple[str, str]]  # Objective names and types (minimize or maximize)
     design_space: spaces.Space[DesignType]  # Design space (algorithm output)
     dataset_id: str  # String identifier for the problem (useful to pull datasets)
-    dataset: Dataset  # Dataset with designs and performances
+    _dataset: Dataset  # Dataset with designs and performances
     container_id: str  # String identifier for the singularity container
     input_space: SimulatorInputType  # Simulator input (internal)
 
     # This handles the RNG properly
     _np_random: np.random.Generator | None = None
     _np_random_seed: int | None = None
+
+    @property
+    def dataset(self) -> Dataset:
+        """Pulls the dataset if it is not already loaded."""
+        if self._dataset is None:
+            self._dataset = load_dataset(self.dataset_id)
+        return self._dataset
 
     def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> dict[str, float]:
         r"""Launch a simulation on the given design and return the performance.

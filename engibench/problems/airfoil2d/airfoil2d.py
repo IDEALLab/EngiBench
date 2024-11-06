@@ -7,7 +7,6 @@ import shutil
 import subprocess
 from typing import Any
 
-from datasets import load_dataset
 from gymnasium import spaces
 import numpy as np
 import pandas as pd
@@ -16,6 +15,15 @@ import pyoptsparse
 from engibench.core import Problem
 from engibench.utils.files import clone_template
 from engibench.utils.files import replace_template_values
+
+
+def build(**kwargs) -> Airfoil2D:
+    """Builds an Airfoil2D problem.
+
+    Args:
+        **kwargs: Arguments to pass to the constructor.
+    """
+    return Airfoil2D(**kwargs)
 
 
 class Airfoil2D(Problem):
@@ -41,13 +49,12 @@ class Airfoil2D(Problem):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
     dataset_id = "IDEALLab/airfoil_2d"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
+    _dataset = None
 
     def __init__(self, objectives: tuple[str, str] = ("lift", "drag")) -> None:
         """Initializes the Airfoil2D problem."""
         super().__init__()
         self.seed = None
-        # docker pull image
-        subprocess.run(["docker", "pull", self.container_id], check=True)
 
         # This is used for intermediate files
         self.__common_dir = "engibench/problems/airfoil2d/"
@@ -56,7 +63,6 @@ class Airfoil2D(Problem):
         self.current_study_dir = self.__study_dir + f"_{self.seed}/"
 
         self.objectives: set[str] = set(objectives)
-        self.dataset = load_dataset(self.dataset_id, split="train")
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -65,6 +71,8 @@ class Airfoil2D(Problem):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
             cleanup (bool): Deletes the previous study directory if True.
         """
+        # docker pull image if not already pulled
+        subprocess.run(["docker", "pull", self.container_id], check=True)
         if cleanup:
             shutil.rmtree(self.__study_dir + f"_{self.seed}")
 

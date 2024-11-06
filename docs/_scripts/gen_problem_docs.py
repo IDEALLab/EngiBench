@@ -35,29 +35,45 @@ def trim(docstring: str) -> str:
     return "\n".join(trimmed)
 
 
-for problem_id, constructor in tqdm(all_problems.items()):
-    print(f"Generating docs for {problem_id}, {constructor}")
+# Only produces the latest version of each problem
+filtered_problems = {}
+for problem_id, constructor in all_problems.items():
+    prob_version = problem_id.split("_v")[-1]
+    problem_id_without_version = "".join(problem_id.split("_")[:-1])
+    if problem_id_without_version not in filtered_problems:
+        filtered_problems[problem_id_without_version] = prob_version, constructor
+    else:
+        if prob_version > filtered_problems[problem_id_without_version][1]:
+            filtered_problems[problem_id_without_version] = prob_version, constructor
 
-    docstring = constructor.__doc__
+print(filtered_problems)
+
+
+# Now generates the markdown files
+for problem_id, (version, constructor) in tqdm(filtered_problems.items()):
+    print(f"Generating docs for {problem_id}, {version}, {constructor}")
+    prob = constructor.build()
+
+    docstring = prob.__doc__
     if not docstring:
-        docstring = constructor.__class__.__doc__
+        docstring = prob.__class__.__doc__
     docstring = trim(docstring)
 
     problem_title = problem_id.replace("_", " ").title()
     problem_pkg = problem_id.replace("_", "").lower()
 
     objective_str = ""
-    for obj, direction in constructor.possible_objectives:
+    for obj, direction in prob.possible_objectives:
         objective_str += f"{obj}: &uarr;<br>" if direction == "maximize" else f"{obj}: &darr;<br>"
     objective_str = objective_str[:-4]  # remove the last <br>
 
     title = f"# {problem_title}"
     prob_table = "|  |  |\n| --- | --- |\n"
     prob_table += f"| Objectives | {objective_str} |\n"
-    prob_table += f"| Design space | {constructor.design_space} |\n"
-    prob_table += f"| Dataset | [{constructor.dataset_id}](https://huggingface.co/datasets/{constructor.dataset_id}) |\n"
-    prob_table += f"| Container | `{constructor.container_id}` |\n"
-    prob_table += f"| Import | `from engibench.problems.{problem_pkg} import {constructor.__name__}` |\n"
+    prob_table += f"| Design space | {prob.design_space} |\n"
+    prob_table += f"| Dataset | [{prob.dataset_id}](https://huggingface.co/datasets/{prob.dataset_id}) |\n"
+    prob_table += f"| Container | `{prob.container_id}` |\n"
+    prob_table += f"| Import | `from engibench.problems.{problem_pkg} import {problem_id}_v{version}` |\n"
 
     all_text = f"""{title}
 {prob_table}
