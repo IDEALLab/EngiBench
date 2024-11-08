@@ -53,6 +53,39 @@ opt_design, objs = problem.optimize(starting_point=my_design, config={"mach": 0.
 ```
 <!-- end api -->
 
+## Development
+
+Clone the repo and install the pre-commit hooks:
+
+```bash
+git clone git@github.com:IDEALLab/EngiBench.git
+cd EngiBench
+pre-commit install
+```
+
+### Adding a new problem
+<!-- start new_problem -->
+In general, follow the `airfoil2d/` example.
+
+#### Code
+1. Create a new problem file in `engibench/problems/` following the existing structure.
+2. Add the problem to the `__init__.py` file in the same directory.
+3. Create your environment file and class, implementing the `Problem` interface. Complete your docstring thoroughly, LLMs + coding IDE will help a lot.
+4. Add a `build` function to the problem file that returns an instance of your problem.
+5. Add a file `my_problem_v0.py` in the folder. It just exposes the `build` function.
+6. Add your problem in `utils/all_problems.py` to register it.
+
+#### Documentation
+1. `cd docs` and run `pip install -r requirements.txt` to install the necessary packages.
+2. Run `python _scripts/gen_problems_docs.py` and pray.
+3. If it is a new problem family, add a new `.md` file in `docs/problems/` following the existing structure and add your problem family in the `toctree` of `docs/problems/index.md`.
+4. Add your problem markdown file to the `toctree` in `docs/problems/your_problem_family.md`.
+5. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
+6. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
+
+Congrats! You can commit your changes and open a PR.
+<!-- end new_problem -->
+
 ## Citing
 
 <!-- start citing -->

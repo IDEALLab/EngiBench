@@ -56,7 +56,9 @@ problems/heat_sink
 :glob:
 :caption: Tutorials
 
+tutorials/*
 ```
+
 
 ```{toctree}
 :hidden:
