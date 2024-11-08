@@ -18,6 +18,12 @@ EngiBench offers a collection of engineering design problems, datasets, and benc
 ```bash
 pip install -e .
 ```
+
+If you want to install with additional dependencies for a specific envs, e.g., airfoil2d, run:
+
+```bash
+pip install -e ".[airfoil2d]"
+```
 <!-- end install -->
 
 ## API

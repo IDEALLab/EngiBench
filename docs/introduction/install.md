@@ -8,6 +8,12 @@
 pip install engibench
 ```
 
+You can also specify additional dependencies for specific problems:
+
+```bash
+pip install "engibench[airfoil2d]"
+```
+
 
 ## From source
 
