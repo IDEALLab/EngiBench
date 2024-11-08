@@ -124,7 +124,7 @@ class Airfoil2D(Problem):
         subprocess.run(command, check=True)
         return filename
 
-    def simulator_output_to_design(self, simulator_output: str = None) -> np.ndarray:
+    def __simulator_output_to_design(self, simulator_output: str = None) -> np.ndarray:
         """Converts a simulator input to a design.
 
         Args:
