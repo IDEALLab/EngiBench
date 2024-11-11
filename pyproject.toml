@@ -22,17 +22,23 @@ classifiers = [
     'Topic :: Scientific/Engineering :: Artificial Intelligence',
 ]
 dependencies = [
-    "numpy >=2.0.0",
+    "numpy <=2.0",
     "gymnasium >= 1.0.0a1",
+    "datasets[vision] >= 2.21.0", # imports modules with image features
+    "pandas >= 2.2.3",
 ]
 dynamic = ["version"]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
+airfoil2d = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
 all = [
     # All dependencies above
     # NOTE: No need to manually remove the duplicates, setuptools automatically does that.
+    # Airfoil 2D
+    "pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0",
 ]
+
 testing = ["pytest ==8.3.2"]
 
 [project.urls]
@@ -45,7 +51,7 @@ Documentation = "TODO"
 include-package-data = true
 
 [tool.setuptools.packages.find]
-include = []
+include = ["engibench", "engibench.*"]
 
 [tool.setuptools.package-data]
 engibench = [
@@ -83,7 +89,9 @@ exclude = [
     "dist",
     "node_modules",
     "site-packages",
+    "templates",
     "venv",
+    "docs",
 ]
 
 # Same as Black.
@@ -123,7 +131,9 @@ select = [
     ]
 ignore = [
     "ANN101", # Typing self in function definition is not necessary
-    "E501" # Ruff black style takes care of line length
+    "E501", # Ruff black style takes care of line length
+    "ANN003", # Kwargs type hinting is not necessary
+    "B006", # Do not use mutable default arguments
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.
@@ -162,6 +172,7 @@ order-by-type = false
 ]
 "*/__init__.py" = [
     "F401",    # Module imported but unused
+    "D104",    # D104 - Package dostrings not required in init files.
     "E402"
 ]
 "docs/**" = [
@@ -205,8 +216,8 @@ docstring-code-line-length = "dynamic"
 
 ###################################### PYRIGHT ########################################
 [tool.pyright]
-include = ["engibench/**", "tests/**"]
-exclude = ["**/node_modules", "**/__pycache__"]
+include = ["engibench/**"]
+exclude = ["**/node_modules", "**/__pycache__", "**/templates/**", "**/study*"]
 strict = []
 
 typeCheckingMode = "basic"
@@ -222,12 +233,9 @@ reportMissingImports = "none"
 reportMissingTypeStubs = false
 # For warning and error, will raise an error when
 reportInvalidTypeVarUse = "none"
+reportOptionalSubscript = "none"
 
-reportUnknownMemberType = "warning"  # -> raises warnings
-reportUnknownParameterType = "warning"  # -> raises warnings
-reportUnknownVariableType = "warning"  # -> raises warnings
-reportUnknownArgumentType = "warning"  # -> raises warnings
-# reportGeneralTypeIssues = "none"  # -> commented out raises 489 errors
+reportGeneralTypeIssues = "none"  # -> commented out raises 489 errors
 # reportUntypedFunctionDecorator = "none"  # -> pytest.mark.parameterize issues
 
 # reportOptionalMemberAccess = "none" # -> commented out raises warnings
