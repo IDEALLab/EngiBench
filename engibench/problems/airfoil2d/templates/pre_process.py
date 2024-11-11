@@ -26,13 +26,9 @@ import prefoil
 
 if __name__ == "__main__":
 
-    # Use .dat file as input. # TODO: Add the support for numpy files. 
-    # with open(args.input_fname, "rb") as f:
-    #     design = np.load(f)
-    design = np.loadtxt($design_fname)
-    coords = prefoil.utils.readCoordFile(design)
+    coords = prefoil.utils.readCoordFile($design_fname)
     airfoil = prefoil.Airfoil(coords)
-    airfoil.makeBluntTE(xCut=$xCut)
+    # TODO Cashen airfoil.makeBluntTE(xCut=$xCut)
     N_sample = $N_sample
     nTEPts = $nTEPts
 
@@ -46,21 +42,19 @@ if __name__ == "__main__":
     # Write a fitted FFD with 10 chordwise points
     ffd_ymarginu = $ffd_ymarginu
     ffd_ymarginl = $ffd_ymarginl
-    ffd_fname = "$ffd_fname"
+    ffd_fname = $ffd_fname
     ffd_pts = $ffd_pts
     airfoil.generateFFD(ffd_pts, ffd_fname, ymarginu=ffd_ymarginu, ymarginl=ffd_ymarginl)
 
     # write out plot3d
-    P3D_fname = "coords.xyz"
-    P3D_fname_path = os.path.join(os.path.dirname(__file__), P3D_fname)
-    airfoil.writeCoords(P3D_fname_path[:-4], file_format="plot3d")
+    airfoil.writeCoords($tmp_xyz_fname, file_format="plot3d")
 
     # GenOptions
     options = {
         # ---------------------------
         #        Input Parameters
         # ---------------------------
-        "inputFile": P3D_fname,
+        "inputFile": $tmp_xyz_fname + ".xyz",
         "unattachedEdgesAreSymmetry": False,
         "outerFaceBC": "farfield",
         "autoConnect": True,

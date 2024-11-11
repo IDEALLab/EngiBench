@@ -31,6 +31,11 @@ class Airfoil2D(Problem):
     ## Design space
     The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in [0., 1.) per design) that define the airfoil shape.
 
+    ## Boundary conditions
+    The boundary conditions are defined by the following parameters:
+    - `s0`: Off-the-wall spacing for the purpose of modeling the boundary layer.
+    - `marchDist`: Distance to march the grid from the airfoil surface.
+
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
 
@@ -44,15 +49,21 @@ class Airfoil2D(Problem):
     input_space = str
     possible_objectives: frozenset[tuple[str, str]] = frozenset(
         {
-            ("lift", "maximize"),
-            ("drag", "minimize"),
+            ("cd", "minimize"),
+            ("cl", "maximize"),
+        }
+    )
+    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+        {
+            ("s0", 3e-6),
+            ("marchDist", 100.0),
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
     dataset_id = "IDEALLab/airfoil_2d"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
 
-    def __init__(self, objectives: tuple[str, str] = ("lift", "drag")) -> None:
+    def __init__(self) -> None:
         """Initializes the Airfoil2D problem."""
         super().__init__()
         self.seed = None
@@ -65,7 +76,6 @@ class Airfoil2D(Problem):
         self.__study_dir = self.__common_dir + "study"
         self.current_study_dir = self.__study_dir + f"_{self.seed}/"
 
-        self.objectives: set[str] = set(objectives)
         self.dataset = load_dataset(self.dataset_id, split="train")
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
@@ -94,15 +104,27 @@ class Airfoil2D(Problem):
         """
         # Save the design to a temporary file
         np.savetxt(self.current_study_dir + filename + ".dat", design.transpose())
+
+        base_config = {
+            "design_fname": f"'{self.current_study_dir}{filename}.dat'",
+            "tmp_xyz_fname": "'" + self.current_study_dir + "tmp'",
+            "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
+            "ffd_fname": "'" + self.current_study_dir + filename + "_ffd'",
+            "N_sample": 180,
+            "nTEPts": 4,
+            "xCut": 0.99,
+            "ffd_ymarginu": 0.02,
+            "ffd_ymarginl": 0.02,
+            "ffd_pts": 10,
+            "N_grid": 100,
+        }
+        # Adds the boundary conditions to the configuration
+        base_config.update(self.boundary_conditions)
+
         # Prepares the preprocess.py script with the design
         replace_template_values(
             self.current_study_dir + "/pre_process.py",
-            {
-                "design_fname": f"'{self.current_study_dir}{filename}.dat'",
-                "tmp_xyz_fname": "'" + self.current_study_dir + "tmp.xyz'",
-                "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
-                "ffd_fname": "'" + self.current_study_dir + filename + "_ffd.xyz'",
-            },
+            base_config,
         )
 
         # Launches a docker container with the pre_process.py script
@@ -187,8 +209,7 @@ class Airfoil2D(Problem):
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
         # pre-process the design and run the simulation
-        filename = "candidate_design"
-        self.__design_to_simulator_input(design, filename)
+        self.__design_to_simulator_input(design)
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
         base_config = {
@@ -196,22 +217,15 @@ class Airfoil2D(Problem):
             "mach": 0.8,
             "reynolds": 1e6,
             "altitude": 10000,
-            "temperature": 223.150, # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            "temperature": 223.150,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
             "output_dir": "'" + self.current_study_dir + "output/'",
-            "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
-            "task": "'analysis'", # TODO: We can add the option to perform a polar analysis. 
-            "N_sample": 180,
-            "nTEPts": 4,
-            "xCut": 0.99,
-            "ffd_ymarginu": 0.02,
-            "ffd_ymarginl": 0.02,
-            "ffd_pts": 10,
-            "N_grid": 100,
-            "s0": 3e-6,
-            "marchDist": 100,
+            "mesh_fname": "'" + self.current_study_dir + "design.cgns'",
+            "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.
         }
 
+        base_config.update(self.boundary_conditions)
         base_config.update(config)
+
         replace_template_values(
             self.current_study_dir + "/airfoil_analysis.py",
             base_config,
@@ -237,7 +251,11 @@ class Airfoil2D(Problem):
         ]
 
         subprocess.run(command, check=True)
-        return {"lift": 0.0, "drag": 0.0}
+
+        outputs = np.load(self.current_study_dir + "output/outputs.npy")
+        lift = float(outputs[3])
+        drag = float(outputs[4])
+        return {"cd": drag, "cl": lift}
 
     def optimize(
         self, starting_point: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4
@@ -261,22 +279,15 @@ class Airfoil2D(Problem):
             "cl": 0.5,
             "alpha": 1.5,
             "mach": 0.75,
-            "altitude": 10000, # add temperature (default 223.150) + reynolds (default 6.31E6) + reynoldsLength (default 1) option
+            "altitude": 10000,  # add temperature (default 223.150) + reynolds (default 6.31E6) + reynoldsLength (default 1) option
             "opt": "'SLSQP'",
             "opt_options": {},
             "output_dir": "'" + self.current_study_dir + "output/'",
             "ffd_fname": "'" + self.current_study_dir + filename + "_ffd.xyz'",
             "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
-            "N_sample": 180,
-            "nTEPts": 4,
-            "xCut": 0.99,
-            "ffd_ymarginu": 0.02,
-            "ffd_ymarginl": 0.02,
-            "ffd_pts": 10,
-            "N_grid": 100,
-            "s0": 3e-6,
-            "marchDist": 100,
         }
+
+        base_config.update(self.boundary_conditions)
         base_config.update(config)
 
         replace_template_values(
@@ -313,7 +324,7 @@ class Airfoil2D(Problem):
 
         optimized_design = self.__simulator_output_to_design()
 
-        return optimized_design, {"obj": objective}  # TODO Cashen check the objective name
+        return optimized_design, {"cd": objective}
 
 
 if __name__ == "__main__":

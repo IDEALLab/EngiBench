@@ -103,40 +103,36 @@ if __name__ == "__main__":
         # Common Parameters
         "gridFile": $mesh_fname,
         "outputDirectory": $output_dir,
+        #"writeSurfaceSolution": False,
+        "writeVolumeSolution": False,
+        "writeTecplotSurfaceSolution": True,
+        "monitorvariables": ["cl", "cd", "yplus"],
         # Physics Parameters
         "equationType": "RANS",
         "smoother": "DADI",
-        "MGCycle": "sg",
-        "nCycles": 20000,
-        "monitorvariables": ["resrho", "cl", "cd"],
+        "nCycles": 5000,
+        "rkreset": True,
+        "nrkreset": 10,
+        # NK Options
         "useNKSolver": True,
+        "nkswitchtol": 1e-8,
+        # ANK Options
         "useanksolver": True,
-        "nsubiterturb": 10,
+        "ankswitchtol": 1e-1,
+        # "ANKCoupledSwitchTol": 1e-6,
+        # "ANKSecondOrdSwitchTol": 1e-5,
         "liftIndex": 2,
         "infchangecorrection": True,
+        "nsubiterturb": 10,
         # Convergence Parameters
-        "L2Convergence": 1e-15,
+        "L2Convergence": 1e-8,
         "L2ConvergenceCoarse": 1e-4,
         # Adjoint Parameters
         "adjointSolver": "GMRES",
-        "adjointL2Convergence": 1e-12,
+        "adjointL2Convergence": 1e-8,
         "ADPC": True,
-        "adjointMaxIter": 5000,
-        "adjointSubspaceSize": 400,
-        "ILUFill": 3,
-        "ASMOverlap": 3,
-        "outerPreconIts": 3,
-        "NKSubSpaceSize": 400,
-        "NKASMOverlap": 4,
-        "NKPCILUFill": 4,
-        "NKJacobianLag": 5,
-        "nkswitchtol": 1e-6,
-        "nkouterpreconits": 3,
-        "NKInnerPreConIts": 3,
-        "writeSurfaceSolution": False,
-        "writeVolumeSolution": False,
-        "frozenTurbulence": False,
-        "restartADjoint": False,
+        "adjointMaxIter": 1000,
+        "adjointSubspaceSize": 200,
     }
 
     # Create solver
@@ -146,13 +142,13 @@ if __name__ == "__main__":
     # ======================================================================
     ap = AeroProblem(name="fc", alpha=alpha, mach=mach, altitude=alt, areaRef=1.0, chordRef=1.0, evalFuncs=["cl", "cd"])
     # Add angle of attack variable
-    ap.addDV("alpha", value=alpha, lower=0, upper=10.0, scale=1.0)
+    ap.addDV("alpha", value=alpha, lower=0.0, upper=10.0, scale=1.0)
     # ======================================================================
     #         Geometric Design Variable Set-up
     # ======================================================================
     # Create DVGeometry object
     DVGeo = DVGeometry($ffd_fname)
-    DVGeo.addLocalDV("shape", lower=-0.05, upper=0.05, axis="y", scale=1.0)
+    DVGeo.addLocalDV("shape", lower=-0.025, upper=0.025, axis="y", scale=1.0)
 
     span = 1.0
     pos = np.array([0.5]) * span
@@ -194,12 +190,14 @@ if __name__ == "__main__":
         indSetB.append(lIndex[i, 1, 1])
     DVCon.addLinearConstraintsShape(indSetA, indSetB, factorA=1.0, factorB=-1.0, lower=0, upper=0)
 
-    le = 0.0001
+    le = 0.010001
     leList = [[le, 0, le], [le, 0, 1.0 - le]]
     teList = [[1.0 - le, 0, le], [1.0 - le, 0, 1.0 - le]]
 
-    DVCon.addVolumeConstraint(leList, teList, 2, 100, lower=1, scaled=True)
+    DVCon.addVolumeConstraint(leList, teList, 2, 100, lower=1, upper=1.2, scaled=True)
     DVCon.addThicknessConstraints2D(leList, teList, 2, 100, lower=0.1, upper=3.0)
+    # Final constraint to keep TE thickness at original or greater
+    DVCon.addThicknessConstraints1D(ptList=teList, nCon=2, axis=[0, 1, 0], lower=1.0, scaled=True)
 
     if comm.rank == 0:
         fileName = os.path.join($output_dir, "constraints.dat")
