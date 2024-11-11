@@ -191,15 +191,24 @@ class Airfoil2D(Problem):
         self.__design_to_simulator_input(design, filename)
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
-        base_config = {  # TODO Cashen Check those default values (in optimize too)
+        base_config = {
             "alpha": 1.5,
             "mach": 0.8,
             "reynolds": 1e6,
             "altitude": 10000,
-            "temperature": 1.0,
+            "temperature": 223.150, # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
             "output_dir": "'" + self.current_study_dir + "output/'",
             "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
-            "task": "'analysis'",
+            "task": "'analysis'", # TODO: We can add the option to perform a polar analysis. 
+            "N_sample": 180,
+            "nTEPts": 4,
+            "xCut": 0.99,
+            "ffd_ymarginu": 0.02,
+            "ffd_ymarginl": 0.02,
+            "ffd_pts": 10,
+            "N_grid": 100,
+            "s0": 3e-6,
+            "marchDist": 100,
         }
 
         base_config.update(config)
@@ -252,12 +261,21 @@ class Airfoil2D(Problem):
             "cl": 0.5,
             "alpha": 1.5,
             "mach": 0.75,
-            "altitude": 10000,
+            "altitude": 10000, # add temperature (default 223.150) + reynolds (default 6.31E6) + reynoldsLength (default 1) option
             "opt": "'SLSQP'",
             "opt_options": {},
             "output_dir": "'" + self.current_study_dir + "output/'",
             "ffd_fname": "'" + self.current_study_dir + filename + "_ffd.xyz'",
             "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
+            "N_sample": 180,
+            "nTEPts": 4,
+            "xCut": 0.99,
+            "ffd_ymarginu": 0.02,
+            "ffd_ymarginl": 0.02,
+            "ffd_pts": 10,
+            "N_grid": 100,
+            "s0": 3e-6,
+            "marchDist": 100,
         }
         base_config.update(config)
 
