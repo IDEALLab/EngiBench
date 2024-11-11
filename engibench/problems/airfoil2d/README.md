@@ -3,7 +3,7 @@
 **Lead**: Cashen Diniz @cashend
 
 Airfoil 2D is a benchmark problem that aims to optimize the shape of an airfoil to maximize the lift-to-drag ratio.
-We rely on MachAERO for the simulations. 
+We rely on MACH-Aero for the simulations. 
 
 ## Side notes
 
