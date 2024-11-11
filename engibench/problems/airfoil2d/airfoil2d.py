@@ -1,8 +1,4 @@
-"""Airfoil 2D problem.
-
-This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the MACHAERO simulator that computes the lift and drag coefficients of the airfoil.
-The Dataset linked to this problem is hosted on the Hugging Face Datasets Hub and is called "IDEALLab/airfoil_2d".
-"""
+"""Airfoil 2D problem."""
 
 from __future__ import annotations
 
@@ -11,7 +7,6 @@ import shutil
 import subprocess
 from typing import Any
 
-from datasets import load_dataset
 from gymnasium import spaces
 import numpy as np
 import pandas as pd
@@ -22,11 +17,20 @@ from engibench.utils.files import clone_template
 from engibench.utils.files import replace_template_values
 
 
+def build(**kwargs) -> Airfoil2D:
+    """Builds an Airfoil2D problem.
+
+    Args:
+        **kwargs: Arguments to pass to the constructor.
+    """
+    return Airfoil2D(**kwargs)
+
+
 class Airfoil2D(Problem):
-    r"""Airfoil 2D problem.
+    r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
-    This problem simulates the performance of an airfoil in a 2D environment. The performance is evaluated by a simulator that computes the lift and drag coefficients of the airfoil.
+    This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the [MACH-Aero](https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/) simulator that computes the lift and drag coefficients of the airfoil.
 
     ## Design space
     The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in [0., 1.) per design) that define the airfoil shape.
@@ -62,13 +66,12 @@ class Airfoil2D(Problem):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
     dataset_id = "IDEALLab/airfoil_2d"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
+    _dataset = None
 
     def __init__(self) -> None:
         """Initializes the Airfoil2D problem."""
         super().__init__()
         self.seed = None
-        # docker pull image
-        subprocess.run(["docker", "pull", self.container_id], check=True)
 
         # This is used for intermediate files
         self.__common_dir = "engibench/problems/airfoil2d/"
@@ -85,6 +88,8 @@ class Airfoil2D(Problem):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
             cleanup (bool): Deletes the previous study directory if True.
         """
+        # docker pull image if not already pulled
+        subprocess.run(["docker", "pull", self.container_id], check=True)
         if cleanup:
             shutil.rmtree(self.__study_dir + f"_{self.seed}")
 
@@ -148,7 +153,7 @@ class Airfoil2D(Problem):
         subprocess.run(command, check=True)
         return filename
 
-    def simulator_output_to_design(self, simulator_output: str = None) -> np.ndarray:
+    def __simulator_output_to_design(self, simulator_output: str = None) -> np.ndarray:
         """Converts a simulator input to a design.
 
         Args:

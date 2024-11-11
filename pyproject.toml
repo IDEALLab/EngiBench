@@ -91,6 +91,7 @@ exclude = [
     "site-packages",
     "templates",
     "venv",
+    "docs",
 ]
 
 # Same as Black.
