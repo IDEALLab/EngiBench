@@ -35,6 +35,11 @@ class Airfoil2D(Problem):
     ## Design space
     The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in [0., 1.) per design) that define the airfoil shape.
 
+    ## Objectives
+    The objectives are defined by the following parameters:
+    - `cd`: Drag coefficient to minimize.
+    - `cl`: Lift coefficient to maximize.
+
     ## Boundary conditions
     The boundary conditions are defined by the following parameters:
     - `s0`: Off-the-wall spacing for the purpose of modeling the boundary layer.
@@ -78,8 +83,6 @@ class Airfoil2D(Problem):
         self.__template_dir = self.__common_dir + "templates"
         self.__study_dir = self.__common_dir + "study"
         self.current_study_dir = self.__study_dir + f"_{self.seed}/"
-
-        self.dataset = load_dataset(self.dataset_id, split="train")
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.

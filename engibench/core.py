@@ -35,6 +35,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     There are some attributes that help understanding the problem:
 
     - :attr:`possible_objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
+    - :attr:`boundary_conditions` - the boundary conditions for the design problem.
     - :attr:`design_space` - the space of designs (outputs of algorithms).
     - :attr:`dataset_id` - a string identifier for the problem -- useful to pull datasets.
     - :attr:`dataset` - the dataset with designs and performances.
@@ -52,6 +53,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
     # Must be defined in subclasses
     possible_objectives: frozenset[tuple[str, str]]  # Objective names and types (minimize or maximize)
+    boundary_conditions: frozenset[tuple[str, Any]]  # Boundary conditions for the design problem
     design_space: spaces.Space[DesignType]  # Design space (algorithm output)
     dataset_id: str  # String identifier for the problem (useful to pull datasets)
     _dataset: Dataset  # Dataset with designs and performances

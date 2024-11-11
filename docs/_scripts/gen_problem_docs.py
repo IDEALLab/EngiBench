@@ -67,10 +67,16 @@ for problem_id, (version, constructor) in tqdm(filtered_problems.items()):
         objective_str += f"{obj}: &uarr;<br>" if direction == "maximize" else f"{obj}: &darr;<br>"
     objective_str = objective_str[:-4]  # remove the last <br>
 
+    boundary_str = ""
+    for cond, value in prob.boundary_conditions:
+        boundary_str += f"{cond}: {value}<br>"
+    boundary_str = boundary_str[:-4]  # remove the last <br>
+
     title = f"# {problem_title}"
     prob_table = "|  |  |\n| --- | --- |\n"
-    prob_table += f"| Objectives | {objective_str} |\n"
     prob_table += f"| Design space | {prob.design_space} |\n"
+    prob_table += f"| Objectives | {objective_str} |\n"
+    prob_table += f"| Boundary conditions | {boundary_str} |\n"
     prob_table += f"| Dataset | [{prob.dataset_id}](https://huggingface.co/datasets/{prob.dataset_id}) |\n"
     prob_table += f"| Container | `{prob.container_id}` |\n"
     prob_table += f"| Import | `from engibench.problems.{problem_pkg} import {problem_id}_v{version}` |\n"
