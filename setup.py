@@ -15,5 +15,4 @@ def get_version():
     raise RuntimeError("bad version data in __init__.py")
 
 
-print("aaaaaaaaa", get_version())
 setup(name="engibench", version=get_version(), long_description=open("README.md").read())

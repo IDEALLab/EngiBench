@@ -11,17 +11,19 @@ repos:
       - id: check-yaml
       - id: check-toml
       - id: check-ast
+        exclude: .*/templates/
       - id: check-merge-conflict
       - id: check-executables-have-shebangs
       - id: check-shebang-scripts-are-executable
       - id: detect-private-key
       - id: debug-statements
+        exclude: .*/templates/
   - repo: https://github.com/codespell-project/codespell
     rev: v2.3.0
     hooks:
       - id: codespell
         args:
-          - --ignore-words-list=mor
+          - --ignore-words-list=mor,le,te
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.3
     hooks:
