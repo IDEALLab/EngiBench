@@ -23,7 +23,7 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
     .. code::
 
         >>> problem.possible_objectives
-        [('lift', 'maximize'), ('drag', 'minimize')]
+        frozenset({('lift', 'maximize'), ('drag', 'minimize')})
         
 .. autoattribute:: engibench.core.Problem.boundary_conditions
 
@@ -32,7 +32,7 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
     .. code::
 
         >>> problem.boundary_conditions
-        [('marchDist', 100.0), ('s0', 3e-06)]
+        frozenset({('marchDist', 100.0), ('s0', 3e-06)})
 
 .. autoattribute:: engibench.core.Problem.design_space
 
