@@ -24,6 +24,15 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 
         >>> problem.possible_objectives
         [('lift', 'maximize'), ('drag', 'minimize')]
+        
+.. autoattribute:: engibench.core.Problem.boundary_conditions
+
+    This attribute list the boundary conditions of the problem. The boundary conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value.
+
+    .. code::
+
+        >>> problem.boundary_conditions
+        [('marchDist', 100.0), ('s0', 3e-06)]
 
 .. autoattribute:: engibench.core.Problem.design_space
 
