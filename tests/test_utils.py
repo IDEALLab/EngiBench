@@ -1,6 +1,6 @@
 import os
 
-from engibench.utils.files import clone_template
+from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
 
@@ -12,7 +12,7 @@ def test_clone_template() -> None:
     study_dir = "tests/test_study"
 
     # Cloning
-    clone_template(template_dir, study_dir)
+    clone_dir(template_dir, study_dir)
 
     # Replacement
     replace_template_values(study_dir + "/template_1.py", {"hello": "hello", "world": "world"})
