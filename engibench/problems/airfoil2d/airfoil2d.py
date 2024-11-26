@@ -1,4 +1,7 @@
-"""Airfoil 2D problem."""
+"""Airfoil 2D problem.
+
+Filename convention is that folder paths do not end with /. For example, /path/to/folder is correct, but /path/to/folder/ is not.
+"""
 
 from __future__ import annotations
 
@@ -13,7 +16,7 @@ import pandas as pd
 import pyoptsparse
 
 from engibench.core import Problem
-from engibench.utils.files import clone_template
+from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
 
@@ -73,16 +76,34 @@ class Airfoil2D(Problem):
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     _dataset = None
 
-    def __init__(self) -> None:
-        """Initializes the Airfoil2D problem."""
+    def __init__(self, base_directory: str | None = None) -> None:
+        """Initializes the Airfoil2D problem.
+
+        Args:
+            base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
+        """
         super().__init__()
         self.seed = None
 
+        self.current_study = f"study_{self.seed}"
         # This is used for intermediate files
-        self.__common_dir = "engibench/problems/airfoil2d/"
-        self.__template_dir = self.__common_dir + "templates"
-        self.__study_dir = self.__common_dir + "study"
-        self.current_study_dir = self.__study_dir + f"_{self.seed}/"
+        # Local file are prefixed with self.local_base_directory
+        if base_directory is not None:
+            self.__local_base_directory = base_directory
+        else:
+            self.__local_base_directory = os.getcwd()
+        self.__local_target_dir = self.__local_base_directory + "/engibench/problems/airfoil2d"
+        self.__local_template_dir = (
+            os.path.dirname(os.path.abspath(__file__)) + "/templates"
+        )  # These templates are shipped with the lib
+        self.__local_scripts_dir = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
+        self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
+
+        # Docker target directory
+        # This is used for files that are mounted into the docker container
+        self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
+        self.__docker_target_dir = self.__docker_base_dir + "/engibench/problems/airfoil2d"
+        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -94,11 +115,15 @@ class Airfoil2D(Problem):
         # docker pull image if not already pulled
         subprocess.run(["docker", "pull", self.container_id], check=True)
         if cleanup:
-            shutil.rmtree(self.__study_dir + f"_{self.seed}")
+            shutil.rmtree(self.__local_study_dir)
 
         super().reset(seed)
-        self.current_study_dir = self.__study_dir + f"_{self.seed}/"
-        clone_template(template_dir=self.__template_dir, study_dir=self.current_study_dir)
+        self.current_study = f"study_{self.seed}"
+        self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
+        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
+
+        clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
+        clone_dir(source_dir=self.__local_scripts_dir, target_dir=self.__local_target_dir)
 
     def __design_to_simulator_input(self, design: np.ndarray, filename: str = "design") -> str:
         """Converts a design to a simulator input.
@@ -111,13 +136,13 @@ class Airfoil2D(Problem):
             filename (str): The filename to save the design to.
         """
         # Save the design to a temporary file
-        np.savetxt(self.current_study_dir + filename + ".dat", design.transpose())
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", design.transpose())
 
         base_config = {
-            "design_fname": f"'{self.current_study_dir}{filename}.dat'",
-            "tmp_xyz_fname": "'" + self.current_study_dir + "tmp'",
-            "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
-            "ffd_fname": "'" + self.current_study_dir + filename + "_ffd'",
+            "design_fname": f"'{self.__docker_study_dir}/{filename}.dat'",
+            "tmp_xyz_fname": "'" + self.__docker_study_dir + "/tmp'",
+            "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
+            "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
             "N_sample": 180,
             "nTEPts": 4,
             "xCut": 0.99,
@@ -131,7 +156,7 @@ class Airfoil2D(Problem):
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
-            self.current_study_dir + "/pre_process.py",
+            self.__local_study_dir + "/pre_process.py",
             base_config,
         )
 
@@ -146,17 +171,17 @@ class Airfoil2D(Problem):
             "--name",
             "machaero",
             "--mount",
-            f"type=bind,src={os.getcwd()},target=/home/mdolabuser/mount/engibench",
+            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
             self.container_id,
             "/bin/bash",
-            "/home/mdolabuser/mount/engibench/engibench/problems/airfoil2d/pre_process.sh",
-            self.current_study_dir,
+            self.__docker_target_dir + "/pre_process.sh",
+            self.__docker_study_dir,
         ]
 
         subprocess.run(command, check=True)
         return filename
 
-    def __simulator_output_to_design(self, simulator_output: str = None) -> np.ndarray:
+    def __simulator_output_to_design(self, simulator_output: str | None = None) -> np.ndarray:
         """Converts a simulator input to a design.
 
         Args:
@@ -167,12 +192,12 @@ class Airfoil2D(Problem):
         """
         if simulator_output is None:
             # Take latest slice file
-            files = os.listdir(self.current_study_dir + "/output")
+            files = os.listdir(self.__local_study_dir + "/output")
             files = [f for f in files if f.endswith("_slices.dat")]
             file_numbers = [int(f.split("_")[1]) for f in files]
             simulator_output = files[file_numbers.index(max(file_numbers))]
 
-        slice_file = self.current_study_dir + "/output/" + simulator_output
+        slice_file = self.__local_study_dir + "/output/" + simulator_output
 
         # Define the variable names for columns
         var_names = [
@@ -226,8 +251,8 @@ class Airfoil2D(Problem):
             "reynolds": 1e6,
             "altitude": 10000,
             "temperature": 223.150,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
-            "output_dir": "'" + self.current_study_dir + "output/'",
-            "mesh_fname": "'" + self.current_study_dir + "design.cgns'",
+            "output_dir": "'" + self.__docker_study_dir + "/output/'",
+            "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
             "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.
         }
 
@@ -235,7 +260,7 @@ class Airfoil2D(Problem):
         base_config.update(config)
 
         replace_template_values(
-            self.current_study_dir + "/airfoil_analysis.py",
+            self.__local_study_dir + "/airfoil_analysis.py",
             base_config,
         )
 
@@ -250,17 +275,17 @@ class Airfoil2D(Problem):
             "--name",
             "machaero",
             "--mount",
-            f"type=bind,src={os.getcwd()},target=/home/mdolabuser/mount/engibench",
+            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
             self.container_id,
             "/bin/bash",
-            "/home/mdolabuser/mount/engibench/engibench/problems/airfoil2d/analyze.sh",
+            self.__docker_target_dir + "/analyze.sh",
             str(mpicores),
-            self.current_study_dir,
+            self.__docker_study_dir,
         ]
 
         subprocess.run(command, check=True)
 
-        outputs = np.load(self.current_study_dir + "output/outputs.npy")
+        outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
         drag = float(outputs[4])
         return {"cd": drag, "cl": lift}
@@ -290,16 +315,16 @@ class Airfoil2D(Problem):
             "altitude": 10000,  # add temperature (default 223.150) + reynolds (default 6.31E6) + reynoldsLength (default 1) option
             "opt": "'SLSQP'",
             "opt_options": {},
-            "output_dir": "'" + self.current_study_dir + "output/'",
-            "ffd_fname": "'" + self.current_study_dir + filename + "_ffd.xyz'",
-            "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
+            "output_dir": "'" + self.__docker_study_dir + "/output/'",
+            "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
+            "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
         }
 
         base_config.update(self.boundary_conditions)
         base_config.update(config)
 
         replace_template_values(
-            self.current_study_dir + "/airfoil_opt.py",
+            self.__local_study_dir + "/airfoil_opt.py",
             base_config,
         )
 
@@ -314,18 +339,18 @@ class Airfoil2D(Problem):
             "--name",
             "machaero",
             "--mount",
-            f"type=bind,src={os.getcwd()},target=/home/mdolabuser/mount/engibench",
+            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
             self.container_id,
             "/bin/bash",
-            "/home/mdolabuser/mount/engibench/engibench/problems/airfoil2d/optimize.sh",
+            self.__docker_target_dir + "/optimize.sh",
             str(mpicores),
-            self.current_study_dir,
+            self.__docker_study_dir,
         ]
 
         subprocess.run(command, check=True)
 
         # post process -- extract the shape and objective values
-        history = pyoptsparse.History(self.current_study_dir + "output/opt.hst")
+        history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
         objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
             -1, -1
         ]
