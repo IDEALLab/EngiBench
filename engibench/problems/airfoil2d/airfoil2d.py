@@ -72,7 +72,7 @@ class Airfoil2D(Problem):
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
-    dataset_id = "IDEALLab/airfoil_2d"
+    dataset_id = "IDEALLab/airfoil_2d_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     _dataset = None
 
@@ -92,7 +92,7 @@ class Airfoil2D(Problem):
             self.__local_base_directory = base_directory
         else:
             self.__local_base_directory = os.getcwd()
-        self.__local_target_dir = self.__local_base_directory + "/engibench/problems/airfoil2d"
+        self.__local_target_dir = self.__local_base_directory + "/engibench_studies/problems/airfoil2d"
         self.__local_template_dir = (
             os.path.dirname(os.path.abspath(__file__)) + "/templates"
         )  # These templates are shipped with the lib
@@ -102,7 +102,7 @@ class Airfoil2D(Problem):
         # Docker target directory
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
-        self.__docker_target_dir = self.__docker_base_dir + "/engibench/problems/airfoil2d"
+        self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
         self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
