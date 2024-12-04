@@ -26,6 +26,7 @@ dependencies = [
     "gymnasium >= 1.0.0",
     "datasets[vision] == 3.1.0", # imports modules with image features
     "pandas >= 2.2.3",
+    "matplotlib >= 3.9.3",
 ]
 dynamic = ["version"]
 
@@ -134,6 +135,8 @@ ignore = [
     "E501", # Ruff black style takes care of line length
     "ANN003", # Kwargs type hinting is not necessary
     "B006", # Do not use mutable default arguments
+    "FBT001", # Boolean position arguments in function definition
+    "FBT002", # Boolean default arguments in function definition
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.

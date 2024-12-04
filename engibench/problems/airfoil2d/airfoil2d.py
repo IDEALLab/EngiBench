@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 import pyoptsparse
 
+from engibench.core import DesignType
 from engibench.core import Problem
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
@@ -359,6 +360,34 @@ class Airfoil2D(Problem):
 
         return optimized_design, {"cd": objective}
 
+    def render(self, design: np.ndarray, open_window: bool = False) -> Any:  # noqa: ANN401
+        """Renders the design in a human-readable format.
+
+        Args:
+            design (np.ndarray): The design to render.
+            open_window (bool): If True, opens a window with the rendered design.
+
+        Returns:
+            Any: The rendered design.
+        """
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+
+        ax.scatter(design[0], design[1], s=10, alpha=0.7)
+        if open_window:
+            plt.show()
+        return fig, ax
+
+    def random_design(self) -> DesignType:
+        """Samples a valid random design.
+
+        Returns:
+            DesignType: The valid random design.
+        """
+        rnd = self._np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))
+        return np.array(self.dataset["train"]["initial"][rnd])  # type: ignore
+
 
 if __name__ == "__main__":
     problem = Airfoil2D()
@@ -367,8 +396,13 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Get design and conditions from the dataset
-    design = np.array(dataset["initial"][0])  # type: ignore
-    config_keys = dataset.features.keys() - ["initial", "optimized"]
-    config = {key: dataset[key][0] for key in config_keys}
-
-    print(problem.optimize(design, config=config, mpicores=8))
+    design = problem.random_design()
+    fig, ax = problem.render(design, open_window=True)
+    fig.savefig(
+        "airfoil.png",
+        dpi=300,
+    )
+    # config_keys = dataset.features.keys() - ["initial", "optimized"]
+    # config = {key: dataset[key][0] for key in config_keys}
+    #
+    # print(problem.optimize(design, config=config, mpicores=8))

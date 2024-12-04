@@ -26,6 +26,8 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     - :meth:`simulate` - to simulate a design and return the performance given some conditions.
     - :meth:`optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.
     - :meth:`reset` - to reset the simulator and numpy random to a given seed.
+    - :meth:`render` - to render a design in a human-readable format.
+    - :meth:`random_design` - to generate a valid random design.
 
     Some methods are used internally:
 
@@ -110,6 +112,27 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             self._np_random_seed = seed
         self.seed = seed
         self._np_random = np.random.default_rng(seed)
+
+    def render(self, design: DesignType, open_window: bool = False, **kwargs) -> Any:  # noqa: ANN401
+        r"""Render the design in a human-readable format.
+
+        Args:
+            design (DesignType): The design to render.
+            open_window (bool): Whether to open a window to display the design.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            Any: The rendered design.
+        """
+        raise NotImplementedError
+
+    def random_design(self) -> DesignType:
+        r"""Generate a random design.
+
+        Returns:
+            DesignType: The random design.
+        """
+        raise NotImplementedError
 
     def __design_to_simulator_input(self, design: DesignType, **kwargs) -> SimulatorInputType:
         r"""Convert a design to a simulator input.
