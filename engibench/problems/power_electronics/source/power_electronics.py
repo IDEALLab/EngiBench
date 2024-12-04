@@ -99,12 +99,13 @@ class PowerElectronics(Problem):
 
         self.components = {'V':0, 'R':1, 'C':2, 'S':3, 'L':4, 'D':5}
         
-        self.original_netlist_path = original_netlist_path
-        self.rewrite_netlist_path = None
-        self.log_file_path = None
-        self.raw_file_path = None
+        self.original_netlist_path = original_netlist_path  # E.g. '../data/netlist/5_4_3_6_10-dcdc_converter_1.net'
+        self.rewrite_netlist_path = None  # It will be assigned in __rewrite_netlist() depending on mode='batch' or mode='control'. 
+        self.netlist_name = self.original_netlist_path.split('/')[-1].removesuffix('.net')  # python 3.9 and newer
+        self.log_file_path = f'../data/log_file/{self.netlist_name}.log'
+        self.raw_file_path = f'../data/raw_file/{self.netlist_name}.raw'
 
-        self.bucket_id = bucket_id
+        self.bucket_id = bucket_id  # Alternatively, we can get this from self.original_netlist_path.
         self.edge_map = None 
         self.cmp_edg_str = None 
         self.capacitor_val = None
@@ -136,13 +137,13 @@ class PowerElectronics(Problem):
 
     def __process_topology(self, sweep_dict):
         """
-        Parameters
+        Read from self.original_netlist_path to get the topology. With the argument sweep_dict (C, L, T1, T2, L1, L2), set variables for rewriting. 
+
+        It only keeps component lines and .PARAM lines. So the following lines are discarded in this process: .model, .tran, .save etc. 
         ----------
         sweep_dict : dict. Design space.
         """
-        self.rewrite_netlist_path = os.path.join(self.netlist_dir, 'rewrite_' + self.bucket_id + '.net')
-        print(f'original netlist path: {self.original_netlist_path}')
-        print(f'rewrite netlist path: {self.rewrite_netlist_path}')
+        print(f'Processing topology from original netlist path: {self.original_netlist_path}')
 
         self.capacitor_val = sweep_dict['C_val']
         self.inductor_val = sweep_dict['L_val']
@@ -161,7 +162,7 @@ class PowerElectronics(Problem):
         ref_comp_count['L'] = int(num_comp[2])
         ref_comp_count['C'] = int(num_comp[3])
 
-        self.component_edge_str = ""
+        self.cmp_edg_str = ""
 
         file = open(self.original_netlist_path, "r") 
         for line in file:
@@ -197,7 +198,7 @@ class PowerElectronics(Problem):
                     self.edge_map[line_spl[0]] = [int(line_spl[1]), int(line_spl[2])]
 
                     # print(repr(line))  # this actually works for printing a raw string. Also consider removing the quotes. See https://www.geeksforgeeks.org/python-raw-strings/
-                    self.component_edge_str = self.component_edge_str + line  # Liang: do not add a '\n' at the end of this line.
+                    self.cmp_edg_str = self.cmp_edg_str + line  # Liang: do not add a '\n' at the end of this line.
                     calc_comp_count[line[0]] = calc_comp_count[line[0]] + 1
                 
         file.close()
@@ -207,6 +208,8 @@ class PowerElectronics(Problem):
         self.cmp_cnt = ref_comp_count
     
     def __rewrite_netlist(self, mode='control'):
+        self.rewrite_netlist_path = f'../data/netlist/rewrite_{mode}_{self.netlist_name}.net'
+        print(f'rewriting netlist to: {self.rewrite_netlist_path}')
 
         file = open(self.rewrite_netlist_path, "w")
         
@@ -235,32 +238,56 @@ class PowerElectronics(Problem):
             self.cmp_edg_str = self.cmp_edg_str + ".PARAM GS"+str(i)+"_Ts="+str(self.switch_T2[i]*5)+"e-06\n"+ ".PARAM GS"+str(i)+"_T1="+str(self.switch_T1[i]*5)+"e-06\n"+ \
                             ".PARAM GS"+str(i)+"_T2="+str(self.switch_T2[i]*5)+"e-06\n" + ".PARAM GS"+str(i)+"_L1="+str(self.switch_L1[i])+"\n" + ".PARAM GS"+str(i)+"_L2="+str(self.switch_L2[i])+"\n"
 
-        self.cmp_edg_str = self.cmp_edg_str + "\n.save "
-        for i in range(len(self.capacitor_val)):
-            self.cmp_edg_str = self.cmp_edg_str + "@C"+str(i)+"[i] "
-            self.cmp_edg_str = self.cmp_edg_str + "@RC"+str(i)+"[i] "
-        for i in range(len(self.inductor_val)):
-            self.cmp_edg_str = self.cmp_edg_str + "@L"+str(i)+"[i] "
-        for i in range(len(self.switch_T1)): 
-            self.cmp_edg_str = self.cmp_edg_str + "@S"+str(i)+"[i] "
-        for i in range(self.cmp_cnt['D']): 
-            self.cmp_edg_str = self.cmp_edg_str + "@D"+str(i)+"[i] "
-        self.cmp_edg_str = self.cmp_edg_str + "@R0[i] " 
-        self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
+        if mode == 'batch':
+            """
+            Here is an example:
+            .save @C0[i] @RC0[i] @C1[i] @RC1[i] @C2[i] @RC2[i] @C3[i] @RC3[i] @C4[i] @RC4[i] @C5[i] @RC5[i] @L0[i] @L1[i] @L2[i] @S0[i] @S1[i] @S2[i] @S3[i] @S4[i] @D0[i] @D1[i] @D2[i] @D3[i] @R0[i] 
+            .save all
+            """
+            self.cmp_edg_str = self.cmp_edg_str + "\n.save "
+            for i in range(len(self.capacitor_val)):
+                self.cmp_edg_str = self.cmp_edg_str + "@C"+str(i)+"[i] "
+                self.cmp_edg_str = self.cmp_edg_str + "@RC"+str(i)+"[i] "
+            for i in range(len(self.inductor_val)):
+                self.cmp_edg_str = self.cmp_edg_str + "@L"+str(i)+"[i] "
+            for i in range(len(self.switch_T1)): 
+                self.cmp_edg_str = self.cmp_edg_str + "@S"+str(i)+"[i] "
+            for i in range(self.cmp_cnt['D']): 
+                self.cmp_edg_str = self.cmp_edg_str + "@D"+str(i)+"[i] "
+                self.cmp_edg_str = self.cmp_edg_str + "@R0[i] " 
+            self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
 
-        if mode == 'control':
-            self.cmp_edg_str = self.cmp_edg_str
-
-        elif mode == 'batch':
-            # cmp_edg_str = cmp_edg_str + ".measure TRAN Vo_mean avg par('V(" + str(edge_map['R0'][0])+ ") - V(" + str(edge_map['R0'][1])+ "')) from=1m to=1.06m\n"
-            self.cmp_edg_str = self.cmp_edg_str + f".measure TRAN Vo_mean avg par('V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})') from=1m to=1.06m\n"
+            self.cmp_edg_str = self.cmp_edg_str + ".tran 5n 1.06m 1m 5n uic\n"
+            # The following .meas(ure) can be replaced by .print, althogh the former is preferred.
+            self.cmp_edg_str = self.cmp_edg_str + f".meas TRAN Vo_mean avg par('V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})') from=1m to=1.06m\n"
             self.cmp_edg_str = self.cmp_edg_str + ".meas TRAN gain param='Vo_mean/1000'\n"
-            # cmp_edg_str = cmp_edg_str + ".meas TRAN Vpp pp par('V("+str(edge_map['R0'][0])+") - V("+str(edge_map['R0'][1])+"')) from=1m to=1.06m\n"  #Peak-to-peak voltage
-            self.cmp_edg_str = self.cmp_edg_str + f".measure TRAN Vpp pp par('V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})') from=1m to=1.06m\n"
+            self.cmp_edg_str = self.cmp_edg_str + f".meas TRAN Vpp pp par('V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})') from=1m to=1.06m\n"
             self.cmp_edg_str = self.cmp_edg_str + ".meas TRAN Vpp_ratio param='Vpp/Vo_mean'\n" #Ripple voltage
-            #cmp_edg_str = cmp_edg_str + ".tran 5n 1.06m 1m 100n uic\n.control\nrun\nwrite C:/Users/srini/OneDrive/Documents/GitHub/circuit_eval/test/test.raw all\n.endc\n.end\n"
-            self.cmp_edg_str = self.cmp_edg_str + ".tran 5n 1.06m 1m 5n uic\n.control\nrun\nset filetype=binary\nwrite C:/Users/srini/OneDrive/Documents/GitHub/circuit_eval/test/test.raw all\n.endc\n.end\n"
+            self.cmp_edg_str = self.cmp_edg_str + "\n.end"
 
+        elif mode == 'control':
+            self.cmp_edg_str = self.cmp_edg_str + "\n.control\nsave "
+            for i in range(len(self.capacitor_val)):
+                self.cmp_edg_str = self.cmp_edg_str + "@C"+str(i)+"[i] "
+                self.cmp_edg_str = self.cmp_edg_str + "@RC"+str(i)+"[i] "
+            for i in range(len(self.inductor_val)):
+                self.cmp_edg_str = self.cmp_edg_str + "@L"+str(i)+"[i] "
+            for i in range(len(self.switch_T1)): 
+                self.cmp_edg_str = self.cmp_edg_str + "@S"+str(i)+"[i] "
+            for i in range(self.cmp_cnt['D']): 
+                self.cmp_edg_str = self.cmp_edg_str + "@D"+str(i)+"[i] "
+                self.cmp_edg_str = self.cmp_edg_str + "@R0[i] " 
+            self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
+            
+            self.cmp_edg_str = self.cmp_edg_str + "tran 5n 1.06m 1m 5n uic\n"
+            self.cmp_edg_str = self.cmp_edg_str + f"let Vdiff=V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})\n"
+            self.cmp_edg_str = self.cmp_edg_str + f"meas TRAN Vo_mean avg Vdiff from=1m to=1.06m\n"
+            self.cmp_edg_str = self.cmp_edg_str + f"meas TRAN Vpp pp Vdiff from=1m to=1.06m\n"
+            self.cmp_edg_str = self.cmp_edg_str + "let Gain=Vo_mean/1000\nlet Vpp_ratio=Vpp/Vo_mean\nprint Gain, Vpp_ratio\nrun\nset filetype=binary\n"
+            self.cmp_edg_str = self.cmp_edg_str + f"write {self.raw_file_path}\n"
+            
+            self.cmp_edg_str = self.cmp_edg_str + "quit\n.endc\n\n.end"
+    
         file.write(self.cmp_edg_str)
         file.close()
 
