@@ -42,14 +42,14 @@ problem.possible_objectives  # frozenset({('lift', 'maximize'), ('drag', 'minimi
 problem.boundary_conditions  # frozenset({('marchDist', 100.0), ('s0', 3e-06)})
 problem.dataset # A HuggingFace Dataset object
 
-# Train your model and use it to predict designs!
+# Train your inverse design or surrogate model and use it to predict/optimize designs!
 for i in range(100):
     desired_objs = ...
-    my_design = model.predict(desired_objs)
+    my_design = model.predict(desired_objs) # replace with your model
     # Evaluate a design using a simulator
     objs = problem.simulate(design=my_design, config={"mach": 0.2, "reynolds": 1e6})
 
-# or optimize a design if available!
+# or optimize a design using an integrated optimizer if available!
 opt_design, objs = problem.optimize(starting_point=my_design, config={"mach": 0.2, "reynolds": 1e6})
 ```
 <!-- end api -->
