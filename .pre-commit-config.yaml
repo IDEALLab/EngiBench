@@ -23,6 +23,7 @@ repos:
     hooks:
       - id: codespell
         args:
+          - --skip=*.ipynb
           - --ignore-words-list=mor,le,te
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.3
