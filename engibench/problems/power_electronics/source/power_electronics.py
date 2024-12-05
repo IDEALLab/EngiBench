@@ -1,4 +1,4 @@
-"""Airfoil 2D problem."""
+"""Power Electronics problem."""
 
 from __future__ import annotations
 from typing import Any
@@ -7,7 +7,7 @@ import os
 # import shutil
 import subprocess
 import numpy as np
-# import networkx as nx
+# import networkx as nx  # TODO: for dataset
 
 from utils.str_to_value import str_to_value
 import utils.dc_dc_efficiency_ngspice as dc_lib_ng
@@ -80,7 +80,7 @@ class PowerElectronics(Problem):
 
 
 
-    def __init__(self, original_netlist_path, bucket_id) -> None:
+    def __init__(self, original_netlist_path: str, bucket_id: str) -> None:
         """Initializes the Power Electronics problem."""
         super().__init__()
         # self.seed = None  # may be useful in the future
@@ -100,24 +100,27 @@ class PowerElectronics(Problem):
         self.components = {'V':0, 'R':1, 'C':2, 'S':3, 'L':4, 'D':5}
         
         self.original_netlist_path = original_netlist_path  # E.g. '../data/netlist/5_4_3_6_10-dcdc_converter_1.net'
-        self.rewrite_netlist_path = None  # It will be assigned in __rewrite_netlist() depending on mode='batch' or mode='control'. 
+        self.rewrite_netlist_path: str = ""  # It will be modified in __rewrite_netlist() depending on mode='batch' or mode='control'. 
         self.netlist_name = self.original_netlist_path.split('/')[-1].removesuffix('.net')  # python 3.9 and newer
         self.log_file_path = f'../data/log_file/{self.netlist_name}.log'
         self.raw_file_path = f'../data/raw_file/{self.netlist_name}.raw'
 
         self.bucket_id = bucket_id  # Alternatively, we can get this from self.original_netlist_path.
-        self.edge_map = None 
-        self.cmp_edg_str = None 
-        self.capacitor_val = None
-        self.inductor_val = None
-        self.switch_T1 = None 
-        self.switch_T2 = None 
-        self.switch_L1 = None 
-        self.switch_L2 = None
-        self.cmp_cnt = None
-
-        self.simulation_results = None
+        self.edge_map: dict[str, list[int]] = {'V0':[0,0], 'R0':[0,0]}  
+        self.cmp_edg_str: str = ""
+        
+        # components of the design variable
+        self.capacitor_val: list[float] = []
+        self.inductor_val: list[float] = []
+        self.switch_T1: list[float] = []  # TODO: Need a range
+        self.switch_T2: list[float] = []  # Binary. TODO: might need to specify this.  
+        self.switch_L1: list[float] = []  # Binary.
+        self.switch_L2: list[float] = []  # Binary.
         # TODO: self.design_variable
+
+        self.cmp_cnt: dict[str, int] = {'V':1, 'R':1, 'C':0, 'S':0, 'L':0, 'D':0}
+
+        self.simulation_results: np.ndarray = np.array([])
 
     # def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
     #     """Resets the simulator and numpy random to a given seed.
@@ -135,13 +138,13 @@ class PowerElectronics(Problem):
     #     self.current_study_dir = self.__study_dir + f"_{self.seed}/"
     #     clone_template(template_dir=self.__template_dir, study_dir=self.current_study_dir)
 
-    def __process_topology(self, sweep_dict):
+    def __process_topology(self, sweep_dict) -> None:
         """
         Read from self.original_netlist_path to get the topology. With the argument sweep_dict (C, L, T1, T2, L1, L2), set variables for rewriting. 
 
         It only keeps component lines and .PARAM lines. So the following lines are discarded in this process: .model, .tran, .save etc. 
         ----------
-        sweep_dict : dict. Design space.
+        sweep_dict : dict. variable.
         """
         print(f'Processing topology from original netlist path: {self.original_netlist_path}')
 
@@ -151,8 +154,6 @@ class PowerElectronics(Problem):
         self.switch_T2 = sweep_dict['T2_val']
         self.switch_L1 = sweep_dict['L1_val']
         self.switch_L2 = sweep_dict['L2_val']
-        
-        self.edge_map = {'V0':[0,0], 'R0':[0,0]}
 
         calc_comp_count = {'V':0, 'R':0, 'C':0, 'S':0, 'L':0, 'D':0}
         ref_comp_count = {'V':1, 'R':1, 'C':0, 'S':0, 'L':0, 'D':0}
@@ -161,8 +162,6 @@ class PowerElectronics(Problem):
         ref_comp_count['D'] = int(num_comp[1])
         ref_comp_count['L'] = int(num_comp[2])
         ref_comp_count['C'] = int(num_comp[3])
-
-        self.cmp_edg_str = ""
 
         file = open(self.original_netlist_path, "r") 
         for line in file:
@@ -207,7 +206,7 @@ class PowerElectronics(Problem):
             print("Error - process_topology component check")
         self.cmp_cnt = ref_comp_count
     
-    def __rewrite_netlist(self, mode='control'):
+    def __rewrite_netlist(self, mode='control') -> None:
         self.rewrite_netlist_path = f'../data/netlist/rewrite_{mode}_{self.netlist_name}.net'
         print(f'rewriting netlist to: {self.rewrite_netlist_path}')
 
@@ -291,7 +290,7 @@ class PowerElectronics(Problem):
         file.write(self.cmp_edg_str)
         file.close()
 
-    def __calculate_efficiency(self, exe=False):
+    def __calculate_efficiency(self, exe=False) -> tuple[float, int, float, float]:
         capacitor_model, inductor_model, switch_model, diode_model = [], [], [], []
         max_comp_size = 12
         Ts = 5e-6
@@ -369,7 +368,7 @@ class PowerElectronics(Problem):
                         VoltageRipple = float(parts[2])
         return DcGain, VoltageRipple
 
-    def simulate(self, design_space: dict[str, float]) -> dict[str, float]:
+    def simulate(self, design_variable: dict[str, float]) -> np.ndarray:
         """Simulates the performance of a Power Electronics design.
 
         Args:
@@ -378,7 +377,7 @@ class PowerElectronics(Problem):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
-        self.__process_topology(sweep_dict=design_space)
+        self.__process_topology(sweep_dict=design_variable)
         self.__rewrite_netlist(mode='control')
         Efficiency, _, _, _ = self.__calculate_efficiency(exe=False)
         DcGain, VoltageRipple = self.__parse_log_file()
@@ -389,74 +388,6 @@ class PowerElectronics(Problem):
 
     def optimize(self):
         return NotImplementedError
-    # def optimize(
-    #     self, starting_point: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4
-    # ) -> tuple[Any, dict[str, float]]:
-        # """Optimizes the design of an airfoil.
-
-        # Args:
-        #     starting_point (np.ndarray): The starting point for the optimization.
-        #     config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
-        #     mpicores (int): The number of MPI cores to use in the optimization.
-
-        # Returns:
-        #     Tuple[np.ndarray, dict]: The optimized design and its performance.
-        # """
-        # # pre-process the design and run the simulation
-        # filename = "candidate_design"
-        # self.__design_to_simulator_input(starting_point, filename)
-
-        # # Prepares the optimize_airfoil.py script with the optimization configuration
-        # base_config = {
-        #     "cl": 0.5,
-        #     "alpha": 1.5,
-        #     "mach": 0.75,
-        #     "altitude": 10000,  # add temperature (default 223.150) + reynolds (default 6.31E6) + reynoldsLength (default 1) option
-        #     "opt": "'SLSQP'",
-        #     "opt_options": {},
-        #     "output_dir": "'" + self.current_study_dir + "output/'",
-        #     "ffd_fname": "'" + self.current_study_dir + filename + "_ffd.xyz'",
-        #     "mesh_fname": "'" + self.current_study_dir + filename + ".cgns'",
-        # }
-
-        # base_config.update(self.boundary_conditions)
-        # base_config.update(config)
-
-        # replace_template_values(
-        #     self.current_study_dir + "/airfoil_opt.py",
-        #     base_config,
-        # )
-
-        # # Launches a docker container with the optimize_airfoil.py script
-        # # The script takes a mesh and ffd and performs an optimization
-        # # Bash command:
-        # command = [
-        #     "docker",
-        #     "run",
-        #     "-it",
-        #     "--rm",
-        #     "--name",
-        #     "machaero",
-        #     "--mount",
-        #     f"type=bind,src={os.getcwd()},target=/home/mdolabuser/mount/engibench",
-        #     self.container_id,
-        #     "/bin/bash",
-        #     "/home/mdolabuser/mount/engibench/engibench/problems/airfoil2d/optimize.sh",
-        #     str(mpicores),
-        #     self.current_study_dir,
-        # ]
-
-        # subprocess.run(command, check=True)
-
-        # # post process -- extract the shape and objective values
-        # history = pyoptsparse.History(self.current_study_dir + "output/opt.hst")
-        # objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
-        #     -1, -1
-        # ]
-
-        # optimized_design = self.__simulator_output_to_design()
-
-        # return optimized_design, {"cd": objective}
 
 
 if __name__ == "__main__":
@@ -472,7 +403,7 @@ if __name__ == "__main__":
         'L1_val': [1, 1, 0, 0, 1],
         'L2_val': [1, 1, 1, 0, 0],
         }
-    problem.simulate(design_space=sweep_data)   
+    problem.simulate(design_variable=sweep_data)   
     print(problem.simulation_results)
 
     # problem.reset(seed=0, cleanup=False)
