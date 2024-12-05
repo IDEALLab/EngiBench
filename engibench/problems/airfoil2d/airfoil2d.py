@@ -385,7 +385,7 @@ class Airfoil2D(Problem):
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self._np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))  # pyright: ignore[reportOptionalMemberAccess]
         return np.array(self.dataset["train"]["initial"][rnd])  # type: ignore
 
 

@@ -63,8 +63,8 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     input_space: SimulatorInputType  # Simulator input (internal)
 
     # This handles the RNG properly
-    _np_random: np.random.Generator | None = None
-    _np_random_seed: int | None = None
+    np_random: np.random.Generator | None = None
+    __np_random_seed: int | None = None
 
     @property
     def dataset(self) -> Dataset:
@@ -109,9 +109,9 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             **kwargs: Additional keyword arguments.
         """
         if seed is not None:
-            self._np_random_seed = seed
+            self.__np_random_seed = seed
         self.seed = seed
-        self._np_random = np.random.default_rng(seed)
+        self.np_random = np.random.default_rng(seed)
 
     def render(self, design: DesignType, open_window: bool = False, **kwargs) -> Any:  # noqa: ANN401
         r"""Render the design in a human-readable format.
