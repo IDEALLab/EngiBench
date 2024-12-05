@@ -9,12 +9,15 @@ import subprocess
 import numpy as np
 # import networkx as nx  # TODO: for dataset
 
+import sys
+sys.path.append('../')
+# print(sys.path)
 from utils.str_to_value import str_to_value
 import utils.dc_dc_efficiency_ngspice as dc_lib_ng
-import utils.data_sheet as ds
-import utils.component as cmpt
+from utils import data_sheet as ds
+from utils import component as cmpt
 
-from engibench.core import Problem
+# from engibench.core import Problem 
 
 
 def build(**kwargs) -> PowerElectronics:
@@ -26,7 +29,8 @@ def build(**kwargs) -> PowerElectronics:
     return PowerElectronics(**kwargs)
 
 
-class PowerElectronics(Problem):
+# class PowerElectronics(Problem):
+class PowerElectronics():
     r"""Power Electronics parameter optimization problem.
 
     ## Problem Description
@@ -59,7 +63,6 @@ class PowerElectronics(Problem):
     ## Lead
     Xuliang Dong @ liangXD523
     """
-
     # input_space = str
     # possible_objectives: frozenset[tuple[str, str]] = frozenset(
     #     {
@@ -77,8 +80,6 @@ class PowerElectronics(Problem):
     # dataset_id = "IDEALLab/airfoil_2d"
     # container_id = "mdolab/public:u22-gcc-ompi-stable"
     # _dataset = None
-
-
 
     def __init__(self, original_netlist_path: str, bucket_id: str) -> None:
         """Initializes the Power Electronics problem."""
@@ -221,10 +222,10 @@ class PowerElectronics(Problem):
         self.cmp_edg_str = self.cmp_edg_str + RC_str + "\n" + ".PARAM V0_value=1000\n"
         
         for i in range(len(self.capacitor_val)):
-            self.cmp_edg_str = self.cmp_edg_str + ".PARAM C" + str(i) + "_value=" + str(capacitor_val[i])+"\n"
+            self.cmp_edg_str = self.cmp_edg_str + ".PARAM C" + str(i) + "_value=" + str(self.capacitor_val[i])+"\n"
 
         for i in range(len(self.inductor_val)):    
-            self.cmp_edg_str = self.cmp_edg_str + ".PARAM L" + str(i) + "_value=" + str(inductor_val[i])+"\n"
+            self.cmp_edg_str = self.cmp_edg_str + ".PARAM L" + str(i) + "_value=" + str(self.inductor_val[i])+"\n"
 
         self.cmp_edg_str = self.cmp_edg_str + ".PARAM R0_value=10\n\n.model Ideal_switch SW (Ron=1m Roff=10Meg Vt=0.5 Vh=0 Lser=0 Vser=0)\n.model Ideal_D D\n\n"
 
@@ -276,7 +277,7 @@ class PowerElectronics(Problem):
             for i in range(self.cmp_cnt['D']): 
                 self.cmp_edg_str = self.cmp_edg_str + "@D"+str(i)+"[i] "
                 self.cmp_edg_str = self.cmp_edg_str + "@R0[i] " 
-            self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
+            self.cmp_edg_str = self.cmp_edg_str + "\nsave all\n"
             
             self.cmp_edg_str = self.cmp_edg_str + "tran 5n 1.06m 1m 5n uic\n"
             self.cmp_edg_str = self.cmp_edg_str + f"let Vdiff=V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})\n"
@@ -303,11 +304,11 @@ class PowerElectronics(Problem):
 
         try: 
             if exe:  # Windows: use the provided ngspice.exe
-                cmd = ["../ngSpice64/bin/ngspice.exe", "-o", "../data/log_file/control_mode.log", self.rewrite_netlist_path]  # interactive mode with control section
+                cmd = ["../ngSpice64/bin/ngspice.exe", "-o", self.log_file_path, self.rewrite_netlist_path]  # interactive mode with control section
             else:  # Ubuntu: use the ngspice package
-                cmd = ["ngspice", "-o", "../data/log_file/control_mode.log", self.rewrite_netlist_path]  # interactive mode with control section
+                cmd = ["ngspice", "-o", self.log_file_path, self.rewrite_netlist_path]  # interactive mode with control section
 
-            subprocess.run(cmd,check = True, timeout =30) 
+            subprocess.run(cmd, check = True, timeout = 30) 
 
             for i in range(self.cmp_cnt['C']):
                 #Assuming dissipiation factor = 5 at 200Khz freq;  ESR = Disspiation_factor/ 2*pi*f*C
@@ -321,7 +322,7 @@ class PowerElectronics(Problem):
                 inductor_model.append(cmpt.Inductor(dict(zip(ds.inductor_properties,ind_model_values))))
 
             try:
-                err, P_loss, P_src = dc_lib_ng.metric_compute_DC_DC_efficiency_ngspice("../data/raw_file/control_mode.raw", 0.001, self.cmp_cnt, self.edge_map, capacitor_model, inductor_model, switch_model, diode_model, 10, 0, self.switch_L1, self.switch_L2, [float(ind)*Ts for ind in self.switch_T1], [float(ind)*Ts for ind in self.switch_T2], Fs)
+                err, P_loss, P_src = dc_lib_ng.metric_compute_DC_DC_efficiency_ngspice(self.raw_file_path, 0.001, self.cmp_cnt, self.edge_map, capacitor_model, inductor_model, switch_model, diode_model, 10, 0, self.switch_L1, self.switch_L2, [float(ind)*Ts for ind in self.switch_T1], [float(ind)*Ts for ind in self.switch_T2], Fs)
                 efficiency = (P_src - P_loss)/P_src
 
                 error_report = err
@@ -379,7 +380,8 @@ class PowerElectronics(Problem):
         """
         self.__process_topology(sweep_dict=design_variable)
         self.__rewrite_netlist(mode='control')
-        Efficiency, _, _, _ = self.__calculate_efficiency(exe=False)
+        # Efficiency, _, _, _ = self.__calculate_efficiency(exe=False)  # Ubuntu
+        Efficiency, _, _, _ = self.__calculate_efficiency(exe=True)  # Windows
         DcGain, VoltageRipple = self.__parse_log_file()
         self.simulation_results = np.array([DcGain, VoltageRipple, Efficiency])
         
