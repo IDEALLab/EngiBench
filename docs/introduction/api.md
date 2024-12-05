@@ -12,6 +12,8 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 .. automethod:: engibench.core.Problem.simulate
 .. automethod:: engibench.core.Problem.optimize
 .. automethod:: engibench.core.Problem.reset
+.. automethod:: engibench.core.Problem.render
+.. automethod:: engibench.core.Problem.random_design
 ```
 
 ## Attributes
