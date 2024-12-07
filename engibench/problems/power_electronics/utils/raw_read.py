@@ -59,7 +59,10 @@ def rawread(fname: str):
                 rowdtype = np.dtype({'names': plot['varnames'],
                                      'formats': [np.complex_ if b'complex'
                                                  in plot[b'flags']
-                                                 else np.float_]*nvars})
+                                                #  else np.float_]*nvars})  
+                                                # An error happens when testing under Ubuntu 20:
+                                                # AttributeError: `np.float_` was removed in the NumPy 2.0 release. Use `np.float64` instead.
+                                                 else np.float64]*nvars})
                 # We should have all the metadata by now
                 arrs.append(np.fromfile(fp, dtype=rowdtype, count=npoints))
                 print('arrs', arrs)

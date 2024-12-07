@@ -432,31 +432,31 @@ class PowerElectronics:
                 if efficiency < 0 or efficiency > 1:
                     error_report += 1  # bit 0 will be 1 to report invalid efficiency calculation
                 # else:
-                #    error_report = np.NAN if error_report==0 else error_report
+                #    error_report = np.nan if error_report==0 else error_report
 
             except ValueError:  # In some conditions LTspice is not generating waveforms with invalid values
-                efficiency = np.NAN
+                efficiency = np.nan
                 error_report = 16  # bit 4 will be 1 to report Process error such as invalid circuit
-                P_loss = np.NAN
-                P_src = np.NAN
+                P_loss = np.nan
+                P_src = np.nan
 
             except IndexError:  # For some circuits the gate voltage is not created properly
-                efficiency = np.NAN
+                efficiency = np.nan
                 error_report = 32  # bit 5 will be 1 to report Process error such as invalid circuit
-                P_loss = np.NAN
-                P_src = np.NAN
+                P_loss = np.nan
+                P_src = np.nan
 
         except subprocess.CalledProcessError as err:
-            efficiency = np.NAN
+            efficiency = np.nan
             error_report = 2  # bit 1 will be 1 to report Process error such as invalid circuit
-            P_loss = np.NAN
-            P_src = np.NAN
+            P_loss = np.nan
+            P_src = np.nan
 
         except subprocess.TimeoutExpired:
-            efficiency = np.NAN
+            efficiency = np.nan
             error_report = 4  # bit 2 will be 1 to report Timeout
-            P_loss = np.NAN
-            P_src = np.NAN
+            P_loss = np.nan
+            P_src = np.nan
 
         return efficiency, error_report, P_loss, P_src
 
@@ -483,8 +483,8 @@ class PowerElectronics:
         """
         self.__process_topology(sweep_dict=design_variable)
         self.__rewrite_netlist(mode="control")
-        # Efficiency, _, _, _ = self.__calculate_efficiency(exe=False)  # Ubuntu
-        Efficiency, _, _, _ = self.__calculate_efficiency(exe=True)  # Windows
+        Efficiency, _, _, _ = self.__calculate_efficiency(exe=False)  # Ubuntu
+        # Efficiency, _, _, _ = self.__calculate_efficiency(exe=True)  # Windows
         DcGain, VoltageRipple = self.__parse_log_file()
         self.simulation_results = np.array([DcGain, VoltageRipple, Efficiency])
 
