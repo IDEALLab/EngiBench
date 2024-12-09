@@ -40,7 +40,7 @@ problem.reset(seed=0)
 
 # Inspect problem
 problem.design_space  # Box(0.0, 1.0, (2, 192), float32)
-problem.possible_objectives  # frozenset({('lift', 'maximize'), ('drag', 'minimize')})
+problem.possible_objectives  # (('cd', 'minimize'), ('cl', 'maximize'))
 problem.boundary_conditions  # frozenset({('marchDist', 100.0), ('s0', 3e-06)})
 problem.dataset # A HuggingFace Dataset object
 
@@ -52,7 +52,7 @@ for i in range(100):
     objs = problem.simulate(design=my_design, config={"mach": 0.2, "reynolds": 1e6})
 
 # or optimize a design using an integrated optimizer if available!
-opt_design, objs = problem.optimize(starting_point=my_design, config={"mach": 0.2, "reynolds": 1e6})
+opt_design, opt_history = problem.optimize(starting_point=my_design, config={"mach": 0.2, "reynolds": 1e6})
 ```
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)

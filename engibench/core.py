@@ -19,7 +19,7 @@ DesignType = TypeVar("DesignType")
 class OptiStep:
     """Optimization step."""
 
-    obj_values: npt.ArrayLike
+    obj_values: npt.NDArray
     step: int
 
 
@@ -83,7 +83,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             self._dataset = load_dataset(self.dataset_id)
         return self._dataset
 
-    def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.ArrayLike:
+    def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
 
         Args:
@@ -107,7 +107,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             **kwargs: Additional keyword arguments.
 
         Returns:
-            Tuple[DesignType, list[OptiStep]: The optimized design and the optimization history.
+            Tuple[DesignType, list[OptiStep]]: The optimized design and the optimization history.
         """
         raise NotImplementedError
 
