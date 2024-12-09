@@ -16,6 +16,7 @@ import pandas as pd
 import pyoptsparse
 
 from engibench.core import DesignType
+from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
@@ -293,7 +294,7 @@ class Airfoil2D(Problem):
 
     def optimize(
         self, starting_point: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4
-    ) -> tuple[Any, dict[str, float]]:
+    ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of an airfoil.
 
         Args:
@@ -351,14 +352,19 @@ class Airfoil2D(Problem):
         subprocess.run(command, check=True)
 
         # post process -- extract the shape and objective values
+        optisteps_history = []
         history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
+
+        # TODO return the full history of the optimization instead of just the last step
         objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
             -1, -1
         ]
+        optisteps_history.append(OptiStep(obj_values={"cd": objective}, step=0))
+        history.close()
 
         optimized_design = self.__simulator_output_to_design()
 
-        return optimized_design, {"cd": objective}
+        return (optimized_design, optisteps_history)
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:  # noqa: ANN401
         """Renders the design in a human-readable format.
@@ -402,7 +408,7 @@ if __name__ == "__main__":
         "airfoil.png",
         dpi=300,
     )
-    # config_keys = dataset.features.keys() - ["initial", "optimized"]
-    # config = {key: dataset[key][0] for key in config_keys}
+    # config_keys = dataset["train"].features.keys() - ["initial", "optimized"]
+    # config = {key: dataset["train"][key][0] for key in config_keys}
     #
     # print(problem.optimize(design, config=config, mpicores=8))

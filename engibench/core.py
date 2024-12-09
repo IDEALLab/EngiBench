@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
@@ -11,6 +12,14 @@ import numpy as np
 
 SimulatorInputType = TypeVar("SimulatorInputType")
 DesignType = TypeVar("DesignType")
+
+
+@dataclasses.dataclass
+class OptiStep:
+    """Optimization step."""
+
+    obj_values: dict[str, float]
+    step: int
 
 
 class Problem(Generic[SimulatorInputType, DesignType]):
@@ -86,7 +95,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def optimize(self, starting_point: DesignType, config: dict[str, Any], **kwargs) -> tuple[DesignType, dict[str, float]]:
+    def optimize(self, starting_point: DesignType, config: dict[str, Any], **kwargs) -> tuple[DesignType, list[OptiStep]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
         This is optional and will probably be implemented only for some problems.
@@ -97,7 +106,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             **kwargs: Additional keyword arguments.
 
         Returns:
-            Tuple[DesignType, dict]: The optimized design and its performance.
+            Tuple[DesignType, list[OptiStep]: The optimized design and the optimization history.
         """
         raise NotImplementedError
 
