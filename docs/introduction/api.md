@@ -11,6 +11,11 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 ```{eval-rst}
 .. automethod:: engibench.core.Problem.simulate
 .. automethod:: engibench.core.Problem.optimize
+
+    Where an OptiStep is defined as:
+
+    .. autoclass:: engibench.core.OptiStep
+
 .. automethod:: engibench.core.Problem.reset
 .. automethod:: engibench.core.Problem.render
 .. automethod:: engibench.core.Problem.random_design

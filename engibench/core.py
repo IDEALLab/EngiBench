@@ -2,15 +2,25 @@
 
 from __future__ import annotations
 
+import dataclasses
 from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
 from datasets import load_dataset
 from gymnasium import spaces
 import numpy as np
+import numpy.typing as npt
 
 SimulatorInputType = TypeVar("SimulatorInputType")
 DesignType = TypeVar("DesignType")
+
+
+@dataclasses.dataclass
+class OptiStep:
+    """Optimization step."""
+
+    obj_values: npt.NDArray
+    step: int
 
 
 class Problem(Generic[SimulatorInputType, DesignType]):
@@ -54,7 +64,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     """
 
     # Must be defined in subclasses
-    possible_objectives: frozenset[tuple[str, str]]  # Objective names and types (minimize or maximize)
+    possible_objectives: tuple[tuple[str, str]]  # Objective names and types (minimize or maximize)
     boundary_conditions: frozenset[tuple[str, Any]]  # Boundary conditions for the design problem
     design_space: spaces.Space[DesignType]  # Design space (algorithm output)
     dataset_id: str  # String identifier for the problem (useful to pull datasets)
@@ -73,7 +83,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             self._dataset = load_dataset(self.dataset_id)
         return self._dataset
 
-    def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> dict[str, float]:
+    def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
 
         Args:
@@ -82,11 +92,11 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             **kwargs: Additional keyword arguments.
 
         Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
+            np.array: The performance of the design -- each entry corresponds to an objective value.
         """
         raise NotImplementedError
 
-    def optimize(self, starting_point: DesignType, config: dict[str, Any], **kwargs) -> tuple[DesignType, dict[str, float]]:
+    def optimize(self, starting_point: DesignType, config: dict[str, Any], **kwargs) -> tuple[DesignType, list[OptiStep]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
         This is optional and will probably be implemented only for some problems.
@@ -97,7 +107,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             **kwargs: Additional keyword arguments.
 
         Returns:
-            Tuple[DesignType, dict]: The optimized design and its performance.
+            Tuple[DesignType, list[OptiStep]]: The optimized design and the optimization history.
         """
         raise NotImplementedError
 

@@ -1,3 +1,5 @@
+"""Utility functions for file operations."""
+
 import os
 from string import Template
 from typing import Any

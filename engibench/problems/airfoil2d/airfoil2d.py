@@ -12,10 +12,12 @@ from typing import Any
 
 from gymnasium import spaces
 import numpy as np
+import numpy.typing as npt
 import pandas as pd
 import pyoptsparse
 
 from engibench.core import DesignType
+from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
@@ -40,9 +42,9 @@ class Airfoil2D(Problem):
     The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in [0., 1.) per design) that define the airfoil shape.
 
     ## Objectives
-    The objectives are defined by the following parameters:
-    - `cd`: Drag coefficient to minimize.
-    - `cl`: Lift coefficient to maximize.
+    The objectives are defined and indexed as follows:
+    0. `cd`: Drag coefficient to minimize.
+    1. `cl`: Lift coefficient to maximize.
 
     ## Boundary conditions
     The boundary conditions are defined by the following parameters:
@@ -60,11 +62,9 @@ class Airfoil2D(Problem):
     """
 
     input_space = str
-    possible_objectives: frozenset[tuple[str, str]] = frozenset(
-        {
-            ("cd", "minimize"),
-            ("cl", "maximize"),
-        }
+    possible_objectives: tuple[tuple[str, str]] = (
+        ("cd", "minimize"),
+        ("cl", "maximize"),
     )
     boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
         {
@@ -126,7 +126,7 @@ class Airfoil2D(Problem):
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
         clone_dir(source_dir=self.__local_scripts_dir, target_dir=self.__local_target_dir)
 
-    def __design_to_simulator_input(self, design: np.ndarray, filename: str = "design") -> str:
+    def __design_to_simulator_input(self, design: npt.NDArray, filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
@@ -182,7 +182,7 @@ class Airfoil2D(Problem):
         subprocess.run(command, check=True)
         return filename
 
-    def __simulator_output_to_design(self, simulator_output: str | None = None) -> np.ndarray:
+    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray:
         """Converts a simulator input to a design.
 
         Args:
@@ -231,7 +231,7 @@ class Airfoil2D(Problem):
         design = slice_df[["CoordinateX", "CoordinateY"]].values.transpose()
         return design
 
-    def simulate(self, design: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, float]:
+    def simulate(self, design: npt.NDArray, config: dict[str, Any] = {}, mpicores: int = 4) -> npt.NDArray:
         """Simulates the performance of an airfoil design.
 
         Args:
@@ -289,11 +289,11 @@ class Airfoil2D(Problem):
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
         drag = float(outputs[4])
-        return {"cd": drag, "cl": lift}
+        return np.array([drag, lift])
 
     def optimize(
-        self, starting_point: np.ndarray, config: dict[str, Any] = {}, mpicores: int = 4
-    ) -> tuple[Any, dict[str, float]]:
+        self, starting_point: npt.NDArray, config: dict[str, Any] = {}, mpicores: int = 4
+    ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of an airfoil.
 
         Args:
@@ -351,14 +351,20 @@ class Airfoil2D(Problem):
         subprocess.run(command, check=True)
 
         # post process -- extract the shape and objective values
+        optisteps_history = []
         history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
+
+        # TODO return the full history of the optimization instead of just the last step
+        # Also, this is inconsistent with the definition of the problem saying we optimize 2 objectives...
         objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
             -1, -1
         ]
+        optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=0))
+        history.close()
 
         optimized_design = self.__simulator_output_to_design()
 
-        return optimized_design, {"cd": objective}
+        return (optimized_design, optisteps_history)
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:  # noqa: ANN401
         """Renders the design in a human-readable format.
@@ -402,7 +408,7 @@ if __name__ == "__main__":
         "airfoil.png",
         dpi=300,
     )
-    # config_keys = dataset.features.keys() - ["initial", "optimized"]
-    # config = {key: dataset[key][0] for key in config_keys}
+    # config_keys = dataset["train"].features.keys() - ["initial", "optimized"]
+    # config = {key: dataset["train"][key][0] for key in config_keys}
     #
     # print(problem.optimize(design, config=config, mpicores=8))
