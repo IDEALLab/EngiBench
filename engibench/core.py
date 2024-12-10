@@ -6,7 +6,7 @@ from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
 from datasets import load_dataset
-from gymnasium import spaces
+# from gymnasium import spaces  #liang: TODO
 import numpy as np
 
 SimulatorInputType = TypeVar("SimulatorInputType")

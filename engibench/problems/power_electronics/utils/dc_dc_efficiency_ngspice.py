@@ -1,6 +1,6 @@
 import numpy as np
 
-from . import raw_read as r
+from engibench.problems.power_electronics.utils import raw_read as r
 
 """
 https://www.iosrjournals.org/iosr-jeee/Papers/Vol14%20Issue%203/Series-1/F1403014348.pdf
