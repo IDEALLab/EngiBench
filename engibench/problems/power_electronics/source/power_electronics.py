@@ -1,3 +1,4 @@
+# ruff: noqa
 """Power Electronics problem."""
 
 from __future__ import annotations
@@ -7,7 +8,7 @@ import os
 # import shutil
 import subprocess
 
-# import networkx as nx  # TODO: for dataset
+# import networkx as nx  # TODO: for datasett
 import numpy as np
 
 from engibench.core import Problem
@@ -309,7 +310,7 @@ class PowerElectronics(Problem):
         if mode == "batch":
             """
             Here is an example:
-            .save @C0[i] @RC0[i] @C1[i] @RC1[i] @C2[i] @RC2[i] @C3[i] @RC3[i] @C4[i] @RC4[i] @C5[i] @RC5[i] @L0[i] @L1[i] @L2[i] @S0[i] @S1[i] @S2[i] @S3[i] @S4[i] @D0[i] @D1[i] @D2[i] @D3[i] @R0[i] 
+            .save @C0[i] @RC0[i] @C1[i] @RC1[i] @C2[i] @RC2[i] @C3[i] @RC3[i] @C4[i] @RC4[i] @C5[i] @RC5[i] @L0[i] @L1[i] @L2[i] @S0[i] @S1[i] @S2[i] @S3[i] @S4[i] @D0[i] @D1[i] @D2[i] @D3[i] @R0[i]
             .save all
             """
             self.cmp_edg_str = self.cmp_edg_str + "\n.save "
@@ -326,7 +327,7 @@ class PowerElectronics(Problem):
             self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
 
             self.cmp_edg_str = self.cmp_edg_str + ".tran 5n 1.06m 1m 5n uic\n"
-            # The following .meas(ure) can be replaced by .print, althogh the former is preferred.
+            # The following .meas(ure) can be replaced by .print, although the former is preferred.
             self.cmp_edg_str = (
                 self.cmp_edg_str
                 + f".meas TRAN Vo_mean avg par('V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})') from=1m to=1.06m\n"
@@ -399,7 +400,7 @@ class PowerElectronics(Problem):
 
             for i in range(self.cmp_cnt["C"]):
                 # Assuming dissipiation factor = 5 at 200Khz freq;  ESR = Disspiation_factor/ 2*pi*f*C
-                # Currenty we are using Parallel resistance (component "RC") as 100Meg
+                # Currently we are using Parallel resistance (component "RC") as 100Meg
                 # Using https://www.farnell.com/datasheets/2167237.pdf for ESR
                 cap_model_values = [self.capacitor_val[i], 1 / np.sqrt(10), 1e8]
                 capacitor_model.append(cmpt.Capacitor(dict(zip(ds.capacitor_properties, cap_model_values))))
@@ -470,7 +471,7 @@ class PowerElectronics(Problem):
                         DcGain = float(parts[2])
                     elif parts[0] == "vpp_ratio":
                         VoltageRipple = float(parts[2])
-        return DcGain, VoltageRipple
+        return DcGain, VoltageRipple  # type: ignore
 
     def simulate(self, design_variable: dict[str, float]) -> np.ndarray:
         """Simulates the performance of a Power Electronics design.

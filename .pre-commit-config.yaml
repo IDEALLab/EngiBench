@@ -23,7 +23,7 @@ repos:
     hooks:
       - id: codespell
         args:
-          - --ignore-words-list=mor,le,te
+          - --ignore-words-list=mor,le,te,ure
   - repo: https://github.com/astral-sh/ruff-pre-commit
     rev: v0.6.3
     hooks:
