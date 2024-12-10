@@ -93,9 +93,11 @@ class PowerElectronics(Problem):
             os.makedirs(self.netlist_dir)
 
         self.raw_file_dir = "../data/raw_file/"
+        self.raw_file_dir = "../data/raw_file/"
         if not os.path.exists(self.raw_file_dir):
             os.makedirs(self.raw_file_dir)
 
+        self.log_file_dir = "../data/log_file/"
         self.log_file_dir = "../data/log_file/"
         if not os.path.exists(self.log_file_dir):
             os.makedirs(self.log_file_dir)
@@ -327,7 +329,7 @@ class PowerElectronics(Problem):
             self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
 
             self.cmp_edg_str = self.cmp_edg_str + ".tran 5n 1.06m 1m 5n uic\n"
-            # The following .meas(ure) can be replaced by .print, although the former is preferred.
+            # The following .meas(ure) can be replaced by .print, although the former is tested and preferred, while the latter has not been tested in all cases.
             self.cmp_edg_str = (
                 self.cmp_edg_str
                 + f".meas TRAN Vo_mean avg par('V({self.edge_map['R0'][0]}) - V({self.edge_map['R0'][1]})') from=1m to=1.06m\n"
