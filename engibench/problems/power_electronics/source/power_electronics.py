@@ -1,3 +1,4 @@
+# ruff: noqa
 """Power Electronics problem."""
 
 from __future__ import annotations
@@ -7,17 +8,14 @@ import os
 # import shutil
 import subprocess
 
-# import networkx as nx  # TODO: for dataset
-import sys
-
+# import networkx as nx  # TODO: for datasett
 import numpy as np
 
-sys.path.append("../")
-# print(sys.path)
-from utils import component as cmpt
-from utils import data_sheet as ds
-import utils.dc_dc_efficiency_ngspice as dc_lib_ng
-from utils.str_to_value import str_to_value
+from engibench.core import Problem
+from engibench.problems.power_electronics.utils import component as cmpt
+from engibench.problems.power_electronics.utils import data_sheet as ds
+import engibench.problems.power_electronics.utils.dc_dc_efficiency_ngspice as dc_lib_ng
+from engibench.problems.power_electronics.utils.str_to_value import str_to_value
 
 
 def build(**kwargs) -> PowerElectronics:
@@ -29,8 +27,7 @@ def build(**kwargs) -> PowerElectronics:
     return PowerElectronics(**kwargs)
 
 
-# class PowerElectronics(Problem):
-class PowerElectronics:
+class PowerElectronics(Problem):
     r"""Power Electronics parameter optimization problem.
 
     ## Problem Description
@@ -87,14 +84,20 @@ class PowerElectronics:
         super().__init__()
         # self.seed = None  # may be useful in the future
 
+        # Note Xuliang: You might want to use these
+        python_file_dir = os.path.dirname(os.path.abspath(__file__))
+        current_dir = os.getcwd()
+
         self.netlist_dir = "../data/netlist/"
         if not os.path.exists(self.netlist_dir):
             os.makedirs(self.netlist_dir)
 
         self.raw_file_dir = "../data/raw_file/"
+        self.raw_file_dir = "../data/raw_file/"
         if not os.path.exists(self.raw_file_dir):
             os.makedirs(self.raw_file_dir)
 
+        self.log_file_dir = "../data/log_file/"
         self.log_file_dir = "../data/log_file/"
         if not os.path.exists(self.log_file_dir):
             os.makedirs(self.log_file_dir)
@@ -470,7 +473,7 @@ class PowerElectronics:
                         DcGain = float(parts[2])
                     elif parts[0] == "vpp_ratio":
                         VoltageRipple = float(parts[2])
-        return DcGain, VoltageRipple
+        return DcGain, VoltageRipple  # type: ignore
 
     def simulate(self, design_variable: dict[str, float]) -> np.ndarray:
         """Simulates the performance of a Power Electronics design.
@@ -495,7 +498,9 @@ class PowerElectronics:
 
 
 if __name__ == "__main__":
-    original_netlist_path = "../data/netlist/5_4_3_6_10-dcdc_converter_1.net"  # sweep 141
+    original_netlist_path = (
+        os.path.dirname(os.path.abspath(__file__)) + "/../data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+    )  # sweep 141
     bucket_id = "5_4_3_6_10"
     problem = PowerElectronics(original_netlist_path, bucket_id)
 
