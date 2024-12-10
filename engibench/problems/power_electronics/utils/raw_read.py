@@ -1,3 +1,9 @@
+"""Read from .raw file created by ngSpice. Return variables for Efficiency calculation."""
+
+# ruff: noqa
+
+from __future__ import annotations
+
 import numpy as np
 
 BSIZE_SP = 512  # Max size of a line of data; we don't want to read the
@@ -16,10 +22,10 @@ MDATA_LIST = [
 ]
 
 
-def rawread(fname: str):
-    """Read ngspice binary raw files. Return tuple of the data, and the
-    plot metadata. The dtype of the data contains field names. This is
-    not very robust yet, and only supports ngspice.
+def rawread(fname: str) -> tuple[list, list]:
+    """Read ngspice binary raw files. Return tuple of the data, and the plot metadata.
+
+    The dtype of the data contains field names. This is not very robust yet, and only supports ngspice.
         >>> darr, mdata = rawread("test.py")
         >>> darr.dtype.names
         >>> plot(np.real(darr["frequency"]), np.abs(darr["v(out)"]))
@@ -68,7 +74,15 @@ def rawread(fname: str):
                 rowdtype = np.dtype(
                     {
                         "names": plot["varnames"],
-                        "formats": [np.complex_ if b"complex" in plot[b"flags"] else np.float_] * nvars,
+                        "formats": [
+                            np.complex_
+                            if b"complex" in plot[b"flags"]
+                            #  else np.float_]*nvars})
+                            # An error happens when testing under Ubuntu 20:
+                            # AttributeError: `np.float_` was removed in the NumPy 2.0 release. Use `np.float64` instead.
+                            else np.float64
+                        ]
+                        * nvars,
                     }
                 )
                 # We should have all the metadata by now
