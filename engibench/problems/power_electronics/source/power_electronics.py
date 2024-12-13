@@ -59,7 +59,7 @@ class PowerElectronics(Problem):
     Xuliang Dong @ liangXD523
     """
 
-    def __init__(self, original_netlist_path: str, bucket_id: str) -> None:
+    def __init__(self) -> None:
         """Initializes the Power Electronics problem."""
         super().__init__()
 
@@ -83,15 +83,16 @@ class PowerElectronics(Problem):
 
         self.components = {"V": 0, "R": 1, "C": 2, "S": 3, "L": 4, "D": 5}
 
-        self.original_netlist_path = original_netlist_path  # E.g. '../data/netlist/5_4_3_6_10-dcdc_converter_1.net'
+        self.original_netlist_path: str = ""  # Use absolute path. E.g. ".... engibench/problems/power_electronics/data/netlist/5_4_3_6_10-dcdc_converter_1.net"
         self.rewrite_netlist_path: str = (
             ""  # It will be modified in __rewrite_netlist() depending on mode='batch' or mode='control'.
         )
-        self.netlist_name = self.original_netlist_path.split("/")[-1].removesuffix(".net")  # python 3.9 and newer
-        self.log_file_path = f"../data/log_file/{self.netlist_name}.log"
-        self.raw_file_path = f"../data/raw_file/{self.netlist_name}.raw"
+        self.bucket_id: str = ""
 
-        self.bucket_id = bucket_id  # Alternatively, we can get this from self.original_netlist_path.
+        self.netlist_name: str = ""
+        self.log_file_path: str = ""
+        self.raw_file_path: str = ""
+
         self.edge_map: dict[str, list[int]] = {"V0": [0, 0], "R0": [0, 0]}
         self.cmp_edg_str: str = ""
 
@@ -107,6 +108,16 @@ class PowerElectronics(Problem):
         self.cmp_cnt: dict[str, int] = {"V": 1, "R": 1, "C": 0, "S": 0, "L": 0, "D": 0}
 
         self.simulation_results: np.ndarray = np.array([])
+
+    def load_netlist(self, original_netlist_path: str, bucket_id: str) -> None:
+        self.original_netlist_path = os.path.abspath(original_netlist_path)
+        self.bucket_id = bucket_id  # Alternatively, we can get this from self.original_netlist_path.
+
+        self.netlist_name = (
+            self.original_netlist_path.replace("\\", "/").split("/")[-1].removesuffix(".net")
+        )  # python 3.9 and newer
+        self.log_file_path = os.path.normpath(os.path.join(self.log_file_dir, f"{self.netlist_name}.log"))
+        self.raw_file_path = os.path.normpath(os.path.join(self.raw_file_dir, f"{self.netlist_name}.raw"))
 
     def __process_topology(self, sweep_dict: dict[str, list]) -> None:
         """Read from self.original_netlist_path to get the topology. With the argument sweep_dict (C, L, T1, T2, L1, L2), set variables for rewriting.
@@ -132,41 +143,39 @@ class PowerElectronics(Problem):
         ref_comp_count["L"] = int(num_comp[2])
         ref_comp_count["C"] = int(num_comp[3])
 
-        file = open(self.original_netlist_path)
-        for line in file:
-            if line.strip() != "":
-                line = line.replace("=", " ")  # to deal with .PARAM problems. See the comments below.
-                # liang: Note that line still contains \n at the end of it!
-                line_spl = line.split()
-                if line_spl[0] == ".PARAM" and sweep_dict is None:
-                    # e.g. .PARAM V0_value = 10
-                    # e.g. .PARAM C0_value = 10u
-                    # e.g. .PARAM L2_value=0.001. Note the whitespace! It appears in new files provided by RTRC.
-                    # e.g. .PARAM GS2_L2=0
-                    value = str_to_value(line_spl[-1])
-                    if line_spl[1][0] == "C":
-                        self.capacitor_val.append(value)
-                    elif line_spl[1][0] == "L":
-                        self.inductor_val.append(value)
-                    elif "T1" in line_spl[1]:
-                        self.switch_T1.append(value)
-                    elif "T2" in line_spl[1]:
-                        self.switch_T2.append(value)
-                    elif "L1" in line_spl[1]:
-                        self.switch_L1.append(value)
-                    elif "L2" in line_spl[1]:
-                        self.switch_L2.append(value)
-                elif line[0] in self.components.keys():
-                    line_spl = line.split(" ")[:3]
+        with open(self.original_netlist_path) as file:
+            for line in file:
+                if line.strip() != "":
+                    line = line.replace("=", " ")  # to deal with .PARAM problems. See the comments below.
+                    # liang: Note that line still contains \n at the end of it!
+                    line_spl = line.split()
+                    if line_spl[0] == ".PARAM" and sweep_dict is None:
+                        # e.g. .PARAM V0_value = 10
+                        # e.g. .PARAM C0_value = 10u
+                        # e.g. .PARAM L2_value=0.001. Note the whitespace! It appears in new files provided by RTRC.
+                        # e.g. .PARAM GS2_L2=0
+                        value = str_to_value(line_spl[-1])
+                        if line_spl[1][0] == "C":
+                            self.capacitor_val.append(value)
+                        elif line_spl[1][0] == "L":
+                            self.inductor_val.append(value)
+                        elif "T1" in line_spl[1]:
+                            self.switch_T1.append(value)
+                        elif "T2" in line_spl[1]:
+                            self.switch_T2.append(value)
+                        elif "L1" in line_spl[1]:
+                            self.switch_L1.append(value)
+                        elif "L2" in line_spl[1]:
+                            self.switch_L2.append(value)
+                    elif line[0] in self.components.keys():
+                        line_spl = line.split(" ")[:3]
 
-                    if "RC" in line_spl[0] or "_GS" in line_spl[0]:
-                        continue  # pass this line
+                        if "RC" in line_spl[0] or "_GS" in line_spl[0]:
+                            continue  # pass this line
 
-                    self.edge_map[line_spl[0]] = [int(line_spl[1]), int(line_spl[2])]
-                    self.cmp_edg_str = self.cmp_edg_str + line  # Liang: do not add a '\n' at the end of this line.
-                    calc_comp_count[line[0]] = calc_comp_count[line[0]] + 1
-
-        file.close()
+                        self.edge_map[line_spl[0]] = [int(line_spl[1]), int(line_spl[2])]
+                        self.cmp_edg_str = self.cmp_edg_str + line  # Liang: do not add a '\n' at the end of this line.
+                        calc_comp_count[line[0]] = calc_comp_count[line[0]] + 1
 
         if ref_comp_count != calc_comp_count:
             print("Error - process_topology component check")
