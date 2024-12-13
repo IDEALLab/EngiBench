@@ -26,6 +26,7 @@ dependencies = [
     "gymnasium >= 1.0.0a1",
     "datasets[vision] >= 2.21.0", # imports modules with image features
     "pandas >= 2.2.3",
+    "networkx",
 ]
 dynamic = ["version"]
 
