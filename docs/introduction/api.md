@@ -11,7 +11,14 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 ```{eval-rst}
 .. automethod:: engibench.core.Problem.simulate
 .. automethod:: engibench.core.Problem.optimize
+
+    Where an OptiStep is defined as:
+
+    .. autoclass:: engibench.core.OptiStep
+
 .. automethod:: engibench.core.Problem.reset
+.. automethod:: engibench.core.Problem.render
+.. automethod:: engibench.core.Problem.random_design
 ```
 
 ## Attributes
@@ -24,7 +31,7 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 
         >>> problem.possible_objectives
         frozenset({('lift', 'maximize'), ('drag', 'minimize')})
-        
+
 .. autoattribute:: engibench.core.Problem.boundary_conditions
 
     This attribute list the boundary conditions of the problem. The boundary conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value.
@@ -50,7 +57,7 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
     .. code::
 
         >>> problem.dataset_id
-        'IDEALLab/airfoil2d'
+        'IDEALLab/airfoil_2d_v0'
 
 .. autoattribute:: engibench.core.Problem.dataset
 

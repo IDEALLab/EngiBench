@@ -1,3 +1,5 @@
+"""Utility functions for file operations."""
+
 import os
 from string import Template
 from typing import Any
@@ -10,24 +12,26 @@ def _create_study_dir(study_dir: str) -> None:
         study_dir (str): Path to the study directory.
 
     """
+    print(f"Creating study directory: {study_dir}")
     if not os.path.exists(study_dir):
         os.makedirs(study_dir)
 
 
-def clone_template(template_dir: str, study_dir: str) -> None:
-    """Clone the template directory to the study directory.
+def clone_dir(source_dir: str, target_dir: str) -> None:
+    """Clone the source directory to the study directory.
 
     Args:
-        template_dir (str): Path to the template directory.
-        study_dir (str): Path to the study directory.
+        source_dir (str): Path to the source directory.
+        target_dir (str): Path to the target directory.
 
     """
-    _create_study_dir(study_dir)
-    for root, _, files in os.walk(template_dir):
+    _create_study_dir(target_dir)
+    print(f"Copying files from {source_dir} to {target_dir}")
+    for root, _, files in os.walk(source_dir):
         for file in files:
             file_path = os.path.join(root, file)
-            rel_path = os.path.relpath(file_path, template_dir)
-            study_file_path = os.path.join(study_dir, rel_path)
+            rel_path = os.path.relpath(file_path, source_dir)
+            study_file_path = os.path.join(target_dir, rel_path)
             if not os.path.exists(os.path.dirname(study_file_path)):
                 os.makedirs(os.path.dirname(study_file_path))
             with open(file_path) as f:
