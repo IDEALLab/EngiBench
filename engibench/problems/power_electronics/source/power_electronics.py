@@ -128,6 +128,8 @@ class PowerElectronics(Problem):
         """
         print(f"Processing topology from original netlist path: {self.original_netlist_path}")
 
+        self.cmp_edg_str = ""  # reset
+
         self.capacitor_val = sweep_dict["C_val"]
         self.inductor_val = sweep_dict["L_val"]
         self.switch_T1 = sweep_dict["T1_val"]
@@ -339,6 +341,7 @@ class PowerElectronics(Problem):
                 self.cmp_edg_str = self.cmp_edg_str + "quit\n.endc\n\n.end"
 
             file.write(self.cmp_edg_str)
+            file.close()  # explicitly added this line to ensure that the rewritten netlist file is closed
 
     def __calculate_efficiency(self, exe=False) -> tuple[float, int, float, float]:
         capacitor_model, inductor_model, switch_model, diode_model = [], [], [], []
@@ -431,6 +434,7 @@ class PowerElectronics(Problem):
         return efficiency, error_report, P_loss, P_src
 
     def __parse_log_file(self) -> tuple[float, float]:
+        DcGain, VoltageRipple = np.nan, np.nan
         with open(self.log_file_path) as log:
             lines = log.readlines()
             for line in lines:
