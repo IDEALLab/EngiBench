@@ -74,12 +74,13 @@ pre-commit install
 In general, follow the `airfoil2d/` example.
 
 #### Code
-1. Create a new problem file in `engibench/problems/` following the existing structure.
-2. Add the problem to the `__init__.py` file in the same directory.
-3. Create your environment file and class, implementing the `Problem` interface. Complete your docstring thoroughly, LLMs + coding IDE will help a lot.
-4. Add a `build` function to the problem file that returns an instance of your problem.
-5. Add a file `my_problem_v0.py` in the folder. It just exposes the `build` function.
-6. Add your problem in `utils/all_problems.py` to register it.
+1. Create a new problem folder in `engibench/problems/` following the existing structure, e.g., `engibench/problems/airfoil2d/`.
+2. Add an `__init__.py` file in the same directory. Leave it empty.
+3. Create your environment file, e.g. `airfoil2d/airfoil2d.py`. Inside it, define a class that implements the `Problem` interface and its functions and attributes. You can consult the documentation for info about the API; see below for how to build the website locally.
+4. Complete your docstring (Python documentation) thoroughly, LLMs + coding IDE will greatly help.
+5. Add a `build` function to the problem file that returns an instance of your problem. This is essentially a copy-paste of the airfoil example.
+6. Add a file `<my_problem>_v0.py` in the folder. It just exposes the `build` function. Same, you can copy the airfoil example.
+7. Add your problem in `utils/all_problems.py` to register it. This is just adding a line and the import for your own problem.
 
 #### Documentation
 1. `cd docs` and run `pip install -r requirements.txt` to install the necessary packages.
