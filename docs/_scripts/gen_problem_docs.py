@@ -3,10 +3,12 @@ Generates markdown files for each problem in the problems directory.
 """
 
 import os
+import sys
 
 from tqdm import tqdm
 
-from engibench.utils.all_problems import all_problems
+from engibench.core import Problem
+from engibench.utils.all_problems import BUILTIN_PROBLEMS
 
 
 def trim(docstring: str) -> str:
@@ -35,51 +37,53 @@ def trim(docstring: str) -> str:
     return "\n".join(trimmed)
 
 
+def module(problem: type[Problem]) -> str:
+    module = sys.modules[problem.__module__]
+    if module.__package__ is None:
+        return problem.__module__
+    # Check if there is a shortcut alias in the parent module:
+    parent_module = sys.modules[module.__package__]
+    if getattr(parent_module, problem.__name__) is problem:
+        return module.__package__
+    return problem.__module__
+
+
 # Only produces the latest version of each problem
-filtered_problems = {}
-for problem_id, constructor in all_problems.items():
-    prob_version = problem_id.split("_v")[-1]
-    problem_id_without_version = "".join(problem_id.split("_")[:-1])
-    if problem_id_without_version not in filtered_problems:
-        filtered_problems[problem_id_without_version] = prob_version, constructor
-    else:
-        if prob_version > filtered_problems[problem_id_without_version][1]:
-            filtered_problems[problem_id_without_version] = prob_version, constructor
+filtered_problems: dict[str, type[Problem]] = {}
+for problem_id, problem in BUILTIN_PROBLEMS.items():
+    if problem_id not in filtered_problems or problem.version > filtered_problems[problem_id].version:
+        filtered_problems[problem_id] = problem
 
 print(filtered_problems)
 
 
 # Now generates the markdown files
-for problem_id, (version, constructor) in tqdm(filtered_problems.items()):
-    print(f"Generating docs for {problem_id}, {version}, {constructor}")
-    prob = constructor.build()
+for problem_id, problem in tqdm(filtered_problems.items()):
+    print(f"Generating docs for {problem_id}, {problem.version}, {problem}")
 
-    docstring = prob.__doc__
-    if not docstring:
-        docstring = prob.__class__.__doc__
-    docstring = trim(docstring)
+    docstring = problem.__doc__
+    docstring = trim(docstring) if docstring is not None else None
 
-    problem_title = problem_id.replace("_", " ").title()
-    problem_pkg = problem_id.replace("_", "").lower()
+    problem_title = f"{problem_id} {problem.version}".title()
 
     objective_str = ""
-    for obj, direction in prob.possible_objectives:
+    for obj, direction in problem.possible_objectives:
         objective_str += f"{obj}: &uarr;<br>" if direction == "maximize" else f"{obj}: &darr;<br>"
     objective_str = objective_str[:-4]  # remove the last <br>
 
     boundary_str = ""
-    for cond, value in prob.boundary_conditions:
+    for cond, value in problem.boundary_conditions:
         boundary_str += f"{cond}: {value}<br>"
     boundary_str = boundary_str[:-4]  # remove the last <br>
 
     title = f"# {problem_title}"
     prob_table = "|  |  |\n| --- | --- |\n"
-    prob_table += f"| Design space | {prob.design_space} |\n"
+    prob_table += f"| Design space | {problem.design_space} |\n"
     prob_table += f"| Objectives | {objective_str} |\n"
     prob_table += f"| Boundary conditions | {boundary_str} |\n"
-    prob_table += f"| Dataset | [{prob.dataset_id}](https://huggingface.co/datasets/{prob.dataset_id}) |\n"
-    prob_table += f"| Container | `{prob.container_id}` |\n"
-    prob_table += f"| Import | `from engibench.problems.{problem_pkg} import {problem_id}_v{version}` |\n"
+    prob_table += f"| Dataset | [{problem.dataset_id}](https://huggingface.co/datasets/{problem.dataset_id}) |\n"
+    prob_table += f"| Container | `{problem.container_id}` |\n"
+    prob_table += f"| Import | `from {module(problem)} import {problem.__name__}` |\n"
 
     all_text = f"""{title}
 {prob_table}
@@ -89,8 +93,7 @@ for problem_id, (version, constructor) in tqdm(filtered_problems.items()):
         os.path.dirname(__file__),
         "..",
         "problems",
-        problem_pkg + ".md",
+        problem_id + ".md",
     )
-    file = open(v_path, "w+", encoding="utf-8")
-    file.write(all_text)
-    file.close()
+    with open(v_path, "w+", encoding="utf-8") as stream:
+        stream.write(all_text)

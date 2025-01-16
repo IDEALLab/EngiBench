@@ -34,10 +34,10 @@ pip install -e ".[airfoil2d]"
 
 <!-- start api -->
 ```python
-from engibench.problems.airfoil2d import airfoil2d_v0
+from engibench.problems.airfoil2d.v0 import Airfoil2D
 
 # Create a problem
-problem = airfoil2d_v0.build()
+problem = Airfoil2D()
 problem.reset(seed=0)
 
 # Inspect problem
@@ -76,13 +76,44 @@ pre-commit install
 In general, follow the `airfoil2d/` example.
 
 #### Code
-1. Create a new problem folder in `engibench/problems/` following the existing structure, e.g., `engibench/problems/airfoil2d/`.
-2. Add an `__init__.py` file in the same directory. Leave it empty.
-3. Create your environment file, e.g. `airfoil2d/airfoil2d.py`. Inside it, define a class that implements the `Problem` interface and its functions and attributes. You can consult the documentation for info about the API; see below for how to build the website locally.
+1. Create a new problem module in [engibench/problems/](engibench/problems/) following the following layout (e.g. [engibench/problems/airfoil2d/](engibench/problems/airfoil2d/)), where you later also can add other versions / variant of the problem:
+   ```
+   📦 engibench
+   └─ 📂 problems
+      └─ 📂 new_problem
+         ├── 📄 __init__.py
+         └── 📄 v0.py
+   ```
+
+   `__init__.py`
+   ```py
+   """NewProblem problem module."""
+
+    from engibench.problems.new_problem.v0 import NewProblem
+
+    __all__ = ["NewProblem"]
+   ```
+
+   The `v0` module already proactively introduces versioning.
+
+   Ideally, all non-breaking changes should not create a new versioned module.
+   Also in many cases, code duplication can be avoided, by introducing a new parameter to the problem class.
+
+2. Define your problem class that implements the `Problem` interface with its functions and attributes in `problems/new_problem/v0.py` (e.g. [airfoil2d/v0.py](engibench/problems/airfoil2d/v0.py)).
+
+   `problems/new_problem/v0.py`
+   ```py
+   from engibench.core import Problem
+
+   class NewProblem(Problem[...]) # <- insert types for
+                                  #    SimulatorInputType, DesignType here
+       ... # define your problem here
+   ```
+
+   You can consult the documentation for info about the API; see below for how to build the website locally.
+3. Run `pytest tests/test_problem_metadata.py` (requires `pip install .[test]`)
+   to verify that the new `Problem` class defines all required metadata attributes.
 4. Complete your docstring (Python documentation) thoroughly, LLMs + coding IDE will greatly help.
-5. Add a `build` function to the problem file that returns an instance of your problem. This is essentially a copy-paste of the airfoil example.
-6. Add a file `<my_problem>_v0.py` in the folder. It just exposes the `build` function. Same, you can copy the airfoil example.
-7. Add your problem in `utils/all_problems.py` to register it. This is just adding a line and the import for your own problem.
 
 #### Documentation
 1. Install necessary documentation tools: `pip install .[doc]`.
