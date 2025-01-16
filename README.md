@@ -83,9 +83,10 @@ In general, follow the `airfoil2d/` example.
 7. Add your problem in `utils/all_problems.py` to register it. This is just adding a line and the import for your own problem.
 
 #### Documentation
-1. `cd docs` and run `pip install -r requirements.txt` to install the necessary packages.
-2. Run `python _scripts/gen_problems_docs.py` and pray.
-3. If it is a new problem family, add a new `.md` file in `docs/problems/` following the existing structure and add your problem family in the `toctree` of `docs/problems/index.md`.
+1. Install necessary documentation tools: `pip install .[doc]`.
+2. Run `python docs/_scripts/gen_problems_docs.py` and pray.
+3. If it is a new problem family, add a new `.md` file in [docs/problems/](docs/problems/) following
+   the existing structure and add your problem family in the `toctree` of [docs/problems/index.md](docs/problems/index.md).
 4. Add your problem markdown file to the `toctree` in `docs/problems/your_problem_family.md`.
 5. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
 6. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
