@@ -62,7 +62,7 @@ class Airfoil2D(Problem):
     """
 
     input_space = str
-    possible_objectives: tuple[tuple[str, str]] = (
+    possible_objectives: tuple[tuple[str, str], ...] = (
         ("cd", "minimize"),
         ("cl", "maximize"),
     )
