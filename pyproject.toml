@@ -35,12 +35,22 @@ dynamic = ["version"]
 airfoil2d = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
 all = [
     # All dependencies above
-    # NOTE: No need to manually remove the duplicates, setuptools automatically does that.
-    # Airfoil 2D
-    "pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0",
+    "engibench[airfoil2d]"
 ]
 
+doc = [
+     "sphinx",
+     "sphinx-autobuild",
+     "myst-parser",
+     "sphinx-gallery==0.14.0",
+     "sphinx-book-theme",
+     "sphinx_github_changelog",
+     "tabulate",
+]
 testing = ["pytest ==8.3.2"]
+dev = [
+    "engibench[doc,testing,all]"
+]
 
 [project.urls]
 Homepage = "TODO"

@@ -1,7 +1,0 @@
-sphinx
-sphinx-autobuild
-myst-parser
-sphinx-gallery==0.14.0
-sphinx-book-theme
-sphinx_github_changelog
-tabulate
