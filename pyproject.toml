@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "engibench"
+dynamic = ["version"]
 description="A suite of benchmarks for automated engineering design."
 readme = "README.md"
 requires-python = ">= 3.9"
@@ -28,7 +29,6 @@ dependencies = [
     "pandas >= 2.2.3",
     "matplotlib >= 3.9.3",
 ]
-dynamic = ["version"]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
@@ -39,13 +39,13 @@ all = [
 ]
 
 doc = [
-     "sphinx",
-     "sphinx-autobuild",
-     "myst-parser",
-     "sphinx-gallery==0.14.0",
-     "sphinx-book-theme",
-     "sphinx_github_changelog",
-     "tabulate",
+    "sphinx",
+    "sphinx-autobuild",
+    "myst-parser",
+    "sphinx-gallery==0.14.0",
+    "sphinx-book-theme",
+    "sphinx_github_changelog",
+    "tabulate",
 ]
 testing = ["pytest ==8.3.2"]
 dev = [
@@ -59,6 +59,7 @@ Documentation = "TODO"
 "Bug Report" = "TODO"
 
 [tool.setuptools]
+dynamic = {version = {attr = "engibench.__version__"}}
 include-package-data = true
 
 [tool.setuptools.packages.find]
