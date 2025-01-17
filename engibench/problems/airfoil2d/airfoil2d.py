@@ -32,7 +32,7 @@ def build(**kwargs) -> Airfoil2D:
     return Airfoil2D(**kwargs)
 
 
-class Airfoil2D(Problem):
+class Airfoil2D(Problem[str, npt.NDArray]):
     r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
@@ -61,7 +61,6 @@ class Airfoil2D(Problem):
     Cashen Diniz @cashend
     """
 
-    input_space = str
     possible_objectives: tuple[tuple[str, str], ...] = (
         ("cd", "minimize"),
         ("cl", "maximize"),
