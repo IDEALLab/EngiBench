@@ -27,7 +27,7 @@ def test_api(problem_module: types.ModuleType) -> None:
         isinstance(obj[0], str) for obj in problem.possible_objectives
     ), "The first element of each objective should be a string."
 
-    assert problem.dataset_id is not None, "The dataset_id attribute should not be None."
+    assert problem.dataset_id is not None and len(problem.dataset_id) > 0, "The dataset_id should be defined."
 
     # Test the methods are implemented
     class_methods = {
