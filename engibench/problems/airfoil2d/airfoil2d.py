@@ -61,7 +61,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     Cashen Diniz @cashend
     """
 
-    possible_objectives: tuple[tuple[str, str]] = (
+    possible_objectives: tuple[tuple[str, str], ...] = (
         ("cd", "minimize"),
         ("cl", "maximize"),
     )

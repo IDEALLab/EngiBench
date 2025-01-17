@@ -4,6 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "engibench"
+dynamic = ["version"]
 description="A suite of benchmarks for automated engineering design."
 readme = "README.md"
 requires-python = ">= 3.9"
@@ -28,19 +29,28 @@ dependencies = [
     "pandas >= 2.2.3",
     "matplotlib >= 3.9.3",
 ]
-dynamic = ["version"]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
 airfoil2d = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
 all = [
     # All dependencies above
-    # NOTE: No need to manually remove the duplicates, setuptools automatically does that.
-    # Airfoil 2D
-    "pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0",
+    "engibench[airfoil2d]"
 ]
 
+doc = [
+    "sphinx",
+    "sphinx-autobuild",
+    "myst-parser",
+    "sphinx-gallery==0.14.0",
+    "sphinx-book-theme",
+    "sphinx_github_changelog",
+    "tabulate",
+]
 testing = ["pytest ==8.3.2"]
+dev = [
+    "engibench[doc,testing,all]"
+]
 
 [project.urls]
 Homepage = "TODO"
@@ -49,6 +59,7 @@ Documentation = "TODO"
 "Bug Report" = "TODO"
 
 [tool.setuptools]
+dynamic = {version = {attr = "engibench.__version__"}}
 include-package-data = true
 
 [tool.setuptools.packages.find]
