@@ -52,7 +52,6 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     - :attr:`dataset_id` - a string identifier for the problem -- useful to pull datasets.
     - :attr:`dataset` - the dataset with designs and performances.
     - :attr:`container_id` - a string identifier for the singularity container.
-    - :attr:`input_space` - the inputs of simulator.
 
     Note:
         This class is generic and should be subclassed to define the specific problem.
@@ -70,7 +69,6 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     dataset_id: str  # String identifier for the problem (useful to pull datasets)
     _dataset: Dataset  # Dataset with designs and performances
     container_id: str  # String identifier for the singularity container
-    input_space: SimulatorInputType  # Simulator input (internal)
 
     # This handles the RNG properly
     np_random: np.random.Generator | None = None
