@@ -21,8 +21,7 @@ Ensure the problem is in EngiBench (or your fork). Ensure that its Python file h
 Install the required packages and EngiBench (or your fork):
 
 ```
-pip install engibench
-pip install -r docs/requirements.txt
+pip install engibench[doc]
 ```
 
 To build the documentation once:
