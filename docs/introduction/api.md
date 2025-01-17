@@ -1,5 +1,12 @@
 # API
 
+```{toctree}
+:hidden:
+:glob:
+
+./api/utils
+```
+
 The main class defining a problem is `engibench.core.Problem`. It is defined as follows
 ```{eval-rst}
 .. autoclass:: engibench.core.Problem
@@ -79,8 +86,4 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 
         >>> problem.dataset_id
         'mdolab/public:u22-gcc-ompi-stable'
-
-.. autoattribute:: engibench.core.Problem.input_space
-
-    This is an internal attribute that defines the input space of the simulator -- we use str for simulators relying on files. Users should not use this attribute.
 ```

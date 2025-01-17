@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import os
 import shutil
-import subprocess
 from typing import Any
 
 from gymnasium import spaces
@@ -19,6 +18,7 @@ import pyoptsparse
 from engibench.core import DesignType
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.utils import container
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
@@ -32,7 +32,7 @@ def build(**kwargs) -> Airfoil2D:
     return Airfoil2D(**kwargs)
 
 
-class Airfoil2D(Problem):
+class Airfoil2D(Problem[str, npt.NDArray]):
     r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
@@ -61,7 +61,6 @@ class Airfoil2D(Problem):
     Cashen Diniz @cashend
     """
 
-    input_space = str
     possible_objectives: tuple[tuple[str, str], ...] = (
         ("cd", "minimize"),
         ("cl", "maximize"),
@@ -114,7 +113,7 @@ class Airfoil2D(Problem):
             cleanup (bool): Deletes the previous study directory if True.
         """
         # docker pull image if not already pulled
-        subprocess.run(["docker", "pull", self.container_id], check=True)
+        container.pull(self.container_id)
         if cleanup:
             shutil.rmtree(self.__local_study_dir)
 
@@ -164,22 +163,12 @@ class Airfoil2D(Problem):
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
         # Bash command:
-        command = [
-            "docker",
-            "run",
-            "-it",
-            "--rm",
-            "--name",
-            "machaero",
-            "--mount",
-            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
-            self.container_id,
-            "/bin/bash",
-            self.__docker_target_dir + "/pre_process.sh",
-            self.__docker_study_dir,
-        ]
-
-        subprocess.run(command, check=True)
+        container.run(
+            command=["/bin/bash", self.__docker_target_dir + "/pre_process.sh", self.__docker_study_dir],
+            image=self.container_id,
+            name="machaero",
+            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+        )
         return filename
 
     def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray:
@@ -268,23 +257,12 @@ class Airfoil2D(Problem):
         # Launches a docker container with the airfoil_analysis.py script
         # The script takes a mesh and ffd and performs an optimization
         # Bash command:
-        command = [
-            "docker",
-            "run",
-            "-it",
-            "--rm",
-            "--name",
-            "machaero",
-            "--mount",
-            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
-            self.container_id,
-            "/bin/bash",
-            self.__docker_target_dir + "/analyze.sh",
-            str(mpicores),
-            self.__docker_study_dir,
-        ]
-
-        subprocess.run(command, check=True)
+        container.run(
+            command=[self.__docker_target_dir + "/analyze.sh", str(mpicores), self.__docker_study_dir],
+            image=self.container_id,
+            name="machaero",
+            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+        )
 
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
@@ -332,23 +310,12 @@ class Airfoil2D(Problem):
         # Launches a docker container with the optimize_airfoil.py script
         # The script takes a mesh and ffd and performs an optimization
         # Bash command:
-        command = [
-            "docker",
-            "run",
-            "-it",
-            "--rm",
-            "--name",
-            "machaero",
-            "--mount",
-            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
-            self.container_id,
-            "/bin/bash",
-            self.__docker_target_dir + "/optimize.sh",
-            str(mpicores),
-            self.__docker_study_dir,
-        ]
-
-        subprocess.run(command, check=True)
+        container.run(
+            command=[self.__docker_target_dir + "/optimize.sh", str(mpicores), self.__docker_study_dir],
+            image=self.container_id,
+            name="machaero",
+            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+        )
 
         # post process -- extract the shape and objective values
         optisteps_history = []
