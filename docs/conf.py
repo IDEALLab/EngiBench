@@ -16,8 +16,12 @@
 
 # -- Project information -----------------------------------------------------
 import os
+import sys
+from pathlib import Path
 
 import engibench
+
+sys.path.append(str(Path('_ext').resolve()))
 
 project = "EngiBench"
 author = "ETH Zurich's IDEAL Lab"
@@ -39,6 +43,7 @@ extensions = [
     "sphinx.ext.viewcode",  # Add links to the source code
     "myst_parser",  # Markdown support
     "sphinx_github_changelog",  # Generate changelog
+    "problem_doc",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -47,7 +52,7 @@ templates_path = ["_templates"]
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This pattern also affects html_static_path and html_extra_path.
-exclude_patterns = []
+exclude_patterns: list[str] = []
 
 # Napoleon settings
 napoleon_use_ivar = True
@@ -81,7 +86,7 @@ html_theme_options = {
 }
 
 html_static_path = ["_static"]
-html_css_files = []
+html_css_files: list[str] = []
 
 # -- Generate Changelog -------------------------------------------------
 
