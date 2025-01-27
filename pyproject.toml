@@ -144,6 +144,7 @@ select = [
 ignore = [
     "ANN101", # Typing self in function definition is not necessary
     "ANN102", # Same for cls
+    "ANN401", # Allow Any as type hint for *args and *kwargs
     "E501", # Ruff black style takes care of line length
     "ANN003", # Kwargs type hinting is not necessary
     "B006", # Do not use mutable default arguments

@@ -6,11 +6,21 @@ This folder contains the documentation for EngiBench.
 
 ### Editing a problem page
 
-Fork EngiBench and edit the docstring in the problem's Python file. Then, pip install your fork and run `docs/_scripts/gen_problem_docs.py` in this repo. This will automatically generate a Markdown documentation file for the problem.
+Fork EngiBench and edit the docstring in the problem's Python file. Then, pip install your fork.
 
 ### Adding a new problem
 
-Ensure the problem is in EngiBench (or your fork). Ensure that its Python file has a properly formatted markdown docstring. Install using `pip install -e .` and then run `docs/_scripts/gen_problem_docs.py`. This will automatically generate a md page for the environment. Then complete the [other steps](#other-steps).
+Ensure the problem is in EngiBench (or your fork). Ensure that its Python file has a properly formatted markdown docstring. Install using `pip install -e .[doc]` and add a markdown file in the [./problems/](problems/) of the repo.
+Use Engibench's own `problem` directive in the docs of your new problem:
+   ``````md
+   # Your Problem
+
+   ``` {problem} your_problem
+   ```
+   ``````
+
+Here, `your_problem` must match the name of the module where your problem class is defined.
+This will automatically include the docstrings of your `Problem` class as well as a table with its metadata. Then complete the [other steps](#other-steps).
 
 #### Other steps
 

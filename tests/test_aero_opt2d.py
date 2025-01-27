@@ -2,7 +2,7 @@ import os
 
 import pytest
 
-from engibench.problems.airfoil2d.airfoil2d import Airfoil2D
+from engibench.problems.airfoil2d.v0 import Airfoil2D
 
 IN_GITHUB_ACTIONS = os.getenv("GITHUB_ACTIONS") == "true"
 

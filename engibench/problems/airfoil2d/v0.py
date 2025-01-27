@@ -23,15 +23,6 @@ from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
 
-def build(**kwargs) -> Airfoil2D:
-    """Builds an Airfoil2D problem.
-
-    Args:
-        **kwargs: Arguments to pass to the constructor.
-    """
-    return Airfoil2D(**kwargs)
-
-
 class Airfoil2D(Problem[str, npt.NDArray]):
     r"""Airfoil 2D shape optimization problem.
 
@@ -61,6 +52,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     Cashen Diniz @cashend
     """
 
+    version = 0
     possible_objectives: tuple[tuple[str, str], ...] = (
         ("cd", "minimize"),
         ("cl", "maximize"),
@@ -333,7 +325,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         return (optimized_design, optisteps_history)
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:  # noqa: ANN401
+    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
