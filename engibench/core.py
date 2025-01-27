@@ -63,12 +63,20 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     """
 
     # Must be defined in subclasses
-    possible_objectives: tuple[tuple[str, str], ...]  # Objective names and types (minimize or maximize)
-    boundary_conditions: frozenset[tuple[str, Any]]  # Boundary conditions for the design problem
-    design_space: spaces.Space[DesignType]  # Design space (algorithm output)
-    dataset_id: str  # String identifier for the problem (useful to pull datasets)
-    _dataset: Dataset  # Dataset with designs and performances
-    container_id: str  # String identifier for the singularity container
+    version: int
+    """Version of the problem"""
+    possible_objectives: tuple[tuple[str, str], ...]
+    """Objective names and types (minimize or maximize)"""
+    boundary_conditions: frozenset[tuple[str, Any]]
+    """Boundary conditions for the design problem"""
+    design_space: spaces.Space[DesignType]
+    """Design space (algorithm output)"""
+    dataset_id: str
+    """String identifier for the problem (useful to pull datasets)"""
+    _dataset: Dataset | None
+    """Dataset with designs and performances"""
+    container_id: str
+    """String identifier for the singularity container"""
 
     # This handles the RNG properly
     np_random: np.random.Generator | None = None
@@ -121,7 +129,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         self.seed = seed
         self.np_random = np.random.default_rng(seed)
 
-    def render(self, design: DesignType, open_window: bool = False, **kwargs) -> Any:  # noqa: ANN401
+    def render(self, design: DesignType, open_window: bool = False, **kwargs) -> Any:
         r"""Render the design in a human-readable format.
 
         Args:

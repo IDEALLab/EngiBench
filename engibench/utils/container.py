@@ -13,6 +13,10 @@ def pull(image: str) -> None:
     Args:
         image: Container image to pull.
     """
+    if RUNTIME is None:
+        msg = "No container runtime found"
+        raise FileNotFoundError(msg)
+
     RUNTIME.pull(image)
 
 
@@ -32,10 +36,14 @@ def run(
         env: Mapping of environment variable names and values to set inside the container.
         name: Optional name for the container (not supported by all runtimes).
     """
+    if RUNTIME is None:
+        msg = "No container runtime found"
+        raise FileNotFoundError(msg)
+
     RUNTIME.run(command, image, mounts, env, name).check_returncode()
 
 
-def runtime() -> type[ContainerRuntime]:
+def runtime() -> type[ContainerRuntime] | None:
     """Determine the container runtime to use according to the environment variable `CONTAINER_RUNTIME`.
 
     If not set, check for availability.
@@ -52,8 +60,7 @@ def runtime() -> type[ContainerRuntime]:
     for rt in RUNTIMES:
         if rt.is_available():
             return rt
-    msg = "No container runtime found"
-    raise FileNotFoundError(msg)
+    return None
 
 
 class ContainerRuntime:
