@@ -111,7 +111,7 @@ In general, follow the `airfoil2d/` example.
    ```
 
    You can consult the documentation for info about the API; see below for how to build the website locally.
-3. Run `pytest tests/test_problem_metadata.py` (requires `pip install .[test]`)
+3. Run `pytest tests/test_problem_implementations.py` (requires `pip install .[test]`)
    to verify that the new `Problem` class defines all required metadata attributes.
 4. Complete your docstring (Python documentation) thoroughly, LLMs + coding IDE will greatly help.
 
