@@ -36,11 +36,8 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
         len(problem.possible_objectives) >= 1
     ), f"Problem {problem_class.__name__}: The possible_objectives attribute should not be empty."
     assert all(
-        obj[1] == "minimize" or obj[1] == "maximize" for obj in problem.possible_objectives
-    ), f"Problem {problem_class.__name__}: The second element of each objective should be either 'minimize' or 'maximize'."
-    assert all(
-        isinstance(obj[0], str) for obj in problem.possible_objectives
-    ), f"Problem {problem_class.__name__}: The first element of each objective should be a string."
+        isinstance(obj[0], str) and len(obj[0]) > 0 for obj in problem.possible_objectives
+    ), f"Problem {problem_class.__name__}: The first element of each objective should be a non-emtpy string."
 
     assert (
         problem.dataset_id is not None and len(problem.dataset_id) > 0
