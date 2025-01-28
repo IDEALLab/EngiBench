@@ -37,7 +37,7 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
     .. code::
 
         >>> problem.possible_objectives
-        frozenset({('lift', MAXIMIZE), ('drag', MINIMIZE)})
+        frozenset({('lift', ObjectiveDirection.MAXIMIZE), ('drag', ObjectiveDirection.MINIMIZE)})
 
 .. autoattribute:: engibench.core.Problem.boundary_conditions
 
