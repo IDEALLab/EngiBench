@@ -9,6 +9,7 @@ import gymnasium
 import pytest
 
 from engibench import Problem
+from engibench.core import ObjectiveDirection
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
 
 
@@ -36,8 +37,9 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
         len(problem.possible_objectives) >= 1
     ), f"Problem {problem_class.__name__}: The possible_objectives attribute should not be empty."
     assert all(
-        obj[1] == "minimize" or obj[1] == "maximize" for obj in problem.possible_objectives
-    ), f"Problem {problem_class.__name__}: The second element of each objective should be either 'minimize' or 'maximize'."
+        obj[1] == ObjectiveDirection.MINIMIZE or obj[1] == ObjectiveDirection.MAXIMIZE
+        for obj in problem.possible_objectives
+    ), f"Problem {problem_class.__name__}: The second element of each objective should be either ObjectiveDirection.MINIMIZE or ObjectiveDirection.MAXIMIZE."
     assert all(
         isinstance(obj[0], str) for obj in problem.possible_objectives
     ), f"Problem {problem_class.__name__}: The first element of each objective should be a string."

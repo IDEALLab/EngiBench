@@ -16,6 +16,7 @@ import pandas as pd
 import pyoptsparse
 
 from engibench.core import DesignType
+from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.utils import container
@@ -53,9 +54,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     """
 
     version = 0
-    possible_objectives: tuple[tuple[str, str], ...] = (
-        ("cd", "minimize"),
-        ("cl", "maximize"),
+    possible_objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
+        ("cd", ObjectiveDirection.MINIMIZE),
+        ("cl", ObjectiveDirection.MAXIMIZE),
     )
     boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
         {

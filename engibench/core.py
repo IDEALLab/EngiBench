@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+from enum import auto
+from enum import Enum
 from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
@@ -21,6 +23,13 @@ class OptiStep:
 
     obj_values: npt.NDArray
     step: int
+
+
+class ObjectiveDirection(Enum):
+    """Direction of the objective function."""
+
+    MINIMIZE = auto()
+    MAXIMIZE = auto()
 
 
 class Problem(Generic[SimulatorInputType, DesignType]):
