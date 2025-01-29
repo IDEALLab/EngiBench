@@ -1,4 +1,4 @@
-# ruff: noqa: N806
+# ruff: noqa: N806, ERA001, E741, FIX002, PLR0915
 
 """Beams 2D problem.
 
@@ -7,22 +7,37 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 
 from __future__ import annotations
 
-import os
+from copy import deepcopy
+import dataclasses
 from typing import Any
 
-# Problem-specific
 import cvxopt
 import cvxopt.cholmod
 from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
-import pyoptsparse
 from scipy.sparse import coo_matrix
 
 from engibench.core import DesignType
 from engibench.core import OptiStep
 from engibench.core import Problem
-from engibench.utils.files import replace_template_values
+
+
+@dataclasses.dataclass
+class ExtendedOptiStep(OptiStep):
+    """Extended version of OptiStep to store a list of NumPy arrays."""
+
+    array_list: list[npt.NDArray[np.float64]] = dataclasses.field(default_factory=list)
+
+    # Assumes all incoming arrays are the same shape
+    def add_array(self, new_array: npt.NDArray[np.float64]) -> None:
+        r"""Add a new array representing a snapshot of xPrint.
+
+        Args:
+            new_array (npt.NDArray): The current array, typically shape (N,), representing the intermediate density field xPrint.
+        """
+        self.array_list.append(new_array)
+
 
 class Beams2D(Problem):
     r"""Beam 2D topology optimization problem.
@@ -69,48 +84,28 @@ class Beams2D(Problem):
     # container_id = "mdolab/public:u22-gcc-ompi-stable"
     _dataset = None  # type: ignore
 
-    def __init__(self, base_directory: str | None = None) -> None:
-        """Initializes the Beams2D problem.
-
-        Args:
-            base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
-        """
+    def __init__(self) -> None:
+        """Initializes the Beams2D problem."""
         super().__init__()
 
         Emin = 1e-9
         Emax = 1
+        min_change = 0.025
+        min_ratio = 1e-3
         KE = self.lk()
 
         self.Emin = Emin
         self.Emax = Emax
+        self.min_change = min_change
+        self.min_ratio = min_ratio
         self.KE = KE
         self.seed = None
-        self.current_study = f"study_{self.seed}"
-        # This is used for intermediate files
-        # Local file are prefixed with self.local_base_directory
-        if base_directory is not None:
-            self.__local_base_directory = base_directory
-        else:
-            self.__local_base_directory = os.getcwd()
-        self.__local_target_dir = self.__local_base_directory + "/engibench_studies/problems/beams2d"
-        # self.__local_template_dir = (
-        #     os.path.dirname(os.path.abspath(__file__)) + "/templates"
-        # )  # These templates are shipped with the lib
-        # self.__local_scripts_dir = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
-        self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
-
-        # Docker target directory
-        # This is used for files that are mounted into the docker container
-        # self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
-        # self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/beams2d"
-        # self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
     def __design_to_simulator_input(self, design: npt.NDArray) -> npt.NDArray:
         r"""Convert a design to a simulator input.
 
         Args:
             design (DesignType): The design to convert.
-            **kwargs: Additional keyword arguments.
 
         Returns:
             SimulatorInputType: The corresponding design as a simulator input.
@@ -122,7 +117,8 @@ class Beams2D(Problem):
 
         Args:
             simulator_output (SimulatorInputType): The input to convert.
-            **kwargs: Additional keyword arguments.
+            nelx: Width of the problem domain.
+            nely: Height of the problem domain.
 
         Returns:
             DesignType: The corresponding design.
@@ -158,11 +154,6 @@ class Beams2D(Problem):
         cfg.update(config)
         params = self.setup(cfg)
         cfg.update(params)
-
-        # replace_template_values(
-        #     self.__local_study_dir + "/beam_analysis.py",
-        #     base_config,
-        # )
 
         sK = ((self.KE.flatten()[np.newaxis]).T * (self.Emin + (design) ** cfg["penal"] * (self.Emax - self.Emin))).flatten(
             order="F"
@@ -202,7 +193,6 @@ class Beams2D(Problem):
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
         # pre-process the design and run the simulation
-        filename = "candidate_design"
         self.__design_to_simulator_input(starting_point)  # self.__design_to_simulator_input(starting_point, filename)
 
         # Prepares the optimization script/function with the optimization configuration
@@ -223,24 +213,9 @@ class Beams2D(Problem):
         params = self.setup(cfg)
         cfg.update(params)
 
-        # Note: the variable names base_config and cfg are interchangeable, cfg is just the shorter form.
-        replace_template_values(
-            self.__local_study_dir + "/beam_opt.py",
-            cfg,
-        )
-
-        # post process -- extract the shape and objective values
-        # TODO: subclass the current optistep class and include intermediate designs of size (5000,)
+        # Make sure to include the intermediate designs of size (5000,)
+        # Make sure to return the full history of the optimization instead of just the last step
         optisteps_history = []
-        history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
-
-        # TODO return the full history of the optimization instead of just the last step
-        # Also, this is inconsistent with the definition of the problem saying we optimize 2 objectives...
-        objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
-            -1, -1
-        ]
-        optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=0))
-        history.close()
 
         volfrac = cfg["volfrac"]
         nelx = cfg["nelx"]
@@ -252,9 +227,12 @@ class Beams2D(Problem):
         H = cfg["H"]
         Hs = cfg["Hs"]
 
+        dv = np.zeros(nely * nelx)
+        dc = np.zeros(nely * nelx)
+
         x = volfrac * np.ones(nely * nelx, dtype=float)
         xPhys = x = volfrac * np.ones(nely * nelx, dtype=float)
-        xPrint, _, _, _ = self.base_filter(xPhys, nelx, nely, None, None, overhang_constraint=overhang_constraint)
+        xPrint, _, _ = self.base_filter(xPhys, (nelx, nely), dc, dv, overhang_constraint=overhang_constraint)
 
         loop = 0
         change = 1
@@ -262,14 +240,16 @@ class Beams2D(Problem):
         dc = np.ones(nely * nelx)
         ce = np.ones(nely * nelx)
 
-        while change > 0.025 and loop < max_iter:  # while change>0.01 and loop<max_iter:
+        while change > self.min_change and loop < max_iter:  # while change>0.01 and loop<max_iter:
             loop = loop + 1
 
             c, ce = self.simulate(xPrint, config=cfg)
 
             dc = (-penal * xPrint ** (penal - 1) * (self.Emax - self.Emin)) * ce
             dv = np.ones(nely * nelx)
-            xPrint, dx_m, dc, dv = self.base_filter(xPhys, nelx, nely, dc, dv, overhang_constraint)  # MATLAB implementation
+            xPrint, dc, dv = self.base_filter(
+                xPhys, (nelx, nely), dc, dv, overhang_constraint=overhang_constraint
+            )  # MATLAB implementation
 
             if ft == 0:
                 dc = np.asarray((H * (x * dc))[np.newaxis].T / Hs)[:, 0] / np.maximum(0.001, x)  # type: ignore
@@ -284,7 +264,7 @@ class Beams2D(Problem):
             # reshape to perform vector operations
             xnew = np.zeros(nelx * nely)
 
-            while (l2 - l1) / (l1 + l2) > 1e-3:
+            while (l2 - l1) / (l1 + l2) > self.min_ratio:
                 lmid = 0.5 * (l2 + l1)
                 if lmid > 0:
                     xnew = np.maximum(
@@ -299,9 +279,7 @@ class Beams2D(Problem):
                 elif ft == 1:
                     xPhys = np.asarray(H * xnew[np.newaxis].T / Hs)[:, 0]
 
-                xPrint, _, _, _ = self.base_filter(
-                    xPhys, nelx, nely, None, None, overhang_constraint=cfg["overhang_constraint"]
-                )
+                xPrint, _, _ = self.base_filter(xPhys, (nelx, nely), dc, dv, overhang_constraint=overhang_constraint)
 
                 if xPrint.sum() > volfrac * nelx * nely:
                     l1 = lmid
@@ -312,12 +290,17 @@ class Beams2D(Problem):
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(xnew.reshape(nelx * nely, 1) - x.reshape(nelx * nely, 1), np.inf)
-            x = [item for item in xnew]
+            x = deepcopy(xnew)
             x = np.array(x)
+
+            # Record the current state in optisteps_history
+            current_step = ExtendedOptiStep(obj_values=np.array([c]), step=loop)
+            current_step.add_array(xPrint)
+            optisteps_history.append(current_step)
 
         return (xPrint, optisteps_history)
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:  # noqa: ANN401
+    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -348,6 +331,14 @@ class Beams2D(Problem):
         # return np.array(self.dataset["train"]["initial"][rnd])  # type: ignore
 
     def setup(self, config: dict[str, Any] = {}) -> dict[str, Any]:
+        r"""Set up the matrices and parameters for optimization or simulation.
+
+        Args:
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
+
+        Returns:
+            params (dict): A dictionary with the relevant matrices and other parameters used in optimization and simulation.
+        """
         params = {}
         nelx = config["nelx"]
         nely = config["nely"]
@@ -418,6 +409,11 @@ class Beams2D(Problem):
         return params
 
     def lk(self) -> npt.NDArray:
+        r"""Set up the stiffness matrix.
+
+        Returns:
+            KE (npt.NDArray): The stiffness matrix.
+        """
         E = 1  # 1
         nu = 0.3  # 0.3
         k = np.array(
@@ -450,14 +446,28 @@ class Beams2D(Problem):
         )
         return KE
 
-    def base_filter(self, x1, nelx, nely, dc, dv, overhang_constraint=False):
+    def base_filter(
+        self, x1: npt.NDArray, dims: tuple[int, int], dc: npt.NDArray, dv: npt.NDArray, overhang_constraint: bool = False
+    ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+        """Topology Optimization (TO) filter.
+
+        Args:
+            x1: (npt.NDArray) The current density field during optimization.
+            dims: (tuple of ints) 1st term nelx is the domain width; 2nd term nely is the domain height.
+            dc: (npt.NDArray) The sensitivity field wrt. compliance;
+            dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
+            overhang_constraint: (bool) Indicates whether the 45-degree overhang constraint is applied.
+
+        Returns:
+            Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivty dv, respectively.
+        """
+        nelx = dims[0]
+        nely = dims[1]
+
         x = self.__simulator_output_to_design(x1, nelx, nely)
         if overhang_constraint:
-            if dc and dv:
-                dc = self.__simulator_output_to_design(dc, nelx, nely)
-                dv = self.__simulator_output_to_design(dv, nelx, nely)
-            else:
-                dx_m = np.ones(x.shape)
+            dc = self.__simulator_output_to_design(dc, nelx, nely)
+            dv = self.__simulator_output_to_design(dv, nelx, nely)
             P = 40
             ep = 1e-4
             xi_0 = 0.5
@@ -472,56 +482,51 @@ class Beams2D(Problem):
             keep = np.zeros(x.shape)
             sq = np.zeros(x.shape)
 
-            xi[nely - 1, :] = [item for item in x[nely - 1, :]]
+            xi[nely - 1, :] = deepcopy(x[nely - 1, :])
             for i in reversed(range(nely - 1)):
-                cbr = np.array([0] + list(xi[i + 1, :]) + [0]) + SHIFT
+                cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
                 keep[i, :] = cbr[:nelx] ** P + cbr[1 : nelx + 1] ** P + cbr[2:] ** P
                 Xi[i, :] = keep[i, :] ** (1 / Q) - BACKSHIFT
                 sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
                 xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
 
-            if dc is not None and dv is not None:
-                varargin = [dc, dv]
-                dc_copy = [[x for x in y] for y in dc]
-                dv_copy = [[x for x in y] for y in dv]
-                dfxi = [np.array(dc_copy), np.array(dv_copy)]
-                dfx = [np.array(dc_copy), np.array(dv_copy)]
-                lamb = np.zeros((nSens, nelx))
-                for i in range(nely - 1):
-                    dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
-                    dsmindXi = 1 - dsmindx
-                    cbr = np.array([0] + list(xi[i + 1, :]) + [0]) + SHIFT
+            dc_copy = deepcopy(dc)
+            dv_copy = deepcopy(dv)
+            dfxi = [np.array(dc_copy), np.array(dv_copy)]
+            dfx = [np.array(dc_copy), np.array(dv_copy)]
+            lamb = np.zeros((nSens, nelx))
+            for i in range(nely - 1):
+                dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
+                dsmindXi = 1 - dsmindx
+                cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
 
-                    dmx = np.zeros((Ns, nelx))
-                    for j in range(Ns):
-                        dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : nelx + j] ** (P - 1))
+                dmx = np.zeros((Ns, nelx))
+                for j in range(Ns):
+                    dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : nelx + j] ** (P - 1))
 
-                    qi = np.ravel([[i] * 3 for i in range(nelx)])
-                    qj = qi + [-1, 0, 1] * nelx
-                    qs = np.ravel(dmx.T)
+                qi = np.ravel([[i] * 3 for i in range(nelx)])
+                qj = qi + [-1, 0, 1] * nelx
+                qs = np.ravel(dmx.T)
 
-                    dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
-                    for k in range(nSens):
-                        dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
-                        lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
-
-                i = nely - 1
+                dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
                 for k in range(nSens):
-                    dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
+                    dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
+                    lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
 
-                dc = dfx[0]
-                dv = dfx[1]
-                dx_m = np.nan_to_num(dc / varargin[0], 1)  # type: ignore
-                dc = self.__design_to_simulator_input(dc)
-                dv = self.__design_to_simulator_input(dv)
+            i = nely - 1
+            for k in range(nSens):
+                dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
 
-            dx_m = np.expand_dims(dx_m, axis=(0, 1))
+            dc = dfx[0]
+            dv = dfx[1]
+            dc = self.__design_to_simulator_input(dc)
+            dv = self.__design_to_simulator_input(dv)
+
             xi = self.__design_to_simulator_input(xi)
         else:
-            dx_m = np.expand_dims(np.ones(x.shape), axis=(0, 1))
             xi = x1
 
-        return xi, dx_m, dc, dv
+        return (xi, dc, dv)
 
 
 if __name__ == "__main__":
