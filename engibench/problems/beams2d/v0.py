@@ -73,7 +73,7 @@ class Beams2D(Problem):
     possible_objectives: tuple[tuple[str, str]] = (("c", "minimize"),)
     boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
         {
-            ("volfrac", 0.15),
+            ("volfrac", 0.35),
             ("penal", 3.0),
             ("rmin", 2.0),
             ("overhang_constraint", True),
@@ -110,7 +110,9 @@ class Beams2D(Problem):
         Returns:
             SimulatorInputType: The corresponding design as a simulator input.
         """
-        return np.swapaxes(design, 0, 1).ravel()
+        if len(design.shape) == 2:
+            design = np.swapaxes(design, 0, 1).ravel()
+        return design
 
     def __simulator_output_to_design(self, simulator_output: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:
         r"""Convert a simulator input to a design.
@@ -123,7 +125,9 @@ class Beams2D(Problem):
         Returns:
             DesignType: The corresponding design.
         """
-        return np.swapaxes(simulator_output.reshape(nelx, nely), 0, 1)
+        if len(simulator_output.shape) == 1:
+            simulator_output = np.swapaxes(simulator_output.reshape(nelx, nely), 0, 1)
+        return simulator_output
 
     def simulate(self, design: npt.NDArray, config: dict[str, Any] = {}) -> tuple[npt.NDArray, npt.NDArray]:
         """Simulates the performance of a beam design.
@@ -141,13 +145,12 @@ class Beams2D(Problem):
         cfg = {
             "nelx": 100,
             "nely": 50,
-            "volfrac": 0.15,
+            "volfrac": 0.35,
             "penal": 3,
             "rmin": 2,
             "ft": 1,
             "max_iter": 100,
             "overhang_constraint": False,
-            "display": False,
         }
 
         cfg.update(self.boundary_conditions)
@@ -182,30 +185,26 @@ class Beams2D(Problem):
         c = ((self.Emin + design ** cfg["penal"] * (self.Emax - self.Emin)) * ce).sum()
         return (np.array(c), np.array(ce))
 
-    def optimize(self, starting_point: npt.NDArray, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
+    def optimize(self, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
         Args:
-            starting_point (np.ndarray): The starting point for the optimization.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
 
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        # pre-process the design and run the simulation
-        self.__design_to_simulator_input(starting_point)  # self.__design_to_simulator_input(starting_point, filename)
 
         # Prepares the optimization script/function with the optimization configuration
         cfg = {
             "nelx": 100,
             "nely": 50,
-            "volfrac": 0.15,
+            "volfrac": 0.35,
             "penal": 3,
             "rmin": 2,
             "ft": 1,
             "max_iter": 100,
             "overhang_constraint": False,
-            "display": False,
         }
 
         cfg.update(self.boundary_conditions)
@@ -466,8 +465,9 @@ class Beams2D(Problem):
 
         x = self.__simulator_output_to_design(x1, nelx, nely)
         if overhang_constraint:
-            dc = self.__simulator_output_to_design(dc, nelx, nely)
-            dv = self.__simulator_output_to_design(dv, nelx, nely)
+            if np.sum(dc) != 0:
+                dc = self.__simulator_output_to_design(dc, nelx, nely)
+                dv = self.__simulator_output_to_design(dv, nelx, nely)
             P = 40
             ep = 1e-4
             xi_0 = 0.5
@@ -490,37 +490,38 @@ class Beams2D(Problem):
                 sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
                 xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
 
-            dc_copy = deepcopy(dc)
-            dv_copy = deepcopy(dv)
-            dfxi = [np.array(dc_copy), np.array(dv_copy)]
-            dfx = [np.array(dc_copy), np.array(dv_copy)]
-            lamb = np.zeros((nSens, nelx))
-            for i in range(nely - 1):
-                dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
-                dsmindXi = 1 - dsmindx
-                cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
+            if np.sum(dc) != 0:
+                dc_copy = deepcopy(dc)
+                dv_copy = deepcopy(dv)
+                dfxi = [np.array(dc_copy), np.array(dv_copy)]
+                dfx = [np.array(dc_copy), np.array(dv_copy)]
+                lamb = np.zeros((nSens, nelx))
+                for i in range(nely - 1):
+                    dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
+                    dsmindXi = 1 - dsmindx
+                    cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
 
-                dmx = np.zeros((Ns, nelx))
-                for j in range(Ns):
-                    dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : nelx + j] ** (P - 1))
+                    dmx = np.zeros((Ns, nelx))
+                    for j in range(Ns):
+                        dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : nelx + j] ** (P - 1))
 
-                qi = np.ravel([[i] * 3 for i in range(nelx)])
-                qj = qi + [-1, 0, 1] * nelx
-                qs = np.ravel(dmx.T)
+                    qi = np.ravel([[i] * 3 for i in range(nelx)])
+                    qj = qi + [-1, 0, 1] * nelx
+                    qs = np.ravel(dmx.T)
 
-                dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
+                    dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
+                    for k in range(nSens):
+                        dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
+                        lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
+
+                i = nely - 1
                 for k in range(nSens):
-                    dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
-                    lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
+                    dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
 
-            i = nely - 1
-            for k in range(nSens):
-                dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
-
-            dc = dfx[0]
-            dv = dfx[1]
-            dc = self.__design_to_simulator_input(dc)
-            dv = self.__design_to_simulator_input(dv)
+                dc = dfx[0]
+                dv = dfx[1]
+                dc = self.__design_to_simulator_input(dc)
+                dv = self.__design_to_simulator_input(dv)
 
             xi = self.__design_to_simulator_input(xi)
         else:
@@ -529,7 +530,7 @@ class Beams2D(Problem):
         return (xi, dc, dv)
 
 
-if __name__ == "__main__":
+r""" if __name__ == "__main__":
     problem = Beams2D()
     # problem.reset(seed=0, cleanup=False)
 
@@ -548,4 +549,11 @@ if __name__ == "__main__":
     # config_keys = dataset["train"].features.keys()
     # config = {key: dataset["train"][key][0] for key in config_keys}
 
-    # print(problem.optimize(design, config=config))
+    # print(problem.optimize(design, config=config)) 
+"""
+
+if __name__ == "__main__":
+    problem = Beams2D()
+    xPrint, optisteps_history = problem.optimize()
+    print("Final compliance:", optisteps_history[-1].obj_values)
+

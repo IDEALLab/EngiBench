@@ -260,13 +260,13 @@ def deleterowcol(A, delrow, delcol):
 
 
 def base_filter(x1, nelx, nely, dc, dv, overhang_constraint=False):
-    x = to_image(x1, nelx, nely)[0][0]
+    x = to_image(x1, nelx, nely)
     if overhang_constraint:
         if dc is None:
             dx_m = np.ones(x.shape)
         else:
-            dc = to_image(dc, nelx, nely)[0][0]
-            dv = to_image(dv, nelx, nely)[0][0]
+            dc = to_image(dc, nelx, nely)
+            dv = to_image(dv, nelx, nely)
         P = 40
         ep = 1e-4
         xi_0 = 0.5
