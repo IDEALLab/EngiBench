@@ -169,23 +169,24 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         Args:
             df_slice (pd.DataFrame): The raw dataframe slice.
-            return_indicies (bool): If True, returns the reordered indices of the slice, instead of the coordinates.
 
         Returns:
             coords_reordered (np.ndarray): The reordered x and y coordinates of the slice.
         """
         # Now get connectivities
-        node_c1 = np.array(df_slice['NodeC1'].dropna().values).astype(int) # A list of [1,2,3,4,...]
-        node_c2 = np.array(df_slice['NodeC2'].dropna().values).astype(int) # A list of [2,3,4,5,...]
-        connectivities = np.concatenate((node_c1.reshape(-1, 1), node_c2.reshape(-1, 1)), axis=1) # A list of [[1,2],[2,3],[3,4],...]
+        node_c1 = np.array(df_slice["NodeC1"].dropna().values).astype(int)  # A list of [1,2,3,4,...]
+        node_c2 = np.array(df_slice["NodeC2"].dropna().values).astype(int)  # A list of [2,3,4,5,...]
+        connectivities = np.concatenate(
+            (node_c1.reshape(-1, 1), node_c2.reshape(-1, 1)), axis=1
+        )  # A list of [[1,2],[2,3],[3,4],...]
 
         # plot the x 'CoordinateX' and y 'CoordinateY' coordinates of the slice
-        coords_x = df_slice['CoordinateX'].values
-        coords_y = df_slice['CoordinateY'].values
+        coords_x = df_slice["CoordinateX"].values
+        coords_y = df_slice["CoordinateY"].values
 
         # We also have XoC YoC ZoC VelocityX VelocityY VelocityZ CoefPressure Mach
         # We would like to reorder these values in the same way as the coordinates, so we keep track of the indices
-        indicies = np.arange(len(df_slice))
+        indices = np.arange(len(df_slice))
         id_breaks_start_id = [0]
         id_breaks_end_id = []
         prev_id = 0
@@ -195,7 +196,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         for j in range(len(connectivities)):
             if connectivities[j][0] - 1 != prev_id:
                 # This means that we have a new set of points
-                id_breaks_start_id.append(connectivities[j][0]-1)
+                id_breaks_start_id.append(connectivities[j][0] - 1)
                 id_breaks_end_id.append(prev_id)
                 seg_id += 1
             segment_ids[j] = seg_id
@@ -204,7 +205,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         id_breaks_end_id.append(j)
 
-        unique_segment_ids = np.arange(seg_id+1)
+        unique_segment_ids = np.arange(seg_id + 1)
         new_seg_order = unique_segment_ids.copy()
 
         # Loop over and sort the segments such that the end of each x and y coordinate for each segment is the start of the next segment
@@ -244,9 +245,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
                 new_seg_order_temp[1] = unique_segment_ids[seg_tot_diff_min_id_end]
                 new_seg_order_temp[seg_tot_diff_min_id_end] = unique_segment_ids[1]
                 # Now loop through the remaining segments and match the end of the previous segment to the start of the next most likely segment, breaking if we reach the end
-                for k in range(2,len(unique_segment_ids)):
+                for k in range(2, len(unique_segment_ids)):
                     # Get the previous segment id
-                    prev_seg_id = new_seg_order_temp[k-1]
+                    prev_seg_id = new_seg_order_temp[k - 1]
                     # Get the previous segment end coordinates
                     prev_seg_end_x = seg_coords_end_x[prev_seg_id]
                     prev_seg_end_y = seg_coords_end_y[prev_seg_id]
@@ -275,19 +276,18 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         # Concatenate the segments in the new order
         coords_x_reordered = np.array([])
         coords_y_reordered = np.array([])
-        indicies_reordered = np.array([])
+        indices_reordered = np.array([])
 
         for j in range(len(new_seg_order)):
             segment = np.nonzero(segment_ids == new_seg_order[j])[0]
-            coords_x_segment = coords_x[connectivities[segment]-1][:,0]
-            coords_y_segment = coords_y[connectivities[segment]-1][:,0]
-            indicies_segment = indicies[connectivities[segment]-1][:,0]
+            coords_x_segment = coords_x[connectivities[segment] - 1][:, 0]
+            coords_y_segment = coords_y[connectivities[segment] - 1][:, 0]
+            indices_segment = indices[connectivities[segment] - 1][:, 0]
             coords_x_reordered = np.concatenate((coords_x_reordered, coords_x_segment))
             coords_y_reordered = np.concatenate((coords_y_reordered, coords_y_segment))
-            indicies_reordered = np.concatenate((indicies_reordered, indicies_segment))
+            indices_reordered = np.concatenate((indices_reordered, indices_segment))
 
         return np.array([coords_x_reordered, coords_y_reordered])
-
 
     def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray:
         """Converts a simulator input to a design.
