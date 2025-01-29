@@ -102,9 +102,9 @@ class Params:
 
 @dataclasses.dataclass
 class ExtendedOptiStep(OptiStep):
-    """Extended version of OptiStep to store a list of NumPy arrays."""
+    """Extended OptiStep to store a list of NumPy arrays, each of these being a density field at a given optimization step."""
 
-    array_list: list[npt.NDArray[np.float64]] = dataclasses.field(default_factory=list)
+    stored_design: list[npt.NDArray[np.float64]] = dataclasses.field(default_factory=list)
 
     def add_array(self, new_array: npt.NDArray[np.float64]) -> None:
         r"""Add a new array representing a snapshot of xPrint. Assumes all incoming arrays are the same shape.
@@ -112,7 +112,7 @@ class ExtendedOptiStep(OptiStep):
         Args:
             new_array (npt.NDArray): The current array, typically shape (N,), representing the intermediate density field xPrint.
         """
-        self.array_list.append(new_array)
+        self.stored_design.append(new_array)
 
 
 class Beams2D(Problem):
@@ -581,7 +581,14 @@ r""" if __name__ == "__main__":
 """
 
 if __name__ == "__main__":
+    # Calling Params() initiates an object with only the base configs (see top)
+    # These should be updated with the desired boundary conditions...
+    # Followed by the setup() function to properly initialize other params
     init_params = Params()
     problem = Beams2D()
     xPrint, optisteps_history = problem.optimize(init_params)
-    print("Final compliance:", optisteps_history[-1].obj_values)
+    print("Final compliance:", optisteps_history[-1].obj_values[0])
+    print(
+        "Final design volume fraction:",
+        optisteps_history[-1].stored_design[0].sum() / (init_params.nelx * init_params.nely),  # type: ignore
+    )
