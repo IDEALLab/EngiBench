@@ -169,7 +169,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         Args:
             df_slice (pd.DataFrame): The raw dataframe slice.
-            return_indices (bool): If True, returns the reordered indices of the slice, instead of the coordinates.
 
         Returns:
             coords_reordered (np.ndarray): The reordered x and y coordinates of the slice.
