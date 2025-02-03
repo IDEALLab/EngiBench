@@ -1,0 +1,145 @@
+"""Utility functions for the thermoelastic2d problem."""
+
+# ruff: noqa: PLR0913, PLR0915
+from __future__ import annotations
+
+from matplotlib import colors
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import numpy as np
+import tensorflow as tf
+
+
+def get_res_bounds(x_res: np.ndarray, y_res: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Generates the indices corresponding to the left, top, right, and bottom elements in the domain.
+
+    Args:
+        x_res: The number of elements in the x-direction
+        y_res: The number of elements in the y-direction
+
+    Returns:
+        The indices corresponding to the left, top, right, and bottom elements in the domain
+
+    """
+    row_elements = x_res
+    col_elements = y_res
+
+    bottom_row_indices = np.arange(col_elements - 1, row_elements * col_elements, col_elements)
+    right_col_indices = np.arange((row_elements - 1) * col_elements, row_elements * col_elements)
+    top_row_indices = np.arange(0, row_elements * col_elements, col_elements)
+    left_col_indices = np.arange(0, col_elements, 1)
+
+    return left_col_indices, top_row_indices, right_col_indices, bottom_row_indices
+
+
+def plot_multi_physics(
+    design: np.ndarray,
+    structural_bcs: np.ndarray,
+    thermal_bcs: np.ndarray,
+    nelx: int,
+    nely: int,
+    _fp: np.ndarray | None = None,
+    _um: None = None,
+    _t: None = None,
+    open_plot: bool = False,
+) -> Figure:
+    """Plot the multi-physics design along with the boundary conditions.
+
+    Args:
+        design (np.ndarray): The design array.
+        structural_bcs (np.ndarray): Structural boundary conditions.
+        thermal_bcs (np.ndarray): Thermal boundary conditions.
+        nelx (int): Number of elements in the x-direction.
+        nely (int): Number of elements in the y-direction.
+        _fp (Optional[np.ndarray]): Force points (default: None).
+        _um (None): Unused parameter (default: None).
+        _t (None): Unused parameter (default: None).
+        open_plot (bool): Whether to open the plot (default: False).
+
+    Returns:
+        None: The function generates a plot but does not return anything.
+    """
+    x_elements = nelx + 1
+    y_elements = nely + 1
+
+    # Get even and odd Fp elements
+    if _fp is None:
+        _fp = np.zeros((x_elements * y_elements * 2,))
+    fp_x = _fp[::2]  # 8450 / 2 = 4225 = 65 * 65
+    fp_y = _fp[1::2]
+
+    if _um is None:
+        _um = np.zeros((x_elements * y_elements * 2,))
+    disp_x = _um[::2]
+    disp_y = _um[1::2]
+
+    left_col_indices, top_row_indices, right_col_indices, bottom_row_indices = get_res_bounds(x_elements, y_elements)
+
+    structural_bcs_img = np.zeros((x_elements * y_elements,))
+    structural_bcs_img[structural_bcs // 2] = 1
+    structural_bcs_img = structural_bcs_img.reshape((x_elements, y_elements))
+    structural_bcs_img_clip = tf.clip_by_value(structural_bcs_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    structural_bcs_img_clip = structural_bcs_img_clip.T  # transpose to flip bottom left and top right
+
+    thermal_bcs_img = np.zeros((x_elements * y_elements,))
+    thermal_bcs_img[thermal_bcs] = 1
+    thermal_bcs_img[right_col_indices] = 1
+    thermal_bcs_img = thermal_bcs_img.reshape((x_elements, y_elements))
+    thermal_bcs_img_clip = tf.clip_by_value(thermal_bcs_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    thermal_bcs_img_clip = thermal_bcs_img_clip.T  # transpose to flip bottom left and top right
+
+    fpx_img = fp_x.reshape((x_elements, y_elements))
+    fpx_img_clip = tf.clip_by_value(fpx_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    fpx_img_clip = fpx_img_clip.T  # transpose to flip bottom left and top right
+
+    fpy_img = fp_y.reshape((x_elements, y_elements))
+    fpy_img_clip = tf.clip_by_value(fpy_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    fpy_img_clip = fpy_img_clip.T  # transpose to flip bottom left and top right
+
+    disp_x.reshape((x_elements, y_elements))
+    np.arange(nelx + 1)
+    -np.arange(nely + 1)
+
+    disp_y.reshape((x_elements, y_elements))
+    np.arange(nelx + 1)
+    -np.arange(nely + 1)
+
+    if _t is None:
+        _t = np.zeros((x_elements * y_elements,))
+    t_img = _t.reshape((x_elements, y_elements))
+    t_img_clip = t_img.T  # transpose to flip bottom left and top right
+    # normalize temperature
+    t_img_clip = (t_img_clip - np.min(t_img_clip)) / (np.max(t_img_clip) - np.min(t_img_clip)) * 255
+    t_xxx = np.arange(nelx + 1)
+    t_yyy = -np.arange(nely + 1)
+
+    # Create Plots
+    fig, ax = plt.subplots(2, 4, figsize=(7, 5))
+    ax[0][0].imshow(structural_bcs_img_clip)
+    ax[0][0].axis("off")
+    ax[0][0].set_title("Structural BCs")
+
+    ax[0][1].imshow(fpx_img_clip)
+    ax[0][1].axis("off")
+    ax[0][1].set_title("Force X")
+
+    ax[0][2].imshow(fpy_img_clip)
+    ax[0][2].axis("off")
+    ax[0][2].set_title("Force Y")
+
+    ax[0][3].imshow(thermal_bcs_img_clip)
+    ax[0][3].axis("off")
+    ax[0][3].set_title("Thermal BCs")
+
+    ax[1][0].imshow(-design, cmap="gray", interpolation="none", norm=colors.Normalize(vmin=-1, vmax=0))
+    ax[1][0].axis("off")
+    ax[1][0].set_title("Design")
+
+    ax[1][3].contourf(t_xxx, t_yyy, t_img_clip, 50)
+    ax[1][3].axis("image")
+    ax[1][3].set_title("Temperature")
+
+    plt.tight_layout()
+    if open_plot is True:
+        plt.show()
+    return fig
