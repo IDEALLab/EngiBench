@@ -1,6 +1,4 @@
-# utils
-
-## Using containers
+# Running in containers
 
 When running containers in your problems, `engibench` provides a container runtime abstraction, currently supporting
 - 🐋 [docker](https://www.docker.com/)
