@@ -1,4 +1,4 @@
-# ruff: noqa: N806, ERA001, E741, FIX002, PLR0915, N815, N816
+# ruff: noqa: E741, N806, N815, N816
 
 """Beams 2D problem.
 
@@ -149,16 +149,18 @@ class Beams2D(Problem):
     possible_objectives: tuple[tuple[str, str]] = (("c", "minimize"),)
     boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
         {
+            ("nelx", 100),
+            ("nely", 50),
             ("volfrac", 0.35),
             ("penal", 3.0),
             ("rmin", 2.0),
+            ("ft", 1),
             ("overhang_constraint", False),
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float32)
     dataset_id = "IDEALLab/beams_2d_v0"
-    # container_id = "mdolab/public:u22-gcc-ompi-stable"
-    _dataset = None  # type: ignore
+    _dataset = None
 
     def __init__(self) -> None:
         """Initializes the Beams2D problem."""
@@ -232,8 +234,7 @@ class Beams2D(Problem):
             1
         )
 
-        # COMPLIANCE (OBJECTIVE)
-        c = ((self.Emin + design**p.penal * (self.Emax - self.Emin)) * ce).sum()
+        c = ((self.Emin + design**p.penal * (self.Emax - self.Emin)) * ce).sum()  # compliance (objective)
         return (np.array(c), np.array(ce))
 
     def optimize(self, p: Params) -> tuple[np.ndarray, list[OptiStep]]:
@@ -256,16 +257,14 @@ class Beams2D(Problem):
 
         dv = np.zeros(p.nely * p.nelx)
         dc = np.zeros(p.nely * p.nelx)
+        ce = np.ones(p.nely * p.nelx)
 
         x = p.volfrac * np.ones(p.nely * p.nelx, dtype=float)
         xPhys = x = p.volfrac * np.ones(p.nely * p.nelx, dtype=float)
-        xPrint, _, _ = self.base_filter(xPhys, (p.nelx, p.nely), dc, dv, overhang_constraint=p.overhang_constraint)
+        xPrint, _, _ = self.base_filter(xPhys, p, dc, dv)
 
         loop = 0
         change = 1
-        dv = np.ones(p.nely * p.nelx)
-        dc = np.ones(p.nely * p.nelx)
-        ce = np.ones(p.nely * p.nelx)
 
         while change > self.min_change and loop < p.max_iter:  # while change>0.01 and loop<max_iter:
             loop = loop + 1
@@ -274,9 +273,7 @@ class Beams2D(Problem):
 
             dc = (-p.penal * xPrint ** (p.penal - 1) * (self.Emax - self.Emin)) * ce
             dv = np.ones(p.nely * p.nelx)
-            xPrint, dc, dv = self.base_filter(
-                xPhys, (p.nelx, p.nely), dc, dv, overhang_constraint=p.overhang_constraint
-            )  # MATLAB implementation
+            xPrint, dc, dv = self.base_filter(xPhys, p, dc, dv)  # MATLAB implementation
 
             if p.ft == 0:
                 dc = np.asarray((p.H * (x * dc))[np.newaxis].T / p.Hs)[:, 0] / np.maximum(0.001, x)  # type: ignore
@@ -306,7 +303,7 @@ class Beams2D(Problem):
                 elif p.ft == 1:
                     xPhys = np.asarray(p.H * xnew[np.newaxis].T / p.Hs)[:, 0]
 
-                xPrint, _, _ = self.base_filter(xPhys, (p.nelx, p.nely), dc, dv, overhang_constraint=p.overhang_constraint)
+                xPrint, _, _ = self.base_filter(xPhys, p, dc, dv)
 
                 if xPrint.sum() > p.volfrac * p.nelx * p.nely:
                     l1 = lmid
@@ -354,8 +351,6 @@ class Beams2D(Problem):
             DesignType: The valid random design.
         """
         return self.design_space.sample()
-        # rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))  # pyright: ignore[reportOptionalMemberAccess] # type: ignore
-        # return np.array(self.dataset["train"]["initial"][rnd])  # type: ignore
 
     def setup(self, p: Params) -> Params:
         r"""Set up the matrices and parameters for optimization or simulation.
@@ -474,28 +469,24 @@ class Beams2D(Problem):
         return KE
 
     def base_filter(
-        self, x1: npt.NDArray, dims: tuple[int, int], dc: npt.NDArray, dv: npt.NDArray, overhang_constraint: bool = False
+        self, x1: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray
     ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
         """Topology Optimization (TO) filter.
 
         Args:
             x1: (npt.NDArray) The current density field during optimization.
-            dims: (tuple of ints) 1st term nelx is the domain width; 2nd term nely is the domain height.
-            dc: (npt.NDArray) The sensitivity field wrt. compliance;
+            p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the optimization.
+            dc: (npt.NDArray) The sensitivity field wrt. compliance.
             dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
-            overhang_constraint: (bool) Indicates whether the 45-degree overhang constraint is applied.
 
         Returns:
             Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivty dv, respectively.
         """
-        nelx = dims[0]
-        nely = dims[1]
-
-        x = self.__simulator_output_to_design(x1, nelx, nely)
-        if overhang_constraint:
+        x = self.__simulator_output_to_design(x1, p.nelx, p.nely)
+        if p.overhang_constraint:
             if np.sum(dc) != 0:
-                dc = self.__simulator_output_to_design(dc, nelx, nely)
-                dv = self.__simulator_output_to_design(dv, nelx, nely)
+                dc = self.__simulator_output_to_design(dc, p.nelx, p.nely)
+                dv = self.__simulator_output_to_design(dv, p.nelx, p.nely)
             P = 40
             ep = 1e-4
             xi_0 = 0.5
@@ -510,10 +501,10 @@ class Beams2D(Problem):
             keep = np.zeros(x.shape)
             sq = np.zeros(x.shape)
 
-            xi[nely - 1, :] = deepcopy(x[nely - 1, :])
-            for i in reversed(range(nely - 1)):
+            xi[p.nely - 1, :] = deepcopy(x[p.nely - 1, :])
+            for i in reversed(range(p.nely - 1)):
                 cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
-                keep[i, :] = cbr[:nelx] ** P + cbr[1 : nelx + 1] ** P + cbr[2:] ** P
+                keep[i, :] = cbr[: p.nelx] ** P + cbr[1 : p.nelx + 1] ** P + cbr[2:] ** P
                 Xi[i, :] = keep[i, :] ** (1 / Q) - BACKSHIFT
                 sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
                 xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
@@ -523,18 +514,18 @@ class Beams2D(Problem):
                 dv_copy = deepcopy(dv)
                 dfxi = [np.array(dc_copy), np.array(dv_copy)]
                 dfx = [np.array(dc_copy), np.array(dv_copy)]
-                lamb = np.zeros((nSens, nelx))
-                for i in range(nely - 1):
+                lamb = np.zeros((nSens, p.nelx))
+                for i in range(p.nely - 1):
                     dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
                     dsmindXi = 1 - dsmindx
                     cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
 
-                    dmx = np.zeros((Ns, nelx))
+                    dmx = np.zeros((Ns, p.nelx))
                     for j in range(Ns):
-                        dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : nelx + j] ** (P - 1))
+                        dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : p.nelx + j] ** (P - 1))
 
-                    qi = np.ravel([[i] * 3 for i in range(nelx)])
-                    qj = qi + [-1, 0, 1] * nelx
+                    qi = np.ravel([[i] * 3 for i in range(p.nelx)])
+                    qj = qi + [-1, 0, 1] * p.nelx
                     qs = np.ravel(dmx.T)
 
                     dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
@@ -542,7 +533,7 @@ class Beams2D(Problem):
                         dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
                         lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
 
-                i = nely - 1
+                i = p.nely - 1
                 for k in range(nSens):
                     dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
 
@@ -558,37 +549,27 @@ class Beams2D(Problem):
         return (xi, dc, dv)
 
 
-r""" if __name__ == "__main__":
-    problem = Beams2D()
-    # problem.reset(seed=0, cleanup=False)
-
-    # Get design and conditions from the dataset
-    design = problem.random_design()
-
-    # This would just be noise
-    fig, ax = problem.render(design, open_window=True)
-    fig.savefig(
-        "mbb_beam.png",
-        dpi=300,
-    )
-
-    # TODO: Define this as a subclass of Dataset from core.py and set up the import from HuggingFace. Then uncomment the final lines.
-    dataset = problem.dataset
-    # config_keys = dataset["train"].features.keys()
-    # config = {key: dataset["train"][key][0] for key in config_keys}
-
-    # print(problem.optimize(design, config=config))
-"""
-
 if __name__ == "__main__":
     # Calling Params() initiates an object with only the base configs (see top)
     # These should be updated with the desired boundary conditions...
     # Followed by the setup() function to properly initialize other params
+    print("Loading dataset.")
     init_params = Params()
     problem = Beams2D()
+    dataset = problem.dataset  # NOTE: Use xPrint.reshape(nely, nelx) i.e., xPrint.reshape(100, 200) to obtain images.
+
+    # Get design and conditions from the dataset
+    design = problem.random_design()
+
+    # Sample Optimization
+    print("Conducting a sample optimization with default configs.")
     xPrint, optisteps_history = problem.optimize(init_params)
-    print("Final compliance:", optisteps_history[-1].obj_values[0])
+    print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(
-        "Final design volume fraction:",
-        optisteps_history[-1].stored_design[0].sum() / (init_params.nelx * init_params.nely),  # type: ignore
+        f"Final design volume fraction: {optisteps_history[-1].stored_design[0].sum() / (init_params.nelx * init_params.nely):.4f}"  # type: ignore
     )
+
+# [DONE] Test dataset loading.
+# [DONE] Clean up base filter and optimization with "p" object instead of passing individual variables: nelx --> p.nelx
+# [DONE] Check if this passes the precommits
+# [DONE] Commit new to repo
