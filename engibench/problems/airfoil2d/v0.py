@@ -52,13 +52,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    ```bibtex
-    @article{Diniz2024,
-        title={My paper},
-        author={Diniz, Cashen and Gandhi},
-        journal={My personal story},
-        year={2024},
-    }
+    C. Diniz and M. Fuge, “Optimizing Diffusion to Diffuse Optimal Designs,” in AIAA SCITECH 2024 Forum, 2024. doi: 10.2514/6.2024-2013.
 
     ## Lead
     Cashen Diniz @cashend
