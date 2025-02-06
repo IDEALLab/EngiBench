@@ -144,17 +144,7 @@ class Beams2D(Problem):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    ```bibtex
-    @article{andreassen2011efficient,
-        title={Efficient topology optimization in MATLAB using 88 lines of code},
-        author={Andreassen, Erik and Clausen, Anders and Schevenels, Mattias and Lazarov, Boyan S and Sigmund, Ole},
-        journal={Structural and Multidisciplinary Optimization},
-        volume={43},
-        pages={1--16},
-        year={2011},
-        publisher={Springer}
-    }
-    ```
+    E. Andreassen, A. Clausen, M. Schevenels, B. S. Lazarov, and O. Sigmund, “Efficient topology optimization in MATLAB using 88 lines of code,” in Structural and Multidisciplinary Optimization, vol. 43, pp. 1-16, 2011.
 
     ## Lead
     Arthur Drake @arthurdrake1
