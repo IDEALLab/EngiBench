@@ -169,7 +169,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         Args:
             df_slice (pd.DataFrame): The raw dataframe slice.
-            return_indicies (bool): If True, returns the reordered indices of the slice, instead of the coordinates.
 
         Returns:
             coords_reordered (np.ndarray): The reordered x and y coordinates of the slice.
@@ -187,7 +186,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         # We also have XoC YoC ZoC VelocityX VelocityY VelocityZ CoefPressure Mach
         # We would like to reorder these values in the same way as the coordinates, so we keep track of the indices
-        indicies = np.arange(len(df_slice))
+        indices = np.arange(len(df_slice))
         id_breaks_start_id = [0]
         id_breaks_end_id = []
         prev_id = 0
@@ -277,16 +276,16 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         # Concatenate the segments in the new order
         coords_x_reordered = np.array([])
         coords_y_reordered = np.array([])
-        indicies_reordered = np.array([])
+        indices_reordered = np.array([])
 
         for j in range(len(new_seg_order)):
             segment = np.nonzero(segment_ids == new_seg_order[j])[0]
             coords_x_segment = coords_x[connectivities[segment] - 1][:, 0]
             coords_y_segment = coords_y[connectivities[segment] - 1][:, 0]
-            indicies_segment = indicies[connectivities[segment] - 1][:, 0]
+            indices_segment = indices[connectivities[segment] - 1][:, 0]
             coords_x_reordered = np.concatenate((coords_x_reordered, coords_x_segment))
             coords_y_reordered = np.concatenate((coords_y_reordered, coords_y_segment))
-            indicies_reordered = np.concatenate((indicies_reordered, indicies_segment))
+            indices_reordered = np.concatenate((indices_reordered, indices_segment))
 
         return np.array([coords_x_reordered, coords_y_reordered])
 
