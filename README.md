@@ -111,12 +111,12 @@ In general, follow the `airfoil2d/` example.
    ```
 
    You can consult the documentation for info about the API; see below for how to build the website locally.
-3. Run `pytest tests/test_problem_implementations.py` (requires `pip install .[test]`)
+3. Run `pytest tests/test_problem_implementations.py` (requires `pip install ".[test]"`)
    to verify that the new `Problem` class defines all required metadata attributes.
 4. Complete your docstring (Python documentation) thoroughly, LLMs + coding IDE will greatly help.
 
 #### Documentation
-1. Install necessary documentation tools: `pip install .[doc]`.
+1. Install necessary documentation tools: `pip install ".[doc]"`.
 2. If it is a new problem family, add a new `.md` file in [docs/problems/](docs/problems/) following
    the existing structure and add your problem family in the `toctree` of [docs/problems/index.md](docs/problems/index.md).
 3. Add a problem markdown file to the `toctree` in `docs/problems/new_problem.md`. In the md file, use EngiBench's own `problem` directive:
