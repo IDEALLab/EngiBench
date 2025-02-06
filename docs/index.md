@@ -48,7 +48,7 @@ introduction/api
 :caption: Problems
 
 problems/airfoils
-problems/heat_sink
+problems/beams2d
 ```
 
 ```{toctree}
