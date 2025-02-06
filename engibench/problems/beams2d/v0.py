@@ -1,4 +1,5 @@
 # ruff: noqa: E741, N806, N815, N816
+# Disabled variable name conventions
 
 """Beams 2D problem.
 
@@ -102,27 +103,27 @@ class Params:
 
 @dataclasses.dataclass
 class ExtendedOptiStep(OptiStep):
-    """Extended OptiStep to store a list of NumPy arrays, each of these being a density field at a given optimization step."""
+    """Extended OptiStep to store a single NumPy array representing a density field at a given optimization step."""
 
-    stored_design: list[npt.NDArray[np.float64]] = dataclasses.field(default_factory=list)
+    stored_design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
 
-    def add_array(self, new_array: npt.NDArray[np.float64]) -> None:
-        r"""Add a new array representing a snapshot of xPrint. Assumes all incoming arrays are the same shape.
+    def set_array(self, new_array: npt.NDArray[np.float64]) -> None:
+        r"""Set a new array representing a snapshot of xPrint. Assumes all incoming arrays are the same shape.
 
         Args:
             new_array (npt.NDArray): The current array, typically shape (N,), representing the intermediate density field xPrint.
         """
-        self.stored_design.append(new_array)
+        self.stored_design = new_array
 
 
 class Beams2D(Problem):
     r"""Beam 2D topology optimization problem.
 
-    ## Problem Description (docstring)
+    ## Problem Description
     This problem simulates bending in an MBB beam, where the beam is symmetric about the central vertical axis and a force is applied at the top-center of the design. Problems are formulated using Density-based Topology Optimization (TO) based on an existing Python [implementation](https://github.com/arjendeetman/TopOpt-MMA-Python).
 
     ## Design space
-    The design space is an array of solid densities in [0,1] with shape (5000,) that can also be represented as a (100,50) image, where nelx=100 and nely=50.
+    The design space is an array of solid densities in `[0.,1.]` with shape `(5000,)` that can also be represented as a `(100, 50)` image, where `nelx = 100` and `nely = 50`.
 
     ## Objectives
     The objectives are defined and indexed as follows:
@@ -139,7 +140,11 @@ class Beams2D(Problem):
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/beams_2d).
 
     ## Simulator
-    The objective (compliance) is calculated by the equation c = ( (Emin+xPrint**penal*(Emax-Emin))*ce ).sum() where xPrint is the current true density field.
+    The objective (compliance) is calculated by the equation `c = ( (Emin+xPrint**penal*(Emax-Emin))*ce ).sum()` where `xPrint` is the current true density field.
+
+    ## References
+    If you use this problem in your research, please cite the following paper:
+    E. Andreassen, A. Clausen, M. Schevenels, B. S. Lazarov, and O. Sigmund, “Efficient topology optimization in MATLAB using 88 lines of code,” in Structural and Multidisciplinary Optimization, vol. 43, pp. 1-16, 2011.
 
     ## Lead
     Arthur Drake @arthurdrake1
@@ -202,7 +207,23 @@ class Beams2D(Problem):
         """
         return np.swapaxes(simulator_output.reshape(nelx, nely), 0, 1)
 
-    def simulate(self, design: npt.NDArray, p: Params) -> tuple[npt.NDArray, npt.NDArray]:
+    def data_to_images(self, data: list[np.ndarray]) -> np.ndarray:
+        """Converts the flattened data back to images. NOTE: Assumes the image width is twice the height.
+
+        Args:
+            data (list of np.ndarray): The designs to convert.
+
+        Returns:
+            np.ndarray: The newly converted designs as images.
+        """
+        ims = np.array(data)
+        sh = ims.shape
+        nely = int(np.sqrt(sh[-1] // 2))
+        nelx = int(nely * 2)
+        ims = ims.reshape(sh[0], nely, nelx)
+        return ims
+
+    def calc_sensitivity(self, design: npt.NDArray, p: Params) -> npt.NDArray:
         """Simulates the performance of a beam design. Assumes the Params object is already set up.
 
         Args:
@@ -210,7 +231,7 @@ class Beams2D(Problem):
             p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the simulation.
 
         Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
+            npt.NDArray: The sensitivity of the current design.
         """
         sK = ((self.KE.flatten()[np.newaxis]).T * (self.Emin + (design) ** p.penal * (self.Emax - self.Emin))).flatten(
             order="F"
@@ -230,13 +251,26 @@ class Beams2D(Problem):
 
         ############################################################################################################
         # Sensitivity
-        # TODO: Split into a separate function and only return c in this main simulate function
         ce = (np.dot(p.u[p.edofMat].reshape(p.nelx * p.nely, 8), self.KE) * p.u[p.edofMat].reshape(p.nelx * p.nely, 8)).sum(
             1
         )
+        return np.array(ce)
 
+    def simulate(self, design: npt.NDArray, p: Params, ce: npt.NDArray | None) -> npt.NDArray:
+        """Simulates the performance of a beam design. Assumes the Params object is already set up.
+
+        Args:
+            design (np.ndarray): The design to simulate.
+            p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the simulation.
+            ce: (np.ndarray, optional): If applicable, the pre-calculated sensitivity of the current design.
+
+        Returns:
+            npt.NDArray: The performance of the design in terms of compliance.
+        """
+        if ce is None:
+            ce = self.calc_sensitivity(design, p)
         c = ((self.Emin + design**p.penal * (self.Emax - self.Emin)) * ce).sum()  # compliance (objective)
-        return (np.array(c), np.array(ce))
+        return np.array(c)
 
     def optimize(self, p: Params) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
@@ -270,7 +304,8 @@ class Beams2D(Problem):
         while change > self.min_change and loop < p.max_iter:  # while change>0.01 and loop<max_iter:
             loop = loop + 1
 
-            c, ce = self.simulate(xPrint, p=p)
+            ce = self.calc_sensitivity(xPrint, p=p)
+            c = self.simulate(xPrint, p=p, ce=ce)
 
             dc = (-p.penal * xPrint ** (p.penal - 1) * (self.Emax - self.Emin)) * ce
             dv = np.ones(p.nely * p.nelx)
@@ -316,31 +351,33 @@ class Beams2D(Problem):
             # Compute the change by the inf. norm
             change = np.linalg.norm(xnew.reshape(p.nelx * p.nely, 1) - x.reshape(p.nelx * p.nely, 1), np.inf)
             x = deepcopy(xnew)
-            x = np.array(x)
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array([c]), step=loop)
-            current_step.add_array(xPrint)
+            current_step.set_array(xPrint)
             optisteps_history.append(current_step)
 
         return (xPrint, optisteps_history)
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, nelx: int, nely: int, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
             design (np.ndarray): The design to render.
+            nelx: Width of the problem domain.
+            nely: Height of the problem domain.
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
             Any: The rendered design.
         """
         import matplotlib.pyplot as plt
+        import seaborn as sns
 
-        # TODO: Change this to reshape input and plot as heatmap
-        fig, ax = plt.subplots()
+        im = self.__simulator_output_to_design(design, nelx=nelx, nely=nely)
+        fig, ax = plt.subplots(figsize=(8, 4))
+        sns.heatmap(im, cmap="coolwarm", ax=ax)
 
-        ax.scatter(design[0], design[1], s=10, alpha=0.7)
         if open_window:
             plt.show()
         return fig, ax
@@ -560,17 +597,24 @@ if __name__ == "__main__":
     problem = Beams2D()
     dataset = problem.dataset  # NOTE: Use xPrint.reshape(nely, nelx) i.e., xPrint.reshape(100, 200) to obtain images.
 
+    # Example of getting the training set and reshaping into images
+    xPrint_train = problem.data_to_images(dataset["train"]["xPrint"])  # type: ignore
+    print("Shape of xPrint_train:", xPrint_train.shape)
+
     # Get design and conditions from the dataset
     design = problem.random_design()
-    # TODO: Render here
+    fig, ax = problem.render(design, init_params.nelx, init_params.nely, open_window=True)
+    fig.savefig(
+        "beam.png",
+        dpi=300,
+    )
 
     # Sample Optimization
     print("Conducting a sample optimization with default configs.")
     xPrint, optisteps_history = problem.optimize(init_params)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(
-        # TODO: Convert stored_design to a single object rather than list
-        f"Final design volume fraction: {optisteps_history[-1].stored_design[0].sum() / (init_params.nelx * init_params.nely):.4f}"  # type: ignore
+        f"Final design volume fraction: {optisteps_history[-1].stored_design.sum() / (init_params.nelx * init_params.nely):.4f}"  # type: ignore
     )
 
 # [DONE] Test dataset loading.
