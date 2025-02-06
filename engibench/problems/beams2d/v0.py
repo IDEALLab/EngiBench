@@ -230,6 +230,7 @@ class Beams2D(Problem):
 
         ############################################################################################################
         # Sensitivity
+        # TODO: Split into a separate function and only return c in this main simulate function
         ce = (np.dot(p.u[p.edofMat].reshape(p.nelx * p.nely, 8), self.KE) * p.u[p.edofMat].reshape(p.nelx * p.nely, 8)).sum(
             1
         )
@@ -336,6 +337,7 @@ class Beams2D(Problem):
         """
         import matplotlib.pyplot as plt
 
+        # TODO: Change this to reshape input and plot as heatmap
         fig, ax = plt.subplots()
 
         ax.scatter(design[0], design[1], s=10, alpha=0.7)
@@ -560,12 +562,14 @@ if __name__ == "__main__":
 
     # Get design and conditions from the dataset
     design = problem.random_design()
+    # TODO: Render here
 
     # Sample Optimization
     print("Conducting a sample optimization with default configs.")
     xPrint, optisteps_history = problem.optimize(init_params)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(
+        # TODO: Convert stored_design to a single object rather than list
         f"Final design volume fraction: {optisteps_history[-1].stored_design[0].sum() / (init_params.nelx * init_params.nely):.4f}"  # type: ignore
     )
 
