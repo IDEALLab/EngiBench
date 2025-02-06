@@ -58,7 +58,7 @@ class Params:
     ft: int = 1
     max_iter: int = 100
     overhang_constraint: bool = False
-    ndof: int = 10302
+    ndof: int = 10302  # ndof = 2 * (p.nelx + 1) * (p.nely + 1)
     edofMat: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     iK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     jK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
