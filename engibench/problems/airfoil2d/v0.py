@@ -31,10 +31,11 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the [MACH-Aero](https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/) simulator that computes the lift and drag coefficients of the airfoil.
 
     ## Design space
-    The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in [0., 1.) per design) that define the airfoil shape.
+    The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in `[0., 1.)` per design) that define the airfoil shape.
 
     ## Objectives
     The objectives are defined and indexed as follows:
+
     0. `cd`: Drag coefficient to minimize.
     1. `cl`: Lift coefficient to maximize.
 
@@ -48,6 +49,10 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
     ## Simulator
     The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+
+    ## References
+    If you use this problem in your research, please cite the following paper:
+    C. Diniz and M. Fuge, “Optimizing Diffusion to Diffuse Optimal Designs,” in AIAA SCITECH 2024 Forum, 2024. doi: 10.2514/6.2024-2013.
 
     ## Lead
     Cashen Diniz @cashend
