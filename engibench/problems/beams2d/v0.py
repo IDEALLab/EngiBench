@@ -166,7 +166,7 @@ class Beams2D(Problem):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float32)
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
-    container_id = None
+    container_id = None  # type: ignore
 
     def __init__(self) -> None:
         """Initializes the Beams2D problem."""
