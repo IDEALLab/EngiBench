@@ -116,7 +116,7 @@ class ExtendedOptiStep(OptiStep):
         self.stored_design = new_array
 
 
-class Beams2D(Problem):
+class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     r"""Beam 2D topology optimization problem.
 
     ## Problem Description
@@ -359,13 +359,11 @@ class Beams2D(Problem):
 
         return (xPrint, optisteps_history)
 
-    def render(self, design: np.ndarray, nelx: int, nely: int, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
             design (np.ndarray): The design to render.
-            nelx: Width of the problem domain.
-            nely: Height of the problem domain.
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
@@ -374,22 +372,24 @@ class Beams2D(Problem):
         import matplotlib.pyplot as plt
         import seaborn as sns
 
-        im = self.__simulator_output_to_design(design, nelx=nelx, nely=nely)
         fig, ax = plt.subplots(figsize=(8, 4))
-        sns.heatmap(im, cmap="coolwarm", ax=ax)
+        sns.heatmap(design, cmap="coolwarm", ax=ax, vmin=0, vmax=1)
 
         if open_window:
             plt.show()
         return fig, ax
 
-    def random_design(self) -> DesignType:
-        # Make this an actual random value
+    def random_design(self, designs: np.ndarray) -> DesignType:
         """Samples a valid random design.
+
+        Args:
+            designs (np.ndarray): The set of possible designs to choose from.
 
         Returns:
             DesignType: The valid random design.
         """
-        return self.design_space.sample()
+        rnd = np.random.randint(0, designs.shape[0])
+        return designs[rnd]
 
     def setup(self, p: Params) -> Params:
         r"""Set up the matrices and parameters for optimization or simulation.
@@ -600,8 +600,8 @@ if __name__ == "__main__":
     print("Shape of xPrint_train:", xPrint_train.shape)
 
     # Get design and conditions from the dataset
-    design = problem.random_design()
-    fig, ax = problem.render(design, init_params.nelx, init_params.nely, open_window=True)
+    design = problem.random_design(xPrint_train)
+    fig, ax = problem.render(design, open_window=True)
     fig.savefig(
         "beam.png",
         dpi=300,
@@ -614,8 +614,3 @@ if __name__ == "__main__":
     print(
         f"Final design volume fraction: {optisteps_history[-1].stored_design.sum() / (init_params.nelx * init_params.nely):.4f}"  # type: ignore
     )
-
-# [DONE] Test dataset loading.
-# [DONE] Clean up base filter and optimization with "p" object instead of passing individual variables: nelx --> p.nelx
-# [DONE] Check if this passes the precommits
-# [DONE] Commit new to repo
