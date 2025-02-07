@@ -183,6 +183,16 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         self.min_change = min_change
         self.min_ratio = min_ratio
         self.KE = KE
+        self.seed = None
+
+    def reset(self, seed: int | None) -> None:
+        r"""Reset the simulator and numpy random to a given seed.
+
+        Args:
+            seed (int, optional): The seed to reset to. If None, a random seed is used.
+        """
+        self.seed = seed
+        self.np_random = np.random.default_rng(seed)
 
     def __design_to_simulator_input(self, design: npt.NDArray) -> npt.NDArray:
         r"""Convert a design to a simulator input.
@@ -388,7 +398,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         Returns:
             DesignType: The valid random design.
         """
-        rnd = np.random.randint(0, designs.shape[0])
+        rnd = self.np_random.integers(low=0, high=designs.shape[0])  # type: ignore
         return designs[rnd]
 
     def setup(self, p: Params) -> Params:
@@ -593,6 +603,7 @@ if __name__ == "__main__":
     print("Loading dataset.")
     init_params = Params()
     problem = Beams2D()
+    problem.reset()
     dataset = problem.dataset  # NOTE: Use xPrint.reshape(nely, nelx) i.e., xPrint.reshape(100, 200) to obtain images.
 
     # Example of getting the training set and reshaping into images
