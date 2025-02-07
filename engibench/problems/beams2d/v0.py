@@ -238,7 +238,6 @@ class Beams2D(Problem):
             order="F"
         )
         K = coo_matrix((sK, (p.iK, p.jK)), shape=(p.ndof, p.ndof)).tocsc()
-        # Remove constrained dofs from matrix and convert to coo
         m = K.shape[0]
         keep = np.delete(np.arange(0, m), p.fixed)
         K = K[keep, :]
@@ -411,11 +410,9 @@ class Beams2D(Problem):
                 edofMat[el, :] = np.array(
                     [2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1]
                 )
-        # Construct the index pointers for the coo format
         iK = np.kron(edofMat, np.ones((8, 1))).flatten()
         jK = np.kron(edofMat, np.ones((1, 8))).flatten()
 
-        # Filter: Build (and assemble) the index+data vectors for the coo matrix format
         nfilter = int(p.nelx * p.nely * ((2 * (np.ceil(p.rmin) - 1) + 1) ** 2))
         iH = np.zeros(nfilter)
         jH = np.zeros(nfilter)
@@ -520,7 +517,7 @@ class Beams2D(Problem):
             dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
 
         Returns:
-            Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivty dv, respectively.
+            Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivity dv, respectively.
         """
         x = self.__simulator_output_to_design(x1, p.nelx, p.nely)
         if p.overhang_constraint:
