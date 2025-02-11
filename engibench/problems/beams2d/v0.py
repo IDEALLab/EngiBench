@@ -15,14 +15,14 @@ from typing import Any
 from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
-from util import calc_sensitivity
-from util import overhang_filter
-from util import Params
-from util import setup
 
 from engibench.core import DesignType
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.problems.beams2d.backend import calc_sensitivity
+from engibench.problems.beams2d.backend import overhang_filter
+from engibench.problems.beams2d.backend import Params
+from engibench.problems.beams2d.backend import setup
 
 
 @dataclasses.dataclass

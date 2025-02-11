@@ -326,7 +326,7 @@ def overhang_filter(
         xi = np.swapaxes(xi, 0, 1).ravel()
         dc = np.swapaxes(dc, 0, 1).ravel()
         dv = np.swapaxes(dv, 0, 1).ravel()
-        
+
     else:
         xi = x
 
