@@ -234,6 +234,15 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
         return (xPrint, optisteps_history)
 
+    def reset(self, seed: int | None = None, **kwargs) -> None:
+        r"""Reset the simulator and numpy random to a given seed.
+
+        Args:
+            seed (int, optional): The seed to reset to. If None, a random seed is used.
+            **kwargs: Additional keyword arguments.
+        """
+        raise NotImplementedError
+
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
