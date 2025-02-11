@@ -241,7 +241,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
             **kwargs: Additional keyword arguments.
         """
-        raise NotImplementedError
+        super().reset(seed, **kwargs)
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
