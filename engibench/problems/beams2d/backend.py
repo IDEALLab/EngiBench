@@ -3,7 +3,7 @@
 
 """Beams 2D problem.
 
-Filename convention is that folder paths do not end with /. For example, /path/to/folder is correct, but /path/to/folder/ is not.
+This code has been adapted from the Python implementation by Niels Aage and Villads Egede Johansen: https://github.com/arjendeetman/TopOpt-MMA-Python
 """
 
 from __future__ import annotations

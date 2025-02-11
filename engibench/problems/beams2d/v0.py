@@ -1,10 +1,7 @@
 # ruff: noqa: E741, N806, N815, N816
 # Disabled variable name conventions
 
-"""Beams 2D problem.
-
-Filename convention is that folder paths do not end with /. For example, /path/to/folder is correct, but /path/to/folder/ is not.
-"""
+"""Beams 2D problem."""
 
 from __future__ import annotations
 
