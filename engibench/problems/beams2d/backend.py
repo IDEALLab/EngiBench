@@ -212,7 +212,6 @@ def setup(p: Params) -> Params:
     Returns:
         Params object with the relevant matrices and other parameters used in optimization and simulation.
     """
-    
     ndof = 2 * (p.nelx + 1) * (p.nely + 1)
     edofMat = np.zeros((p.nelx * p.nely, 8), dtype=int)
     for elx in range(p.nelx):

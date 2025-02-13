@@ -267,8 +267,8 @@ if __name__ == "__main__":
     # Get design and conditions from the dataset, render design
     design, idx = problem.random_design(xPrint_train)
     config = params_train[idx]
-    config['nelx'] = 200
-    config['nely'] = 100
+    config["nelx"] = 200
+    config["nely"] = 100
     compliance = c_train[idx]
     fig, ax = problem.render(design, nelx=200, nely=100, open_window=True)
     fig.savefig(
@@ -279,7 +279,7 @@ if __name__ == "__main__":
     # The compliance calculated here will be slightly different if the original nelx and nely were different
     # All designs were upscaled to 100x200 prior to uploading to HF
     print("Verifying compliance via simulation. Reference value:", compliance)
-    
+
     try:
         c_ref = problem.simulate(design, config=config)
         print("Calculated compliance:", c_ref)
