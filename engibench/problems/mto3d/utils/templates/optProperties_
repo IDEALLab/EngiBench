@@ -1,0 +1,90 @@
+/*--------------------------------*- C++ -*----------------------------------*\
+| =========                 |                                                 |
+| \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox           |
+|  \\    /   O peration     | Version:  5                                     |
+|   \\  /    A nd           | Web:      www.OpenFOAM.org                      |
+|    \\/     M anipulation  |                                                 |
+\*---------------------------------------------------------------------------*/
+FoamFile
+{
+    version     2.0;
+    format      ascii;
+    class       dictionary;
+    location    "constant";
+    object      optProperties;
+}
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+raa0                1e-5;
+voluse              0.49;
+mma_init            0.3;
+mma_cmma            1000.0;
+mma_dec             0.7;
+mma_inc             1.2;
+movlim              0.4;
+filterR             1.7;
+optConvergenceThreshold         0.001;
+
+PowerDiss0          1e-09;
+PowerDissMax        21.6;
+PowerDissRelax      10.0;
+
+C0                  0.000803571;
+CMax                50;
+CRelax              15.0;
+
+GeoDim              3;
+fluid_area          yes;
+solid_area          yes;
+test_area           no;
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //  
+continuation
+{
+    NoContinuation      0;// or 1
+    n_beginning      20;
+    n_levels      20;
+    n_transitionItersAtEachLevel     20;
+    n_restPeriodAtEachLevel      10;
+    n_maxIterAtEach       100;
+    n_consecutiveConverged      2;
+    qD
+    {
+        overallType    linear;
+        transitionAtLevelType    linear;
+        from    0.1;
+        to      0.01;
+    }
+    qU
+    {
+        overallType    geometric;
+        transitionAtLevelType    geometric;
+        from    0.01;
+        to      0.001;
+    }
+    alphaMax
+    {
+        overallType    geometric;
+        transitionAtLevelType    geometric;
+        from    2500.0;
+        to      2.5e6;
+    }
+    Heaviside
+    {
+        overallType    geometric;
+        transitionAtLevelType    geometric;
+        from    1;
+        to      100.0;
+    }
+    
+    // type    automatic_VL;
+    //     lower   0.1;//1;
+    //     upper   60;//100;
+    //     slope   1.5;//1.5;
+    //     nSteps  250;//40;
+    // qU
+    // {
+    //     type    fromList;
+    //     list    (0.0001 0.2388 0.5103 0.8189 1.1699 1.5690 2.0228 2.5388 3.1256 3.7928 4.5515 5.4143 6.3953 7.5108 8.7793 10.2216 11.8618 13.7268 15.8475 18.2589);
+    //     nSteps    40;  
+    // }
+}

@@ -8,23 +8,22 @@ from __future__ import annotations
 import os
 import shutil
 import subprocess
-from typing import Any
+from typing import Any, Optional
 
 from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import pyoptsparse
 
 from engibench.core import DesignType
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
-
+from .utils import xh_npy, warm_up
 
 def build(**kwargs) -> MTO3D:
-    """Builds an Airfoil2D problem.
+    """Builds an MTO3D problem.
 
     Args:
         **kwargs: Arguments to pass to the constructor.
@@ -33,7 +32,7 @@ def build(**kwargs) -> MTO3D:
 
 
 class MTO3D(Problem):
-    r"""Airfoil 2D shape optimization problem.
+    r"""MTO 3D heat sink optimization problem.
 
     ## Problem Description
     This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the [MACH-Aero](https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/) simulator that computes the lift and drag coefficients of the airfoil.
@@ -43,36 +42,36 @@ class MTO3D(Problem):
 
     ## Objectives
     The objectives are defined and indexed as follows:
-    0. `cd`: Drag coefficient to minimize.
-    1. `cl`: Lift coefficient to maximize.
+    0. `mnt`: Mean temperature to minimize.
 
     ## Boundary conditions
     The boundary conditions are defined by the following parameters:
-    - `s0`: Off-the-wall spacing for the purpose of modeling the boundary layer.
-    - `marchDist`: Distance to march the grid from the airfoil surface.
+    - `v0`: Absolute value of the inlet velocity.
+    - `pwd`: Power dissipation upper bound constraint.
+    - `vol`: Fluid volume fraction upper bound constraint.
 
     ## Dataset
-    The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
+    The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/mto_3d).
 
     ## Simulator
     The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
 
     ## Lead
-    Cashen Diniz @cashend
+    Qiuyi Chen @qiuyi
     """
 
     input_space = str
     possible_objectives: tuple[tuple[str, str]] = (
-        ("cd", "minimize"),
-        ("cl", "maximize"),
+        ("mnt", "minimize"),
     )
     boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
         {
-            ("s0", 3e-6),
-            ("marchDist", 100.0),
+            ("PowerDissMax", 20), 
+            ("voluse", 0.5),
+            ("U", 0.15),
         }
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(20, 100, 100), dtype=np.float32)
     dataset_id = "IDEALLab/airfoil_2d_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     _dataset = None
@@ -93,18 +92,12 @@ class MTO3D(Problem):
             self.__local_base_directory = base_directory
         else:
             self.__local_base_directory = os.getcwd()
-        self.__local_target_dir = self.__local_base_directory + "/engibench_studies/problems/airfoil2d"
+        self.__local_target_dir = self.__local_base_directory + "/engibench_studies/problems/mto3d"
         self.__local_template_dir = (
             os.path.dirname(os.path.abspath(__file__)) + "/templates"
         )  # These templates are shipped with the lib
         self.__local_scripts_dir = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
         self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
-
-        # Docker target directory
-        # This is used for files that are mounted into the docker container
-        self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
-        self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
-        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -126,171 +119,50 @@ class MTO3D(Problem):
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
         clone_dir(source_dir=self.__local_scripts_dir, target_dir=self.__local_target_dir)
 
-    def __design_to_simulator_input(self, design: npt.NDArray, filename: str = "design") -> str:
+    def __design_to_simulator_input(self, design: npt.NDArray) -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
         The files are saved in the current directory with the name "$filename.cgns" and "$filename_ffd.xyz".
 
         Args:
-            design (np.ndarray): The design to convert.
-            filename (str): The filename to save the design to.
+            design (np.ndarray): The design to convert. Should have shape [20, 100, 200] (symmetric) or [20, 100, 100] (one-side).
         """
         # Save the design to a temporary file
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", design.transpose())
+        if design.shape == (20, 100, 100):
+            design = np.concatenate(
+                [design, np.flip(design, axis=-1)], 
+                axis=-1)
+        xh_npy.npy_to_xh(tensor=design,
+                         path=self.__local_study_dir + '/0/')
 
-        base_config = {
-            "design_fname": f"'{self.__docker_study_dir}/{filename}.dat'",
-            "tmp_xyz_fname": "'" + self.__docker_study_dir + "/tmp'",
-            "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
-            "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
-            "N_sample": 180,
-            "nTEPts": 4,
-            "xCut": 0.99,
-            "ffd_ymarginu": 0.02,
-            "ffd_ymarginl": 0.02,
-            "ffd_pts": 10,
-            "N_grid": 100,
-        }
-        # Adds the boundary conditions to the configuration
-        base_config.update(self.boundary_conditions)
-
-        # Prepares the preprocess.py script with the design
-        replace_template_values(
-            self.__local_study_dir + "/pre_process.py",
-            base_config,
-        )
-
-        # Launches a docker container with the pre_process.py script
-        # The script generates the mesh and FFD files
-        # Bash command:
-        command = [
-            "docker",
-            "run",
-            "-it",
-            "--rm",
-            "--name",
-            "machaero",
-            "--mount",
-            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
-            self.container_id,
-            "/bin/bash",
-            self.__docker_target_dir + "/pre_process.sh",
-            self.__docker_study_dir,
-        ]
-
-        subprocess.run(command, check=True)
-        return filename
-
-    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray:
-        """Converts a simulator input to a design.
+    def __simulator_output_to_design(self, **kwargs) -> npt.NDArray:
+        """Converts a simulator output to a design.
 
         Args:
-            simulator_output (str): The simulator input to convert.
+            simulator_output (str): The simulator output to convert.
 
         Returns:
             np.ndarray: The corresponding design.
         """
-        if simulator_output is None:
-            # Take latest slice file
-            files = os.listdir(self.__local_study_dir + "/output")
-            files = [f for f in files if f.endswith("_slices.dat")]
-            file_numbers = [int(f.split("_")[1]) for f in files]
-            simulator_output = files[file_numbers.index(max(file_numbers))]
+        iters = np.loadtxt(os.path.join(self.__local_study_dir, 'Time.txt'), delimiter='\t')
+        final_iter = iters[-1, 0]
 
-        slice_file = self.__local_study_dir + "/output/" + simulator_output
-
-        # Define the variable names for columns
-        var_names = [
-            "CoordinateX",
-            "CoordinateY",
-            "CoordinateZ",
-            "XoC",
-            "YoC",
-            "ZoC",
-            "VelocityX",
-            "VelocityY",
-            "VelocityZ",
-            "CoefPressure",
-            "Mach",
-        ]
-
-        nelems = pd.read_csv(
-            slice_file, sep=r"\s+", names=["fill1", "Nodes", "fill2", "Elements", "ZONETYPE"], skiprows=3, nrows=1
-        )
-        nnodes = int(nelems["Nodes"].iloc[0])
-
-        # Read the main data and node connections
-        slice_df = pd.read_csv(slice_file, sep=r"\s+", names=var_names, skiprows=5, nrows=nnodes, engine="c")
-
-        # Concatenate node connections to the main data
-
-        design = slice_df[["CoordinateX", "CoordinateY"]].values.transpose()
+        design = xh_npy.xh_to_npy(os.path.join(self.__local_study_dir, final_iter, 'xh.gz'))
         return design
 
+    def __read_history(self, config, **kwargs) -> npt.ArrayLike:
+        files = ['Time.txt', 'MeanT.txt', 'PowerDiss.txt', 'Voluse.txt']
+        his = np.stack([np.loadtxt(os.path.join(self.__local_study_dir, file))[:, -1] for file in files], axis=-1)
+        his[:, -1] += config['voluse']
+        return his
+
     def simulate(self, design: npt.NDArray, config: dict[str, Any] = {}, mpicores: int = 4) -> npt.NDArray:
-        """Simulates the performance of an airfoil design.
-
-        Args:
-            design (np.ndarray): The design to simulate.
-            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
-            mpicores (int): The number of MPI cores to use in the simulation.
-
-        Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
-        """
-        # pre-process the design and run the simulation
-        self.__design_to_simulator_input(design)
-
-        # Prepares the airfoil_analysis.py script with the simulation configuration
-        base_config = {
-            "alpha": 1.5,
-            "mach": 0.8,
-            "reynolds": 1e6,
-            "altitude": 10000,
-            "temperature": 223.150,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
-            "output_dir": "'" + self.__docker_study_dir + "/output/'",
-            "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
-            "task": "'analysis'",  # We can add the option to perform a polar analysis.
-        }
-
-        base_config.update(self.boundary_conditions)
-        base_config.update(config)
-
-        replace_template_values(
-            self.__local_study_dir + "/airfoil_analysis.py",
-            base_config,
-        )
-
-        # Launches a docker container with the airfoil_analysis.py script
-        # The script takes a mesh and ffd and performs an optimization
-        # Bash command:
-        command = [
-            "docker",
-            "run",
-            "-it",
-            "--rm",
-            "--name",
-            "machaero",
-            "--mount",
-            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
-            self.container_id,
-            "/bin/bash",
-            self.__docker_target_dir + "/analyze.sh",
-            str(mpicores),
-            self.__docker_study_dir,
-        ]
-
-        subprocess.run(command, check=True)
-
-        outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
-        lift = float(outputs[3])
-        drag = float(outputs[4])
-        return np.array([drag, lift])
+        raise NotImplementedError("The OpenFOAM optimizer hasn't been adapted for simulation yet.")
 
     def optimize(
-        self, starting_point: npt.NDArray, config: dict[str, Any] = {}, mpicores: int = 4
-    ) -> tuple[np.ndarray, list[OptiStep]]:
+        self, starting_point: Optional[npt.NDArray] = None, config: dict[str, Any] = {}, mpicores: int = 4
+    ) -> tuple[np.ndarray, np.ndarray]:
         """Optimizes the design of an airfoil.
 
         Args:
@@ -302,69 +174,67 @@ class MTO3D(Problem):
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
         # pre-process the design and run the simulation
-        filename = "candidate_design"
-        self.__design_to_simulator_input(starting_point, filename)
+        if starting_point is not None:
+            self.__design_to_simulator_input(starting_point)
 
         # Prepares the optimize_airfoil.py script with the optimization configuration
         base_config = {
-            "cl": 0.5,
-            "alpha": 1.5,
-            "mach": 0.75,
-            "altitude": 10000,  # add temperature (default 223.150) + reynolds (default 6.31E6) + reynoldsLength (default 1) option
-            "opt": "'SLSQP'",
-            "opt_options": {},
-            "output_dir": "'" + self.__docker_study_dir + "/output/'",
-            "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
-            "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
+            "PowerDissMax": None, 
+            "voluse": None,
+            "U": None,
+            "continuation": True, 
+            "qU": (None, None),
+            "alphaMax": (None, None),
+            "Heaviside": (None, None),
+            "n_beginning": None,
+            "n_levels": None,
+            "n_transitionItersAtEachLevel": None,
+            "n_restPeriodAtEachLevel": None,
+            "n_maxIterAtEach": None,
+            "n_consecutiveConverged": None,
+            'cdr': self.__docker_study_dir,
+            'sif': 'MTO_GEN.sif',
+            'ntasks': 16,
         }
 
         base_config.update(self.boundary_conditions)
         base_config.update(config)
 
-        replace_template_values(
-            self.__local_study_dir + "/airfoil_opt.py",
-            base_config,
+        assert os.path.exists(self.__local_study_dir)
+        warm_up.modify_optProperties(
+            self.__local_study_dir,
+            **base_config
         )
+        warm_up.replace_src(self.__local_study_dir)
+        
+        
+        template_sh = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            'templates', 'warm-start_3D.sh'
+        )
+        target_sh = os.path.join(
+            self.__local_study_dir, 
+            'warm-start_3D.sh'
+        )
+        shutil.copy(template_sh, target_sh)
+        replace_template_values(target_sh, base_config)
 
-        # Launches a docker container with the optimize_airfoil.py script
-        # The script takes a mesh and ffd and performs an optimization
-        # Bash command:
         command = [
-            "docker",
-            "run",
-            "-it",
-            "--rm",
-            "--name",
-            "machaero",
-            "--mount",
-            f"type=bind,src={self.__local_base_directory},target={self.__docker_base_dir}",
-            self.container_id,
-            "/bin/bash",
-            self.__docker_target_dir + "/optimize.sh",
-            str(mpicores),
-            self.__docker_study_dir,
+            "bash",
+            target_sh
         ]
 
         subprocess.run(command, check=True)
 
         # post process -- extract the shape and objective values
-        optisteps_history = []
-        history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
-
-        # return the full history of the optimization instead of just the last step
-        # Also, this is inconsistent with the definition of the problem saying we optimize 2 objectives...
-        objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
-            -1, -1
-        ]
-        optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=0))
-        history.close()
-
+        optisteps_history = self.__read_history(base_config)
         optimized_design = self.__simulator_output_to_design()
 
         return (optimized_design, optisteps_history)
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:  # noqa: ANN401
         """Renders the design in a human-readable format.
+        The current implementation uses matplotlib voxel plot to render the design.
 
         Args:
             design (np.ndarray): The design to render.
@@ -374,10 +244,23 @@ class MTO3D(Problem):
             Any: The rendered design.
         """
         import matplotlib.pyplot as plt
+        import matplotlib.cm as cm
 
-        fig, ax = plt.subplots()
+        def plot_vol3d(ax, vol_data, eps=0.5): # vol_data shape (z, h, w)
+            vol = np.transpose(np.where(vol_data > eps, 1, 0), (2, 1, 0))
+            z = np.empty_like(vol, dtype=np.float32)
+            z[:] = np.linspace(0, 1, z.shape[-1])
+            colors = cm.coolwarm_r(z)
 
-        ax.scatter(design[0], design[1], s=10, alpha=0.7)
+            ax.voxels(vol, edgecolor='k', facecolors=colors, linewidth=0.05)
+            ax.set_box_aspect(vol.shape, zoom=1.1)
+            ax.set_axis_off()
+            ax.view_init(elev=50, azim=90)
+
+        fig = plt.figure(figsize=(5*2, 5))
+        ax = fig.add_subplot(111, projection='3d')
+        plot_vol3d(ax, design)
+
         if open_window:
             plt.show()
         return fig, ax
