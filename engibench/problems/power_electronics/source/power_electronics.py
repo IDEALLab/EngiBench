@@ -407,11 +407,11 @@ class PowerElectronics(Problem):
                 if efficiency < 0 or efficiency > 1:
                     error_report += 1  # bit 0 will be 1 to report invalid efficiency calculation
 
-            except ValueError:  # In some conditions LTspice is not generating waveforms with invalid values
-                efficiency = np.nan
-                error_report = 16  # bit 4 will be 1 to report Process error such as invalid circuit
-                P_loss = np.nan
-                P_src = np.nan
+            # except ValueError:  # In some conditions LTspice is not generating waveforms with invalid values
+            #     efficiency = np.nan
+            #     error_report = 16  # bit 4 will be 1 to report Process error such as invalid circuit
+            #     P_loss = np.nan
+            #     P_src = np.nan
 
             except IndexError:  # For some circuits the gate voltage is not created properly
                 efficiency = np.nan
@@ -456,7 +456,10 @@ class PowerElectronics(Problem):
         """
         self.__process_topology(sweep_dict=design_variable)
         self.__rewrite_netlist(mode="control")
-        Efficiency, _, _, _ = self.__calculate_efficiency(exe=True)  # TODO: Use True for Windows, False for Ubuntu
+        Efficiency, error_report, _, _ = self.__calculate_efficiency(
+            exe=True
+        )  # TODO: Use True for Windows, False for Ubuntu
+        print(f"Error report from _calculate_efficiency: {error_report}")
         DcGain, VoltageRipple = self.__parse_log_file()
         self.simulation_results = np.array([DcGain, VoltageRipple, Efficiency])
 
