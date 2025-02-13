@@ -17,6 +17,7 @@ from engibench.core import DesignType
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.beams2d.backend import calc_sensitivity
+from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import overhang_filter
 from engibench.problems.beams2d.backend import Params
 from engibench.problems.beams2d.backend import setup
@@ -76,6 +77,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("penal", 3.0),
             ("rmin", 2.0),
             ("ft", 1),
+            ("max_iter", 100),
             ("overhang_constraint", False),
         ]
     )
@@ -90,90 +92,66 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
         self.seed = None
 
-    def __design_to_simulator_input(self, design: npt.NDArray) -> npt.NDArray:
-        r"""Convert a design to a simulator input: flattens the 2D image to a 1D vector.
-
-        Args:
-            design (DesignType): The design to convert.
-
-        Returns:
-            SimulatorInputType: The corresponding design as a simulator input.
-        """
-        return np.swapaxes(design, 0, 1).ravel()
-
-    def __simulator_output_to_design(self, simulator_output: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:
-        r"""Convert a simulator input to a design.
-
-        Args:
-            simulator_output (SimulatorInputType): The input to convert.
-            nelx: Width of the problem domain.
-            nely: Height of the problem domain.
-
-        Returns:
-            DesignType: The corresponding design.
-        """
-        return np.swapaxes(simulator_output.reshape(nelx, nely), 0, 1)
-
-    def __data_to_images(self, data: list[np.ndarray]) -> np.ndarray:
-        """Converts the flattened data back to images. NOTE: Assumes the image width is twice the height.
-
-        Args:
-            data (list of np.ndarray): The designs to convert.
-
-        Returns:
-            np.ndarray: The newly converted designs as images.
-        """
-        ims = np.array(data)
-        sh = ims.shape
-        nely = int(np.sqrt(sh[-1] // 2))
-        nelx = int(nely * 2)
-        ims = ims.reshape(sh[0], nely, nelx)
-        return ims
-
-    def simulate(self, design: npt.NDArray, p: Params, ce: npt.NDArray | None) -> npt.NDArray:
-        """Simulates the performance of a beam design. Assumes the Params object is already set up.
+    def simulate(
+        self, design: npt.NDArray, p: Params | None = None, ce: npt.NDArray | None = None, config: dict[str, Any] = {}
+    ) -> npt.NDArray:
+        """Simulates the performance of a beam design.
 
         Args:
             design (np.ndarray): The design to simulate.
-            p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the simulation.
+            p: Params object all needed values, vectors, and matrices needed for the simulation.
             ce: (np.ndarray, optional): If applicable, the pre-calculated sensitivity of the current design.
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
 
         Returns:
             npt.NDArray: The performance of the design in terms of compliance.
         """
+        if p is None:
+            p = Params()
+            base_config = {}  # No specification for base_config since it is equivalent to self.boundary_conditions
+            base_config.update(self.boundary_conditions)
+            base_config.update(config)
+            p.update(base_config)
+            p = setup(p)
+
         if ce is None:
             ce = calc_sensitivity(design, p)
         c = ((p.Emin + design**p.penal * (p.Emax - p.Emin)) * ce).sum()  # compliance (objective)
         return np.array(c)
 
-    def optimize(self, p: Params) -> tuple[np.ndarray, list[OptiStep]]:
+    def optimize(self, p: Params | None = None, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
         Args:
-            p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the optimization.
+            p: Params object all needed values, vectors, and matrices needed for the optimization.
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the optimization.
 
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
         # Prepares the optimization script/function with the optimization configuration
-        p = setup(p)
+        if p is None:
+            p = Params()
+            base_config = {}  # No specification for base_config since it is equivalent to self.boundary_conditions
+            base_config.update(self.boundary_conditions)
+            base_config.update(config)
+            p.update(base_config)
+            p = setup(p)
 
         # Make sure to include the intermediate designs of size (5000,)
         # Make sure to return the full history of the optimization instead of just the last step
         optisteps_history = []
 
-        dv = np.zeros(p.nely * p.nelx)
         dc = np.zeros(p.nely * p.nelx)
+        dv = np.zeros(p.nely * p.nelx)
         ce = np.ones(p.nely * p.nelx)
 
-        x = p.volfrac * np.ones(p.nely * p.nelx, dtype=float)
         xPhys = x = p.volfrac * np.ones(p.nely * p.nelx, dtype=float)
         xPrint, _, _ = overhang_filter(xPhys, p, dc, dv)
 
-        loop = 0
-        change = 1
+        loop, change = (0, 1)
 
-        while change > p.min_change and loop < p.max_iter:  # while change>0.01 and loop<max_iter:
+        while change > p.min_change and loop < p.max_iter:
             loop = loop + 1
 
             ce = calc_sensitivity(xPrint, p=p)
@@ -190,13 +168,11 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                 dv = np.asarray(p.H * (dv[np.newaxis].T / p.Hs))[:, 0]
 
             # Optimality criteria
-            l1 = 0
-            l2 = 1e9
-            move = 0.2
+            l1, l2, move = (0, 1e9, 0.2)
             # reshape to perform vector operations
             xnew = np.zeros(p.nelx * p.nely)
 
-            while (l2 - l1) / (l1 + l2) > p.min_ratio:
+            while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > p.min_ratio:
                 lmid = 0.5 * (l2 + l1)
                 if lmid > 0:
                     xnew = np.maximum(
@@ -217,8 +193,6 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                     l1 = lmid
                 else:
                     l2 = lmid
-                if l1 + l2 == 0:
-                    break
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(xnew.reshape(p.nelx * p.nely, 1) - x.reshape(p.nelx * p.nely, 1), np.inf)
@@ -240,11 +214,13 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         """
         super().reset(seed, **kwargs)
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, nelx: int = 100, nely: int = 50, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
             design (np.ndarray): The design to render.
+            nelx (int): Width of the problem domain.
+            nely (int): Height of the problem domain.
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
@@ -254,81 +230,75 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         import seaborn as sns
 
         fig, ax = plt.subplots(figsize=(8, 4))
-        sns.heatmap(design, cmap="coolwarm", ax=ax, vmin=0, vmax=1)
+        sns.heatmap(design_to_image(design, nelx, nely), cmap="coolwarm", ax=ax, vmin=0, vmax=1)
 
         if open_window:
             plt.show()
         return fig, ax
 
-    def random_design(self, designs: np.ndarray) -> DesignType:
+    def random_design(self, designs: np.ndarray) -> tuple[DesignType, int]:
         """Samples a valid random design.
 
         Args:
             designs (np.ndarray): The set of possible designs to choose from.
 
         Returns:
-            DesignType: The valid random design.
+            Tuple of:
+                DesignType: The valid random design.
+                int: The random index selected.
         """
         rnd = self.np_random.integers(low=0, high=designs.shape[0])  # type: ignore
-        return designs[rnd]
+        return (designs[rnd], rnd)
 
 
 if __name__ == "__main__":
     print("Loading dataset.")
-    init_params = Params()
     problem = Beams2D()
     problem.reset()
     dataset = problem.dataset
 
-    # Example of getting the training set and reshaping into images
-    xPrint_train = problem._Beams2D__data_to_images(dataset["train"]["xPrint"])  # type: ignore
+    # Example of getting the training set
+    xPrint_train = np.array(dataset["train"]["xPrint"])  # type: ignore
+    c_train = np.array(dataset["train"]["compliance"])  # type: ignore
+    params_train = np.array(dataset["train"].remove_columns(["xPrint", "compliance"]))  # type: ignore
+
     print("Shape of xPrint_train:", xPrint_train.shape)
 
-    # Get design and conditions from the dataset
-    design = problem.random_design(xPrint_train)
-    fig, ax = problem.render(design, open_window=True)
+    # Get design and conditions from the dataset, render design
+    design, idx = problem.random_design(xPrint_train)
+    config = params_train[idx]
+    config['nelx'] = 200
+    config['nely'] = 100
+    compliance = c_train[idx]
+    fig, ax = problem.render(design, nelx=200, nely=100, open_window=True)
     fig.savefig(
         "beam_random.png",
         dpi=300,
     )
 
+    # The compliance calculated here will be slightly different if the original nelx and nely were different
+    # All designs were upscaled to 100x200 prior to uploading to HF
+    print("Verifying compliance via simulation. Reference value:", compliance)
+    
+    try:
+        c_ref = problem.simulate(design, config=config)
+        print("Calculated compliance:", c_ref)
+    except ArithmeticError:
+        print("Failed to calculate compliance for upscaled design.")
+
     # Sample Optimization
-    print("Now conducting a sample optimization with the provided configs.")
-
-    # Ask the user if they want to override boundary conditions
-    override = input("Do you want to override boundary conditions? (y/n): ").strip().lower()
-
-    if override == "y":
-        print("Provide new values (press Enter to skip and keep defaults).")
-
-        updates = {}
-        for key, default in dict(Beams2D.boundary_conditions).items():
-            new_value = input(f"{key} (default={default}): ").strip()
-            if new_value:
-                try:
-                    # Convert value to the appropriate type
-                    if isinstance(default, bool):
-                        updates[key] = new_value.lower() in ["true", "1", "yes", "y"]
-                    elif isinstance(default, int):
-                        updates[key] = int(new_value)
-                    elif isinstance(default, float):
-                        updates[key] = float(new_value)
-                    else:
-                        updates[key] = new_value
-                except ValueError:
-                    print(f"Invalid value for {key}, keeping default.")
-
-        # Apply updates to parameters
-        init_params.update(updates)
+    print("\nNow conducting a sample optimization with the provided configs.")
 
     # NOTE: xPrint and optisteps_history[-1].stored_design are interchangeable.
-    xPrint, optisteps_history = problem.optimize(init_params)
+    xPrint, optisteps_history = problem.optimize()
+    nelx = dict(problem.boundary_conditions)["nelx"]
+    nely = dict(problem.boundary_conditions)["nely"]
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(
-        f"Final design volume fraction: {xPrint.sum() / (init_params.nelx * init_params.nely):.4f}"  # type: ignore
+        f"Final design volume fraction: {xPrint.sum() / (nelx*nely):.4f}"  # type: ignore
     )
 
-    fig, ax = problem.render(problem._Beams2D__simulator_output_to_design(xPrint), open_window=True)  # type: ignore
+    fig, ax = problem.render(xPrint, nelx=nelx, nely=nely, open_window=True)  # type: ignore
     fig.savefig(
         "beam_optim.png",
         dpi=300,

@@ -51,19 +51,22 @@ class Params:
         KE (np.ndarray): Stiffness matrix.
     """
 
-    nelx: int = 100
-    nely: int = 50
-    volfrac: float = 0.35
-    penal: float = 3.0
-    rmin: float = 2.0
-    ft: int = 1
-    max_iter: int = 100
-    overhang_constraint: bool = False
-    ndof: int = 10302  # ndof = 2 * (p.nelx + 1) * (p.nely + 1)
+    # Boundary conditions (editable by user)
+    nelx: int = dataclasses.field(default=0)
+    nely: int = dataclasses.field(default=0)
+    volfrac: float = dataclasses.field(default=0)
+    penal: float = dataclasses.field(default=0)
+    rmin: float = dataclasses.field(default=0)
+    ft: int = dataclasses.field(default=0)
+    max_iter: int = dataclasses.field(default=0)
+    overhang_constraint: bool = dataclasses.field(default=False)
+
+    # Other parameters (non-editable)
     Emin: float = 1e-9
     Emax: float = 1.0
     min_change: float = 0.025
     min_ratio: float = 1.0e-3
+    ndof: int = dataclasses.field(default=0)
     edofMat: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     iK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     jK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
@@ -104,6 +107,32 @@ class Params:
             Dict[str, Any]: Dictionary containing all parameters.
         """
         return dataclasses.asdict(self)
+
+
+def image_to_design(im: npt.NDArray) -> npt.NDArray:
+    r"""Flatten the 2D image(s) to 1D vector(s).
+
+    Args:
+        im (npt.NDArray): The image(s) to convert.
+
+    Returns:
+        npt.NDArray: The transformed vector(s).
+    """
+    return np.swapaxes(im, -2, -1).reshape(*im.shape[:-2], -1)
+
+
+def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:
+    r"""Reshape the 1D vector(s) into 2D image(s).
+
+    Args:
+        x (npt.NDArray): The design(s) to convert.
+        nelx (int): Width of the problem domain.
+        nely (int): Height of the problem domain.
+
+    Returns:
+        npt.NDArray: The transformed image(s).
+    """
+    return np.swapaxes(x.reshape(*x.shape[:-1], nelx, nely), -2, -1)
 
 
 def lk() -> npt.NDArray:
@@ -183,6 +212,7 @@ def setup(p: Params) -> Params:
     Returns:
         Params object with the relevant matrices and other parameters used in optimization and simulation.
     """
+    
     ndof = 2 * (p.nelx + 1) * (p.nely + 1)
     edofMat = np.zeros((p.nelx * p.nely, 8), dtype=int)
     for elx in range(p.nelx):
@@ -272,9 +302,9 @@ def overhang_filter(
         Ns = 3
         nSens = 2  # dc and dv (hard-coded)
 
-        x = np.swapaxes(x.reshape(p.nelx, p.nely), 0, 1)
-        dc = np.swapaxes(dc.reshape(p.nelx, p.nely), 0, 1)
-        dv = np.swapaxes(dv.reshape(p.nelx, p.nely), 0, 1)
+        x = design_to_image(x, p.nelx, p.nely)
+        dc = design_to_image(dc, p.nelx, p.nely)
+        dv = design_to_image(dv, p.nelx, p.nely)
 
         Q = P + np.log(Ns) / np.log(xi_0)
         SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
@@ -323,9 +353,9 @@ def overhang_filter(
             dc = dfx[0]
             dv = dfx[1]
 
-        xi = np.swapaxes(xi, 0, 1).ravel()
-        dc = np.swapaxes(dc, 0, 1).ravel()
-        dv = np.swapaxes(dv, 0, 1).ravel()
+        xi = image_to_design(xi)
+        dc = image_to_design(dc)
+        dv = image_to_design(dv)
 
     else:
         xi = x
