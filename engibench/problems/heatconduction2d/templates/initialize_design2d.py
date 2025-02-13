@@ -1,56 +1,61 @@
-#!/usr/bin/env python3
-import glob, os, sys
-import time as tm
+# ruff: noqa
+"""This script sets up and initializes the design problem for a finite element analysis using dolfin adjoint based on SIMP method.
+   It defines the resolution, reads the design variables, and writes out the initial design to a file.
+"""
+import os
 import numpy as np
-import time as tm
-from math import floor
 from fenics import *
-
-#with open(r"templates/Des_var.txt", 'r') as fp:
+# Define the base directory path for templates and read the design variables
 base_path = "/home/fenics/shared"
 des_var_path = os.path.join(base_path, "templates", "Des_var.txt")
 
-with open(des_var_path, 'r') as fp:
-    lines = fp.read()
-    lines2=lines.split("\t")
-NN = int(lines2[1]) #70 for experiments #discretization resolution: somewhat arbitrary. NOTE: Increasing the int coeff dramatically increases model training and testing #time!!!
-step = 1.0/float(NN)
-x_values = np.zeros((NN+1)) #horizontal dir (x(0))
-y_values = np.zeros((NN+1)) #vertical dir (x(1))
-x_values=np.linspace(0,1,num=NN+1)
-y_values=np.linspace(0,1,num=NN+1)
-vol_f = float(lines2[0])
-###os.system('rm templates/Des_var.txt')
+# Read the design variable file and extract parameters
+with open(des_var_path, 'r') as file:
+    lines = file.read().split("\t")
+
+# Set the number of discretization points (NN) and the volume fraction (vol_f)
+NN = int(lines[1])  # Resolution of the grid (arbitrary, affects performance)
+vol_f = float(lines[0])  # Volume fraction for the control
+
+# Discretization step size (based on NN)
+step = 1.0 / float(NN)
+
+# Generate mesh grid values for both x and y directions
+x_values = np.linspace(0, 1, num=NN + 1)
+y_values = np.linspace(0, 1, num=NN + 1)
 os.remove(des_var_path)
-#Now set up
 
-V = Constant(vol_f)  # volume bound on the control.   Default = 0.4
-mesh = UnitSquareMesh(NN, NN)
-A = FunctionSpace(mesh, "CG", 1)  # function space for control
+# Set up the finite element function space
+V = Constant(vol_f)  # Volume bound on the control
+mesh = UnitSquareMesh(NN, NN)  # Create a unit square mesh with NN discretization
+A = FunctionSpace(mesh, "CG", 1)  # Function space for the control variable
+
 if __name__ == "__main__":
+    # Initialize the design variable as a constant volume
     MM = V
-    a = interpolate(MM, A)  # initial guess.
-    #xdmf_filename = XDMFFile(MPI.comm_world, "Design/initial_v="+str(vol_f)+"_resol="+str(NN)+"_.xdmf")
-    #xdmf_filename.write(a)
+    a = interpolate(MM, A)  # Initial guess for the design
 
-    #design_path = os.path.abspath("templates/Design/")
-    #xdmf_filename = os.path.join(design_path, f"initial_v={vol_f}_resol={NN}_.xdmf")
+    # Define the path to save the design files
     design_folder = os.path.join(base_path, "templates", "initialize_design")
     xdmf_file_path = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN}_.xdmf")
-    #with XDMFFile("templates/Design/initial_v="+str(vol_f)+"_resol="+str(NN)+"_.xdmf") as outfile:
+
+    # Write the mesh and initial design to an XDMF file
     with XDMFFile(xdmf_file_path) as outfile:
+        outfile.write(mesh)  # Write mesh to the file
+        outfile.write_checkpoint(a, "u", 0, append=True)  # Write design variable to the file
 
+    # Initialize an array to store the results (x, y, value)
+    results = np.zeros(((NN + 1) ** 2, 3))
 
-        outfile.write(mesh)
-        outfile.write_checkpoint(a, "u", 0, append=True)
-    results = np.zeros(((NN+1)**2,3))
+    # Populate the results array with the mesh coordinates and the corresponding volume value
     ind = 0
     for xs in x_values:
         for ys in y_values:
-            results[ind,0] = xs
-            results[ind,1] = ys
-            results[ind,2] =V
-            ind = ind+1
+            results[ind, 0] = xs  # Store x-coordinate
+            results[ind, 1] = ys  # Store y-coordinate
+            results[ind, 2] = V  # Store the volume value
+            ind += 1
+
+    # Save the results array to a .npy file
     filename = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN}_.npy")
-    #filename = "templates/Design/initial_v="+str(vol_f)+"_resol="+str(NN)+"_.npy"
-    np.save(filename,results)
+    np.save(filename, results)

@@ -8,18 +8,18 @@ from __future__ import annotations
 
 import os
 import subprocess
+from typing import Any
 
 import numpy as np
 
 from engibench.core import Problem
-
+import numpy.typing as npt
 
 def build(**kwargs) -> HeatConduction2D:
     """Builds a HeatConduction2D problem."""
     return HeatConduction2D(**kwargs)
 
-
-# ruff: noqa: ARG002, ERA001, ANN201, ANN204
+#class HeatConduction2D():
 class HeatConduction2D(Problem):
     r"""HeatConduction 2D topology optimization problem.
 
@@ -45,7 +45,7 @@ class HeatConduction2D(Problem):
     Milad Habibi @MIladHB
     """
 
-    def __init__(self, volume: float = 0.5, length: float = 0.5, resolution: int = 50):
+    def __init__(self, volume: float = 0.5, length: float = 0.5, resolution: int = 50) -> None:
         """Initialize the HeatConduction2D problem.
 
         Args:
@@ -58,7 +58,9 @@ class HeatConduction2D(Problem):
         self.length = length
         self.resolution = resolution
 
-    def initialize_design(self, volume: float | None = None, length: float | None = None, resolution: int | None = None):
+    def initialize_design(
+        self, volume: float | None = None, length: float | None = None, resolution: int | None = None
+    ) -> npt.NDArray:
         """Initialize the design based on SIMP method.
 
         Args:
@@ -102,11 +104,9 @@ class HeatConduction2D(Problem):
         if not os.path.exists(design_file):
             print(f"Error: Design file {design_file} not found.")
             return None
-        self.npy = np.load(design_file)
+        file_npy = np.load(design_file)
 
-        # Set the XDMF file path for visualization
-        self.xdmf = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.xdmf"
-        return self
+        return file_npy
 
     def simulate(
         self,
@@ -114,7 +114,7 @@ class HeatConduction2D(Problem):
         volume: float | None = None,
         length: float | None = None,
         resolution: int | None = None,
-    ):
+    ) -> npt.NDArray:
         """Simulate the design.
 
         Args:
@@ -131,8 +131,7 @@ class HeatConduction2D(Problem):
         resolution = resolution if resolution is not None else self.resolution
         if design is None:
             des = self.initialize_design(volume, length, resolution)
-            if des is not None:
-                design = des.npy[:, 2].reshape(resolution + 1, resolution + 1)
+            design = des[:, 2].reshape(resolution + 1, resolution + 1)
         with open("templates/sim_var.txt", "w") as f:
             f.write(f"{volume}\t{length}\t{resolution}")
 
@@ -160,7 +159,7 @@ class HeatConduction2D(Problem):
 
         with open(r"templates/RES_SIM/Performance.txt") as fp:
             self.PERF = fp.read()
-        return float(self.PERF)
+        return np.array(self.PERF)
 
     def optimize(
         self,
@@ -168,7 +167,7 @@ class HeatConduction2D(Problem):
         volume: float | None = None,
         length: float | None = None,
         resolution: int | None = None,
-    ):
+    ) -> tuple[DesignType, list[OptiStep]]:
         """Optimizes the design.
 
         Args:
@@ -178,15 +177,14 @@ class HeatConduction2D(Problem):
             resolution (Optional[int]): Resolution of the design space.
 
         Returns:
-            float: The thermal compliance of the optimized design.
+            Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
         volume = volume if volume is not None else self.volume
         length = length if length is not None else self.length
         resolution = resolution if resolution is not None else self.resolution
         if design is None:
             des = self.initialize_design(volume, length, resolution)
-            if des is not None:
-                design = des.npy[:, 2].reshape(resolution + 1, resolution + 1)
+            design = des[:, 2].reshape(resolution + 1, resolution + 1)
 
         with open("templates/OPT_var.txt", "w") as f:
             f.write(f"{volume}\t{length}\t{resolution}")
@@ -212,12 +210,11 @@ class HeatConduction2D(Problem):
         except subprocess.CalledProcessError as e:
             print(f"Error executing Docker command: {e}")
             return None
-        with open(r"templates/RES_OPT/Performance.txt") as fp:
-            self.OPT_PERF = fp.read()
+        Output=np.load("templates/RES_OPT/OUTPUT="+str(volume)+"_w="+str(length)+"_.npz")
 
-        return float(self.OPT_PERF)
+        return (Output['design'],Output['OptiStep'])
 
-    def render(self, design: np.ndarray, open_window: bool = False):
+    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -248,4 +245,4 @@ if __name__ == "__main__":
     # Call the design method and print the result
     design_values = np.random.rand(100, 100)
     problem.render(design_values, open_window=False)
-    print(problem.optimize())
+    print(type(problem.optimize()))

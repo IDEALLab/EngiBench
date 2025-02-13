@@ -6,6 +6,14 @@ import time as tm
 from math import floor
 from fenics import *
 from fenics_adjoint import *
+import re
+try:
+    from pyadjoint import ipopt  # noqa: F401
+except ImportError:
+    print("""This example depends on IPOPT and Python ipopt bindings. \
+    When compiling IPOPT, make sure to link against HSL, as it \
+    is a necessity for practical problems.""")
+    raise
 base_path = "/home/fenics/shared"
 OPT_var_path = os.path.join(base_path, "templates", "OPT_var.txt")
 with open(OPT_var_path, 'r') as fp:
@@ -17,7 +25,7 @@ x_values = np.zeros((NN+1)) #horizontal dir (x(0))
 y_values = np.zeros((NN+1)) #vertical dir (x(1))
 x_values=np.linspace(0,1,num=NN+1)
 y_values=np.linspace(0,1,num=NN+1)
-max_run_it=floor(NN/200)+3
+max_run_it=1
 vol_f = float(lines2[0])
 width = float(lines2[1])
 os.system('rm /home/fenics/shared/templates/OPT_var.txt')
@@ -40,21 +48,7 @@ d2v = dof_to_vertex_map(V)
 image_values = image_values[d2v]
 image_values=image_values.reshape(-1,)
 init_guess.vector()[:] = image_values
-#with open(r"templates/OPT_design.txt", 'r') as des:
-#    init_g = des.read()
-#    init_gu=init_g.split("\t")
-#init_guess=init_gu[0]
-#init_guess_size=int(init_gu[1])
-#os.system('rm templates/OPT_design.txt')
-#Now set up and run optimization sets
 
-try:
-    from pyadjoint import ipopt  # noqa: F401
-except ImportError:
-    print("""This example depends on IPOPT and Python ipopt bindings. \
-    When compiling IPOPT, make sure to link against HSL, as it \
-    is a necessity for practical problems.""")
-    raise
 for run_it in range(max_run_it):
     # turn off redundant output in parallel
     parameters["std_out_all_processes"] = False
@@ -138,11 +132,27 @@ for run_it in range(max_run_it):
             """Return the number of components in the constraint vector (here, one)."""
             return 1
     problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(V))
+    # Define filename for IPOPT log
+    log_filename = f"/home/fenics/shared/templates/RES_OPT/solution_V={vol_f}_w={width}_it={run_it}.txt"
 
-    parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100}
+    parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100,"file_print_level": 5,    "output_file": log_filename}
     solver = IPOPTSolver(problem, parameters=parameters)
-    a_opt = solver.solve()
 
+    a_opt = solver.solve()
+    # Read the log file and extract objective values
+    # --- Extract Objective Values from the Log File ---
+    objective_values = []
+
+    # Open and read the log file
+    with open(log_filename, "r") as f:
+        for line in f:
+            # Match lines that start with an iteration number followed by an objective value
+            match = re.match(r"^\s*\d+\s+([-+]?\d*\.\d+e[-+]?\d+)", line)
+            if match:
+                objective_values.append(float(match.group(1)))  # Extract and convert to float
+
+    # Convert to NumPy array
+    objective_values = np.array(objective_values)
     mesh1 = UnitSquareMesh(NN, NN)
     V1 =  FunctionSpace(mesh1, "CG", 1)
     sol1 = a_opt
@@ -153,29 +163,21 @@ for run_it in range(max_run_it):
 
 
     #-------------------------------------------------------------------------------------------
-    #Discretize RES_OPTults
-
     if run_it==max_run_it-1: #if final run reached
 
         #Now store the RES_OPTults of this run (x,y,v,w,a)
-        RES_OPTults = np.zeros(((NN+1)**2,5))
+        RES_OPTults = np.zeros(((NN+1)**2,1))
         ind = 0
         for xs in x_values:
             for ys in y_values:
-                RES_OPTults[ind,0] = xs
-                RES_OPTults[ind,1] = ys
-                RES_OPTults[ind,2] = vol_f
-                RES_OPTults[ind,3] = width
-                RES_OPTults[ind,4] = a_opt(xs,ys)
+                RES_OPTults[ind,0] = a_opt(xs,ys)
                 ind = ind+1
-        #Naming convention: hr_data_v=0.5_w=0.5_.npy, for example
         filename = "/home/fenics/shared/templates/RES_OPT/hr_data_v="+str(vol_f)+"_w="+str(width)+"_.npy"
         np.save(filename,RES_OPTults)
         xdmf_filename = XDMFFile(MPI.comm_world, "/home/fenics/shared/templates/RES_OPT/final_solution_v="+str(vol_f)+"_w="+str(width)+"_.xdmf")
         xdmf_filename.write(a_opt)
         print("v="+ "{}".format(vol_f))
         print("w="+ "{}".format(width))
-        with open('/home/fenics/shared/templates/RES_OPT/Performance.txt', 'w') as f:
-            f.write('%.14f'%J_CONTROL.tape_value())
-            f.close()
+        filenameOUT = "/home/fenics/shared/templates/RES_OPT/OUTPUT="+str(vol_f)+"_w="+str(width)+"_.npz"
+        np.savez(filenameOUT,design=RES_OPTults,OptiStep=objective_values)
         os.system('rm /home/fenics/shared/templates/RES_OPT/TEMP*')

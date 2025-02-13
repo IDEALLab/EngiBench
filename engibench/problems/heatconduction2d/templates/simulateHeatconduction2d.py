@@ -136,7 +136,7 @@ for run_it in range(max_run_it):
             return 1
     problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(V))
 
-    parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100}
+    parameters = {"acceptable_tol": 1.0e-3, "maximum_iterations": 0}
     solver = IPOPTSolver(problem, parameters=parameters)
     a_opt = solver.solve()
 
