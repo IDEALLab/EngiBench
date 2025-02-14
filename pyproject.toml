@@ -33,7 +33,7 @@ dependencies = [
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
 airfoil2d = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
-beams2d = ["cvxopt"]
+beams2d = ["cvxopt == 1.3.2"]
 all = [
     # All dependencies above
     "engibench[airfoil2d,beams2d]"
