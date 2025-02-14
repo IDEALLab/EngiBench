@@ -36,6 +36,8 @@ class ProblemDirective(SphinxDirective):
         problem = BUILTIN_PROBLEMS[problem_id]
         docstring = unindent(problem.__doc__) if problem.__doc__ is not None else None
 
+        image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="500px", align="center")
+
         objectives = [
             f"{obj}: ↑" if direction == "maximize" else f"{obj}: ↓" for obj, direction in problem.possible_objectives
         ]
@@ -61,7 +63,7 @@ class ProblemDirective(SphinxDirective):
         sec.clear()
         sec.extend(header)
 
-        return [make_table(tab_data), *body]
+        return [image, make_table(tab_data), *body]
 
 
 def make_section(title: str, section_id: str, body: list[Any]) -> nodes.section:
