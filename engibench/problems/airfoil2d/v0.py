@@ -470,6 +470,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         fig, ax = plt.subplots()
 
         ax.scatter(design[0], design[1], s=10, alpha=0.7)
+        plt.ylim(-0.15, 0.15)
         if open_window:
             plt.show()
         return fig, ax
