@@ -1,12 +1,18 @@
 #!/usr/bin/env python3
-import glob, os, sys
-import time as tm
+
+# ruff: noqa
+"""Topology optimization for heat conduction using the SIMP method with dolfin-adjoint.
+   The script reads initial design data, solves the heat conduction problem, and optimizes
+   material distribution to minimize thermal complaicen under a volume constraint.
+"""
+
+import os
+import re
 import numpy as np
-import time as tm
-from math import floor
 from fenics import *
 from fenics_adjoint import *
-import re
+
+# Ensure IPOPT is available
 try:
     from pyadjoint import ipopt  # noqa: F401
 except ImportError:
