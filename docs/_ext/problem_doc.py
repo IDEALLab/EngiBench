@@ -10,17 +10,18 @@ airfoil2d
 
 from __future__ import annotations
 
+from collections.abc import Iterator, Sequence
+import contextlib
+import importlib.abc
+import importlib.machinery
 import sys
-from typing import Any, TYPE_CHECKING
+from types import ModuleType
+from typing import Any
+import unittest.mock
 
 from docutils import nodes
 from sphinx.application import Sphinx
 from sphinx.util.docutils import SphinxDirective
-
-from engibench.utils.all_problems import BUILTIN_PROBLEMS
-
-if TYPE_CHECKING:
-    from engibench.core import Problem
 
 
 def setup(app: Sphinx) -> None:
@@ -32,6 +33,9 @@ class ProblemDirective(SphinxDirective):
     required_arguments = 1
 
     def run(self) -> list[Any]:
+        with mock_imports():
+            from engibench.utils.all_problems import BUILTIN_PROBLEMS
+
         problem_id = self.arguments[0].strip()
         problem = BUILTIN_PROBLEMS[problem_id]
         docstring = unindent(problem.__doc__) if problem.__doc__ is not None else None
@@ -131,3 +135,36 @@ def line_indent(line: str) -> int | None:
     if stripped:
         return len(line) - len(stripped)
     return None
+
+
+@contextlib.contextmanager
+def mock_imports() -> Iterator[None]:
+    """Add an import hook just after the builtin modules hook and the frozen module hook:
+    https://docs.python.org/3/reference/import.html#the-meta-path
+    """
+    sys.meta_path.insert(2, MockFinder())
+    yield
+    del sys.meta_path[2]
+
+
+class MockFinder(importlib.abc.MetaPathFinder):
+    """Import hook which loads a mock instead of a module if the module is not engibench."""
+
+    def find_spec(
+        self, fullname: str, _path: Sequence[str] | None, _target: ModuleType | None = None
+    ) -> importlib.machinery.ModuleSpec | None:
+        if fullname.split(".", 1)[0] == "engibench":
+            return None
+        return importlib.machinery.ModuleSpec(fullname, MockLoader())
+
+
+class MockLoader(importlib.abc.Loader):
+    """Module loader, preparing the mocks."""
+
+    def create_module(self, _spec: importlib.machinery.ModuleSpec) -> ModuleType:
+        # The mock must have the __path__ attribute, otherwise the import
+        # system will fail when trying a submodule of the mock module:
+        return unittest.mock.Mock(spec=ModuleType, __path__=unittest.mock.Mock())
+
+    def exec_module(self, module: ModuleType) -> None:
+        pass
