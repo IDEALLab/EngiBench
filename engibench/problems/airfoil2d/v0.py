@@ -482,7 +482,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             DesignType: The valid random design.
         """
         rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))  # pyright: ignore[reportArgumentType, reportCallIssue, reportOptionalMemberAccess]
-        return np.array(self.dataset["train"]["initial"][rnd])  # type: ignore
+        return np.array(self.dataset["train"]["initial"][rnd]), rnd  # type: ignore
 
 
 if __name__ == "__main__":
