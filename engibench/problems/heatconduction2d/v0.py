@@ -7,20 +7,20 @@ The problem is solved using the dolfin-adjoint software within a Docker containe
 from __future__ import annotations
 
 import os
-import subprocess
 from typing import Any
 
+from gymnasium import spaces
 import numpy as np
-
-from engibench.core import Problem
 import numpy.typing as npt
 
-def build(**kwargs) -> HeatConduction2D:
-    """Builds a HeatConduction2D problem."""
-    return HeatConduction2D(**kwargs)
+from engibench.core import ObjectiveDirection
+from engibench.core import OptiStep
+from engibench.core import Problem
+from engibench.utils import container
 
-#class HeatConduction2D():
-class HeatConduction2D(Problem):
+
+# class HeatConduction2D():
+class HeatConduction2D(Problem[npt.NDArray, str]):
     r"""HeatConduction 2D topology optimization problem.
 
     ## Problem Description
@@ -40,10 +40,26 @@ class HeatConduction2D(Problem):
 
     ## Simulator
     The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
+    We convert use intermediary files to convert from and to the simulator that is run from a Docker image.
 
     ## Lead
     Milad Habibi @MIladHB
     """
+
+    version = 0
+    possible_objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
+    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+        {
+            ("volume", 0.5),
+            ("length", 0.5),
+            # TODO is the resolution a boundary condition?
+        }
+    )
+    # TODO what is the size of the design space?
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
+    dataset_id = "IDEALLab/heat_conduction_2d_v0"
+    container_id = "quay.io/dolfinadjoint/pyadjoint:master"
+    _dataset = None
 
     def __init__(self, volume: float = 0.5, length: float = 0.5, resolution: int = 50) -> None:
         """Initialize the HeatConduction2D problem.
@@ -54,64 +70,49 @@ class HeatConduction2D(Problem):
             resolution (int): Resolution of the design space.
         """
         super().__init__()
+        # TODO define how we should use the boundary conditions
         self.volume = volume
         self.length = length
         self.resolution = resolution
 
-    def initialize_design(
-        self, volume: float | None = None, length: float | None = None, resolution: int | None = None
-    ) -> npt.NDArray:
+    # TODO how is this different from "random design" ?
+    def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
 
         Args:
             volume (Optional[float]): Volume constraint.
-            length (Optional[float]): Length constraint.
             resolution (Optional[int]): Resolution of the design space.
 
         Returns:
             HeatConduction2D: The initialized design.
         """
         volume = volume if volume is not None else self.volume
-        length = length if length is not None else self.length
         resolution = resolution if resolution is not None else self.resolution
         with open("templates/Des_var.txt", "w") as f:
             f.write(f"{volume}\t{resolution}")
 
         # Run the Docker command
-        # Define Docker image and script path
-        docker_image = "quay.io/dolfinadjoint/pyadjoint:master"
-        script_path = "/home/fenics/shared/templates/initialize_design2d.py"
         current_dir = os.getcwd()
-        docker_command = [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{current_dir}:/home/fenics/shared",
-            docker_image,
-            "python3",
-            script_path,
-        ]
-
-        try:
-            subprocess.run(docker_command, check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Error executing Docker command: {e}")
-            return None
+        container.run(
+            command=["python3", "/home/fenics/shared/templates/initialize_design_2d.py"],
+            image=self.container_id,
+            name="dolfin",
+            mounts=[(current_dir, "/home/fenics/shared")],
+        )
 
         # Load the generated design data from the numpy file
         design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
         if not os.path.exists(design_file):
-            print(f"Error: Design file {design_file} not found.")
-            return None
+            raise FileNotFoundError(f"Error: Design file {design_file} not found.")
+
         file_npy = np.load(design_file)
 
         return file_npy
 
     def simulate(
         self,
-        design: np.ndarray | None = None,
-        volume: float | None = None,
+        design: npt.NDArray | None = None,
+        volume: float | None = None,  # TODO use a config dict as in the other problems
         length: float | None = None,
         resolution: int | None = None,
     ) -> npt.NDArray:
@@ -130,32 +131,21 @@ class HeatConduction2D(Problem):
         length = length if length is not None else self.length
         resolution = resolution if resolution is not None else self.resolution
         if design is None:
-            des = self.initialize_design(volume, length, resolution)
+            des = self.initialize_design(volume, resolution)
             design = des[:, 2].reshape(resolution + 1, resolution + 1)
         with open("templates/sim_var.txt", "w") as f:
             f.write(f"{volume}\t{length}\t{resolution}")
 
         filename = "templates/hr_data_v=" + str(volume) + "_w=" + str(length) + "_.npy"
         np.save(filename, design)
-        docker_image = "quay.io/dolfinadjoint/pyadjoint:master"
-        script_path = "/home/fenics/shared/templates/simulateHeatconduction2d.py"
+
         current_dir = os.getcwd()
-        docker_command = [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{current_dir}:/home/fenics/shared",
-            docker_image,
-            "python3",
-            script_path,
-        ]
-        # Execute the Docker command
-        try:
-            subprocess.run(docker_command, check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Error executing Docker command: {e}")
-            return None
+        container.run(
+            command=["python3", "/home/fenics/shared/templates/simulate_heat_conduction_2d.py"],
+            image=self.container_id,
+            name="dolfin",
+            mounts=[(current_dir, "/home/fenics/shared")],
+        )
 
         with open(r"templates/RES_SIM/Performance.txt") as fp:
             self.PERF = fp.read()
@@ -163,11 +153,11 @@ class HeatConduction2D(Problem):
 
     def optimize(
         self,
-        design: np.ndarray | None = None,
+        design: npt.NDArray | None = None,
         volume: float | None = None,
         length: float | None = None,
         resolution: int | None = None,
-    ) -> tuple[DesignType, list[OptiStep]]:
+    ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes the design.
 
         Args:
@@ -183,7 +173,7 @@ class HeatConduction2D(Problem):
         length = length if length is not None else self.length
         resolution = resolution if resolution is not None else self.resolution
         if design is None:
-            des = self.initialize_design(volume, length, resolution)
+            des = self.initialize_design(volume, resolution)
             design = des[:, 2].reshape(resolution + 1, resolution + 1)
 
         with open("templates/OPT_var.txt", "w") as f:
@@ -191,30 +181,19 @@ class HeatConduction2D(Problem):
 
         filename = "templates/hr_data_OPT_v=" + str(volume) + "_w=" + str(length) + "_.npy"
         np.save(filename, design)
-        docker_image = "quay.io/dolfinadjoint/pyadjoint:master"
-        script_path = "/home/fenics/shared/templates/optimizeHeatconduction2d.py"
+
         current_dir = os.getcwd()
-        docker_command = [
-            "docker",
-            "run",
-            "--rm",
-            "-v",
-            f"{current_dir}:/home/fenics/shared",
-            docker_image,
-            "python3",
-            script_path,
-        ]
-        # Execute the Docker command
-        try:
-            subprocess.run(docker_command, check=True)
-        except subprocess.CalledProcessError as e:
-            print(f"Error executing Docker command: {e}")
-            return None
-        Output=np.load("templates/RES_OPT/OUTPUT="+str(volume)+"_w="+str(length)+"_.npz")
+        container.run(
+            command=["python3", "/home/fenics/shared/templates/optimize_heat_conduction_2d.py"],
+            image=self.container_id,
+            name="dolfin",
+            mounts=[(current_dir, "/home/fenics/shared")],
+        )
+        output = np.load("templates/RES_OPT/OUTPUT=" + str(volume) + "_w=" + str(length) + "_.npz")
 
-        return (Output['design'],Output['OptiStep'])
+        return output["design"], output["OptiStep"]
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -226,7 +205,7 @@ class HeatConduction2D(Problem):
         """
         if design is None:
             des = self.initialize_design()
-            design = des.npy[:, 2].reshape(self.resolution + 1, self.resolution + 1)
+            design = des[:, 2].reshape(self.resolution + 1, self.resolution + 1)
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
