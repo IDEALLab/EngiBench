@@ -151,11 +151,12 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def random_design(self) -> DesignType:
+    def random_design(self) -> tuple[DesignType, int]:
         r"""Generate a random design.
 
         Returns:
             DesignType: The random design.
+            idx: The index of the design in the dataset.
         """
         raise NotImplementedError
 
