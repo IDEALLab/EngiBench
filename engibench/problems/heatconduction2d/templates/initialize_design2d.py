@@ -1,16 +1,20 @@
+#!/usr/bin/env python3
+
 # ruff: noqa
 """This script sets up and initializes the design problem for a finite element analysis using dolfin adjoint based on SIMP method.
-   It defines the resolution, reads the design variables, and writes out the initial design to a file.
+It defines the resolution, reads the design variables, and writes out the initial design to a file.
 """
+
 import os
 import numpy as np
 from fenics import *
+
 # Define the base directory path for templates and read the design variables
 base_path = "/home/fenics/shared"
 des_var_path = os.path.join(base_path, "templates", "Des_var.txt")
 
 # Read the design variable file and extract parameters
-with open(des_var_path, 'r') as file:
+with open(des_var_path, "r") as file:
     lines = file.read().split("\t")
 
 # Set the number of discretization points (NN) and the volume fraction (vol_f)

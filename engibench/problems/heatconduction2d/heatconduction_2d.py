@@ -11,15 +11,17 @@ import subprocess
 from typing import Any
 
 import numpy as np
-
-from engibench.core import Problem
 import numpy.typing as npt
+
+from engibench.core import OptiStep
+from engibench.core import Problem
+
 
 def build(**kwargs) -> HeatConduction2D:
     """Builds a HeatConduction2D problem."""
     return HeatConduction2D(**kwargs)
 
-#class HeatConduction2D():
+
 class HeatConduction2D(Problem):
     r"""HeatConduction 2D topology optimization problem.
 
@@ -167,7 +169,7 @@ class HeatConduction2D(Problem):
         volume: float | None = None,
         length: float | None = None,
         resolution: int | None = None,
-    ) -> tuple[DesignType, list[OptiStep]]:
+    ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes the design.
 
         Args:
@@ -210,9 +212,9 @@ class HeatConduction2D(Problem):
         except subprocess.CalledProcessError as e:
             print(f"Error executing Docker command: {e}")
             return None
-        Output=np.load("templates/RES_OPT/OUTPUT="+str(volume)+"_w="+str(length)+"_.npz")
+        output = np.load("templates/RES_OPT/OUTPUT=" + str(volume) + "_w=" + str(length) + "_.npz")
 
-        return (Output['design'],Output['OptiStep'])
+        return (output["design"], output["OptiStep"])
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -245,4 +247,4 @@ if __name__ == "__main__":
     # Call the design method and print the result
     design_values = np.random.rand(100, 100)
     problem.render(design_values, open_window=False)
-    print(type(problem.optimize()))
+    print(problem.simulate())

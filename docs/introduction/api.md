@@ -4,7 +4,7 @@
 :hidden:
 :glob:
 
-./api/utils
+./api/utils/index
 ```
 
 The main class defining a problem is `engibench.core.Problem`. It is defined as follows
