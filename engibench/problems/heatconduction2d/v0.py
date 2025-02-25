@@ -19,7 +19,6 @@ from engibench.core import Problem
 from engibench.utils import container
 
 
-# class HeatConduction2D():
 class HeatConduction2D(Problem[npt.NDArray, str]):
     r"""HeatConduction 2D topology optimization problem.
 
@@ -224,4 +223,4 @@ if __name__ == "__main__":
     # Call the design method and print the result
     design_values = np.random.rand(100, 100)
     problem.render(design_values, open_window=False)
-    print(type(problem.optimize()))
+    print(problem.simulate())

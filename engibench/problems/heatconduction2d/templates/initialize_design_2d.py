@@ -1,3 +1,5 @@
+#!/usr/bin/env python3
+
 # ruff: noqa
 """This script sets up and initializes the design problem for a finite element analysis using dolfin adjoint based on SIMP method.
 It defines the resolution, reads the design variables, and writes out the initial design to a file.
