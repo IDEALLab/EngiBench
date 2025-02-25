@@ -74,6 +74,10 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         self.length = length
         self.resolution = resolution
 
+    def reset(self, seed: int | None = None, **kwargs) -> None:
+        # """Reset the problem to a given seed."""
+        super().reset(seed, **kwargs)
+
     # TODO how is this different from "random design" ?
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
@@ -87,11 +91,11 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         """
         volume = volume if volume is not None else self.volume
         resolution = resolution if resolution is not None else self.resolution
-        with open("templates/Des_var.txt", "w") as f:
+        with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
             f.write(f"{volume}\t{resolution}")
 
         # Run the Docker command
-        current_dir = os.getcwd()
+        current_dir = os.path.dirname(os.path.abspath(__file__))
         container.run(
             command=["python3", "/home/fenics/shared/templates/initialize_design_2d.py"],
             image=self.container_id,
@@ -107,6 +111,10 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         file_npy = np.load(design_file)
 
         return file_npy
+
+    def random_design(self) -> tuple[npt.NDArray, int]:
+        """Generate a random design."""
+        return self.initialize_design(), -1
 
     def simulate(
         self,
@@ -138,7 +146,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         filename = "templates/hr_data_v=" + str(volume) + "_w=" + str(length) + "_.npy"
         np.save(filename, design)
 
-        current_dir = os.getcwd()
+        current_dir = os.path.dirname(os.path.abspath(__file__))
         container.run(
             command=["python3", "/home/fenics/shared/templates/simulate_heat_conduction_2d.py"],
             image=self.container_id,
@@ -147,8 +155,8 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         )
 
         with open(r"templates/RES_SIM/Performance.txt") as fp:
-            self.PERF = fp.read()
-        return np.array(self.PERF)
+            perf = fp.read()
+        return np.array(perf)
 
     def optimize(
         self,
