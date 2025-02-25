@@ -237,7 +237,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> tuple[np.ndarray, int]:
+    def random_design(self) -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
 
         Returns:
@@ -246,7 +246,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                 int: The random index selected.
         """
         rnd = self.np_random.integers(low=0, high=len(self._dataset["train"]), dtype=int)  # type: ignore
-        return (np.array(self._dataset["train"]["xPrint"][rnd]), rnd)  # type: ignore
+        return np.array(self._dataset["train"]["xPrint"][rnd]), rnd  # type: ignore
 
 
 if __name__ == "__main__":
