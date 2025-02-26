@@ -74,57 +74,6 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         self.length = length
         self.resolution = resolution
 
-    def reset(self, seed: int | None = None, **kwargs) -> None:
-        """Reset the problem to a given seed."""
-        super().reset(seed, **kwargs)
-
-    def __copy_templates(self):
-        """Copy the templates from the installation location to the current working directory."""
-        if not os.path.exists("templates"):
-            os.mkdir("templates")
-        templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
-        os.system(f"cp -r {templates_location}/* templates/")
-
-    # TODO how is this different from "random design" ?
-    def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
-        """Initialize the design based on SIMP method.
-
-        Args:
-            volume (Optional[float]): Volume constraint.
-            resolution (Optional[int]): Resolution of the design space.
-
-        Returns:
-            HeatConduction2D: The initialized design.
-        """
-        volume = volume if volume is not None else self.volume
-        resolution = resolution if resolution is not None else self.resolution
-
-        self.__copy_templates()
-        with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
-            f.write(f"{volume}\t{resolution}")
-
-        # Run the Docker command
-        current_dir = os.getcwd()
-        container.run(
-            command=["python3", "/home/fenics/shared/templates/initialize_design_2d.py"],
-            image=self.container_id,
-            name="dolfin",
-            mounts=[(current_dir, "/home/fenics/shared")],
-        )
-
-        # Load the generated design data from the numpy file
-        design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
-        if not os.path.exists(design_file):
-            raise FileNotFoundError(f"Design file {design_file} not found.")  # ruff: noqa: TRY003
-
-        file_npy = np.load(design_file)
-
-        return file_npy
-
-    def random_design(self) -> tuple[npt.NDArray, int]:
-        """Generate a random design."""
-        return self.initialize_design(), -1
-
     def simulate(
         self,
         design: npt.NDArray | None = None,
@@ -211,6 +160,58 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         output = np.load("templates/RES_OPT/OUTPUT=" + str(volume) + "_w=" + str(length) + "_.npz")
 
         return output["design"], output["OptiStep"]
+
+    def reset(self, seed: int | None = None, **kwargs) -> None:
+        """Reset the problem to a given seed."""
+        super().reset(seed, **kwargs)
+
+    def __copy_templates(self):
+        """Copy the templates from the installation location to the current working directory."""
+        if not os.path.exists("templates"):
+            os.mkdir("templates")
+        templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
+        os.system(f"cp -r {templates_location}/* templates/")
+
+        # TODO how is this different from "random design" ?
+
+    def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
+        """Initialize the design based on SIMP method.
+
+        Args:
+            volume (Optional[float]): Volume constraint.
+            resolution (Optional[int]): Resolution of the design space.
+
+        Returns:
+            HeatConduction2D: The initialized design.
+        """
+        volume = volume if volume is not None else self.volume
+        resolution = resolution if resolution is not None else self.resolution
+
+        self.__copy_templates()
+        with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
+            f.write(f"{volume}\t{resolution}")
+
+        # Run the Docker command
+        current_dir = os.getcwd()
+        container.run(
+            command=["python3", "/home/fenics/shared/templates/initialize_design_2d.py"],
+            image=self.container_id,
+            name="dolfin",
+            mounts=[(current_dir, "/home/fenics/shared")],
+        )
+
+        # Load the generated design data from the numpy file
+        design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
+        if not os.path.exists(design_file):
+            raise FileNotFoundError(f"Design file {design_file} not found.")  # ruff: noqa: TRY003
+
+        file_npy = np.load(design_file)
+
+        return file_npy
+
+    def random_design(self) -> tuple[npt.NDArray, int]:
+        """Generate a random design."""
+        return self.initialize_design(), -1
 
     def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
