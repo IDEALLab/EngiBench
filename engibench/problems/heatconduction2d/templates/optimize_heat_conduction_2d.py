@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-# ruff: noqa
 """Topology optimization for heat conduction using the SIMP method with dolfin-adjoint.
 The script reads initial design data, solves the heat conduction problem, and optimizes
 material distribution to minimize thermal complaicen under a volume constraint.
