@@ -75,8 +75,15 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         self.resolution = resolution
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
-        # """Reset the problem to a given seed."""
+        """Reset the problem to a given seed."""
         super().reset(seed, **kwargs)
+
+    def __copy_templates(self):
+        """Copy the templates from the installation location to the current working directory."""
+        if not os.path.exists("templates"):
+            os.mkdir("templates")
+        templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
+        os.system(f"cp -r {templates_location}/* templates/")
 
     # TODO how is this different from "random design" ?
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
@@ -91,11 +98,13 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         """
         volume = volume if volume is not None else self.volume
         resolution = resolution if resolution is not None else self.resolution
+
+        self.__copy_templates()
         with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
             f.write(f"{volume}\t{resolution}")
 
         # Run the Docker command
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        current_dir = os.getcwd()
         container.run(
             command=["python3", "/home/fenics/shared/templates/initialize_design_2d.py"],
             image=self.container_id,
@@ -106,7 +115,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         # Load the generated design data from the numpy file
         design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
         if not os.path.exists(design_file):
-            raise FileNotFoundError(f"Error: Design file {design_file} not found.")
+            raise FileNotFoundError(f"Design file {design_file} not found.")  # ruff: noqa: TRY003
 
         file_npy = np.load(design_file)
 
@@ -140,13 +149,15 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         if design is None:
             des = self.initialize_design(volume, resolution)
             design = des[:, 2].reshape(resolution + 1, resolution + 1)
+
+        self.__copy_templates()
         with open("templates/sim_var.txt", "w") as f:
             f.write(f"{volume}\t{length}\t{resolution}")
 
         filename = "templates/hr_data_v=" + str(volume) + "_w=" + str(length) + "_.npy"
         np.save(filename, design)
 
-        current_dir = os.path.dirname(os.path.abspath(__file__))
+        current_dir = os.getcwd()
         container.run(
             command=["python3", "/home/fenics/shared/templates/simulate_heat_conduction_2d.py"],
             image=self.container_id,
@@ -183,6 +194,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
             des = self.initialize_design(volume, resolution)
             design = des[:, 2].reshape(resolution + 1, resolution + 1)
 
+        self.__copy_templates()
         with open("templates/OPT_var.txt", "w") as f:
             f.write(f"{volume}\t{length}\t{resolution}")
 
@@ -229,6 +241,7 @@ if __name__ == "__main__":
     problem = HeatConduction2D()
 
     # Call the design method and print the result
-    design_values = np.random.rand(100, 100)
-    problem.render(design_values, open_window=False)
-    print(problem.simulate())
+    design, _ = problem.random_design()
+    problem.render(design, open_window=False)
+
+    print(problem.simulate(design))

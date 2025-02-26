@@ -11,6 +11,9 @@ import numpy as np
 from fenics import *
 from fenics_adjoint import *
 
+# TODO can we clean this up?
+
+
 # Ensure IPOPT is available
 try:
     from pyadjoint import ipopt  # noqa: F401

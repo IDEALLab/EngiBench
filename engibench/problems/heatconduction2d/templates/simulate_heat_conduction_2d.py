@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 
-# ruff: noqa
 """This script evaluates the design using finite element analysis with dolfin-adjoint based on the SIMP method.
 It sets up the computational domain, reads the design variables, solves the forward heat conduction problem,
 and saves performance (thermal conductivity) metric.
