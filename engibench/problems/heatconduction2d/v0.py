@@ -51,11 +51,9 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         {
             ("volume", 0.5),
             ("length", 0.5),
-            # TODO is the resolution a boundary condition?
         }
     )
-    # TODO what is the size of the design space?
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(50, 50), dtype=np.float32)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
@@ -69,10 +67,17 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
             resolution (int): Resolution of the design space.
         """
         super().__init__()
-        # TODO define how we should use the boundary conditions
         self.volume = volume
         self.length = length
+        self.boundary_conditions = frozenset(
+            {
+                ("volume", volume),
+                ("length", length),
+            }
+        )
+
         self.resolution = resolution
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float32)
 
     def simulate(
         self,
@@ -172,8 +177,6 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
         os.system(f"cp -r {templates_location}/* templates/")
 
-        # TODO how is this different from "random design" ?
-
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
 
@@ -211,7 +214,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 
     def random_design(self) -> tuple[npt.NDArray, int]:
         """Generate a random design."""
-        return self.initialize_design(), -1
+        return self.initialize_design(), -1  # TODO use random volume and resolution?
 
     def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -243,6 +246,7 @@ if __name__ == "__main__":
 
     # Call the design method and print the result
     design, _ = problem.random_design()
-    problem.render(design, open_window=False)
+    # problem.render(design, open_window=False)
 
     print(problem.simulate(design))
+    print(problem.optimize(design))
