@@ -44,11 +44,28 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     - `s0`: Off-the-wall spacing for the purpose of modeling the boundary layer.
     - `marchDist`: Distance to march the grid from the airfoil surface.
 
+    ## Simulator
+    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
 
-    ## Simulator
-    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+    ### v0
+    The dataset contains these fields:
+    - (Design) `initial`: Design before the adjoint optimization.
+    - (Design) `optimized`: Designs after the optimization.
+    - `mach`: Mach number.
+    - `reynolds`: Reynolds number.
+    - `cl_target`: Target lift coefficient. # TODO IDK what this is
+    - `area_target`: Target area. # TODO this too
+    - `alpha`: Angle of attack.
+    - `area_initial`: Initial area. # TODO this too
+    - (Objective) `cd_val`: Drag coefficient (after optimization).
+    - (Objective) `cl_val`: Lift coefficient (after optimization).
+    - `cl_con`: # TODO this too
+    - `area_con`: # TODO this too
+
+    We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
 
     ## References
     If you use this problem in your research, please cite the following paper:

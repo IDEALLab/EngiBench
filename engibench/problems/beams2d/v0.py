@@ -52,11 +52,26 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     - `ft`: Filtering method; 0 for sensitivity-based and 1 for density-based.
     - `overhang_constraint`: Boolean input condition to decide whether a 45 degree overhang constraint is imposed on the design.
 
+    ## Simulator
+    The objective (compliance) is calculated by the equation `c = ( (Emin+xPrint**penal*(Emax-Emin))*ce ).sum()` where `xPrint` is the current true density field.
+
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/beams_2d).
 
-    ## Simulator
-    The objective (compliance) is calculated by the equation `c = ( (Emin+xPrint**penal*(Emax-Emin))*ce ).sum()` where `xPrint` is the current true density field.
+    ### v0
+    The dataset contains these fields:
+    - (Design) `xPrint`: The density field of the design.
+    - `nelx`: Width of the domain.
+    - `nely`: Height of the domain.
+    - `volfrac`: Desired volume fraction (in terms of solid material) for the design.
+    - `penal`: Intermediate density penalty term.
+    - `rmin`: Minimum feature length of beam members.
+    - `ft`: Filtering method; 0 for sensitivity-based and 1 for density-based.
+    - `max_iter`: Maximum number of iterations.
+    - `overhang_constraint`: Boolean input condition to decide whether a 45 degree overhang constraint is imposed on the design.
+    - (Objective) `compliance`: Compliance of the design.
+
+    We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
 
     ## References
     If you use this problem in your research, please cite the following paper:
