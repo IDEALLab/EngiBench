@@ -51,6 +51,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
 
     ### v0
+
+    #### Fields
     The dataset contains these fields:
     - (Design) `initial`: Design before the adjoint optimization.
     - (Design) `optimized`: Designs after the optimization.
@@ -65,6 +67,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     - `cl_con`: # TODO this too
     - `area_con`: # TODO this too
 
+    #### Creation Method
     We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
 
     ## References

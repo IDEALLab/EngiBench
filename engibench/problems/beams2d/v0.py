@@ -59,6 +59,9 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/beams_2d).
 
     ### v0
+
+    #### Fields
+
     The dataset contains these fields:
     - (Design) `xPrint`: The density field of the design.
     - `nelx`: Width of the domain.
@@ -71,6 +74,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     - `overhang_constraint`: Boolean input condition to decide whether a 45 degree overhang constraint is imposed on the design.
     - (Objective) `compliance`: Compliance of the design.
 
+
+    #### Creation Method
     We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
 
     ## References
