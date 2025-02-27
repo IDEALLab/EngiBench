@@ -58,48 +58,40 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
 
-    def __init__(self, volume: float = 0.5, length: float = 0.5, resolution: int = 50) -> None:
+    def __init__(self,config: dict[str, Any] = {}) -> None:
         """Initialize the HeatConduction2D problem.
 
         Args:
-            volume (float): Volume constraint.
-            length (float): Length constraint.
-            resolution (int): Resolution of the design space.
+            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,length (float): Length constraint,resolution (int): Resolution of the design space) for the initilization.
         """
         super().__init__()
-        self.volume = volume
-        self.length = length
+        self.volume = config.get("volume", 0.5)
+        self.length = config.get("length", 0.5)
+        self.resolution = config.get("resolution", 50)
         self.boundary_conditions = frozenset(
             {
-                ("volume", volume),
-                ("length", length),
+                ("volume", self.volume),
+                ("length", self.length),
             }
         )
-
-        self.resolution = resolution
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float32)
 
     def simulate(
         self,
         design: npt.NDArray | None = None,
-        volume: float | None = None,  # TODO use a config dict as in the other problems
-        length: float | None = None,
-        resolution: int | None = None,
-    ) -> npt.NDArray:
+        config:dict[str, Any] = {}) -> npt.NDArray:
         """Simulate the design.
 
         Args:
             design (Optional[np.ndarray]): The design to simulate.
-            volume (Optional[float]): Volume constraint.
-            length (Optional[float]): Length constraint.
-            resolution (Optional[int]): Resolution of the design space.
+            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,length (float): Length constraint,resolution (int): Resolution of the design space) for the simulation.
 
         Returns:
             float: The thermal compliance of the design.
         """
-        volume = volume if volume is not None else self.volume
-        length = length if length is not None else self.length
-        resolution = resolution if resolution is not None else self.resolution
+        volume = config.get("volume", self.volume)
+        length = config.get("length", self.length)
+        resolution = config.get("resolution", self.resolution)
         if design is None:
             des = self.initialize_design(volume, resolution)
             design = des[:, 2].reshape(resolution + 1, resolution + 1)
@@ -125,25 +117,19 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 
     def optimize(
         self,
-        design: npt.NDArray | None = None,
-        volume: float | None = None,
-        length: float | None = None,
-        resolution: int | None = None,
-    ) -> tuple[npt.NDArray, list[OptiStep]]:
+        design: npt.NDArray | None = None,config:dict[str, Any] = {}) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes the design.
 
         Args:
             design (Optional[np.ndarray]): The design to optimize.
-            volume (Optional[float]): Volume constraint.
-            length (Optional[float]): Length constraint.
-            resolution (Optional[int]): Resolution of the design space.
+            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,length (float): Length constraint,resolution (int): Resolution of the design space) for the simulation.
 
         Returns:
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
-        volume = volume if volume is not None else self.volume
-        length = length if length is not None else self.length
-        resolution = resolution if resolution is not None else self.resolution
+        volume = config.get("volume", self.volume)
+        length = config.get("length", self.length)
+        resolution = config.get("resolution", self.resolution)
         if design is None:
             des = self.initialize_design(volume, resolution)
             design = des[:, 2].reshape(resolution + 1, resolution + 1)
@@ -245,8 +231,8 @@ if __name__ == "__main__":
     problem = HeatConduction2D()
 
     # Call the design method and print the result
-    design, _ = problem.random_design()
+    #design, _ = problem.random_design()
     # problem.render(design, open_window=False)
 
-    print(problem.simulate(design))
-    print(problem.optimize(design))
+    print(problem.simulate())
+    print(problem.optimize())
