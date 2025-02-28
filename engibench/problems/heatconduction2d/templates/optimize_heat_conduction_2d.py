@@ -11,9 +11,6 @@ import numpy as np
 from fenics import *
 from fenics_adjoint import *
 
-# TODO can we clean this up?
-
-
 # Ensure IPOPT is available
 try:
     from pyadjoint import ipopt  # noqa: F401
@@ -84,26 +81,35 @@ init_guess.vector()[:] = image_values[d2v].reshape(
 p = Constant(5)  # Power in material model
 eps = Constant(1e-3)  # Regularization parameter
 alpha = Constant(1e-8)  # Functional regularization coefficient
+
+
 def k(a):
     """Material property function based on design variable 'a'."""
     return eps + (1 - eps) * a**p
+
+
 # Define function spaces for control and solution
 A = FunctionSpace(mesh, "CG", 1)  # Control variable space
 P = FunctionSpace(mesh, "CG", 1)  # Temperature solution space
 
 # Define adiabatic boundary region
 lb_2, ub_2 = 0.5 - width / 2, 0.5 + width / 2
+
+
 class BoundaryConditions(SubDomain):
     """Defines Dirichlet boundary conditions on specific edges."""
 
     def inside(self, x, on_boundary):
         return x[0] == 0.0 or x[1] == 1.0 or x[0] == 1.0 or (x[1] == 0.0 and (x[0] < lb_2 or x[0] > ub_2))
+
+
 # Apply boundary condition: Temperature = 0
 T_bc = 0.0
 bc = [DirichletBC(P, T_bc, BoundaryConditions())]
 
 # Define heat source term
 f = interpolate(Constant(1.0e-2), P)  # Default source term
+
 
 # -------------------------------
 # Forward Heat Conduction Simulation
@@ -120,6 +126,8 @@ def forward(a):
     solve(F == 0, T, bc, solver_parameters={"newton_solver": {"absolute_tolerance": 1.0e-7, "maximum_iterations": 20}})
 
     return T
+
+
 # -------------------------------
 # Optimization Process
 # -------------------------------
@@ -140,6 +148,8 @@ Jhat = ReducedFunctional(J, m)
 J_CONTROL = Control(J)
 # Define optimization bounds
 lb, ub = 0.0, 1.0
+
+
 class VolumeConstraint(InequalityConstraint):
     """Constraint to maintain volume fraction."""
 
@@ -166,12 +176,14 @@ class VolumeConstraint(InequalityConstraint):
     def length(self):
         """Return number of constraint components (1)."""
         return 1
+
+
 # Define optimization problem
 problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(vol_f))
 # Define filename for IPOPT log
 log_filename = f"/home/fenics/shared/templates/RES_OPT/solution_V={vol_f}_w={width}.txt"
 # Set optimization solver parameters
-solver_params = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100,"file_print_level": 5,    "output_file": log_filename}
+solver_params = {"acceptable_tol": 1.0e-3, "maximum_iterations": 100, "file_print_level": 5, "output_file": log_filename}
 solver = IPOPTSolver(problem, parameters=solver_params)
 # -------------------------------
 # Store and Save Results
@@ -204,8 +216,8 @@ RES_OPTults = np.zeros(((NN + 1) ** 2, 1))
 ind = 0
 for xs in x_values:
     for ys in y_values:
-                RES_OPTults[ind, 0] = a_opt(xs, ys)
-                ind = ind + 1
+        RES_OPTults[ind, 0] = a_opt(xs, ys)
+        ind = ind + 1
 output_npy = "/home/fenics/shared/templates/RES_OPT/hr_data_v_v={}_w={}.npy".format(vol_f, width)
 np.save(output_npy, RES_OPTults)
 xdmf_filename = XDMFFile(
