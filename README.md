@@ -111,12 +111,12 @@ In general, follow the `airfoil2d/` example.
    ```
 
    You can consult the documentation for info about the API; see below for how to build the website locally.
-3. Run `pytest tests/test_problem_implementations.py` (requires `pip install .[test]`)
+3. Run `pytest tests/test_problem_implementations.py` (requires `pip install ".[test]"`)
    to verify that the new `Problem` class defines all required metadata attributes.
 4. Complete your docstring (Python documentation) thoroughly, LLMs + coding IDE will greatly help.
 
 #### Documentation
-1. Install necessary documentation tools: `pip install .[doc]`.
+1. Install necessary documentation tools: `pip install ".[doc]"`.
 2. If it is a new problem family, add a new `.md` file in [docs/problems/](docs/problems/) following
    the existing structure and add your problem family in the `toctree` of [docs/problems/index.md](docs/problems/index.md).
 3. Add a problem markdown file to the `toctree` in `docs/problems/new_problem.md`. In the md file, use EngiBench's own `problem` directive:
@@ -130,8 +130,9 @@ In general, follow the `airfoil2d/` example.
    Here, `new_problem` must match the name of the top level module where your problem class is defined.
    Here, `new_problem/__init__.py` is crucial as it makes the problem class discoverable to the `problem` directive by
    the reexport `from engibench.problems.new_problem.v0 import NewProblem`.
-4. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
-5. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
+4. Add an image (result of `problem.render(design)`) in `docs/_static/img/problems`. The file's name should be `<new_problem>.png`, with your problem module as in the point above.
+5. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
+6. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
 
 Congrats! You can commit your changes and open a PR.
 <!-- end new_problem -->
