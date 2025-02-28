@@ -41,6 +41,23 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
     We convert use intermediary files to convert from and to the simulator that is run from a Docker image.
 
+    ## Dataset
+    The dataset has been generated the dolfin-adjoint software. It is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0).
+
+    ### v0
+
+    #### Fields
+    The dataset contains the following fields:
+    - `volume`: The volume constraint.
+    - `length`: The length constraint.
+    - `Optimal_Design`: The optimal design.
+
+    #### Creation Method
+    The creation method for the dataset is specified in the reference paper.
+
+    ## References
+    # TODO add Milad's paper here
+
     ## Lead
     Milad Habibi @MIladHB
     """
@@ -58,7 +75,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
 
-    def __init__(self,config: dict[str, Any] = {}) -> None:
+    def __init__(self, config: dict[str, Any] = {}) -> None:
         """Initialize the HeatConduction2D problem.
 
         Args:
@@ -76,10 +93,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         )
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float32)
 
-    def simulate(
-        self,
-        design: npt.NDArray | None = None,
-        config:dict[str, Any] = {}) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulate the design.
 
         Args:
@@ -116,8 +130,8 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         return np.array(perf)
 
     def optimize(
-        self,
-        design: npt.NDArray | None = None,config:dict[str, Any] = {}) -> tuple[npt.NDArray, list[OptiStep]]:
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
+    ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes the design.
 
         Args:
@@ -130,9 +144,11 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         volume = config.get("volume", self.volume)
         length = config.get("length", self.length)
         resolution = config.get("resolution", self.resolution)
-        if design is None:
+        if starting_point is None:
             des = self.initialize_design(volume, resolution)
             design = des[:, 2].reshape(resolution + 1, resolution + 1)
+        else:
+            design = starting_point
 
         self.__copy_templates()
         with open("templates/OPT_var.txt", "w") as f:
@@ -177,7 +193,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         resolution = resolution if resolution is not None else self.resolution
 
         self.__copy_templates()
-        with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
+        with open("templates/Des_var.txt", "w") as f:
             f.write(f"{volume}\t{resolution}")
 
         # Run the Docker command
@@ -200,7 +216,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 
     def random_design(self) -> tuple[npt.NDArray, int]:
         """Generate a random design."""
-        return self.initialize_design(), -1  # TODO use random volume and resolution?
+        return self.initialize_design(), -1  # use random volume and resolution?
 
     def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -231,8 +247,9 @@ if __name__ == "__main__":
     problem = HeatConduction2D()
 
     # Call the design method and print the result
-    #design, _ = problem.random_design()
-    # problem.render(design, open_window=False)
+    design, _ = problem.random_design()
+    print(design)
+    problem.render(design, open_window=True)
 
-    print(problem.simulate())
-    print(problem.optimize())
+    # print(problem.simulate())
+    # print(problem.optimize())
