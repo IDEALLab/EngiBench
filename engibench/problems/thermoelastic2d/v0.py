@@ -62,7 +62,7 @@ class ThermoElastic2D(Problem):
 
 
     ## Dataset
-    The dataset linked to this problem will be coming to huggingface soon [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/thermoelastic2d.py).
+    The dataset linked to this problem is on huggingface [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/thermoelastic_2d_v0).
 
 
     ## Simulator
