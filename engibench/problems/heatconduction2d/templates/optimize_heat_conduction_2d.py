@@ -206,6 +206,7 @@ for xs in x_values:
     for ys in y_values:
                 RES_OPTults[ind, 0] = a_opt(xs, ys)
                 ind = ind + 1
+RES_OPTults=RES_OPTults.reshape(NN+1,NN+1)
 output_npy = "/home/fenics/shared/templates/RES_OPT/hr_data_v_v={}_w={}.npy".format(vol_f, width)
 np.save(output_npy, RES_OPTults)
 xdmf_filename = XDMFFile(
