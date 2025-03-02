@@ -41,23 +41,6 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
     We convert use intermediary files to convert from and to the simulator that is run from a Docker image.
 
-    ## Dataset
-    The dataset has been generated the dolfin-adjoint software. It is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0).
-
-    ### v0
-
-    #### Fields
-    The dataset contains the following fields:
-    - `volume`: The volume constraint.
-    - `length`: The length constraint.
-    - `Optimal_Design`: The optimal design.
-
-    #### Creation Method
-    The creation method for the dataset is specified in the reference paper.
-
-    ## References
-    # TODO add Milad's paper here
-
     ## Lead
     Milad Habibi @MIladHB
     """
@@ -144,14 +127,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         length = config.get("length", self.length)
         resolution = config.get("resolution", self.resolution)
         if starting_point is None:
-<<<<<<< HEAD
             starting_point = self.initialize_design(volume, resolution)
-=======
-            des = self.initialize_design(volume, resolution)
-            design = des[:, 2].reshape(resolution + 1, resolution + 1)
-        else:
-            design = starting_point
->>>>>>> 9dd715fc990dda7d0b46d7a11ac5dfa12948a058
 
         self.__copy_templates()
         with open("templates/OPT_var.txt", "w") as f:
@@ -196,7 +172,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         resolution = resolution if resolution is not None else self.resolution
 
         self.__copy_templates()
-        with open("templates/Des_var.txt", "w") as f:
+        with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
             f.write(f"{volume}\t{resolution}")
 
         # Run the Docker command
@@ -245,7 +221,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 
         fig, ax = plt.subplots()
 
-        im=ax.imshow(design,'hot')
+        im = ax.imshow(design, "hot")
         fig.colorbar(im, ax=ax)
 
         if open_window:
@@ -258,7 +234,6 @@ if __name__ == "__main__":
     # Create a HeatConduction2D problem instance
     problem = HeatConduction2D()
     import ast
-    import re
 
     # Call the design method and print the result
     # design, _ = problem.random_design()
@@ -275,13 +250,11 @@ if __name__ == "__main__":
     # design,trajectory=problem.optimize()
     # problem.render(a,open_window=True)
 
-
     # Convert to NumPy array
     numpy_array = np.array(ast.literal_eval(string_array)).reshape(101, 101)
-    des,traj=problem.optimize(starting_point=numpy_array)
-    problem.render(design=des,open_window=True)
+    des, traj = problem.optimize(starting_point=numpy_array)
+    problem.render(design=des, open_window=True)
 
     # Print the shape
     print("Recovered NumPy Array Shape:", numpy_array.shape)
     print(problem.random_design())
-
