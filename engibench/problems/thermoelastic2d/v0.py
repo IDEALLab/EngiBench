@@ -6,9 +6,12 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 
 from __future__ import annotations
 
+import ast
 from typing import Any
 
 from gymnasium import spaces
+from matplotlib import colors
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
@@ -19,7 +22,6 @@ from engibench.problems.thermoelastic2d.model.PythonModel import PythonModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 
 # -- Problem specific imports
-from engibench.problems.thermoelastic2d.utils import plot_multi_physics
 
 
 def build(**kwargs) -> ThermoElastic2D:
@@ -31,7 +33,7 @@ def build(**kwargs) -> ThermoElastic2D:
     return ThermoElastic2D(**kwargs)
 
 
-class ThermoElastic2D(Problem):
+class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
     r"""Truss 2D integer optimization problem.
 
     ## Problem Description
@@ -161,28 +163,14 @@ class ThermoElastic2D(Problem):
         Returns:
             Any: The rendered design.
         """
-        boundary_dict = dict(self.boundary_conditions)
-        fixed_elements = boundary_dict.get("fixed_elements")
-        heatsink_elements = boundary_dict.get("heatsink_elements")
-        fex = boundary_dict.get("force_elements_x")
-        fey = boundary_dict.get("force_elements_y")
+        fig, ax = plt.subplots(1, 1, figsize=(7, 7))
+        ax.imshow(-design, cmap="gray", interpolation="none", norm=colors.Normalize(vmin=-1, vmax=0))
+        ax.axis("off")
+        plt.tight_layout()
+        if open_window is True:
+            plt.show()
 
-        fixeddofsm_x = np.array(fixed_elements) * 2
-        fixeddofsm_y = np.array(fixed_elements) * 2 + 1
-        fixeddofsm = np.concatenate((fixeddofsm_x, fixeddofsm_y))
-
-        fixeddofsth = np.array(heatsink_elements)
-
-        # Force elements
-        ndofsm = 2 * (self.nelx + 1) * (self.nely + 1)
-        fp = np.zeros(ndofsm)
-        load_elements_x = np.array(fex) * 2
-        fp[load_elements_x] = 0.5
-        load_elements_y = np.array(fey) * 2 + 1
-        fp[load_elements_y] = 0.5
-
-        plt = plot_multi_physics(design, fixeddofsm, fixeddofsth, self.nelx, self.nely, _fp=fp, open_plot=open_window)
-        return plt
+        return fig
 
     def random_design(self) -> DesignType:
         """Samples a valid random design.
@@ -196,18 +184,25 @@ class ThermoElastic2D(Problem):
 
 
 if __name__ == "__main__":
-    # Test the problem
+    # --- Create a new problem
     problem = ThermoElastic2D()
-    problem.reset(0)
+    problem.reset()
 
-    # --- Render the design ---
+    # --- Load the problem dataset
+    dataset = problem.dataset
+    first_item = dataset["train"][0]
+    first_item_design = np.array(ast.literal_eval(first_item["design"]))
+    problem.render(first_item_design, open_window=True)
+
+    # # --- Render the design
     # design = problem.random_design()
     # problem.render(design, open_window=True)
 
     # # --- Optimize a design ---
-    design = problem.random_design()
-    design, objectives = problem.optimize(design)
-    #
+    # design = problem.random_design()
+    # design, objectives = problem.optimize(design)
+    # problem.render(design, open_window=True)
+
     # # --- Evaluate a design ---
     # design = problem.random_design()
     # objectives = problem.simulate(design)

@@ -7,7 +7,6 @@ from matplotlib import colors
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
-import tensorflow as tf
 
 
 def get_res_bounds(x_res: np.ndarray, y_res: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
@@ -78,22 +77,25 @@ def plot_multi_physics(
     structural_bcs_img = np.zeros((x_elements * y_elements,))
     structural_bcs_img[structural_bcs // 2] = 1
     structural_bcs_img = structural_bcs_img.reshape((x_elements, y_elements))
-    structural_bcs_img_clip = tf.clip_by_value(structural_bcs_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    structural_bcs_img_clip = np.clip(structural_bcs_img * 127.5 + 127.5, 0.0, 255.0).astype(np.uint8)
+
     structural_bcs_img_clip = structural_bcs_img_clip.T  # transpose to flip bottom left and top right
 
     thermal_bcs_img = np.zeros((x_elements * y_elements,))
     thermal_bcs_img[thermal_bcs] = 1
     thermal_bcs_img[right_col_indices] = 1
     thermal_bcs_img = thermal_bcs_img.reshape((x_elements, y_elements))
-    thermal_bcs_img_clip = tf.clip_by_value(thermal_bcs_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    thermal_bcs_img_clip = np.clip(thermal_bcs_img * 127.5 + 127.5, 0.0, 255.0).astype(np.uint8)
+
     thermal_bcs_img_clip = thermal_bcs_img_clip.T  # transpose to flip bottom left and top right
 
     fpx_img = fp_x.reshape((x_elements, y_elements))
-    fpx_img_clip = tf.clip_by_value(fpx_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    fpx_img_clip = np.clip(fpx_img * 127.5 + 127.5, 0.0, 255.0).astype(np.uint8)
+
     fpx_img_clip = fpx_img_clip.T  # transpose to flip bottom left and top right
 
     fpy_img = fp_y.reshape((x_elements, y_elements))
-    fpy_img_clip = tf.clip_by_value(fpy_img * 127.5 + 127.5, 0.0, 255.0).numpy().astype(np.uint8)
+    fpy_img_clip = np.clip(fpy_img * 127.5 + 127.5, 0.0, 255.0).astype(np.uint8)
     fpy_img_clip = fpy_img_clip.T  # transpose to flip bottom left and top right
 
     disp_x.reshape((x_elements, y_elements))
@@ -103,15 +105,6 @@ def plot_multi_physics(
     disp_y.reshape((x_elements, y_elements))
     np.arange(nelx + 1)
     -np.arange(nely + 1)
-
-    if _t is None:
-        _t = np.zeros((x_elements * y_elements,))
-    t_img = _t.reshape((x_elements, y_elements))
-    t_img_clip = t_img.T  # transpose to flip bottom left and top right
-    # normalize temperature
-    t_img_clip = (t_img_clip - np.min(t_img_clip)) / (np.max(t_img_clip) - np.min(t_img_clip)) * 255
-    t_xxx = np.arange(nelx + 1)
-    t_yyy = -np.arange(nely + 1)
 
     # Create Plots
     fig, ax = plt.subplots(2, 4, figsize=(7, 5))
@@ -135,9 +128,22 @@ def plot_multi_physics(
     ax[1][0].axis("off")
     ax[1][0].set_title("Design")
 
-    ax[1][3].contourf(t_xxx, t_yyy, t_img_clip, 50)
-    ax[1][3].axis("image")
-    ax[1][3].set_title("Temperature")
+    if _t is None:
+        ax[1][1].axis("off")
+    else:
+        t_img = _t.reshape((x_elements, y_elements))
+        t_img_clip = t_img.T  # transpose to flip bottom left and top right
+        # normalize temperature
+        t_img_clip = (t_img_clip - np.min(t_img_clip)) / (np.max(t_img_clip) - np.min(t_img_clip)) * 255
+        t_xxx = np.arange(nelx + 1)
+        t_yyy = -np.arange(nely + 1)
+        ax[1][1].contourf(t_xxx, t_yyy, t_img_clip, 50)
+        ax[1][1].axis("image")
+        ax[1][1].set_title("Temperature")
+
+    # Hide axis on the last subplots
+    ax[1][2].axis("off")
+    ax[1][3].axis("off")
 
     plt.tight_layout()
     if open_plot is True:
