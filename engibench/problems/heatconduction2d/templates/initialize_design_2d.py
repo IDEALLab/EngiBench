@@ -48,17 +48,15 @@ if __name__ == "__main__":
         outfile.write_checkpoint(a, "u", 0, append=True)  # Write design variable to the file
 
     # Initialize an array to store the results (x, y, value)
-    results = np.zeros(((NN + 1) ** 2, 3))
+    results = np.zeros(((NN + 1) ** 2, 1))
 
     # Populate the results array with the mesh coordinates and the corresponding volume value
     ind = 0
     for xs in x_values:
         for ys in y_values:
-            results[ind, 0] = xs  # Store x-coordinate
-            results[ind, 1] = ys  # Store y-coordinate
-            results[ind, 2] = V  # Store the volume value
+            results[ind, 0] = V  # Store the volume value
             ind += 1
-
+    results=results.reshape(NN+1,NN+1)
     # Save the results array to a .npy file
     filename = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN}_.npy")
     np.save(filename, results)

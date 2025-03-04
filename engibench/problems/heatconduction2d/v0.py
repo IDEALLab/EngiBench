@@ -41,23 +41,6 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
     We convert use intermediary files to convert from and to the simulator that is run from a Docker image.
 
-    ## Dataset
-    The dataset has been generated the dolfin-adjoint software. It is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0).
-
-    ### v0
-
-    #### Fields
-    The dataset contains the following fields:
-    - `volume`: The volume constraint.
-    - `length`: The length constraint.
-    - `Optimal_Design`: The optimal design.
-
-    #### Creation Method
-    The creation method for the dataset is specified in the reference paper.
-
-    ## References
-    # TODO add Milad's paper here
-
     ## Lead
     Milad Habibi @MIladHB
     """
@@ -70,7 +53,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
             ("length", 0.5),
         }
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(50, 50), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(100, 100), dtype=np.float32)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
@@ -84,7 +67,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         super().__init__()
         self.volume = config.get("volume", 0.5)
         self.length = config.get("length", 0.5)
-        self.resolution = config.get("resolution", 50)
+        self.resolution = config.get("resolution", 100)
         self.boundary_conditions = frozenset(
             {
                 ("volume", self.volume),
@@ -107,8 +90,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         length = config.get("length", self.length)
         resolution = config.get("resolution", self.resolution)
         if design is None:
-            des = self.initialize_design(volume, resolution)
-            design = des[:, 2].reshape(resolution + 1, resolution + 1)
+            design = self.initialize_design(volume, resolution)
 
         self.__copy_templates()
         with open("templates/sim_var.txt", "w") as f:
@@ -145,17 +127,14 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         length = config.get("length", self.length)
         resolution = config.get("resolution", self.resolution)
         if starting_point is None:
-            des = self.initialize_design(volume, resolution)
-            design = des[:, 2].reshape(resolution + 1, resolution + 1)
-        else:
-            design = starting_point
+            starting_point = self.initialize_design(volume, resolution)
 
         self.__copy_templates()
         with open("templates/OPT_var.txt", "w") as f:
             f.write(f"{volume}\t{length}\t{resolution}")
 
         filename = "templates/hr_data_OPT_v=" + str(volume) + "_w=" + str(length) + "_.npy"
-        np.save(filename, design)
+        np.save(filename, starting_point)
 
         current_dir = os.getcwd()
         container.run(
@@ -193,7 +172,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         resolution = resolution if resolution is not None else self.resolution
 
         self.__copy_templates()
-        with open("templates/Des_var.txt", "w") as f:
+        with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
             f.write(f"{volume}\t{resolution}")
 
         # Run the Docker command
@@ -215,8 +194,15 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         return file_npy
 
     def random_design(self) -> tuple[npt.NDArray, int]:
-        """Generate a random design."""
-        return self.initialize_design(), -1  # use random volume and resolution?
+        """Samples a valid random design.
+
+        Returns:
+            Tuple of:
+                np.ndarray: The valid random design.
+                int: The random index selected.
+        """
+        rnd = np.random.randint(low=0, high=len(self.dataset["train"]["Optimal_Design"]), dtype=int)  # type: ignore
+        return np.array(ast.literal_eval(self.dataset["train"]["Optimal_Design"][rnd])).reshape(101, 101), rnd  # type: ignore
 
     def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -229,13 +215,15 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
             Any: The rendered design.
         """
         if design is None:
-            des = self.initialize_design()
-            design = des[:, 2].reshape(self.resolution + 1, self.resolution + 1)
+            design = self.initialize_design()
+
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
 
-        ax.imshow(design)
+        im = ax.imshow(design, "hot")
+        fig.colorbar(im, ax=ax)
+
         if open_window:
             plt.show()
         return fig, ax
@@ -245,11 +233,28 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 if __name__ == "__main__":
     # Create a HeatConduction2D problem instance
     problem = HeatConduction2D()
+    import ast
 
     # Call the design method and print the result
-    design, _ = problem.random_design()
-    print(design)
-    problem.render(design, open_window=True)
+    # design, _ = problem.random_design()
+    # problem.render(design, open_window=False)
+    string_array = problem.dataset["train"]["Optimal_Design"][0]
 
-    # print(problem.simulate())
-    # print(problem.optimize())
+    # Ensure proper formatting by adding commas
+    # Replace spaces with commas
+
+    # Convert to a NumPy array
+    # print(string_array)
+    # numpy_array = np.array(ast.literal_eval(string_array))
+    # print(numpy_array.shape)
+    # design,trajectory=problem.optimize()
+    # problem.render(a,open_window=True)
+
+    # Convert to NumPy array
+    numpy_array = np.array(ast.literal_eval(string_array)).reshape(101, 101)
+    des, traj = problem.optimize(starting_point=numpy_array)
+    problem.render(design=des, open_window=True)
+
+    # Print the shape
+    print("Recovered NumPy Array Shape:", numpy_array.shape)
+    print(problem.random_design())
