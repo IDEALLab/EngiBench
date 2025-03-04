@@ -41,6 +41,23 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
     We convert use intermediary files to convert from and to the simulator that is run from a Docker image.
 
+    ## Dataset
+    The dataset has been generated the dolfin-adjoint software. It is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0).
+
+    ### v0
+
+    #### Fields
+    The dataset contains the following fields:
+    - `volume`: The volume constraint.
+    - `length`: The length constraint.
+    - `Optimal_Design`: The optimal design.
+
+    #### Creation Method
+    The creation method for the dataset is specified in the reference paper.
+
+    ## References
+    # TODO add Milad's paper here
+
     ## Lead
     Milad Habibi @MIladHB
     """
