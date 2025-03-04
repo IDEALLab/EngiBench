@@ -12,11 +12,12 @@ from scipy.sparse import coo_matrix
 
 from engibench.problems.thermoelastic2d.model.fem_matrix_builder import fe_melthm
 from engibench.problems.thermoelastic2d.model.fem_setup import fe_mthm_bc
+from engibench.problems.thermoelastic2d.model.mma_subroutine import MMAInputs
 from engibench.problems.thermoelastic2d.model.mma_subroutine import mmasub
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 from engibench.problems.thermoelastic2d.utils import plot_multi_physics
 
-# ruff: noqa: ERA001, PLR2004, ANN001, PLR0915, ANN201, D102, D107, D100, N999, D101
+# ruff: noqa: PLR2004, ANN001, PLR0915, ANN201, D102, D107, D100, N999, D101
 
 
 class PythonModel:
@@ -210,27 +211,26 @@ class PythonModel:
             # UPDATE DESIGN VARIABLES USING MMA
             upp_vec = np.ones((n,)) * upp
             low_vec = np.ones((n,)) * low
-            xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low_, upp_ = mmasub(
-                [
-                    m,
-                    n,
-                    iterr,
-                    xval[:, 0],
-                    xmin,
-                    xmax,
-                    xold1,
-                    xold2,
-                    df0dx[:, 0],
-                    fval,
-                    dfdx,
-                    low_vec,
-                    upp_vec,
-                    a0,
-                    a[0],
-                    c[0],
-                    d[0],
-                ]
+            mmainputs = MMAInputs(
+                m=m,
+                n=n,
+                iterr=iterr,
+                xval=xval[:, 0],  # selecting appropriate column
+                xmin=xmin,
+                xmax=xmax,
+                xold1=xold1,
+                xold2=xold2,
+                df0dx=df0dx[:, 0],  # selecting appropriate column
+                fval=fval,
+                dfdx=dfdx,
+                low=low_vec,
+                upp=upp_vec,
+                a0=a0,
+                a=a[0],
+                c=c[0],
+                d=d[0],
             )
+            xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low_, upp_ = mmasub(mmainputs)
             t_mma = time.time() - curr_time
 
             # Store previous density fields
@@ -276,7 +276,6 @@ if __name__ == "__main__":
         "nelx": nelx,
         "nely": nely,
         "fixed_elements": [lci[21], lci[32], lci[43]],
-        # 'force_elements_x': [bri[31]],
         "force_elements_y": [bri[31]],
         "heatsink_elements": [lci[31], lci[32], lci[33]],
         "volfrac": 0.2,

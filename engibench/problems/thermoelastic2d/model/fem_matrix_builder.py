@@ -2,19 +2,23 @@
 
 import numpy as np
 
-# ruff: noqa: ANN001, ANN201
 
-
-def fe_melthm(param):
+def fe_melthm(param: list[float]) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
     """This function builds the element stiffness matrix, conductivity matrix, and coupling matrix for thermal expansion.
 
-    INPUT:
-    param : a list containing the material properties [nu, E, k, alpha]
+    Args:
+        param : list[float]
+            A list containing the material properties [nu, E, k, alpha]
+            - nu (float): Poisson's ratio
+            - E (float): Young's modulus
+            - k (float): Thermal conductivity
+            - alpha (float): Coefficient of thermal expansion
 
-    OUTPUT:
-    KE : element stiffness matrix
-    KEth : element conductivity matrix
-    CEthm : element coupling matrix (thermal expansion)
+    Returns:
+        tuple[np.ndarray, np.ndarray, np.ndarray]
+            - KE (np.ndarray): Element stiffness matrix
+            - KEth (np.ndarray): Element conductivity matrix
+            - CEthm (np.ndarray): Element coupling matrix (thermal expansion)
     """
     nu = param[0]  # Poisson's ratio
     e = param[1]  # Young's modulus

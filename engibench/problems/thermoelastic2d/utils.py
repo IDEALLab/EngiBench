@@ -7,9 +7,10 @@ from matplotlib import colors
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
+import numpy.typing as npt
 
 
-def get_res_bounds(x_res: np.ndarray, y_res: np.ndarray) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+def get_res_bounds(x_res: npt.NDArray, y_res: npt.NDArray) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
     """Generates the indices corresponding to the left, top, right, and bottom elements in the domain.
 
     Args:
@@ -32,12 +33,12 @@ def get_res_bounds(x_res: np.ndarray, y_res: np.ndarray) -> tuple[np.ndarray, np
 
 
 def plot_multi_physics(
-    design: np.ndarray,
-    structural_bcs: np.ndarray,
-    thermal_bcs: np.ndarray,
+    design: npt.NDArray,
+    structural_bcs: npt.NDArray,
+    thermal_bcs: npt.NDArray,
     nelx: int,
     nely: int,
-    _fp: np.ndarray | None = None,
+    _fp: npt.NDArray | None = None,
     _um: None = None,
     _t: None = None,
     open_plot: bool = False,
@@ -45,18 +46,18 @@ def plot_multi_physics(
     """Plot the multi-physics design along with the boundary conditions.
 
     Args:
-        design (np.ndarray): The design array.
-        structural_bcs (np.ndarray): Structural boundary conditions.
-        thermal_bcs (np.ndarray): Thermal boundary conditions.
+        design (npt.NDArray): The design array.
+        structural_bcs (npt.NDArray): Structural boundary conditions.
+        thermal_bcs (npt.NDArray): Thermal boundary conditions.
         nelx (int): Number of elements in the x-direction.
         nely (int): Number of elements in the y-direction.
-        _fp (Optional[np.ndarray]): Force points (default: None).
+        _fp (Optional[npt.NDArray]): Force points (default: None).
         _um (None): Unused parameter (default: None).
         _t (None): Unused parameter (default: None).
         open_plot (bool): Whether to open the plot (default: False).
 
     Returns:
-        None: The function generates a plot but does not return anything.
+        fig (Figure): The figure generated.
     """
     x_elements = nelx + 1
     y_elements = nely + 1

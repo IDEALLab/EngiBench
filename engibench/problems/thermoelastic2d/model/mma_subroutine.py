@@ -1,51 +1,93 @@
 """This module contains the MMA subroutine used in the thermoelastic2d problem."""
 
-from typing import Any
+from __future__ import annotations
+
+from dataclasses import dataclass
 
 import numpy as np
+from numpy.typing import NDArray
 
-# ruff: noqa: PLR2004, ERA001, PLR0915
+# ruff: noqa: PLR2004, PLR0915
 
 
-def mmasub(list_inputs: Any) -> Any:
+@dataclass(frozen=True)
+class MMAInputs:
+    """Dataclass encapsulating all input parameters for the MMA subroutine."""
+
+    m: int
+    n: int
+    iterr: int
+    xval: NDArray[np.float64]
+    xmin: NDArray[np.float64]
+    xmax: NDArray[np.float64]
+    xold1: NDArray[np.float64]
+    xold2: NDArray[np.float64]
+    df0dx: NDArray[np.float64]
+    fval: NDArray[np.float64]
+    dfdx: NDArray[np.float64]
+    low: NDArray[np.float64]  # Lower asymptotes from the previous iteration.
+    upp: NDArray[np.float64]  # Upper asymptotes from the previous iteration.
+    a0: float
+    a: NDArray[np.float64]  # Coefficients a_i.
+    c: NDArray[np.float64]  # Coefficients c_i.
+    d: NDArray[np.float64]  # Coefficients d_i.
+
+
+# Updated mmasub with strict type annotations.
+def mmasub(
+    inputs: MMAInputs,
+) -> tuple[
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+    NDArray[np.float64],
+]:
     """Perform one MMA iteration to solve a nonlinear programming problem.
 
     Parameters:
-    m (int): Number of general constraints.
-    n (int): Number of variables x_j.
-    iter (int): Current iteration number (1 on the first call).
-    xval (ndarray): Current values of the variables x_j.
-    xmin (ndarray): Lower bounds for the variables x_j.
-    xmax (ndarray): Upper bounds for the variables x_j.
-    xold1 (ndarray): xval from one iteration ago.
-    xold2 (ndarray): xval from two iterations ago.
-    df0dx (ndarray): Derivatives of the objective function f_0 with respect to x_j.
-    fval (ndarray): Values of the constraint functions f_i at xval.
-    dfdx (ndarray): Derivatives of the constraint functions f_i with respect to x_j.
-    low (ndarray): Lower asymptotes from the previous iteration.
-    upp (ndarray): Upper asymptotes from the previous iteration.
-    a0 (float): Constant a_0 in the term a_0 * z.
-    a (ndarray): Constants a_i in the terms a_i * z.
-    c (ndarray): Constants c_i in the terms c_i * y_i.
-    d (ndarray): Constants d_i in the terms 0.5 * d_i * y_i^2.
+        inputs (MMAInputs): A dataclass encapsulating all input parameters.
 
     Returns:
-    tuple: (xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp)
+        tuple: (xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp)
+               where each element is an NDArray of type float64.
     """
-    m, n, iterr, xval, xmin, xmax, xold1, xold2, df0dx, fval, dfdx, low, upp, a0, a, c, d = list_inputs
+    # Unpack parameters from the dataclass.
+    m = inputs.m
+    n = inputs.n
+    iterr = inputs.iterr
+    xval = inputs.xval
+    xmin = inputs.xmin
+    xmax = inputs.xmax
+    xold1 = inputs.xold1
+    xold2 = inputs.xold2
+    df0dx = inputs.df0dx
+    fval = inputs.fval
+    dfdx = inputs.dfdx
+    low = inputs.low
+    upp = inputs.upp
+    a0 = inputs.a0
+    a = inputs.a
+    c = inputs.c
+    d = inputs.d
 
     # Initialize parameters
-    epsimin = 1e-7
-    raa0 = 1e-5
-    move = 1.0
-    albefa = 0.1
-    asyinit = 0.01
-    asyincr = 1.2
-    asydecr = 0.7
+    epsimin: float = 1e-7
+    raa0: float = 1e-5
+    move: float = 1.0
+    albefa: float = 0.1
+    asyinit: float = 0.01
+    asyincr: float = 1.2
+    asydecr: float = 0.7
 
-    eeen = np.ones(n)
-    eeem = np.ones(m)
-    np.zeros(n)
+    eeen: NDArray[np.float64] = np.ones(n)
+    eeem: NDArray[np.float64] = np.ones(m)
 
     # Calculation of the asymptotes low and upp
     if iterr < 2.5:
@@ -55,7 +97,7 @@ def mmasub(list_inputs: Any) -> Any:
         xold1 = xold1.flatten()
         xold2 = xold2.flatten()
         zzz = (xval - xold1) * (xold1 - xold2)
-        factor = np.ones(n)
+        factor: NDArray[np.float64] = np.ones(n)
         factor[zzz > 0] = asyincr
         factor[zzz < 0] = asydecr
         low = xval - factor * (xold1 - low)
@@ -101,25 +143,84 @@ def mmasub(list_inputs: Any) -> Any:
 
     p = np.maximum(dfdx, 0)
     q = np.maximum(-dfdx, 0)
-    pq = 0.001 * (p + q) + raa0 * np.outer(eeem, xmamiinv)  # shape (1, 4096)
+    pq = 0.001 * (p + q) + raa0 * np.outer(eeem, xmamiinv)
     pq = pq.squeeze()
     p += pq
     q += pq
-    p = p * ux2[np.newaxis, :]  # Multiply each row of P by ux2
-    q = q * xl2[np.newaxis, :]  # Multiply each row of Q by xl2
+    p = p * ux2[np.newaxis, :]  # Multiply each row by ux2
+    q = q * xl2[np.newaxis, :]  # Multiply each row by xl2
     b = p @ uxinv + q @ xlinv - fval
 
-    # Solving the subproblem by a primal-dual Newton method
-    xmma, ymma, zmma, lam, xsi, eta, mu, zet, s = subsolv(
-        [m, n, epsimin, low, upp, alfa, beta, p0, q0, p, q, a0, a, b, c, d]
+    subsolv_inputs = SubsolvInputs(
+        m=m, n=n, epsimin=epsimin, low=low, upp=upp, alfa=alfa, beta=beta, p0=p0, q0=q0, p=p, q=q, a0=a0, a=a, b=b, c=c, d=d
     )
+    xmma, ymma, zmma, lam, xsi, eta, mu, zet, s = subsolv(subsolv_inputs)
 
     return xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp
 
 
-def subsolv(list_inputs: Any) -> Any:
-    """Solve the MMA subproblem."""
-    m, n, epsimin, low, upp, alfa, beta, p0, q0, p, q, a0, a, b, c, d = list_inputs
+@dataclass(frozen=True)
+class SubsolvInputs:
+    """Dataclass encapsulating all input parameters for the MMA subsolv subroutine."""
+
+    m: int
+    n: int
+    epsimin: float
+    low: NDArray[np.float64]
+    upp: NDArray[np.float64]
+    alfa: NDArray[np.float64]
+    beta: NDArray[np.float64]
+    p0: NDArray[np.float64]
+    q0: NDArray[np.float64]
+    p: NDArray[np.float64]
+    q: NDArray[np.float64]
+    a0: float
+    a: NDArray[np.float64]
+    b: NDArray[np.float64]
+    c: NDArray[np.float64]
+    d: NDArray[np.float64]
+
+
+def subsolv(
+    inputs: SubsolvInputs,
+) -> tuple[
+    NDArray[np.float64],  # xmma
+    NDArray[np.float64],  # ymma
+    float,  # zmma
+    NDArray[np.float64],  # lam
+    NDArray[np.float64],  # xsi
+    NDArray[np.float64],  # eta
+    NDArray[np.float64],  # mu
+    float,  # zet
+    NDArray[np.float64],  # s
+]:
+    """Solve the MMA subproblem.
+
+    Parameters:
+        inputs (SubsolvInputs): Dataclass encapsulating all subproblem parameters.
+
+    Returns:
+        tuple: (xmma, ymma, zmma, lam, xsi, eta, mu, zet, s)
+               where xmma, ymma, lam, xsi, eta, mu, and s are NDArray[np.float64],
+               and zmma, zet are floats.
+    """
+    # Unpack inputs from the dataclass.
+    m = inputs.m
+    n = inputs.n
+    epsimin = inputs.epsimin
+    low = inputs.low.copy()
+    upp = inputs.upp.copy()
+    alfa = inputs.alfa.copy()
+    beta = inputs.beta.copy()
+    p0 = inputs.p0.copy()
+    q0 = inputs.q0.copy()
+    p = inputs.p.copy()
+    q = inputs.q.copy()
+    a0 = inputs.a0
+    a = inputs.a.copy()
+    b = inputs.b.copy()
+    c = inputs.c.copy()
+    d = inputs.d.copy()
 
     een = np.ones(n)
     eem = np.ones(m)
