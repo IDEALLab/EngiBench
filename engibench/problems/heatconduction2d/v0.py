@@ -162,7 +162,10 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         )
         output = np.load("templates/RES_OPT/OUTPUT=" + str(volume) + "_w=" + str(length) + "_.npz")
 
-        return output["design"], output["OptiStep"]
+        steps = output["OptiStep"]
+        optisteps = [OptiStep(step, it) for it, step in enumerate(steps)]
+
+        return output["design"], optisteps
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         """Reset the problem to a given seed."""
@@ -189,7 +192,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         resolution = resolution if resolution is not None else self.resolution
 
         self.__copy_templates()
-        with open("templates/Des_var.txt", "w") as f:  # TODO this file does not exist
+        with open("templates/Des_var.txt", "w") as f:
             f.write(f"{volume}\t{resolution}")
 
         # Run the Docker command
