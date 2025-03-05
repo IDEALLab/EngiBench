@@ -29,7 +29,7 @@ OPT_var_path = os.path.join(base_path, "templates", "OPT_var.txt")
 with open(OPT_var_path, "r") as file:
     data = file.read().split("\t")
 # Extract parameters
-NN = int(data[2])  # Grid size
+NN = int(data[2])-1  # Grid size
 vol_f = float(data[0])  # Volume fraction
 width = float(data[1])  # Adiabatic boundary width
 

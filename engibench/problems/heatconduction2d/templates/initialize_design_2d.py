@@ -17,7 +17,7 @@ with open(des_var_path, "r") as file:
     lines = file.read().split("\t")
 
 # Set the number of discretization points (NN) and the volume fraction (vol_f)
-NN = int(lines[1])  # Resolution of the grid (arbitrary, affects performance)
+NN = int(lines[1])-1  # Resolution of the grid (arbitrary, affects performance)
 vol_f = float(lines[0])  # Volume fraction for the control
 
 # Discretization step size (based on NN)
