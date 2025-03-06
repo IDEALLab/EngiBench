@@ -82,8 +82,8 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
     Note:
         Some simulators also ask for simulator related configurations. These configurations are generally defined in the
-        problem implementation and do not appear in the dataset. You can still override them by using the `config`
-        argument in the `simulate` or `optimize` method.
+        problem implementation, do not appear in the `problem.conditions, but `sometimes appear in the dataset (for
+        advanced usage). You can override them by using the `config` argument in the `simulate` or `optimize` method.
     """
 
     # Must be defined in subclasses
