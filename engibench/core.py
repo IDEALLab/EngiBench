@@ -81,7 +81,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     # Must be defined in subclasses
     version: int
     """Version of the problem"""
-    objectives: tuple[tuple[str, str], ...]
+    objectives: tuple[tuple[str, ObjectiveDirection], ...]
     """Objective names and types (minimize or maximize)"""
     conditions: frozenset[tuple[str, Any]]
     """Conditions for the design problem"""
