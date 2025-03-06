@@ -13,7 +13,6 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 ```
 
 
-
 ## Methods
 ```{eval-rst}
 .. automethod:: engibench.core.Problem.simulate
@@ -30,23 +29,23 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 
 ## Attributes
 ```{eval-rst}
-.. autoattribute:: engibench.core.Problem.possible_objectives
+.. autoattribute:: engibench.core.Problem.objectives
 
-    This attribute is a list of possible objectives that can be optimized. The objectives are defined as tuples where the first member is the objective name, and the second member is 'maximize' or 'minimize'.
+    This attribute is a list of objectives that can be optimized. The objectives are defined as tuples where the first member is the objective name, and the second member is 'maximize' or 'minimize'.
 
     .. code::
 
         >>> problem.possible_objectives
-        frozenset({('lift', ObjectiveDirection.MAXIMIZE), ('drag', ObjectiveDirection.MINIMIZE)})
+        frozenset({('cl_val', ObjectiveDirection.MAXIMIZE), ('cd_val', ObjectiveDirection.MINIMIZE)})
 
-.. autoattribute:: engibench.core.Problem.boundary_conditions
+.. autoattribute:: engibench.core.Problem.conditions
 
-    This attribute list the boundary conditions of the problem. The boundary conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value.
+    This attribute list the conditions of the problem. The conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value.
 
     .. code::
 
         >>> problem.boundary_conditions
-        frozenset({('marchDist', 100.0), ('s0', 3e-06)})
+        frozenset({('marchDist', 100.0), ('s0', 3e-06)}) # TODO update this
 
 .. autoattribute:: engibench.core.Problem.design_space
 
