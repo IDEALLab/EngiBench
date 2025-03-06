@@ -57,7 +57,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inverse Design?,” in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678
+    Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inverse Design?” in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678
 
     ## Lead
     Milad Habibi @MIladHB
@@ -85,7 +85,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         super().__init__()
         self.volume = config.get("volume", 0.5)
         self.length = config.get("length", 0.5)
-        self.resolution = config.get("resolution", 100)
+        self.resolution = config.get("resolution", 101)
         self.boundary_conditions = frozenset(
             {
                 ("volume", self.volume),

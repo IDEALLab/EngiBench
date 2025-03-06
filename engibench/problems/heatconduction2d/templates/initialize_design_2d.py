@@ -40,7 +40,7 @@ if __name__ == "__main__":
 
     # Define the path to save the design files
     design_folder = os.path.join(base_path, "templates", "initialize_design")
-    xdmf_file_path = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN}_.xdmf")
+    xdmf_file_path = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN+1}_.xdmf")
 
     # Write the mesh and initial design to an XDMF file
     with XDMFFile(xdmf_file_path) as outfile:
@@ -58,5 +58,5 @@ if __name__ == "__main__":
             ind += 1
     results=results.reshape(NN+1,NN+1)
     # Save the results array to a .npy file
-    filename = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN}_.npy")
+    filename = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN+1}_.npy")
     np.save(filename, results)
