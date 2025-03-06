@@ -6,6 +6,22 @@ Beams 2D is a benchmark problem that aims to optimize a 2D MBB beam using the st
 
 ## Side notes
 
+Here is the script I've used to generate the dataset conditions. Please note that `max_iter = 200` and it is assumed that `nelx = 2*nely`.
+
+```python
+all_params = [
+    np.array([25, 50, 100]),                        # nely (nelx = 2*nely)
+    np.linspace(0.15, 0.4, 11),                     # volfrac
+    np.linspace(2.0, 4.0, 3),                       # penal
+    np.linspace(1.5, 4.0, 6),                       # rmin
+    np.array([1]),                                  # ft
+    np.array([0, 1]),                               # overhang_constraint
+]
+
+params = np.array(np.meshgrid(*all_params)).T.reshape(-1, len(all_params))
+
+```
+
 Here is the script I've used to upload the data to HF:
 
 ```python
