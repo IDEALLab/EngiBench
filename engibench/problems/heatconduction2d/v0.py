@@ -32,10 +32,10 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     The objective is defined and indexed as follows:
     0. `C`: Thermal compliance coefficient to minimize.
 
-    ## Boundary conditions
+    ## Conditions
     The boundary conditions are defined by the following parameters:
-    - `v`: the volume limits on the material distributions
-    - `l`: The length of the adiabatic region on the bottom side of the design domain.
+    - `volume`: the volume limits on the material distributions
+    - `length`: The length of the adiabatic region on the bottom side of the design domain.
 
     ## Simulator
     The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
@@ -47,10 +47,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     ### v0
 
     #### Fields
-    The dataset contains the following fields:
-    - `volume`: The volume constraint.
-    - `length`: The length constraint.
-    - `Optimal_Design`: The optimal design.
+    The dataset only contains conditions and optimal designs.
 
     #### Creation Method
     The creation method for the dataset is specified in the reference paper.
@@ -76,16 +73,18 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
 
-    def __init__(self, config: dict[str, Any] = {}) -> None:
+    def __init__(self, volume: float = 0.5, length: float = 0.5, resolution: int = 101) -> None:
         """Initialize the HeatConduction2D problem.
 
         Args:
-            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,length (float): Length constraint,resolution (int): Resolution of the design space) for the initialization.
+            volume (float): Volume constraint
+            length (float): Length constraint
+            resolution (int): Resolution of the design space for the initialization.
         """
         super().__init__()
-        self.volume = config.get("volume", 0.5)
-        self.length = config.get("length", 0.5)
-        self.resolution = config.get("resolution", 101)
+        self.volume = volume
+        self.length = length
+        self.resolution = resolution
         self.boundary_conditions = frozenset(
             {
                 ("volume", self.volume),
@@ -255,9 +254,10 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 if __name__ == "__main__":
     # Create a HeatConduction2D problem instance
     problem = HeatConduction2D()
-    string_array = problem.dataset["train"]["Optimal_Design"][0]
-    numpy_array = np.array(string_array)
-    des, traj = problem.optimize(starting_point=numpy_array)
+    problem.reset(seed=0)
+    design_as_list = problem.dataset["train"]["Optimal_Design"][0]
+    design_as_array = np.array(design_as_list)
+    des, traj = problem.optimize(starting_point=design_as_array)
     problem.render(design=des, open_window=True)
-    print("Recovered NumPy Array Shape:", numpy_array.shape)
+    print("Recovered NumPy Array Shape:", design_as_array.shape)
     print(problem.random_design())
