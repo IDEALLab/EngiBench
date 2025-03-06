@@ -53,17 +53,11 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     ### v0
 
     #### Fields
-    The dataset contains these fields:
-    - (Design) `initial`: Design before the adjoint optimization.
-    - (Design) `optimized`: Designs after the optimization.
-    - `mach`: Mach number.
-    - `reynolds`: Reynolds number.
+    The dataset contains optimal design, conditions, objectives and these additional fields:
+    - `initial`: Design before the adjoint optimization.
     - `cl_target`: Target lift coefficient. # TODO IDK what this is
     - `area_target`: Target area. # TODO this too
-    - `alpha`: Angle of attack.
     - `area_initial`: Initial area. # TODO this too
-    - (Objective) `cd_val`: Drag coefficient (after optimization).
-    - (Objective) `cl_val`: Lift coefficient (after optimization).
     - `cl_con`: # TODO this too
     - `area_con`: # TODO this too
 

@@ -62,17 +62,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
     #### Fields
 
-    The dataset contains these fields:
-    - (Design) `xPrint`: The density field of the design.
-    - `nelx`: Width of the domain.
-    - `nely`: Height of the domain.
-    - `volfrac`: Desired volume fraction (in terms of solid material) for the design.
-    - `penal`: Intermediate density penalty term.
-    - `rmin`: Minimum feature length of beam members.
-    - `ft`: Filtering method; 0 for sensitivity-based and 1 for density-based.
-    - `max_iter`: Maximum number of iterations.
-    - `overhang_constraint`: Boolean input condition to decide whether a 45 degree overhang constraint is imposed on the design.
-    - (Objective) `compliance`: Compliance of the design.
+    The dataset contains optimal design, conditions, objectives and these additional fields:
+    - `max_iter`: Maximum number of iterations for the simulation.
 
 
     #### Creation Method
