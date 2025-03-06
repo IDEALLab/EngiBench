@@ -13,6 +13,15 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 ```
 
 
+ ## Dataset
+The dataset is a HuggingFace `Dataset` object that defines the dataset of the problem. This is typically useful to train ML models for inverse design or surrogate modeling.
+
+A dataset is generally composed of several columns:
+- `optimal_design`: The optimal design of the problem.
+- All columns listed in `problem.objectives`: The objectives of the problem.
+- All columns listed in `problem.conditions`: The conditions of the problem.
+- Additional columns which can be useful for advanced usage.
+
 ## Methods
 ```{eval-rst}
 .. automethod:: engibench.core.Problem.simulate

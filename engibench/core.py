@@ -62,14 +62,6 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     - :attr:`dataset` - the dataset with designs and performances.
     - :attr:`container_id` - a string identifier for the singularity container.
 
-    ## Dataset
-    The dataset is a HuggingFace `Dataset` object that defines the dataset of the problem. This is typically useful to train ML models for inverse design or surrogate modeling.
-
-    A dataset is generally composed of several columns:
-    - `optimal_design`: The optimal design of the problem.
-    - All columns listed in `problem.objectives`: The objectives of the problem.
-    - All columns listed in `problem.conditions`: The conditions of the problem.
-
     Having all these defined in the code allows to easily extract the columns we want from the dataset to train ML models.
 
     Note:
@@ -82,7 +74,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
     Note:
         Some simulators also ask for simulator related configurations. These configurations are generally defined in the
-        problem implementation, do not appear in the `problem.conditions, but `sometimes appear in the dataset (for
+        problem implementation, do not appear in the `problem.conditions`, but sometimes appear in the dataset (for
         advanced usage). You can override them by using the `config` argument in the `simulate` or `optimize` method.
     """
 
