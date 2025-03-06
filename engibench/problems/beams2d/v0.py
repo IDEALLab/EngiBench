@@ -13,6 +13,7 @@ from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
+from build.lib.engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.beams2d.backend import calc_sensitivity
@@ -42,8 +43,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     The objectives are defined and indexed as follows:
     0. `c`: Compliance to minimize.
 
-    ## Boundary conditions
-    The boundary conditions are defined by the following parameters:
+    ## Conditions
+    The conditions are defined by the following parameters:
     - `nelx`: Width of the domain.
     - `nely`: Height of the domain.
     - `volfrac`: Desired volume fraction (in terms of solid material) for the design.
@@ -67,7 +68,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     """
 
     version = 0
-    objectives: tuple[tuple[str, str]] = (("c", "minimize"),)
+    objectives: tuple[tuple[str, str]] = (("c", ObjectiveDirection.MINIMIZE),)
     conditions: frozenset[tuple[str, Any]] = frozenset(
         [
             ("nelx", 100),

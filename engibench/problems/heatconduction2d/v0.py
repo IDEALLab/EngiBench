@@ -30,10 +30,10 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 
     ## Objectives
     The objective is defined and indexed as follows:
-    0. `C`: Thermal compliance coefficient to minimize.
+    0. `c`: Thermal compliance coefficient to minimize.
 
     ## Conditions
-    The boundary conditions are defined by the following parameters:
+    The conditions are defined by the following parameters:
     - `volume`: the volume limits on the material distributions
     - `length`: The length of the adiabatic region on the bottom side of the design domain.
 
@@ -47,7 +47,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     ### v0
 
     #### Fields
-    The dataset only contains conditions and optimal designs.
+    The dataset only contains conditions and optimal designs (no objective).
 
     #### Creation Method
     The creation method for the dataset is specified in the reference paper.
@@ -61,8 +61,8 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     """
 
     version = 0
-    possible_objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
+    conditions: frozenset[tuple[str, Any]] = frozenset(
         {
             ("volume", 0.5),
             ("length", 0.5),
@@ -85,7 +85,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         self.volume = volume
         self.length = length
         self.resolution = resolution
-        self.boundary_conditions = frozenset(
+        self.conditions = frozenset(
             {
                 ("volume", self.volume),
                 ("length", self.length),

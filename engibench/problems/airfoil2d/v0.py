@@ -39,8 +39,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     0. `cd_val`: Drag coefficient to minimize.
     1. `cl_val`: Lift coefficient to maximize.
 
-    ## Boundary conditions
-    The boundary conditions are defined by the following parameters:
+    ## Conditions
+    The conditions are defined by the following parameters:
     - `alpha`: Angle of attack in degrees.
     - `mach`: Mach number.
     - `reynolds`: Reynolds number.
