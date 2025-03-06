@@ -36,13 +36,17 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     ## Objectives
     The objectives are defined and indexed as follows:
 
-    0. `cd`: Drag coefficient to minimize.
-    1. `cl`: Lift coefficient to maximize.
+    0. `cd_val`: Drag coefficient to minimize.
+    1. `cl_val`: Lift coefficient to maximize.
 
     ## Boundary conditions
     The boundary conditions are defined by the following parameters:
-    - `s0`: Off-the-wall spacing for the purpose of modeling the boundary layer.
-    - `marchDist`: Distance to march the grid from the airfoil surface.
+    - `alpha`: Angle of attack in degrees.
+    - `mach`: Mach number.
+    - `reynolds`: Reynolds number.
+    - `altitude`: Altitude in meters.
+    - `temperature`: Temperature in Kelvin.
+    - `cl_target`: Target lift coefficient (constraint).
 
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
@@ -59,14 +63,21 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     """
 
     version = 0
-    possible_objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
-        ("cd", ObjectiveDirection.MINIMIZE),
-        ("cl", ObjectiveDirection.MAXIMIZE),
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
+        ("cd_val", ObjectiveDirection.MINIMIZE),
+        ("cl_val", ObjectiveDirection.MAXIMIZE),
     )
-    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+    conditions: frozenset[tuple[str, Any]] = frozenset(
         {
-            ("s0", 3e-6),
-            ("marchDist", 100.0),
+            ("alpha", 1.5),
+            ("mach", 0.8),
+            ("reynolds", 1e6),
+            ("altitude", 10000),
+            (
+                "temperature",
+                223.150,
+            ),  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            ("cl_target", 0.5),
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
@@ -141,6 +152,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "tmp_xyz_fname": "'" + self.__docker_study_dir + "/tmp'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
+            "s0": 3e-6,  # Off-the-wall spacing for the purpose of modeling the boundary layer.
+            "marchDist": 100.0,  # Distance to march the grid from the airfoil surface.
             "N_sample": 180,
             "nTEPts": 4,
             "xCut": 0.99,
@@ -453,7 +466,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         optimized_design = self.__simulator_output_to_design()
 
-        return (optimized_design, optisteps_history)
+        return optimized_design, optisteps_history
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.

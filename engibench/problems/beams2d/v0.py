@@ -67,8 +67,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     """
 
     version = 0
-    possible_objectives: tuple[tuple[str, str]] = (("c", "minimize"),)
-    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+    objectives: tuple[tuple[str, str]] = (("c", "minimize"),)
+    conditions: frozenset[tuple[str, Any]] = frozenset(
         [
             ("nelx", 100),
             ("nely", 50),
@@ -76,7 +76,6 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("penal", 3.0),
             ("rmin", 2.0),
             ("ft", 1),
-            ("max_iter", 100),
             ("overhang_constraint", False),
         ]
     )
@@ -130,7 +129,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         # Prepares the optimization script/function with the optimization configuration
         if self.__p is None:
             self.__p = Params()
-            base_config = {}  # No specification for base_config since it is equivalent to self.boundary_conditions
+            base_config = {"max_iter": 100}
             base_config.update(self.boundary_conditions)
             base_config.update(config)
             self.__p.update(base_config)
@@ -203,7 +202,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             current_step.stored_design = np.array(xPrint)
             optisteps_history.append(current_step)
 
-        return (xPrint, optisteps_history)
+        return xPrint, optisteps_history
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         r"""Reset the simulator and numpy random to a given seed.
