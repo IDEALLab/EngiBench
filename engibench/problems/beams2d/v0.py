@@ -13,7 +13,7 @@ from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
-from build.lib.engibench.core import ObjectiveDirection
+from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.beams2d.backend import calc_sensitivity
