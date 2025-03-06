@@ -42,16 +42,14 @@ class ProblemDirective(SphinxDirective):
 
         image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="500px", align="center")
 
-        objectives = [
-            f"{obj}: ↑" if direction == "maximize" else f"{obj}: ↓" for obj, direction in problem.possible_objectives
-        ]
-        boundaries = [f"{cond}: {value}" for cond, value in problem.boundary_conditions]
+        objectives = [f"{obj}: ↑" if direction == "maximize" else f"{obj}: ↓" for obj, direction in problem.objectives]
+        conditions = [f"{cond}: {value}" for cond, value in problem.conditions]
 
         tab_data = [
             ("Version", str(problem.version)),
             ("Design space", make_code(repr(problem.design_space))),
             ("Objectives", make_multiline(objectives)),
-            ("Boundary conditions", make_multiline(boundaries)),
+            ("Conditions", make_multiline(conditions)),
             ("Dataset", make_link(problem.dataset_id, f"https://huggingface.co/datasets/{problem.dataset_id}")),
             ("Container", make_code(problem.container_id)),
             ("Import", make_code(f"from {problem.__module__} import {problem.__name__}")),
