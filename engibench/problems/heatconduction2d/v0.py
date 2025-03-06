@@ -56,7 +56,8 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
     The creation method for the dataset is specified in the reference paper.
 
     ## References
-    # TODO add Milad's paper here
+    If you use this problem in your research, please cite the following paper:
+    Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inverse Design?” in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678
 
     ## Lead
     Milad Habibi @MIladHB
@@ -70,7 +71,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
             ("length", 0.5),
         }
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(100, 100), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float32)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
@@ -79,12 +80,12 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         """Initialize the HeatConduction2D problem.
 
         Args:
-            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,length (float): Length constraint,resolution (int): Resolution of the design space) for the initilization.
+            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,length (float): Length constraint,resolution (int): Resolution of the design space) for the initialization.
         """
         super().__init__()
         self.volume = config.get("volume", 0.5)
         self.length = config.get("length", 0.5)
-        self.resolution = config.get("resolution", 100)
+        self.resolution = config.get("resolution", 101)
         self.boundary_conditions = frozenset(
             {
                 ("volume", self.volume),
@@ -134,7 +135,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         """Optimizes the design.
 
         Args:
-            design (Optional[np.ndarray]): The design to optimize.
+            starting_point (npt.NDArray | None): The initial design for optimization.
             config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,length (float): Length constraint,resolution (int): Resolution of the design space) for the simulation.
 
         Returns:
@@ -171,7 +172,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         """Reset the problem to a given seed."""
         super().reset(seed, **kwargs)
 
-    def __copy_templates(self):
+    def __copy_templates(self) -> None:
         """Copy the templates from the installation location to the current working directory."""
         if not os.path.exists("templates"):
             os.mkdir("templates")
@@ -207,7 +208,8 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
         # Load the generated design data from the numpy file
         design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
         if not os.path.exists(design_file):
-            raise FileNotFoundError(f"Design file {design_file} not found.")  # ruff: noqa: TRY003
+            error_msg = f"Design file {design_file} not found."
+            raise FileNotFoundError(error_msg)  # ruff: noqa: TRY003
 
         file_npy = np.load(design_file)
 
@@ -222,7 +224,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
                 int: The random index selected.
         """
         rnd = np.random.randint(low=0, high=len(self.dataset["train"]["Optimal_Design"]), dtype=int)  # type: ignore
-        return np.array(ast.literal_eval(self.dataset["train"]["Optimal_Design"][rnd])).reshape(101, 101), rnd  # type: ignore
+        return np.array(self.dataset["train"]["Optimal_Design"][rnd]), rnd  # type: ignore
 
     def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -253,28 +255,9 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
 if __name__ == "__main__":
     # Create a HeatConduction2D problem instance
     problem = HeatConduction2D()
-    import ast
-
-    # Call the design method and print the result
-    # design, _ = problem.random_design()
-    # problem.render(design, open_window=False)
     string_array = problem.dataset["train"]["Optimal_Design"][0]
-
-    # Ensure proper formatting by adding commas
-    # Replace spaces with commas
-
-    # Convert to a NumPy array
-    # print(string_array)
-    # numpy_array = np.array(ast.literal_eval(string_array))
-    # print(numpy_array.shape)
-    # design,trajectory=problem.optimize()
-    # problem.render(a,open_window=True)
-
-    # Convert to NumPy array
-    numpy_array = np.array(ast.literal_eval(string_array)).reshape(101, 101)
+    numpy_array = np.array(string_array)
     des, traj = problem.optimize(starting_point=numpy_array)
     problem.render(design=des, open_window=True)
-
-    # Print the shape
     print("Recovered NumPy Array Shape:", numpy_array.shape)
     print(problem.random_design())
