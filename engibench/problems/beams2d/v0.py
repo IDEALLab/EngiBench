@@ -104,7 +104,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         """
         if self.__p is None:
             self.__p = Params()
-            base_config = {}  # No specification for base_config since it is equivalent to self.boundary_conditions
+            base_config = {"max_iter": 100}
             base_config.update(self.boundary_conditions)
             base_config.update(config)
             self.__p.update(base_config)
