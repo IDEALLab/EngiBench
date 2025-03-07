@@ -33,10 +33,10 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     ), f"Problem {problem_class.__name__}: The design_space attribute should be a gymnasium.Space object."
 
     assert (
-        len(problem.possible_objectives) >= 1
+        len(problem.objectives) >= 1
     ), f"Problem {problem_class.__name__}: The possible_objectives attribute should not be empty."
     assert all(
-        isinstance(obj[0], str) and len(obj[0]) > 0 for obj in problem.possible_objectives
+        isinstance(obj[0], str) and len(obj[0]) > 0 for obj in problem.objectives
     ), f"Problem {problem_class.__name__}: The first element of each objective should be a non-emtpy string."
 
     assert (
