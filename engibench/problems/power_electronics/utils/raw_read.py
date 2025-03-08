@@ -11,6 +11,8 @@ For more details about how a raw file is structured, see https://github.com/nuno
 
 from __future__ import annotations
 
+from typing import Any
+
 import numpy as np
 
 BSIZE_SP = 512  # Max size of a line of data; we don't want to read the
@@ -29,7 +31,7 @@ MDATA_LIST = [
 ]
 
 
-def rawread(fname: str) -> tuple[list, list]:
+def rawread(fname: str) -> tuple[np.ndarray, dict]:
     """Read ngspice binary raw files. Return tuple of the data, and the plot metadata.
     The thing is that the .raw file contains both ascii/text and binary information(, assuming it's written using set filetype=binary).
     To accommodate this, we first use readline() for ascii texts, then use np.fromfile() to capture the values.
@@ -64,7 +66,7 @@ def rawread(fname: str) -> tuple[list, list]:
     #         2       v(in)   voltage
     # Binary:
     fp = open(fname, "rb")
-    plot = {}
+    plot: dict[Any, Any] = {}
     count = 0
     arrs = []
     plots = []
@@ -87,9 +89,29 @@ def rawread(fname: str) -> tuple[list, list]:
                 plot["varunits"] = []
                 for varn in range(nvars):
                     varspec = fp.readline(BSIZE_SP).strip().decode("ascii").split()
-                    assert varn == int(varspec[0])
-                    plot["varnames"].append(varspec[1])
-                    plot["varunits"].append(varspec[2])
+                    vn, vname, vunit = varspec[0], varspec[1], varspec[2]
+                    assert varn == int(vn)
+                    """ Handle the following situation on Ubuntu:
+                    Ubuntu:
+                        ...
+                        41 gs4 voltage
+                        42 gs_ref_d voltage
+                        ...
+
+                    Windows (Expected):
+                        ...
+                        41 v(gs4) voltage
+                        42 v(gs_ref_d) voltage
+                        ...
+                    """
+                    if vunit == "voltage" and vname[0] != "v":
+                        vname_ = f"v({vname})"
+                        print(f"Changing {vname} to {vname_}.")
+                    else:
+                        vname_ = vname
+
+                    plot["varnames"].append(vname_)  # "i(v_gs3)", "v(gs4)", "gain"
+                    plot["varunits"].append(vunit)  # "current", "voltage", "notype"
 
                 """ An example of the variable plot:
                     {b'title': b'* rewrite netlist',
@@ -105,25 +127,34 @@ def rawread(fname: str) -> tuple[list, list]:
             if mdata[0].lower() == b"binary":
                 # print("binary content:", mdata[1])
                 """mdata = [b'Binary', b'\n'], len = 2 """
-                rowdtype = np.dtype(
-                    {
-                        "names": plot["varnames"],
-                        "formats": [
-                            np.complex_
-                            if b"complex" in plot[b"flags"]
-                            #  else np.float_]*nvars})
-                            # An error happens when testing under Ubuntu 20:
-                            # AttributeError: `np.float_` was removed in the NumPy 2.0 release. Use `np.float64` instead.
-                            else np.float64
-                        ]
-                        * nvars,
-                    }
-                )
+                names = plot["varnames"]
+                formats = [np.complex_ if b"complex" in plot[b"flags"] else np.float64] * nvars
+
+                print("names", names)
+                print("formats", formats)
+
+                rowdtype = np.dtype({"names": names, "formats": formats})
+                # rowdtype = np.dtype(
+                #     {
+                #         "names": plot["varnames"],
+                #         "formats": [
+                #             np.complex_
+                #             if b"complex" in plot[b"flags"]
+                #             #  else np.float_]*nvars})
+                #             # An error happens when testing under Ubuntu 20:
+                #             # AttributeError: `np.float_` was removed in the NumPy 2.0 release. Use `np.float64` instead.
+                #             else np.float64
+                #         ]
+                #         * nvars,
+                #     }
+                # )
                 print("rowdtype", rowdtype)  # structured type dtype. https://numpy.org/doc/2.1/user/basics.rec.html
+                """Expected rowdtype:
+               todo """
                 # We should have all the metadata by now
                 arrs.append(np.fromfile(fp, dtype=rowdtype, count=npoints))
                 print(f"Retrieved the values. np.fromfile() changed the pointer to {fp.tell()}.")
-                print("arrs", arrs)  # looks better in jupyter notebook
+                print("arrs", arrs)  # This looks better in jupyter notebook.
                 print("arrs[0].shape", arrs[0].shape)
                 plots.append(plot)
 
