@@ -295,7 +295,7 @@ class PowerElectronics(Problem):
                     self.cmp_edg_str = self.cmp_edg_str + "@S" + str(i) + "[i] "
                 for i in range(self.cmp_cnt["D"]):
                     self.cmp_edg_str = self.cmp_edg_str + "@D" + str(i) + "[i] "
-                    self.cmp_edg_str = self.cmp_edg_str + "@R0[i] "
+                self.cmp_edg_str = self.cmp_edg_str + "@R0[i] "  # TODO: Debugging
                 self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
 
                 self.cmp_edg_str = self.cmp_edg_str + ".tran 5n 1.06m 1m 5n uic\n"
@@ -323,7 +323,7 @@ class PowerElectronics(Problem):
                     self.cmp_edg_str = self.cmp_edg_str + "@S" + str(i) + "[i] "
                 for i in range(self.cmp_cnt["D"]):
                     self.cmp_edg_str = self.cmp_edg_str + "@D" + str(i) + "[i] "
-                    self.cmp_edg_str = self.cmp_edg_str + "@R0[i] "
+                self.cmp_edg_str = self.cmp_edg_str + "@R0[i] "  # TODO: Debugging
                 self.cmp_edg_str = self.cmp_edg_str + "\nsave all\n"
 
                 self.cmp_edg_str = self.cmp_edg_str + "tran 5n 1.06m 1m 5n uic\n"
@@ -370,7 +370,7 @@ class PowerElectronics(Problem):
                     self.rewrite_netlist_path,
                 ]  # interactive mode with control section
             print(f"Running command: {cmd}")
-            subprocess.run(cmd, check=True, timeout=30)
+            # subprocess.run(cmd, check=True, timeout=30)
 
             for i in range(self.cmp_cnt["C"]):
                 # Assuming dissipiation factor = 5 at 200Khz freq;  ESR = Disspiation_factor/ 2*pi*f*C
@@ -383,29 +383,29 @@ class PowerElectronics(Problem):
                 ind_model_values = [self.inductor_val[i], 0.43e-3]
                 inductor_model.append(cmpt.Inductor(dict(zip(ds.inductor_properties, ind_model_values))))
 
-            try:
-                err, P_loss, P_src = dc_lib_ng.metric_compute_DC_DC_efficiency_ngspice(
-                    self.raw_file_path,
-                    0.001,
-                    self.cmp_cnt,
-                    self.edge_map,
-                    capacitor_model,
-                    inductor_model,
-                    switch_model,
-                    diode_model,
-                    10,
-                    0,
-                    self.switch_L1,
-                    self.switch_L2,
-                    [float(ind) * Ts for ind in self.switch_T1],
-                    [float(ind) * Ts for ind in self.switch_T2],
-                    Fs,
-                )
-                efficiency = (P_src - P_loss) / P_src
+            # try:
+            err, P_loss, P_src = dc_lib_ng.metric_compute_DC_DC_efficiency_ngspice(
+                self.raw_file_path,
+                0.001,
+                self.cmp_cnt,
+                self.edge_map,
+                capacitor_model,
+                inductor_model,
+                switch_model,
+                diode_model,
+                10,
+                0,
+                self.switch_L1,
+                self.switch_L2,
+                [float(ind) * Ts for ind in self.switch_T1],
+                [float(ind) * Ts for ind in self.switch_T2],
+                Fs,
+            )
+            efficiency = (P_src - P_loss) / P_src
 
-                error_report = err
-                if efficiency < 0 or efficiency > 1:
-                    error_report += 1  # bit 0 will be 1 to report invalid efficiency calculation
+            error_report = err
+            if efficiency < 0 or efficiency > 1:
+                error_report += 1  # bit 0 will be 1 to report invalid efficiency calculation
 
             # except ValueError:  # In some conditions LTspice is not generating waveforms with invalid values
             #     efficiency = np.nan
@@ -413,11 +413,11 @@ class PowerElectronics(Problem):
             #     P_loss = np.nan
             #     P_src = np.nan
 
-            except IndexError:  # For some circuits the gate voltage is not created properly
-                efficiency = np.nan
-                error_report = 32  # bit 5 will be 1 to report Process error such as invalid circuit
-                P_loss = np.nan
-                P_src = np.nan
+            # except IndexError:  # For some circuits the gate voltage is not created properly
+            #     efficiency = np.nan
+            #     error_report = 32  # bit 5 will be 1 to report Process error such as invalid circuit
+            #     P_loss = np.nan
+            #     P_src = np.nan
 
         except subprocess.CalledProcessError as err:
             efficiency = np.nan
