@@ -48,11 +48,25 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     - `temperature`: Temperature in Kelvin.
     - `cl_target`: Target lift coefficient (constraint).
 
+    ## Simulator
+    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
 
-    ## Simulator
-    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+    ### v0
+
+    #### Fields
+    The dataset contains optimal design, conditions, objectives and these additional fields:
+    - `initial`: Design before the adjoint optimization.
+    - `cl_target`: Target lift coefficient. # TODO IDK what this is
+    - `area_target`: Target area. # TODO this too
+    - `area_initial`: Initial area. # TODO this too
+    - `cl_con`: # TODO this too
+    - `area_con`: # TODO this too
+
+    #### Creation Method
+    We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
 
     ## References
     If you use this problem in your research, please cite the following paper:
