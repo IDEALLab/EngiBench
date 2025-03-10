@@ -79,7 +79,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     """
 
     version = 0
-    objectives: tuple[tuple[str, str]] = (("c", ObjectiveDirection.MINIMIZE),)
+    objectives: tuple[tuple[str, ObjectiveDirection]] = (("c", ObjectiveDirection.MINIMIZE),)
     conditions: frozenset[tuple[str, Any]] = frozenset(
         [
             ("nelx", 100),
@@ -117,7 +117,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         if self.__p is None:
             self.__p = Params()
             base_config = {"max_iter": 100}
-            base_config.update(self.boundary_conditions)
+            base_config.update(self.conditions)
             base_config.update(config)
             self.__p.update(base_config)
             self.__p = setup(self.__p)
@@ -142,7 +142,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         if self.__p is None:
             self.__p = Params()
             base_config = {"max_iter": 100}
-            base_config.update(self.boundary_conditions)
+            base_config.update(self.conditions)
             base_config.update(config)
             self.__p.update(base_config)
             self.__p = setup(self.__p)
