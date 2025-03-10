@@ -5,7 +5,9 @@
 
 ![tests](https://github.com/IDEALLab/engibench/workflows/Python%20tests/badge.svg)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
+[![code style: Ruff](
+    https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](
+    https://github.com/astral-sh/ruff)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
 
 
@@ -32,10 +34,10 @@ pip install -e ".[airfoil2d]"
 
 <!-- start api -->
 ```python
-from engibench.problems.airfoil2d import airfoil2d_v0
+from engibench.problems.airfoil2d.v0 import Airfoil2D
 
 # Create a problem
-problem = airfoil2d_v0.build()
+problem = Airfoil2D()
 problem.reset(seed=0)
 
 # Inspect problem
@@ -74,18 +76,61 @@ pre-commit install
 In general, follow the `airfoil2d/` example.
 
 #### Code
-1. Create a new problem file in `engibench/problems/` following the existing structure.
-2. Add the problem to the `__init__.py` file in the same directory.
-3. Create your environment file and class, implementing the `Problem` interface. Complete your docstring thoroughly, LLMs + coding IDE will help a lot.
-4. Add a `build` function to the problem file that returns an instance of your problem.
-5. Add a file `my_problem_v0.py` in the folder. It just exposes the `build` function.
-6. Add your problem in `utils/all_problems.py` to register it.
+1. Create a new problem module in [engibench/problems/](engibench/problems/) following the following layout (e.g. [engibench/problems/airfoil2d/](engibench/problems/airfoil2d/)), where you later also can add other versions / variant of the problem:
+   ```
+   📦 engibench
+   └─ 📂 problems
+      └─ 📂 new_problem
+         ├── 📄 __init__.py
+         └── 📄 v0.py
+   ```
+
+   `__init__.py`
+   ```py
+   """NewProblem problem module."""
+
+    from engibench.problems.new_problem.v0 import NewProblem
+
+    __all__ = ["NewProblem"]
+   ```
+
+   The `v0` module already proactively introduces versioning.
+
+   Ideally, all non-breaking changes should not create a new versioned module.
+   Also in many cases, code duplication can be avoided, by introducing a new parameter to the problem class.
+
+2. Define your problem class that implements the `Problem` interface with its functions and attributes in `problems/new_problem/v0.py` (e.g. [airfoil2d/v0.py](engibench/problems/airfoil2d/v0.py)).
+
+   `problems/new_problem/v0.py`
+   ```py
+   from engibench.core import Problem
+
+   class NewProblem(Problem[...]) # <- insert types for
+                                  #    SimulatorInputType, DesignType here
+       ... # define your problem here
+   ```
+
+   You can consult the documentation for info about the API; see below for how to build the website locally.
+3. Run `pytest tests/test_problem_implementations.py` (requires `pip install ".[test]"`)
+   to verify that the new `Problem` class defines all required metadata attributes.
+4. Complete your docstring (Python documentation) thoroughly, LLMs + coding IDE will greatly help.
 
 #### Documentation
-1. `cd docs` and run `pip install -r requirements.txt` to install the necessary packages.
-2. Run `python _scripts/gen_problems_docs.py` and pray.
-3. If it is a new problem family, add a new `.md` file in `docs/problems/` following the existing structure and add your problem family in the `toctree` of `docs/problems/index.md`.
-4. Add your problem markdown file to the `toctree` in `docs/problems/your_problem_family.md`.
+1. Install necessary documentation tools: `pip install ".[doc]"`.
+2. If it is a new problem family, add a new `.md` file in [docs/problems/](docs/problems/) following
+   the existing structure and add your problem family in the `toctree` of [docs/problems/index.md](docs/problems/index.md).
+3. Add a problem markdown file to the `toctree` in `docs/problems/new_problem.md`. In the md file, use EngiBench's own `problem` directive:
+   ``````md
+   # Your Problem
+
+   ``` {problem} new_problem
+   ```
+   ``````
+
+   Here, `new_problem` must match the name of the top level module where your problem class is defined.
+   Here, `new_problem/__init__.py` is crucial as it makes the problem class discoverable to the `problem` directive by
+   the reexport `from engibench.problems.new_problem.v0 import NewProblem`.
+4. Add an image (result of `problem.render(design)`) in `docs/_static/img/problems`. The file's name should be `<new_problem>.png`, with your problem module as in the point above.
 5. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
 6. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
 

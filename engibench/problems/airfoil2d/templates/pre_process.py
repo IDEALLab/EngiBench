@@ -70,8 +70,8 @@ if __name__ == "__main__":
         # Smoothing parameters
         "volSmoothIter": 200,
         "volCoef": 0.25,
-        "volBlend": 0.001,
-        "volSmoothSchedule": [[0, 0], [0.2, 2], [0.5, 200], [1.0, 1000]],
+        "volBlend": 0.001
+        # "volSmoothSchedule": [[0, 0], [0.2, 2], [0.5, 200], [1.0, 1000]],
     }
 
     hyp = pyHyp(options=options)

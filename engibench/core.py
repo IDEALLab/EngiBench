@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import dataclasses
+from enum import auto
+from enum import Enum
 from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
@@ -21,6 +23,13 @@ class OptiStep:
 
     obj_values: npt.NDArray
     step: int
+
+
+class ObjectiveDirection(Enum):
+    """Direction of the objective function."""
+
+    MINIMIZE = auto()
+    MAXIMIZE = auto()
 
 
 class Problem(Generic[SimulatorInputType, DesignType]):
@@ -46,13 +55,14 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
     There are some attributes that help understanding the problem:
 
-    - :attr:`possible_objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
-    - :attr:`boundary_conditions` - the boundary conditions for the design problem.
+    - :attr:`objectives` - a dictionary with the names of the objectives and their types (minimize or maximize).
+    - :attr:`conditions` - the conditions for the design problem.
     - :attr:`design_space` - the space of designs (outputs of algorithms).
     - :attr:`dataset_id` - a string identifier for the problem -- useful to pull datasets.
     - :attr:`dataset` - the dataset with designs and performances.
     - :attr:`container_id` - a string identifier for the singularity container.
-    - :attr:`input_space` - the inputs of simulator.
+
+    Having all these defined in the code allows to easily extract the columns we want from the dataset to train ML models.
 
     Note:
         This class is generic and should be subclassed to define the specific problem.
@@ -61,16 +71,28 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         This class is parameterized with two types: `SimulatorInputType` and `DesignType`. `SimulatorInputType` is the type
         of the input to the simulator (e.g. a file containing a mesh), while `DesignType` is the type of the design that is
         optimized (e.g. a Numpy array representing the design).
+
+    Note:
+        Some simulators also ask for simulator related configurations. These configurations are generally defined in the
+        problem implementation, do not appear in the `problem.conditions`, but sometimes appear in the dataset (for
+        advanced usage). You can override them by using the `config` argument in the `simulate` or `optimize` method.
     """
 
     # Must be defined in subclasses
-    possible_objectives: tuple[tuple[str, str]]  # Objective names and types (minimize or maximize)
-    boundary_conditions: frozenset[tuple[str, Any]]  # Boundary conditions for the design problem
-    design_space: spaces.Space[DesignType]  # Design space (algorithm output)
-    dataset_id: str  # String identifier for the problem (useful to pull datasets)
-    _dataset: Dataset  # Dataset with designs and performances
-    container_id: str  # String identifier for the singularity container
-    input_space: SimulatorInputType  # Simulator input (internal)
+    version: int
+    """Version of the problem"""
+    objectives: tuple[tuple[str, ObjectiveDirection], ...]
+    """Objective names and types (minimize or maximize)"""
+    conditions: frozenset[tuple[str, Any]]
+    """Conditions for the design problem"""
+    design_space: spaces.Space[DesignType]
+    """Design space (algorithm output)"""
+    dataset_id: str
+    """String identifier for the problem (useful to pull datasets)"""
+    _dataset: Dataset | None
+    """Dataset with designs and performances"""
+    container_id: str
+    """String identifier for the singularity container"""
 
     # This handles the RNG properly
     np_random: np.random.Generator | None = None
@@ -123,7 +145,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         self.seed = seed
         self.np_random = np.random.default_rng(seed)
 
-    def render(self, design: DesignType, open_window: bool = False, **kwargs) -> Any:  # noqa: ANN401
+    def render(self, design: DesignType, open_window: bool = False, **kwargs) -> Any:
         r"""Render the design in a human-readable format.
 
         Args:
@@ -136,11 +158,12 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def random_design(self) -> DesignType:
+    def random_design(self) -> tuple[DesignType, int]:
         r"""Generate a random design.
 
         Returns:
             DesignType: The random design.
+            idx: The index of the design in the dataset.
         """
         raise NotImplementedError
 
