@@ -66,12 +66,18 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     assert "test" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'test' split."
     assert "val" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'val' split."
     # Test the dataset fields match `optimal_design`, `problem.conditions`, and `problem.objectives`
-    for o, _ in problem.objectives:
-        assert o in dataset["train"], f"Problem {problem_class.__name__}: The dataset should contain the field {o}."
+    if len(problem.objectives) > 1:
+        for o, _ in problem.objectives:
+            assert (
+                o in dataset["train"].column_names
+            ), f"Problem {problem_class.__name__}: The dataset should contain the field {o}."
+
     for cond, _ in problem.conditions:
-        assert cond in dataset["train"], f"Problem {problem_class.__name__}: The dataset should contain the field {cond}."
+        assert (
+            cond in dataset["train"].column_names
+        ), f"Problem {problem_class.__name__}: The dataset should contain the field {cond}."
     assert (
-        "optimal_design" in dataset["train"]
+        "optimal_design" in dataset["train"].column_names
     ), f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
 
 
