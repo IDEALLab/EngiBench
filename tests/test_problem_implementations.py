@@ -6,10 +6,13 @@ import inspect
 from typing import get_args, get_origin
 
 import gymnasium
+import numpy as np
 import pytest
 
 from engibench import Problem
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
+
+PYTHON_PROBLEMS = [p for p in BUILTIN_PROBLEMS.values() if p.container_id is None]
 
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
@@ -56,3 +59,52 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     ), f"Problem {problem_class.__name__}: The random_design method should be implemented."
     assert "reset" in class_methods, f"Problem {problem_class.__name__}: The reset method should be implemented."
     # optimize is optional, thus not checked
+
+    # Test the dataset has the required splits
+    dataset = problem.dataset
+    assert "train" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'train' split."
+    assert "test" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'test' split."
+    assert "val" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'val' split."
+    # Test the dataset fields match `optimal_design`, `problem.conditions`, and `problem.objectives`
+    for o, _ in problem.objectives:
+        assert o in dataset["train"], f"Problem {problem_class.__name__}: The dataset should contain the field {o}."
+    for cond, _ in problem.conditions:
+        assert cond in dataset["train"], f"Problem {problem_class.__name__}: The dataset should contain the field {cond}."
+    assert (
+        "optimal_design" in dataset["train"]
+    ), f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
+
+
+@pytest.mark.parametrize("problem_class", PYTHON_PROBLEMS)
+def test_python_problem_impl(problem_class: type[Problem]) -> None:
+    """Check that all problems defined in Python files respect the API."""
+    problem = problem_class()
+    problem.reset(seed=0)
+    design, _ = problem.random_design()
+    objs = problem.simulate(design)
+    assert (
+        objs.shape[0] == len(problem.objectives)
+    ), f"Problem {problem_class.__name__}: The number of objectives returned by simulate should match the number of objectives defined in the problem."
+
+    optimal_design, history = problem.optimize(design)
+    print(optimal_design)
+    assert np.all(
+        optimal_design >= problem.design_space.low
+    ), f"Problem {problem_class.__name__}: The optimal design should be within the design space."
+    assert np.all(
+        optimal_design <= problem.design_space.high
+    ), f"Problem {problem_class.__name__}: The optimal design should be within the design space."
+    assert (
+        optimal_design.shape == problem.design_space.shape
+    ), f"Problem {problem_class.__name__}: The optimal design should have the same shape as the design space."
+    assert np.can_cast(
+        optimal_design.dtype, problem.design_space.dtype
+    ), f"Problem {problem_class.__name__}: The optimal design should have the same dtype as the design space."
+    assert problem.design_space.contains(
+        optimal_design
+    ), f"Problem {problem_class.__name__}: The optimal design should be within the design space."
+
+    for optistep in history:
+        assert (
+            len(optistep.obj_values) == len(problem.objectives)
+        ), f"Problem {problem_class.__name__}: The number of objectives returned by optimize should match the number of objectives defined in the problem."

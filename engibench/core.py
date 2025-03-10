@@ -91,7 +91,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     """String identifier for the problem (useful to pull datasets)"""
     _dataset: Dataset | None
     """Dataset with designs and performances"""
-    container_id: str
+    container_id: str | None
     """String identifier for the singularity container"""
 
     # This handles the RNG properly
@@ -118,7 +118,9 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         """
         raise NotImplementedError
 
-    def optimize(self, starting_point: DesignType, config: dict[str, Any], **kwargs) -> tuple[DesignType, list[OptiStep]]:
+    def optimize(
+        self, starting_point: DesignType, config: dict[str, Any] = {}, **kwargs
+    ) -> tuple[DesignType, list[OptiStep]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
         This is optional and will probably be implemented only for some problems.

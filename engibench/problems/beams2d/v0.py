@@ -91,7 +91,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("overhang_constraint", False),
         ]
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float64)
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
     __p = None
@@ -117,7 +117,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         if self.__p is None:
             self.__p = Params()
             base_config = {"max_iter": 100}
-            base_config.update(self.boundary_conditions)
+            base_config.update(self.conditions)
             base_config.update(config)
             self.__p.update(base_config)
             self.__p = setup(self.__p)
@@ -127,7 +127,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         c = (
             (self.__p.Emin + design**self.__p.penal * (self.__p.Emax - self.__p.Emin)) * ce
         ).sum()  # compliance (objective)
-        return np.array(c)
+        return np.array([c])
 
     def optimize(self, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
@@ -142,7 +142,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         if self.__p is None:
             self.__p = Params()
             base_config = {"max_iter": 100}
-            base_config.update(self.boundary_conditions)
+            base_config.update(self.conditions)
             base_config.update(config)
             self.__p.update(base_config)
             self.__p = setup(self.__p)
@@ -256,8 +256,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self._dataset["train"]), dtype=int)  # type: ignore
-        return np.array(self._dataset["train"]["xPrint"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type: ignore
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
 
 
 if __name__ == "__main__":
@@ -267,9 +267,9 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Example of getting the training set
-    xPrint_train = dataset["train"]["xPrint"]  # type: ignore
+    xPrint_train = dataset["train"]["optimal_design"]  # type: ignore
     c_train = dataset["train"]["compliance"]  # type: ignore
-    params_train = dataset["train"].remove_columns(["xPrint", "compliance"])  # type: ignore
+    params_train = dataset["train"].remove_columns(["optimal_design", "compliance"])  # type: ignore
 
     # Get design and conditions from the dataset, render design
     design, idx = problem.random_design()
@@ -294,14 +294,14 @@ if __name__ == "__main__":
     # Sample Optimization
     print("\nNow conducting a sample optimization with the given configs:", config)
 
-    # NOTE: xPrint and optisteps_history[-1].stored_design are interchangeable.
-    xPrint, optisteps_history = problem.optimize(config=config)
+    # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
+    optimal_design, optisteps_history = problem.optimize(config=config)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(
-        f"Final design volume fraction: {xPrint.sum() / (nelx*nely):.4f}"  # type: ignore
+        f"Final design volume fraction: {optimal_design.sum() / (nelx*nely):.4f}"  # type: ignore
     )
 
-    fig, ax = problem.render(xPrint, nelx=nelx, nely=nely, open_window=True)  # type: ignore
+    fig, ax = problem.render(optimal_design, nelx=nelx, nely=nely, open_window=True)  # type: ignore
     fig.savefig(
         "beam_optim.png",
         dpi=300,
