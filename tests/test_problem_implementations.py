@@ -83,15 +83,27 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
 
 @pytest.mark.parametrize("problem_class", PYTHON_PROBLEMS)
 def test_python_problem_impl(problem_class: type[Problem]) -> None:
-    """Check that all problems defined in Python files respect the API."""
+    """Check that all problems defined in Python files respect the API.
+
+    This test verifies that:
+    1. The problem simulation returns the correct number of objectives
+    2. The optimization produces valid designs within the design space
+    3. The optimization history contains valid objective values
+    """
+    # Initialize problem and get a random design
     problem = problem_class()
     problem.reset(seed=0)
     design, _ = problem.random_design()
-    objs = problem.simulate(design)
-    assert (
-        objs.shape[0] == len(problem.objectives)
-    ), f"Problem {problem_class.__name__}: The number of objectives returned by simulate should match the number of objectives defined in the problem."
 
+    # Test simulation outputs
+    objs = problem.simulate(design)
+    expected_obj_count = len(problem.objectives)
+    assert objs.shape[0] == expected_obj_count, (
+        f"Problem {problem_class.__name__}: Simulation returned {objs.shape[0]} objectives "
+        f"but expected {expected_obj_count}"
+    )
+
+    # Test optimization outputs
     optimal_design, history = problem.optimize(design)
     print(optimal_design)
     assert np.all(
@@ -110,7 +122,9 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
         optimal_design
     ), f"Problem {problem_class.__name__}: The optimal design should be within the design space."
 
-    for optistep in history:
-        assert (
-            len(optistep.obj_values) == len(problem.objectives)
-        ), f"Problem {problem_class.__name__}: The number of objectives returned by optimize should match the number of objectives defined in the problem."
+    # Verify optimization history
+    for step_num, optistep in enumerate(history):
+        assert len(optistep.obj_values) == expected_obj_count, (
+            f"Problem {problem_class.__name__}: Step {step_num} has {len(optistep.obj_values)} objectives "
+            f"but expected {expected_obj_count}"
+        )
