@@ -79,7 +79,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     """
 
     version = 0
-    objectives: tuple[tuple[str, str]] = (("c", ObjectiveDirection.MINIMIZE),)
+    objectives: tuple[tuple[str, ObjectiveDirection]] = (("c", ObjectiveDirection.MINIMIZE),)
     conditions: frozenset[tuple[str, Any]] = frozenset(
         [
             ("nelx", 100),
