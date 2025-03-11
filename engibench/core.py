@@ -102,7 +102,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     def dataset(self) -> Dataset:
         """Pulls the dataset if it is not already loaded."""
         if self._dataset is None:
-            self._dataset = load_dataset(self.dataset_id)
+            self._dataset = load_dataset(self.dataset_id, download_mode="force_redownload")
         return self._dataset
 
     def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
