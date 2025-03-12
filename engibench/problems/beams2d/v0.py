@@ -188,7 +188,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                 dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
                 dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
 
-            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)
+            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)  # type: ignore
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(
