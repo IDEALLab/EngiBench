@@ -49,7 +49,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
     #### Fields
     The dataset contains the following fields:
     - `volume`: The volume constraint.
-    - `area`: The area constraint.
+    - `area`: The area of adiabatic surface on the bottom side constraint.
     - `Optimal_Design`: The optimal design.
 
     #### Creation Method
@@ -92,7 +92,9 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
                 ("area", self.area),
             }
         )
-        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float32)
+        self.design_space = spaces.Box(
+            low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float32
+        )
 
     def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulate the design.
@@ -240,24 +242,36 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
             design = self.initialize_design()
 
         import matplotlib.pyplot as plt
-        from mpl_toolkits.mplot3d import Axes3D
-        size=len(design)+1
+
+        size = len(design) + 1
 
         fig = plt.figure()
-        ax = fig.add_subplot(111, projection='3d')
-        x, y, z = np.indices((size+1, size+1, size+1)) / size  # Normalize to [0,1]
+        ax = fig.add_subplot(111, projection="3d")
+        x, y, z = np.indices((size + 1, size + 1, size + 1)) / size  # Normalize to [0,1]
         # Define which voxels to plot
-        filled = design > 0.75
+        threshold = 0.7
+        filled = design > threshold
         # Adjust voxel positions by shifting their centers
-        ax.voxels(x[:-1, :-1, :-1],y[:-1, :-1, :-1],z[:-1, :-1, :-1],filled, edgecolor='k', alpha=0.7)
-        cube_vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0],[0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]])
+        ax.voxels(x[:-1, :-1, :-1], y[:-1, :-1, :-1], z[:-1, :-1, :-1], filled, edgecolor="k", alpha=0.7)
+        cube_vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]])
 
-        cube_edges = [(0, 1), (1, 2), (2, 3), (3, 0),  # Bottom face
-              (4, 5), (5, 6), (6, 7), (7, 4),  # Top face
-              (0, 4), (1, 5), (2, 6), (3, 7)]  # Side edges
+        cube_edges = [
+            (0, 1),
+            (1, 2),
+            (2, 3),
+            (3, 0),  # Bottom face
+            (4, 5),
+            (5, 6),
+            (6, 7),
+            (7, 4),  # Top face
+            (0, 4),
+            (1, 5),
+            (2, 6),
+            (3, 7),
+        ]  # Side edges
 
         for edge in cube_edges:
-            ax.plot(*zip(*cube_vertices[list(edge)]), color='red', linewidth=2)
+            ax.plot(*zip(*cube_vertices[list(edge)]), color="red", linewidth=2)
 
         if open_window:
             plt.show()
@@ -268,8 +282,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
 if __name__ == "__main__":
     # Create a HeatConduction3D problem instance
     problem = HeatConduction3D()
-    #problem.simulate()
     string_array = problem.dataset["train"]["Optimal_Design"][0]
     numpy_array = np.array(string_array)
     des, traj = problem.optimize(starting_point=numpy_array)
-    problem.render(design=numpy_array,open_window=True)
+    problem.render(design=numpy_array, open_window=True)
