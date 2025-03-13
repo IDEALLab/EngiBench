@@ -81,7 +81,7 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     ), f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
 
 
-@pytest.mark.parametrize("problem_class", PYTHON_PROBLEMS)
+@pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
 def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """Check that all problems defined in Python files respect the API.
 
