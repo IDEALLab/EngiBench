@@ -28,7 +28,7 @@ from engibench.problems.beams2d.backend import setup
 class ExtendedOptiStep(OptiStep):
     """Extended OptiStep to store a single NumPy array representing a density field at a given optimization step."""
 
-    stored_design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
+    design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
 
 
 class Beams2D(Problem[npt.NDArray, npt.NDArray]):
@@ -173,7 +173,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array([c]), step=loop)
-            current_step.stored_design = np.array(xPrint)
+            current_step.design = np.array(xPrint)
             optisteps_history.append(current_step)
 
             loop = loop + 1
@@ -188,7 +188,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                 dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
                 dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
 
-            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)
+            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)  # type: ignore
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(

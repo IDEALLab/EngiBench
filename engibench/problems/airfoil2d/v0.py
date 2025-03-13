@@ -500,14 +500,14 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> DesignType:
+    def random_design(self) -> tuple[DesignType, int]:
         """Samples a valid random design.
 
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))  # pyright: ignore[reportArgumentType, reportCallIssue, reportOptionalMemberAccess]
-        return np.array(self.dataset["train"]["initial"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))  # pyright: ignore[reportOptionalMemberAccess]
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
 
 if __name__ == "__main__":
@@ -517,7 +517,9 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Get design and conditions from the dataset
-    design = problem.random_design()
+    design, _ = problem.random_design()
+    objs = problem.simulate(design=design)
+    print(objs)
     fig, ax = problem.render(design, open_window=True)
     fig.savefig(
         "airfoil.png",
