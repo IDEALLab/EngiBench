@@ -103,10 +103,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         Args:
             base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
         """
-        super().__init__()
-        self.seed = None
-
-        self.current_study = f"study_{self.seed}"
         # This is used for intermediate files
         # Local file are prefixed with self.local_base_directory
         if base_directory is not None:
@@ -118,13 +114,13 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             os.path.dirname(os.path.abspath(__file__)) + "/templates"
         )  # These templates are shipped with the lib
         self.__local_scripts_dir = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
-        self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
 
         # Docker target directory
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
-        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
+
+        super().__init__()
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -134,7 +130,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             cleanup (bool): Deletes the previous study directory if True.
         """
         # docker pull image if not already pulled
-        container.pull(self.container_id)
+        if container.RUNTIME is not None:
+            container.pull(self.container_id)
         if cleanup:
             shutil.rmtree(self.__local_study_dir)
 
