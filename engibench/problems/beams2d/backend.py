@@ -27,11 +27,10 @@ class Params:
         nelx (int): Width of the design domain (100 by default).
         nely (int): Height of the design domain (50 by default).
         volfrac (float): Desired solid volume fraction of the beam (0.35 by default).
-        penal (float): Intermediate material penalization term (3.0 by default).
         rmin (float): Minimum feature scale (i.e., beam element width, 2.0 by default).
-        ft (int): 0 for sensitivity-based filter, 1 for density-based filter (1 by default).
+        forcedist (float): Fractional distance of the downward force from the top-left (default) to the top-right corner.
+        penal (float): Intermediate material penalization term (3.0 by default).
         max_iter (int): Maximum optimization iterations, assuming no convergence (100 by default).
-        overhang_constraint (bool): Whether to use a 45-degree overhang constraint in optimization (False by default).
         ndof (int): Number of degrees of freedom.
         Emin: (float) Minimum possible stiffness (1e-9 by default).
         Emax: (float) Maximum possible stiffness (1 by default).
@@ -54,13 +53,12 @@ class Params:
     nelx: int = dataclasses.field(default=0)
     nely: int = dataclasses.field(default=0)
     volfrac: float = dataclasses.field(default=0)
-    penal: float = dataclasses.field(default=0)
     rmin: float = dataclasses.field(default=0)
-    ft: int = dataclasses.field(default=0)
-    max_iter: int = dataclasses.field(default=0)
-    overhang_constraint: bool = dataclasses.field(default=False)
+    forcedist: float = dataclasses.field(default=0)
 
     # Other parameters (non-editable)
+    max_iter: int = 100
+    penal: float = 3.0
     Emin: float = 1e-9
     Emax: float = 1.0
     min_change: float = 0.025
@@ -257,8 +255,8 @@ def setup(p: Params) -> Params:
     f = np.zeros((ndof, 1))
     u = np.zeros((ndof, 1))
 
-    # Set load
-    f[1, 0] = -1
+    # Set load at the specified fractional distance (p.forcedist) from the top-left (default) to the top-right corner.
+    f[int(1 + (2 * p.forcedist * p.nelx) * (p.nely + 1)), 0] = -1
 
     p.update(
         {
@@ -279,90 +277,7 @@ def setup(p: Params) -> Params:
     return p
 
 
-def overhang_filter(
-    x: npt.NDArray, p: Params, dc: npt.NDArray | None = None, dv: npt.NDArray | None = None
-) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:
-    """Topology Optimization (TO) filter.
-
-    Args:
-        x: (npt.NDArray) The current density field during optimization.
-        p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the optimization.
-        dc: (npt.NDArray) The sensitivity field wrt. compliance.
-        dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
-
-    Returns:
-        Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivity dv, respectively.
-    """
-    if p.overhang_constraint:
-        P = 40
-        ep = 1e-4
-        xi_0 = 0.5
-        Ns = 3
-        nSens = 2  # dc and dv (hard-coded)
-
-        x = design_to_image(x, p.nelx, p.nely)
-        if dc is not None and dv is not None:
-            dc = design_to_image(dc, p.nelx, p.nely)
-            dv = design_to_image(dv, p.nelx, p.nely)
-
-        Q = P + np.log(Ns) / np.log(xi_0)
-        SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
-        BACKSHIFT = 0.95 * (Ns ** (1 / Q)) * (SHIFT ** (P / Q))
-        xi = np.zeros(x.shape)
-        Xi = np.zeros(x.shape)
-        keep = np.zeros(x.shape)
-        sq = np.zeros(x.shape)
-
-        xi[p.nely - 1, :] = x[p.nely - 1, :].copy()
-        for i in reversed(range(p.nely - 1)):
-            cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
-            keep[i, :] = cbr[: p.nelx] ** P + cbr[1 : p.nelx + 1] ** P + cbr[2:] ** P
-            Xi[i, :] = keep[i, :] ** (1 / Q) - BACKSHIFT
-            sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
-            xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
-
-        if dc is not None and dv is not None:
-            dc_copy = dc.copy()
-            dv_copy = dv.copy()
-            dfxi = [np.array(dc_copy), np.array(dv_copy)]
-            dfx = [np.array(dc_copy), np.array(dv_copy)]
-            lamb = np.zeros((nSens, p.nelx))
-            for i in range(p.nely - 1):
-                dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
-                dsmindXi = 1 - dsmindx
-                cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
-
-                dmx = np.zeros((Ns, p.nelx))
-                for j in range(Ns):
-                    dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : p.nelx + j] ** (P - 1))
-
-                qi = np.ravel([[i] * 3 for i in range(p.nelx)])
-                qj = qi + [-1, 0, 1] * p.nelx
-                qs = np.ravel(dmx.T)
-
-                dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
-                for k in range(nSens):
-                    dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
-                    lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
-
-            i = p.nely - 1
-            for k in range(nSens):
-                dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
-
-            dc = dfx[0]
-            dv = dfx[1]
-            dc = image_to_design(dc)
-            dv = image_to_design(dv)
-
-        xi = image_to_design(xi)
-
-    else:
-        xi = x
-
-    return (xi, dc, dv)
-
-
-def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tuple[npt.NDArray, npt.NDArray]:
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
     Args:
@@ -374,8 +289,7 @@ def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tu
     Returns:
         Tuple of:
             npt.NDArray: The raw density field
-            npt.NDArray: The processed density field (without overhang constraint)
-            npt.NDArray: The processed density field (with overhang constraint if applicable)
+            npt.NDArray: The processed density field
     """
     # Optimality criteria
     l1, l2, move = (0, 1e9, 0.2)
@@ -392,16 +306,11 @@ def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tu
             xnew = np.maximum(0.0, np.maximum(x - move, np.minimum(1.0, x + move)))
 
         # Filter design variables
-        if p.ft == 0:
-            xPhys = xnew
-        elif p.ft == 1:
-            xPhys = np.asarray(p.H * xnew[np.newaxis].T / p.Hs)[:, 0]
+        xPhys = np.asarray(p.H * xnew[np.newaxis].T / p.Hs)[:, 0]
 
-        xPrint, _, _ = overhang_filter(xPhys, p)
-
-        if xPrint.sum() > p.volfrac * p.nelx * p.nely:
+        if xPhys.sum() > p.volfrac * p.nelx * p.nely:
             l1 = lmid
         else:
             l2 = lmid
 
-    return (xnew, xPhys, xPrint)
+    return (xnew, xPhys)

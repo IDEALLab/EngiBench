@@ -19,7 +19,6 @@ from engibench.core import Problem
 from engibench.problems.beams2d.backend import calc_sensitivity
 from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import inner_opt
-from engibench.problems.beams2d.backend import overhang_filter
 from engibench.problems.beams2d.backend import Params
 from engibench.problems.beams2d.backend import setup
 
@@ -35,10 +34,10 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     r"""Beam 2D topology optimization problem.
 
     ## Problem Description
-    This problem simulates bending in an MBB beam, where the beam is symmetric about the central vertical axis and a force is applied at the top-center of the design. Problems are formulated using Density-based Topology Optimization (TO) based on an existing Python [implementation](https://github.com/arjendeetman/TopOpt-MMA-Python).
+    This problem simulates bending in an MBB beam, where the beam is symmetric about the central vertical axis and a force is applied at the top of the design. Problems are formulated using Density-based Topology Optimization (TO) based on an existing Python [implementation](https://github.com/arjendeetman/TopOpt-MMA-Python).
 
     ## Design space
-    The design space is an array of solid densities in `[0.,1.]` with shape `(5000,)` that can also be represented as a `(100, 50)` image, where `nelx = 100` and `nely = 50`.
+    The design space is an array of solid densities in `[0.,1.]` with default shape `(5000,)` that can also be represented as a `(100, 50)` image, where `nelx = 100` and `nely = 50`.
 
     ## Objectives
     The objectives are defined and indexed as follows:
@@ -49,13 +48,11 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     - `nelx`: Width of the domain.
     - `nely`: Height of the domain.
     - `volfrac`: Desired volume fraction (in terms of solid material) for the design.
-    - `penal`: Intermediate density penalty term.
     - `rmin`: Minimum feature length of beam members.
-    - `ft`: Filtering method; 0 for sensitivity-based and 1 for density-based.
-    - `overhang_constraint`: Boolean input condition to decide whether a 45 degree overhang constraint is imposed on the design.
+    - `forcedist`: Fractional distance of the downward force from the top-left (default) to the top-right corner.
 
     ## Simulator
-    The objective (compliance) is calculated by the equation `c = ( (Emin+xPrint**penal*(Emax-Emin))*ce ).sum()` where `xPrint` is the current true density field.
+    The objective (compliance) is calculated by the equation `c = ( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()` where `xPhys` is the current true density field.
 
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/beams_2d).
@@ -64,8 +61,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
     #### Fields
 
-    The dataset contains optimal design, conditions, objectives and these additional fields:
-    - `max_iter`: Maximum number of iterations for the simulation.
+    The dataset contains optimal design, conditions, and objectives.
 
 
     #### Creation Method
@@ -86,13 +82,13 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("nelx", 100),
             ("nely", 50),
             ("volfrac", 0.35),
-            ("penal", 3.0),
             ("rmin", 2.0),
-            ("ft", 1),
-            ("overhang_constraint", False),
+            ("forcedist", 0.5),
         ]
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float32)
+    design_space = spaces.Box(
+        low=0.0, high=1.0, shape=(5000,), dtype=np.float32
+    )  # Make the shape of design_space variable (how to do this?)
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
     __p = None
@@ -163,32 +159,26 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             dc = (-self.__p.penal * design ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
             dv = np.ones(self.__p.nely * self.__p.nelx)
 
-        xPrint, _, _ = overhang_filter(xPhys, self.__p, dc, dv)
-
         loop, change = (0, 1)
 
         while change > self.__p.min_change and loop < self.__p.max_iter:
-            ce = calc_sensitivity(xPrint, p=self.__p)
-            c = self.simulate(xPrint, ce=ce)
+            ce = calc_sensitivity(xPhys, p=self.__p)
+            c = self.simulate(xPhys, ce=ce)
 
             # Record the current state in optisteps_history
-            current_step = ExtendedOptiStep(obj_values=np.array([c]), step=loop)
-            current_step.design = np.array(xPrint)
+            current_step = ExtendedOptiStep(obj_values=np.array(c), step=loop)
+            current_step.design = np.array(xPhys)
             optisteps_history.append(current_step)
 
             loop = loop + 1
 
-            dc = (-self.__p.penal * xPrint ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
+            dc = (-self.__p.penal * xPhys ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
             dv = np.ones(self.__p.nely * self.__p.nelx)
-            xPrint, dc, dv = overhang_filter(xPhys, self.__p, dc, dv)  # MATLAB implementation
 
-            if self.__p.ft == 0:
-                dc = np.asarray((self.__p.H * (x * dc))[np.newaxis].T / self.__p.Hs)[:, 0] / np.maximum(0.001, x)  # type: ignore
-            elif self.__p.ft == 1:
-                dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
-                dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
+            dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
+            dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
 
-            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)  # type: ignore
+            xnew, xPhys = inner_opt(x, self.__p, dc, dv)  # type: ignore
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(
@@ -196,7 +186,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             )
             x = deepcopy(xnew)
 
-        return xPrint, optisteps_history
+        return xPhys, optisteps_history
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         r"""Reset the simulator and numpy random to a given seed.
@@ -249,7 +239,7 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Example of getting the training set
-    xPrint_train = dataset["train"]["optimal_design"]  # type: ignore
+    optimal_train = dataset["train"]["optimal_design"]  # type: ignore
     c_train = dataset["train"]["c"]  # type: ignore
     params_train = dataset["train"].remove_columns(["optimal_design", "c"])  # type: ignore
 
@@ -277,7 +267,7 @@ if __name__ == "__main__":
     print("\nNow conducting a sample optimization with the given configs:", config)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize(config=config)
+    optimal_design, optisteps_history = problem.optimize()
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(
         f"Final design volume fraction: {optimal_design.sum() / (nelx*nely):.4f}"  # type: ignore
