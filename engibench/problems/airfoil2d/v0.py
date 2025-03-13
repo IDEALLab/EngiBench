@@ -177,7 +177,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "N_grid": 100,
         }
         # Adds the boundary conditions to the configuration
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
@@ -395,7 +395,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.  # noqa: FIX002
         }
 
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
         base_config.update(config)
 
         replace_template_values(
@@ -448,7 +448,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
         }
 
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
         base_config.update(config)
 
         replace_template_values(

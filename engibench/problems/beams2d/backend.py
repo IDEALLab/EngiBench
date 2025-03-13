@@ -360,3 +360,48 @@ def overhang_filter(
         xi = x
 
     return (xi, dc, dv)
+
+
+def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+    """Inner optimization loop: Lagrange Multiplier Optimization.
+
+    Args:
+        x: (npt.NDArray) The current density field during optimization.
+        p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the optimization.
+        dc: (npt.NDArray) The sensitivity field wrt. compliance.
+        dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
+
+    Returns:
+        Tuple of:
+            npt.NDArray: The raw density field
+            npt.NDArray: The processed density field (without overhang constraint)
+            npt.NDArray: The processed density field (with overhang constraint if applicable)
+    """
+    # Optimality criteria
+    l1, l2, move = (0, 1e9, 0.2)
+    # reshape to perform vector operations
+    xnew = np.zeros(p.nelx * p.nely)
+
+    while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > p.min_ratio:
+        lmid = 0.5 * (l2 + l1)
+        if lmid > 0:
+            xnew = np.maximum(
+                0.0, np.maximum(x - move, np.minimum(1.0, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid))))
+            )  # type: ignore
+        else:
+            xnew = np.maximum(0.0, np.maximum(x - move, np.minimum(1.0, x + move)))
+
+        # Filter design variables
+        if p.ft == 0:
+            xPhys = xnew
+        elif p.ft == 1:
+            xPhys = np.asarray(p.H * xnew[np.newaxis].T / p.Hs)[:, 0]
+
+        xPrint, _, _ = overhang_filter(xPhys, p, dc, dv)
+
+        if xPrint.sum() > p.volfrac * p.nelx * p.nely:
+            l1 = lmid
+        else:
+            l2 = lmid
+
+    return (xnew, xPhys, xPrint)

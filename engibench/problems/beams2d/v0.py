@@ -18,6 +18,7 @@ from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.beams2d.backend import calc_sensitivity
 from engibench.problems.beams2d.backend import design_to_image
+from engibench.problems.beams2d.backend import inner_opt
 from engibench.problems.beams2d.backend import overhang_filter
 from engibench.problems.beams2d.backend import Params
 from engibench.problems.beams2d.backend import setup
@@ -79,7 +80,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     """
 
     version = 0
-    objectives: tuple[tuple[str, str]] = (("c", ObjectiveDirection.MINIMIZE),)
+    objectives: tuple[tuple[str, ObjectiveDirection]] = (("c", ObjectiveDirection.MINIMIZE),)
     conditions: frozenset[tuple[str, Any]] = frozenset(
         [
             ("nelx", 100),
@@ -117,7 +118,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         if self.__p is None:
             self.__p = Params()
             base_config = {"max_iter": 100}
-            base_config.update(self.boundary_conditions)
+            base_config.update(self.conditions)
             base_config.update(config)
             self.__p.update(base_config)
             self.__p = setup(self.__p)
@@ -129,10 +130,11 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         ).sum()  # compliance (objective)
         return np.array([c])
 
-    def optimize(self, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
+    def optimize(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
         Args:
+            design (npt.NDArray or None): The design to begin warm-start optimization from (optional).
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the optimization.
 
         Returns:
@@ -142,7 +144,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         if self.__p is None:
             self.__p = Params()
             base_config = {"max_iter": 100}
-            base_config.update(self.boundary_conditions)
+            base_config.update(self.conditions)
             base_config.update(config)
             self.__p.update(base_config)
             self.__p = setup(self.__p)
@@ -151,20 +153,30 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         # Make sure to return the full history of the optimization instead of just the last step
         optisteps_history = []
 
-        dc = np.zeros(self.__p.nely * self.__p.nelx)
-        dv = np.zeros(self.__p.nely * self.__p.nelx)
-        ce = np.ones(self.__p.nely * self.__p.nelx)
+        if design is None:
+            xPhys = x = self.__p.volfrac * np.ones(self.__p.nely * self.__p.nelx, dtype=float)
+            dc = np.zeros(self.__p.nely * self.__p.nelx)
+            dv = np.zeros(self.__p.nely * self.__p.nelx)
+        else:
+            xPhys = x = deepcopy(design)
+            ce = calc_sensitivity(design, p=self.__p)
+            dc = (-self.__p.penal * design ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
+            dv = np.ones(self.__p.nely * self.__p.nelx)
 
-        xPhys = x = self.__p.volfrac * np.ones(self.__p.nely * self.__p.nelx, dtype=float)
         xPrint, _, _ = overhang_filter(xPhys, self.__p, dc, dv)
 
         loop, change = (0, 1)
 
         while change > self.__p.min_change and loop < self.__p.max_iter:
-            loop = loop + 1
-
             ce = calc_sensitivity(xPrint, p=self.__p)
             c = self.simulate(xPrint, ce=ce)
+
+            # Record the current state in optisteps_history
+            current_step = ExtendedOptiStep(obj_values=np.array([c]), step=loop)
+            current_step.design = np.array(xPrint)
+            optisteps_history.append(current_step)
+
+            loop = loop + 1
 
             dc = (-self.__p.penal * xPrint ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
             dv = np.ones(self.__p.nely * self.__p.nelx)
@@ -176,43 +188,13 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                 dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
                 dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
 
-            # Optimality criteria
-            l1, l2, move = (0, 1e9, 0.2)
-            # reshape to perform vector operations
-            xnew = np.zeros(self.__p.nelx * self.__p.nely)
-
-            while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > self.__p.min_ratio:
-                lmid = 0.5 * (l2 + l1)
-                if lmid > 0:
-                    xnew = np.maximum(
-                        0.0, np.maximum(x - move, np.minimum(1.0, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid))))
-                    )  # type: ignore
-                else:
-                    xnew = np.maximum(0.0, np.maximum(x - move, np.minimum(1.0, x + move)))
-
-                # Filter design variables
-                if self.__p.ft == 0:
-                    xPhys = xnew
-                elif self.__p.ft == 1:
-                    xPhys = np.asarray(self.__p.H * xnew[np.newaxis].T / self.__p.Hs)[:, 0]
-
-                xPrint, _, _ = overhang_filter(xPhys, self.__p, dc, dv)
-
-                if xPrint.sum() > self.__p.volfrac * self.__p.nelx * self.__p.nely:
-                    l1 = lmid
-                else:
-                    l2 = lmid
+            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(
                 xnew.reshape(self.__p.nelx * self.__p.nely, 1) - x.reshape(self.__p.nelx * self.__p.nely, 1), np.inf
             )
             x = deepcopy(xnew)
-
-            # Record the current state in optisteps_history
-            current_step = ExtendedOptiStep(obj_values=np.array([c]), step=loop)
-            current_step.design = np.array(xPrint)
-            optisteps_history.append(current_step)
 
         return xPrint, optisteps_history
 
@@ -268,8 +250,8 @@ if __name__ == "__main__":
 
     # Example of getting the training set
     xPrint_train = dataset["train"]["optimal_design"]  # type: ignore
-    c_train = dataset["train"]["compliance"]  # type: ignore
-    params_train = dataset["train"].remove_columns(["optimal_design", "compliance"])  # type: ignore
+    c_train = dataset["train"]["c"]  # type: ignore
+    params_train = dataset["train"].remove_columns(["optimal_design", "c"])  # type: ignore
 
     # Get design and conditions from the dataset, render design
     design, idx = problem.random_design()
