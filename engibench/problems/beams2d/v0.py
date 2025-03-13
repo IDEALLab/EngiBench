@@ -28,7 +28,7 @@ from engibench.problems.beams2d.backend import setup
 class ExtendedOptiStep(OptiStep):
     """Extended OptiStep to store a single NumPy array representing a density field at a given optimization step."""
 
-    stored_design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
+    design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
 
 
 class Beams2D(Problem[npt.NDArray, npt.NDArray]):
@@ -128,7 +128,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         c = (
             (self.__p.Emin + design**self.__p.penal * (self.__p.Emax - self.__p.Emin)) * ce
         ).sum()  # compliance (objective)
-        return np.array(c)
+        return np.array([c])
 
     def optimize(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
@@ -173,7 +173,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array([c]), step=loop)
-            current_step.stored_design = np.array(xPrint)
+            current_step.design = np.array(xPrint)
             optisteps_history.append(current_step)
 
             loop = loop + 1
@@ -238,8 +238,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self._dataset["train"]), dtype=int)  # type: ignore
-        return np.array(self._dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type: ignore
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
 
 
 if __name__ == "__main__":
@@ -276,14 +276,14 @@ if __name__ == "__main__":
     # Sample Optimization
     print("\nNow conducting a sample optimization with the given configs:", config)
 
-    # NOTE: xPrint and optisteps_history[-1].stored_design are interchangeable.
-    xPrint, optisteps_history = problem.optimize(config=config)
+    # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
+    optimal_design, optisteps_history = problem.optimize(config=config)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(
-        f"Final design volume fraction: {xPrint.sum() / (nelx*nely):.4f}"  # type: ignore
+        f"Final design volume fraction: {optimal_design.sum() / (nelx*nely):.4f}"  # type: ignore
     )
 
-    fig, ax = problem.render(xPrint, nelx=nelx, nely=nely, open_window=True)  # type: ignore
+    fig, ax = problem.render(optimal_design, nelx=nelx, nely=nely, open_window=True)  # type: ignore
     fig.savefig(
         "beam_optim.png",
         dpi=300,
