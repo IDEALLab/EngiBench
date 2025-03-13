@@ -102,8 +102,6 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         """Initializes the Beams2D problem."""
         super().__init__()
 
-        self.seed = None
-
     def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
@@ -245,7 +243,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 if __name__ == "__main__":
     print("Loading dataset.")
     problem = Beams2D()
-    problem.reset()
+    problem.reset(seed=0)
     dataset = problem.dataset
 
     # Example of getting the training set

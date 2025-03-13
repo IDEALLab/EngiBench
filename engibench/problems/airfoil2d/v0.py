@@ -106,7 +106,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
         """
         super().__init__()
-        self.seed = None
 
         self.current_study = f"study_{self.seed}"
         # This is used for intermediate files

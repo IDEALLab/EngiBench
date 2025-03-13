@@ -148,6 +148,7 @@ ignore = [
     "ANN401", # Allow Any as type hint for *args and *kwargs
     "E501", # Ruff black style takes care of line length
     "ANN003", # Kwargs type hinting is not necessary
+    "ANN204", # Missing return type annotation for special method init
     "B006", # Do not use mutable default arguments
     "FBT001", # Boolean position arguments in function definition
     "FBT002", # Boolean default arguments in function definition

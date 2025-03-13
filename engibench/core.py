@@ -98,6 +98,14 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     np_random: np.random.Generator | None = None
     __np_random_seed: int | None = None
 
+    def __init__(self, **kwargs):
+        """Initialize the problem.
+
+        Args:
+            **kwargs: Keyword arguments.
+        """
+        self.reset(**kwargs)
+
     @property
     def dataset(self) -> Dataset:
         """Pulls the dataset if it is not already loaded."""
@@ -140,8 +148,6 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
             **kwargs: Additional keyword arguments.
         """
-        if seed is not None:
-            self.__np_random_seed = seed
         self.seed = seed
         self.np_random = np.random.default_rng(seed)
 
