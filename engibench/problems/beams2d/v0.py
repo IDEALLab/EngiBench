@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 import dataclasses
+import sys
 from typing import Any
 
 from gymnasium import spaces
@@ -18,6 +19,7 @@ from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.beams2d.backend import calc_sensitivity
 from engibench.problems.beams2d.backend import design_to_image
+from engibench.problems.beams2d.backend import image_to_design
 from engibench.problems.beams2d.backend import inner_opt
 from engibench.problems.beams2d.backend import Params
 from engibench.problems.beams2d.backend import setup
@@ -83,17 +85,24 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("nely", 50),
             ("volfrac", 0.35),
             ("rmin", 2.0),
-            ("forcedist", 0.5),
+            ("forcedist", 0.0),
         ]
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float64)
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
     __p = None
     container_id = None  # type: ignore
 
-    def __init__(self) -> None:
-        """Initializes the Beams2D problem."""
+    def __init__(self, resolution: tuple[int, int] = (50, 100)):
+        """Initializes the Beams2D problem.
+
+        Args:
+            resolution (tuple of [int, int]): the image resolution represented by (nely, nelx).
+        """
+        self.resolution = resolution
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=self.resolution, dtype=np.float64)
+        self.dataset_id = f"IDEALLab/beams_2d_{self.resolution[0]}_{self.resolution[1]}_v0"
+
         super().__init__()
 
     def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
@@ -194,13 +203,11 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         super().reset(seed, **kwargs)
         self.__p = None
 
-    def render(self, design: np.ndarray, nelx: int = 100, nely: int = 50, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
             design (np.ndarray): The design to render.
-            nelx (int): Width of the problem domain.
-            nely (int): Height of the problem domain.
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
@@ -210,7 +217,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         import seaborn as sns
 
         fig, ax = plt.subplots(figsize=(8, 4))
-        sns.heatmap(design_to_image(design, nelx, nely), cmap="coolwarm", ax=ax, vmin=0, vmax=1)
+        sns.heatmap(design, cmap="coolwarm", ax=ax, vmin=0, vmax=1)
 
         if open_window:
             plt.show()
@@ -229,28 +236,28 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
 
 if __name__ == "__main__":
-    print("Loading dataset.")
-    problem = Beams2D()
+    (nely, nelx) = (50, 100) if len(sys.argv) == 1 else (int(sys.argv[1]), int(sys.argv[2]))
+    problem = Beams2D(resolution=(nely, nelx))
     problem.reset(seed=0)
+
+    print(f"Loading dataset for nely={nely}, nelx={nelx}.")
     dataset = problem.dataset
 
     # Example of getting the training set
     optimal_train = dataset["train"]["optimal_design"]  # type: ignore
     c_train = dataset["train"]["c"]  # type: ignore
-    params_train = dataset["train"].remove_columns(["optimal_design", "c"])  # type: ignore
+    params_train = dataset["train"].remove_columns(["optimal_design", "c", "optimization_history"])  # type: ignore
 
     # Get design and conditions from the dataset, render design
     design, idx = problem.random_design()
     config = params_train[idx]
     compliance = c_train[idx]
-    nelx = config["nelx"]
-    nely = config["nely"]
-    fig, ax = problem.render(design, nelx=nelx, nely=nely, open_window=True)
+    fig, ax = problem.render(design, open_window=True)
 
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
     try:
-        c_ref = problem.simulate(design, config=config)
+        c_ref = problem.simulate(image_to_design(design), config=config)[0]
         print(f"Calculated compliance: {c_ref:.4f}")
     except ArithmeticError:
         print("Failed to calculate compliance for upscaled design.")
@@ -259,10 +266,8 @@ if __name__ == "__main__":
     print("\nNow conducting a sample optimization with the given configs:", config)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize()
+    optimal_design, optisteps_history = problem.optimize(config=config)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
-    print(
-        f"Final design volume fraction: {optimal_design.sum() / (nelx*nely):.4f}"  # type: ignore
-    )
+    print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 
-    fig, ax = problem.render(optimal_design, nelx=nelx, nely=nely, open_window=True)  # type: ignore
+    fig, ax = problem.render(design_to_image(optimal_design, nelx, nely), open_window=True)
