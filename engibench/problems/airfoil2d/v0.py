@@ -36,19 +36,37 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     ## Objectives
     The objectives are defined and indexed as follows:
 
-    0. `cd`: Drag coefficient to minimize.
-    1. `cl`: Lift coefficient to maximize.
+    0. `cd_val`: Drag coefficient to minimize.
+    1. `cl_val`: Lift coefficient to maximize.
 
-    ## Boundary conditions
-    The boundary conditions are defined by the following parameters:
-    - `s0`: Off-the-wall spacing for the purpose of modeling the boundary layer.
-    - `marchDist`: Distance to march the grid from the airfoil surface.
+    ## Conditions
+    The conditions are defined by the following parameters:
+    - `alpha`: Angle of attack in degrees.
+    - `mach`: Mach number.
+    - `reynolds`: Reynolds number.
+    - `altitude`: Altitude in meters.
+    - `temperature`: Temperature in Kelvin.
+    - `cl_target`: Target lift coefficient (constraint).
+
+    ## Simulator
+    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
 
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
 
-    ## Simulator
-    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+    ### v0
+
+    #### Fields
+    The dataset contains optimal design, conditions, objectives and these additional fields:
+    - `initial`: Design before the adjoint optimization.
+    - `cl_target`: Target lift coefficient. # TODO IDK what this is
+    - `area_target`: Target area. # TODO this too
+    - `area_initial`: Initial area. # TODO this too
+    - `cl_con`: # TODO this too
+    - `area_con`: # TODO this too
+
+    #### Creation Method
+    We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
 
     ## References
     If you use this problem in your research, please cite the following paper:
@@ -59,14 +77,21 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     """
 
     version = 0
-    possible_objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
-        ("cd", ObjectiveDirection.MINIMIZE),
-        ("cl", ObjectiveDirection.MAXIMIZE),
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
+        ("cd_val", ObjectiveDirection.MINIMIZE),
+        ("cl_val", ObjectiveDirection.MAXIMIZE),
     )
-    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+    conditions: frozenset[tuple[str, Any]] = frozenset(
         {
-            ("s0", 3e-6),
-            ("marchDist", 100.0),
+            ("alpha", 1.5),
+            ("mach", 0.8),
+            ("reynolds", 1e6),
+            ("altitude", 10000),
+            (
+                "temperature",
+                223.150,
+            ),  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            ("cl_target", 0.5),
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
@@ -80,10 +105,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         Args:
             base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
         """
-        super().__init__()
-        self.seed = None
-
-        self.current_study = f"study_{self.seed}"
         # This is used for intermediate files
         # Local file are prefixed with self.local_base_directory
         if base_directory is not None:
@@ -95,13 +116,13 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             os.path.dirname(os.path.abspath(__file__)) + "/templates"
         )  # These templates are shipped with the lib
         self.__local_scripts_dir = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
-        self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
 
         # Docker target directory
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
-        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
+
+        super().__init__()
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -111,7 +132,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             cleanup (bool): Deletes the previous study directory if True.
         """
         # docker pull image if not already pulled
-        container.pull(self.container_id)
+        if container.RUNTIME is not None:
+            container.pull(self.container_id)
         if cleanup:
             shutil.rmtree(self.__local_study_dir)
 
@@ -141,6 +163,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "tmp_xyz_fname": "'" + self.__docker_study_dir + "/tmp'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
+            "s0": 3e-6,  # Off-the-wall spacing for the purpose of modeling the boundary layer.
+            "marchDist": 100.0,  # Distance to march the grid from the airfoil surface.
             "N_sample": 180,
             "nTEPts": 4,
             "xCut": 0.99,
@@ -150,7 +174,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "N_grid": 100,
         }
         # Adds the boundary conditions to the configuration
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
@@ -368,7 +392,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.  # noqa: FIX002
         }
 
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
         base_config.update(config)
 
         replace_template_values(
@@ -421,7 +445,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
         }
 
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
         base_config.update(config)
 
         replace_template_values(
@@ -453,7 +477,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
 
         optimized_design = self.__simulator_output_to_design()
 
-        return (optimized_design, optisteps_history)
+        return optimized_design, optisteps_history
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -475,14 +499,14 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> DesignType:
+    def random_design(self) -> tuple[DesignType, int]:
         """Samples a valid random design.
 
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))  # pyright: ignore[reportArgumentType, reportCallIssue, reportOptionalMemberAccess]
-        return np.array(self.dataset["train"]["initial"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))  # pyright: ignore[reportOptionalMemberAccess]
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
 
 if __name__ == "__main__":
@@ -492,7 +516,9 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Get design and conditions from the dataset
-    design = problem.random_design()
+    design, _ = problem.random_design()
+    objs = problem.simulate(design=design)
+    print(objs)
     fig, ax = problem.render(design, open_window=True)
     fig.savefig(
         "airfoil.png",

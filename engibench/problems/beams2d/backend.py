@@ -8,7 +8,6 @@ This code has been adapted from the Python implementation by Niels Aage and Vill
 
 from __future__ import annotations
 
-from copy import deepcopy
 import dataclasses
 from typing import Any
 
@@ -281,8 +280,8 @@ def setup(p: Params) -> Params:
 
 
 def overhang_filter(
-    x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray
-) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+    x: npt.NDArray, p: Params, dc: npt.NDArray | None = None, dv: npt.NDArray | None = None
+) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:
     """Topology Optimization (TO) filter.
 
     Args:
@@ -302,8 +301,9 @@ def overhang_filter(
         nSens = 2  # dc and dv (hard-coded)
 
         x = design_to_image(x, p.nelx, p.nely)
-        dc = design_to_image(dc, p.nelx, p.nely)
-        dv = design_to_image(dv, p.nelx, p.nely)
+        if dc is not None and dv is not None:
+            dc = design_to_image(dc, p.nelx, p.nely)
+            dv = design_to_image(dv, p.nelx, p.nely)
 
         Q = P + np.log(Ns) / np.log(xi_0)
         SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
@@ -313,7 +313,7 @@ def overhang_filter(
         keep = np.zeros(x.shape)
         sq = np.zeros(x.shape)
 
-        xi[p.nely - 1, :] = deepcopy(x[p.nely - 1, :])
+        xi[p.nely - 1, :] = x[p.nely - 1, :].copy()
         for i in reversed(range(p.nely - 1)):
             cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
             keep[i, :] = cbr[: p.nelx] ** P + cbr[1 : p.nelx + 1] ** P + cbr[2:] ** P
@@ -321,9 +321,9 @@ def overhang_filter(
             sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
             xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
 
-        if np.sum(dc) != 0:
-            dc_copy = deepcopy(dc)
-            dv_copy = deepcopy(dv)
+        if dc is not None and dv is not None:
+            dc_copy = dc.copy()
+            dv_copy = dv.copy()
             dfxi = [np.array(dc_copy), np.array(dv_copy)]
             dfx = [np.array(dc_copy), np.array(dv_copy)]
             lamb = np.zeros((nSens, p.nelx))
@@ -351,12 +351,57 @@ def overhang_filter(
 
             dc = dfx[0]
             dv = dfx[1]
+            dc = image_to_design(dc)
+            dv = image_to_design(dv)
 
         xi = image_to_design(xi)
-        dc = image_to_design(dc)
-        dv = image_to_design(dv)
 
     else:
         xi = x
 
     return (xi, dc, dv)
+
+
+def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+    """Inner optimization loop: Lagrange Multiplier Optimization.
+
+    Args:
+        x: (npt.NDArray) The current density field during optimization.
+        p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the optimization.
+        dc: (npt.NDArray) The sensitivity field wrt. compliance.
+        dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
+
+    Returns:
+        Tuple of:
+            npt.NDArray: The raw density field
+            npt.NDArray: The processed density field (without overhang constraint)
+            npt.NDArray: The processed density field (with overhang constraint if applicable)
+    """
+    # Optimality criteria
+    l1, l2, move = (0, 1e9, 0.2)
+    # reshape to perform vector operations
+    xnew = np.zeros(p.nelx * p.nely)
+
+    while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > p.min_ratio:
+        lmid = 0.5 * (l2 + l1)
+        if lmid > 0:
+            xnew = np.maximum(
+                0.0, np.maximum(x - move, np.minimum(1.0, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid))))
+            )  # type: ignore
+        else:
+            xnew = np.maximum(0.0, np.maximum(x - move, np.minimum(1.0, x + move)))
+
+        # Filter design variables
+        if p.ft == 0:
+            xPhys = xnew
+        elif p.ft == 1:
+            xPhys = np.asarray(p.H * xnew[np.newaxis].T / p.Hs)[:, 0]
+
+        xPrint, _, _ = overhang_filter(xPhys, p)
+
+        if xPrint.sum() > p.volfrac * p.nelx * p.nely:
+            l1 = lmid
+        else:
+            l2 = lmid
+
+    return (xnew, xPhys, xPrint)
