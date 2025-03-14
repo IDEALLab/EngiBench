@@ -44,8 +44,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     - `alpha`: Angle of attack in degrees.
     - `mach`: Mach number.
     - `reynolds`: Reynolds number.
-    - `altitude`: Altitude in meters.
-    - `temperature`: Temperature in Kelvin.
+    - `altitude`: Altitude in meters. # TODO this is not in the dataset
+    - `temperature`: Temperature in Kelvin. # TODO this is not in the dataset
     - `cl_target`: Target lift coefficient (constraint).
 
     ## Simulator
@@ -86,11 +86,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             ("alpha", 1.5),
             ("mach", 0.8),
             ("reynolds", 1e6),
-            ("altitude", 10000),
-            (
-                "temperature",
-                223.150,
-            ),  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            # ("altitude", 10000), # noqa: ERA001
+            # ("temperature", 223.150),  # noqa: ERA001
+            # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
             ("cl_target", 0.5),
         }
     )
