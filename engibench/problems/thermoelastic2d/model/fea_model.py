@@ -10,6 +10,7 @@ import numpy as np
 from scipy.sparse import coo_matrix
 from scipy.sparse.linalg import spsolve
 
+from engibench.core import OptiStep
 from engibench.problems.thermoelastic2d.model.fem_matrix_builder import fe_melthm
 from engibench.problems.thermoelastic2d.model.fem_setup import fe_mthm_bc
 from engibench.problems.thermoelastic2d.model.mma_subroutine import MMAInputs
@@ -20,6 +21,7 @@ from engibench.problems.thermoelastic2d.utils import plot_multi_physics
 SECOND_ITERATION_THRESHOLD = 2
 FIRST_ITERATION_THRESHOLD = 1
 MIN_ITERATIONS = 10
+MAX_ITERATIONS = 120
 UPDATE_THRESHOLD = 0.01
 
 
@@ -138,6 +140,9 @@ class FeaModel:
         nely = bcs["nely"]
         volfrac = bcs["volfrac"]
         n = nely * nelx  # Total number of elements
+
+        # OptiSteps records
+        opti_steps = []
 
         # 1. Initial Design
         x = self.get_initial_design(volfrac, nelx, nely) if x_init is None else x_init
@@ -262,10 +267,15 @@ class FeaModel:
             if self.eval_only is True:
                 vf_error = np.abs(np.mean(x) - volfrac)
                 return {
-                    "sc": f0valm,
-                    "tc": f0valt,
-                    "vf": vf_error,
+                    "structural_compliance": f0valm,
+                    "thermal_compliance": f0valt,
+                    "volume_fraction": vf_error,
                 }
+            else:
+                vf_error = np.abs(np.mean(x) - volfrac)
+                obj_values = [f0valm, f0valt, vf_error]
+                opti_step = OptiStep(obj_values=obj_values, step=iterr)
+                opti_steps.append(opti_step)
 
             df0dx = df0dx_mat.reshape(nely * nelx, 1)
             df0dx = (h @ (xval * df0dx)) / hs[:, None] / np.maximum(1e-3, xval)
@@ -317,15 +327,19 @@ class FeaModel:
                 f" It.: {iterr:4d} Obj.: {f0val:10.4f} Vol.: {np.sum(x) / (nelx * nely):6.3f} ch.: {change:6.3f} || t_forward:{t_forward:6.3f} + t_sensitivity:{t_sensitivity:6.3f} + t_sens_calc:{t_sensitivity_calc:6.3f} + t_mma: {t_mma:6.3f} = {t_total:6.3f}"
             )
 
+            if iterr > MAX_ITERATIONS:
+                break
+
         print("Optimization finished...")
         vf_error = np.abs(np.mean(x) - volfrac)
 
         result = {
             "design": x,
             "bcs": bcs,
-            "sc": f0valm,
-            "tc": f0valt,
-            "vf": vf_error,
+            "structural_compliance": f0valm,
+            "thermal_compliance": f0valt,
+            "volume_fraction": vf_error,
+            "opti_steps": opti_steps,
         }
         return result
 

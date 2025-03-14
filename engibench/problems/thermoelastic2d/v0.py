@@ -30,9 +30,9 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
 
     ## Objectives
     The objectives are defined and indexed as follows:
-    0. `sc`: Structural compliance to minimize.
-    1. `tc`: Thermal compliance to minimize.
-    2. `vf`: Volume fraction error to minimize.
+    0. `structural_compliance`: Structural compliance to minimize.
+    1. `thermal_compliance`: Thermal compliance to minimize.
+    2. `volume_fraction`: Volume fraction error to minimize.
 
     ## Boundary Conditions
     Creating a problem formulation requires defining a python dict with the following info:
@@ -72,14 +72,14 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
     """
 
     objectives: tuple[tuple[str, ObjectiveDirection]] = (
-        ("sc", ObjectiveDirection.MINIMIZE),
-        ("tc", ObjectiveDirection.MINIMIZE),
-        ("vf", ObjectiveDirection.MINIMIZE),
+        ("structural_compliance", ObjectiveDirection.MINIMIZE),
+        ("thermal_compliance", ObjectiveDirection.MINIMIZE),
+        ("volume_fraction", ObjectiveDirection.MINIMIZE),
     )
     nelx = 64
     nely = 64
     lci, tri, rci, bri = get_res_bounds(nelx + 1, nely + 1)
-    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+    conditions: frozenset[tuple[str, Any]] = frozenset(
         {
             ("nelx", nelx),
             ("nely", nely),
@@ -87,14 +87,14 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
             ("force_elements_x", (bri[31])),
             ("force_elements_y", (bri[31])),
             ("heatsink_elements", (lci[31], lci[32], lci[33])),
-            ("volfrac", 0.5),
+            ("volfrac", 0.3),
             ("rmin", 1.1),
             ("weight", 0.9),  # 1.0 for pure structural, 0.0 for pure thermal
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nelx, nely), dtype=np.float32)
     dataset_id = "IDEALLab/thermoelastic_2d_v0"
-    container_id = ""
+    container_id = None
     _dataset = None
 
     def __init__(self, base_directory: str | None = None) -> None:
@@ -125,16 +125,16 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
-        boundary_dict = dict(self.boundary_conditions)
+        boundary_dict = dict(self.conditions)
         for key, value in config.items():
             if key in boundary_dict:
                 boundary_dict[key] = value
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
-        objectives = np.array([results["sc"], results["tc"], results["vf"]])
+        objectives = np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
         return objectives
 
     def optimize(self, starting_point: npt.NDArray, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
-        """Optimizes a topology for the current problem.
+        """Optimizes a topology for the current problem. Note that an appropriate starting_point for the optimization is defined by a uniform material distribution equal to the volume fraction constraint.
 
         Args:
             starting_point (np.ndarray): The starting point for the optimization.
@@ -143,14 +143,14 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        boundary_dict = dict(self.boundary_conditions)
+        boundary_dict = dict(self.conditions)
         for key, value in config.items():
             if key in boundary_dict:
                 boundary_dict[key] = value
-        results = FeaModel(plot=True, eval_only=False).run(boundary_dict)
-        design = np.array(results["design"])
-        objectives = {"sc": results["sc"], "tc": results["tc"], "vf": results["vf"]}
-        return design, objectives
+        results = FeaModel(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)
+        design = np.array(results["design"]).astype(np.float32)
+        opti_steps = results["opti_steps"]
+        return design, opti_steps
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -171,15 +171,16 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
 
         return fig
 
-    def random_design(self) -> DesignType:
+    def random_design(self) -> tuple[DesignType, int]:
         """Samples a valid random design.
 
         Returns:
             DesignType: The valid random design.
         """
-        design = np.random.rand(self.nelx, self.nely)
-        design = np.clip(design, 1e-3, 1.0)
-        return design
+        boundary_dict = dict(self.conditions)
+        volfrac = boundary_dict["volfrac"]
+        design = volfrac * np.ones((self.nelx, self.nely))
+        return design, 0
 
 
 if __name__ == "__main__":
@@ -194,15 +195,15 @@ if __name__ == "__main__":
     problem.render(first_item_design, open_window=True)
 
     # --- Render the design
-    design = problem.random_design()
+    design, _ = problem.random_design()
     problem.render(design, open_window=True)
 
     # --- Optimize a design ---
-    design = problem.random_design()
+    design, _ = problem.random_design()
     design, objectives = problem.optimize(design)
     problem.render(design, open_window=True)
 
     # --- Evaluate a design ---
-    design = problem.random_design()
+    design, _ = problem.random_design()
     objectives = problem.simulate(design)
     print(objectives)
