@@ -15,7 +15,7 @@ from engibench.core import DesignType
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
-from engibench.problems.thermoelastic2d.model.PythonModel import FeaModel
+from engibench.problems.thermoelastic2d.model.fea_model import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 
 
@@ -84,7 +84,7 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
             ("nelx", nelx),
             ("nely", nely),
             ("fixed_elements", (lci[21], lci[32], lci[43])),
-            ("force_elements_x", (tri[31])),
+            ("force_elements_x", (bri[31])),
             ("force_elements_y", (bri[31])),
             ("heatsink_elements", (lci[31], lci[32], lci[33])),
             ("volfrac", 0.5),

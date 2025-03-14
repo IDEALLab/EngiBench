@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from math import ceil
-from math import sqrt
+from math import hypot
 import time
 
 import numpy as np
@@ -87,9 +87,9 @@ class FeaModel:
         s_h = []
 
         for i1 in range(nelx):
+            i2_min = max(i1 - (ceil(rmin) - 1), 0)
             for j1 in range(nely):
                 e1 = i1 * nely + j1
-                i2_min = max(i1 - (ceil(rmin) - 1), 0)
                 i2_max = min(i1 + (ceil(rmin) - 1), nelx - 1)
                 for i2 in range(i2_min, i2_max + 1):
                     j2_min = max(j1 - (ceil(rmin) - 1), 0)
@@ -98,7 +98,7 @@ class FeaModel:
                         e2 = i2 * nely + j2
                         i_h.append(e1)
                         j_h.append(e2)
-                        s_h.append(max(0, rmin - sqrt((i1 - i2) ** 2 + (j1 - j2) ** 2)))
+                        s_h.append(max(0, rmin - hypot(i1 - i2, j1 - j2)))
 
         h = coo_matrix((s_h, (i_h, j_h)), shape=(nelx * nely, nelx * nely)).tocsr()
         hs = np.array(h.sum(axis=1)).flatten()
@@ -295,7 +295,8 @@ class FeaModel:
                 c=c[0],
                 d=d[0],
             )
-            xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low_, upp_ = mmasub(mmainputs)
+            xmma = mmasub(mmainputs)
+
             t_mma = time.time() - curr_time
 
             # Store previous density fields

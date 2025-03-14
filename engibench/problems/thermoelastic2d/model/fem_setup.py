@@ -1,5 +1,6 @@
 """Finite Element Model Setup for Thermoelastic 2D Problem."""
 
+import time
 from typing import Any
 
 import numpy as np
@@ -76,6 +77,8 @@ def fe_mthm_bc(
             - freedofsth (np.ndarray): Array of free thermal degrees of freedom.
             - fp (np.ndarray): Force vector used for mechanical loading.
     """
+    time.time()
+
     # ---------------------------
     # THERMAL GOVERNING EQUATIONS
     # ---------------------------
@@ -124,83 +127,54 @@ def fe_mthm_bc(
     uth = spsolve(kth, fth)
 
     # ---------------------------
-    # ASSEMBLE MECHANICAL SYSTEM (Vectorized Version)
+    # ASSEMBLE MECHANICAL SYSTEM
     # ---------------------------
     dof_per_node = 2
     ndofsm = dof_per_node * (nelx + 1) * (nely + 1)
-    um = np.zeros(ndofsm)
 
-    # Fixed degrees of freedom (dof)
     fixeddofsm_x = np.array(bcs["fixed_elements"]) * 2
     fixeddofsm_y = np.array(bcs["fixed_elements"]) * 2 + 1
     fixeddofsm = np.concatenate((fixeddofsm_x, fixeddofsm_y))
     alldofsm = np.arange(ndofsm)
     freedofsm = np.setdiff1d(alldofsm, fixeddofsm)
 
-    # --- Create element connectivity in a fully vectorized way ---
-    x, y = np.meshgrid(np.arange(nelx), np.arange(nely), indexing="xy")
-    n1 = (nely + 1) * x + y  # shape: (nely, nelx)
-    n2 = (nely + 1) * (x + 1) + y  # shape: (nely, nelx)
-
-    n1_flat = n1.flatten()  # shape: (E,)
-    n2_flat = n2.flatten()  # shape: (E,)
-
-    # Build connectivity arrays:
-    edof4 = np.column_stack((n1_flat + 1, n2_flat + 1, n2_flat, n1_flat))  # shape: (E, 4)
-    edof8 = np.column_stack(
-        (
-            2 * n1_flat + 2,
-            2 * n1_flat + 3,
-            2 * n2_flat + 2,
-            2 * n2_flat + 3,
-            2 * n2_flat,
-            2 * n2_flat + 1,
-            2 * n1_flat,
-            2 * n1_flat + 1,
-        )
-    )  # shape: (E, 8)
-
-    # Compute the penalized stiffness factor per element (vectorized for all E)
-    penalized_x = (x.flatten()) ** penal  # shape: (E,)
-
-    # --- Assemble the global stiffness matrix (km) ---
-    block_idx = np.arange(8)
-    block_rows_8 = np.repeat(block_idx, 8)  # shape: (64,)
-    block_cols_8 = np.tile(block_idx, 8)  # shape: (64,)
-
-    km_rows = edof8[:, block_rows_8]  # shape: (E, 64)
-    km_cols = edof8[:, block_cols_8]  # shape: (E, 64)
-    km_data = penalized_x[:, None] * ke.flatten()[None, :]  # shape: (E, 64)
-
-    # Flatten the arrays so that they can be passed to coo_matrix
-    km_rows = km_rows.ravel()
-    km_cols = km_cols.ravel()
-    km_data = km_data.ravel()
-
-    # --- Assemble the coupling matrix (d_cthm) ---
-    block_rows_8x4 = np.repeat(np.arange(8), 4)  # shape: (32,)
-    block_cols_8x4 = np.tile(np.arange(4), 8)  # shape: (32,)
-
-    d_cthm_rows = edof8[:, block_rows_8x4]  # shape: (E, 32)
-    d_cthm_cols = edof4[:, block_cols_8x4]  # shape: (E, 32)
-    d_cthm_data = penalized_x[:, None] * c_ethm.flatten()[None, :]  # shape: (E, 32)
-
-    d_cthm_rows = d_cthm_rows.ravel()
-    d_cthm_cols = d_cthm_cols.ravel()
-    d_cthm_data = d_cthm_data.ravel()
-
-    # --- Assemble the global feps vector ---
-    uthe = uth[edof4]  # shape: (E, 4)
-    diff = uthe - tref  # shape: (E, 4)
-    feps_contrib = penalized_x[:, None] * (diff @ c_ethm.T)  # shape: (E, 8)
+    km_row = []
+    km_col = []
+    km_data = []
     feps = np.zeros(ndofsm)
-    np.add.at(feps, edof8.ravel(), feps_contrib.ravel())
+    um = np.zeros(ndofsm)
+    d_cthm_row = []
+    d_cthm_col = []
+    d_cthm_data = []
+    time.time()
 
-    # --- Create sparse matrices ---
-    km = coo_matrix((km_data, (km_rows, km_cols)), shape=(ndofsm, ndofsm))
-    d_cthm = coo_matrix((d_cthm_data, (d_cthm_rows, d_cthm_cols)), shape=(ndofsm, nn))
+    for elx in range(nelx):
+        for ely in range(nely):
+            n1 = (nely + 1) * elx + ely
+            n2 = (nely + 1) * (elx + 1) + ely
 
-    # ----- END OPTIMIZED VERSION -----
+            edof4 = np.array([n1 + 1, n2 + 1, n2, n1], dtype=int)
+            edof8 = np.array(
+                [2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1], dtype=int
+            )
+
+            penalized_x = x[ely, elx] ** penal
+
+            dof_pairs = np.array(np.meshgrid(edof8, edof8)).T.reshape(-1, 2)
+            km_row.extend(dof_pairs[:, 0])
+            km_col.extend(dof_pairs[:, 1])
+            km_data.extend((penalized_x * ke).flatten())
+
+            uthe = uth[edof4]
+            feps[edof8] += penalized_x * c_ethm @ (uthe - tref)
+
+            dof_pairs_d_cthm = np.array(np.meshgrid(edof8, edof4)).T.reshape(-1, 2)
+            d_cthm_row.extend(dof_pairs_d_cthm[:, 0])
+            d_cthm_col.extend(dof_pairs_d_cthm[:, 1])
+            d_cthm_data.extend((penalized_x * c_ethm).flatten())
+
+    km = coo_matrix((km_data, (km_row, km_col)), shape=(ndofsm, ndofsm))
+    d_cthm = coo_matrix((d_cthm_data, (d_cthm_row, d_cthm_col)), shape=(ndofsm, nn))
 
     # DEFINE LOADS
     fp = np.zeros(ndofsm)

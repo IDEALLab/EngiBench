@@ -7,7 +7,10 @@ from dataclasses import dataclass
 import numpy as np
 from numpy.typing import NDArray
 
-# ruff: noqa: PLR2004, PLR0915
+RESIDUAL_MAX_VAL = 0.9
+ITERATION_MAX = 500
+ITERATION_MAX_SMALL = 50
+ITERATION_ASYM_MAX = 2.5
 
 
 @dataclass(frozen=True)
@@ -25,38 +28,29 @@ class MMAInputs:
     df0dx: NDArray[np.float64]
     fval: NDArray[np.float64]
     dfdx: NDArray[np.float64]
-    low: NDArray[np.float64]  # Lower asymptotes from the previous iteration.
-    upp: NDArray[np.float64]  # Upper asymptotes from the previous iteration.
+    low: NDArray[np.float64]
+    """Lower asymptotes from the previous iteration."""
+    upp: NDArray[np.float64]
+    """Upper asymptotes from the previous iteration."""
     a0: float
-    a: NDArray[np.float64]  # Coefficients a_i.
-    c: NDArray[np.float64]  # Coefficients c_i.
-    d: NDArray[np.float64]  # Coefficients d_i.
+    a: NDArray[np.float64]
+    """Coefficients a_i."""
+    c: NDArray[np.float64]
+    """Coefficients c_i."""
+    d: NDArray[np.float64]
+    """Coefficients d_i."""
 
 
-# Updated mmasub with strict type annotations.
-def mmasub(
+def mmasub(  # noqa: PLR0915
     inputs: MMAInputs,
-) -> tuple[
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-    NDArray[np.float64],
-]:
+) -> NDArray[np.float64]:
     """Perform one MMA iteration to solve a nonlinear programming problem.
 
     Parameters:
         inputs (MMAInputs): A dataclass encapsulating all input parameters.
 
     Returns:
-        tuple: (xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp)
-               where each element is an NDArray of type float64.
+        xmma (NDArray[np.float64]): the updated design variables
     """
     # Unpack parameters from the dataclass.
     m = inputs.m
@@ -90,7 +84,7 @@ def mmasub(
     eeem: NDArray[np.float64] = np.ones(m)
 
     # Calculation of the asymptotes low and upp
-    if iterr < 2.5:
+    if iterr < ITERATION_ASYM_MAX:
         low = xval - asyinit * (xmax - xmin)
         upp = xval + asyinit * (xmax - xmin)
     else:
@@ -154,9 +148,9 @@ def mmasub(
     subsolv_inputs = SubsolvInputs(
         m=m, n=n, epsimin=epsimin, low=low, upp=upp, alfa=alfa, beta=beta, p0=p0, q0=q0, p=p, q=q, a0=a0, a=a, b=b, c=c, d=d
     )
-    xmma, ymma, zmma, lam, xsi, eta, mu, zet, s = subsolv(subsolv_inputs)
+    xmma = subsolv(subsolv_inputs)
 
-    return xmma, ymma, zmma, lam, xsi, eta, mu, zet, s, low, upp
+    return xmma
 
 
 @dataclass(frozen=True)
@@ -181,28 +175,16 @@ class SubsolvInputs:
     d: NDArray[np.float64]
 
 
-def subsolv(
+def subsolv(  # noqa: PLR0915
     inputs: SubsolvInputs,
-) -> tuple[
-    NDArray[np.float64],  # xmma
-    NDArray[np.float64],  # ymma
-    float,  # zmma
-    NDArray[np.float64],  # lam
-    NDArray[np.float64],  # xsi
-    NDArray[np.float64],  # eta
-    NDArray[np.float64],  # mu
-    float,  # zet
-    NDArray[np.float64],  # s
-]:
+) -> tuple[NDArray[np.float64]]:
     """Solve the MMA subproblem.
 
     Parameters:
         inputs (SubsolvInputs): Dataclass encapsulating all subproblem parameters.
 
     Returns:
-        tuple: (xmma, ymma, zmma, lam, xsi, eta, mu, zet, s)
-               where xmma, ymma, lam, xsi, eta, mu, and s are NDArray[np.float64],
-               and zmma, zet are floats.
+        xmma (NDArray[np.float64]): the updated design variables
     """
     # Unpack inputs from the dataclass.
     m = inputs.m
@@ -271,7 +253,7 @@ def subsolv(
         residunorm = np.sqrt(np.dot(residu, residu))
         residumax = np.max(np.abs(residu))
         ittt = 0
-        while residumax > 0.9 * epsi and ittt < 500:
+        while residumax > RESIDUAL_MAX_VAL * epsi and ittt < ITERATION_MAX:
             ittt += 1
             itera += 1
             ux1 = upp - x
@@ -358,7 +340,7 @@ def subsolv(
 
             itto = 0
             resinew = 2 * residunorm
-            while resinew > residunorm and itto < 50:
+            while resinew > residunorm and itto < ITERATION_MAX_SMALL:
                 itto += 1
                 x = xold + steg * dx
                 y = yold + steg * dy
@@ -404,13 +386,5 @@ def subsolv(
         epsi *= 0.1
 
     xmma = x
-    ymma = y
-    zmma = z
-    lamma = lam
-    xsimma = xsi
-    etamma = eta
-    mumma = mu
-    zetmma = zet
-    smma = s
 
-    return xmma, ymma, zmma, lamma, xsimma, etamma, mumma, zetmma, smma
+    return xmma  # , ymma, zmma, lamma, xsimma, etamma, mumma, zetmma, smma
