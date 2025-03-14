@@ -21,6 +21,7 @@ from engibench.problems.beams2d.backend import calc_sensitivity
 from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import image_to_design
 from engibench.problems.beams2d.backend import inner_opt
+from engibench.problems.beams2d.backend import overhang_filter
 from engibench.problems.beams2d.backend import Params
 from engibench.problems.beams2d.backend import setup
 
@@ -39,7 +40,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     This problem simulates bending in an MBB beam, where the beam is symmetric about the central vertical axis and a force is applied at the top of the design. Problems are formulated using Density-based Topology Optimization (TO) based on an existing Python [implementation](https://github.com/arjendeetman/TopOpt-MMA-Python).
 
     ## Design space
-    The design space is an array of solid densities in `[0.,1.]` with default shape `(5000,)` that can also be represented as a `(100, 50)` image, where `nelx = 100` and `nely = 50`.
+    The design space is an array of solid densities in `[0.,1.]` with default image shape `(100, 50)`, where `nelx = 100` and `nely = 50`, that is also represented internally as a flattened `(5000,)` array.
 
     ## Objectives
     The objectives are defined and indexed as follows:
@@ -52,9 +53,10 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     - `volfrac`: Desired volume fraction (in terms of solid material) for the design.
     - `rmin`: Minimum feature length of beam members.
     - `forcedist`: Fractional distance of the downward force from the top-left (default) to the top-right corner.
+    - `overhang_constraint`: Boolean input condition to decide whether a 45 degree overhang constraint is imposed on the design.
 
     ## Simulator
-    The objective (compliance) is calculated by the equation `c = ( (Emin+xPhys**penal*(Emax-Emin))*ce ).sum()` where `xPhys` is the current true density field.
+    The objective (compliance) is calculated by the equation `c = ( (Emin+xPrint**penal*(Emax-Emin))*ce ).sum()` where `xPrint` is the current true density field.
 
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/beams_2d).
@@ -86,6 +88,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("volfrac", 0.35),
             ("rmin", 2.0),
             ("forcedist", 0.0),
+            ("overhang_constraint", False),
         ]
     )
     dataset_id = "IDEALLab/beams_2d_v0"
@@ -170,26 +173,28 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             dc = (-self.__p.penal * design ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
             dv = np.ones(self.__p.nely * self.__p.nelx)
 
+        xPrint, _, _ = overhang_filter(xPhys, self.__p, dc, dv)
         loop, change = (0, 1)
 
         while change > self.__p.min_change and loop < self.__p.max_iter:
-            ce = calc_sensitivity(xPhys, p=self.__p)
-            c = self.simulate(xPhys, ce=ce)
+            ce = calc_sensitivity(xPrint, p=self.__p)
+            c = self.simulate(xPrint, ce=ce)
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array(c), step=loop)
-            current_step.design = np.array(xPhys)
+            current_step.design = np.array(xPrint)
             optisteps_history.append(current_step)
 
             loop = loop + 1
 
-            dc = (-self.__p.penal * xPhys ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
+            dc = (-self.__p.penal * xPrint ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
             dv = np.ones(self.__p.nely * self.__p.nelx)
+            xPrint, dc, dv = overhang_filter(xPhys, self.__p, dc, dv)  # MATLAB implementation
 
             dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
             dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
 
-            xnew, xPhys = inner_opt(x, self.__p, dc, dv)  # type: ignore
+            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(
@@ -197,7 +202,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             )
             x = deepcopy(xnew)
 
-        return design_to_image(xPhys, self.__p.nelx, self.__p.nely), optisteps_history
+        return design_to_image(xPrint, self.__p.nelx, self.__p.nely), optisteps_history
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         r"""Reset the simulator and numpy random to a given seed.
