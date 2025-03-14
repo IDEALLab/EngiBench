@@ -197,7 +197,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             )
             x = deepcopy(xnew)
 
-        return xPhys, optisteps_history
+        return design_to_image(xPhys, self.__p.nelx, self.__p.nely), optisteps_history
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         r"""Reset the simulator and numpy random to a given seed.
@@ -263,7 +263,7 @@ if __name__ == "__main__":
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
     try:
-        c_ref = problem.simulate(image_to_design(design), config=config)[0]
+        c_ref = problem.simulate(design, config=config)[0]
         print(f"Calculated compliance: {c_ref:.4f}")
     except ArithmeticError:
         print("Failed to calculate compliance for upscaled design.")
@@ -276,4 +276,4 @@ if __name__ == "__main__":
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 
-    fig, ax = problem.render(design_to_image(optimal_design, nelx, nely), open_window=True)
+    fig, ax = problem.render(optimal_design, open_window=True)
