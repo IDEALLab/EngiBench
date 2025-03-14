@@ -86,9 +86,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("forcedist", 0.5),
         ]
     )
-    design_space = spaces.Box(
-        low=0.0, high=1.0, shape=(5000,), dtype=np.float32
-    )  # Make the shape of design_space variable (how to do this?)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float32)
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
     __p = None
@@ -97,8 +95,6 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     def __init__(self) -> None:
         """Initializes the Beams2D problem."""
         super().__init__()
-
-        self.seed = None
 
     def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulates the performance of a beam design.
@@ -235,7 +231,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 if __name__ == "__main__":
     print("Loading dataset.")
     problem = Beams2D()
-    problem.reset()
+    problem.reset(seed=0)
     dataset = problem.dataset
 
     # Example of getting the training set

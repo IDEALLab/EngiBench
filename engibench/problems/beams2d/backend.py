@@ -181,7 +181,7 @@ def calc_sensitivity(design: npt.NDArray, p: Params) -> npt.NDArray:
     Returns:
         npt.NDArray: The sensitivity of the current design.
     """
-    sK = ((p.KE.flatten()[np.newaxis]).T * (p.Emin + (design) ** p.penal * (p.Emax - p.Emin))).flatten(order="F")
+    sK = ((p.KE.flatten()[np.newaxis]).T * (p.Emin + design**p.penal * (p.Emax - p.Emin))).flatten(order="F")
     K = coo_matrix((sK, (p.iK, p.jK)), shape=(p.ndof, p.ndof)).tocsc()
     m = K.shape[0]
     keep = np.delete(np.arange(0, m), p.fixed)
