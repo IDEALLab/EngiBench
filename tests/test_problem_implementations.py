@@ -105,7 +105,6 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
 
     # Test optimization outputs
     optimal_design, history = problem.optimize(design)
-    print(optimal_design)
     assert np.all(
         optimal_design >= problem.design_space.low
     ), f"Problem {problem_class.__name__}: The optimal design should be within the design space."
