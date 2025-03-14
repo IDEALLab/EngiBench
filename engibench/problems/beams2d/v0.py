@@ -124,6 +124,9 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             self.__p.update(base_config)
             self.__p = setup(self.__p)
 
+        if len(design.shape) > 1:
+            design = image_to_design(design)
+
         if ce is None:
             ce = calc_sensitivity(design, self.__p)
         c = (
