@@ -86,7 +86,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("forcedist", 0.5),
         ]
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float64)
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
     __p = None
@@ -246,10 +246,6 @@ if __name__ == "__main__":
     nelx = config["nelx"]
     nely = config["nely"]
     fig, ax = problem.render(design, nelx=nelx, nely=nely, open_window=True)
-    fig.savefig(
-        "beam_random.png",
-        dpi=300,
-    )
 
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
@@ -270,7 +266,3 @@ if __name__ == "__main__":
     )
 
     fig, ax = problem.render(optimal_design, nelx=nelx, nely=nely, open_window=True)  # type: ignore
-    fig.savefig(
-        "beam_optim.png",
-        dpi=300,
-    )
