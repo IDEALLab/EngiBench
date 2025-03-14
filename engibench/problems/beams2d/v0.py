@@ -108,23 +108,19 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
         super().__init__()
 
-    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
         Args:
             design (np.ndarray): The design to simulate.
             ce: (np.ndarray, optional): If applicable, the pre-calculated sensitivity of the current design.
-            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
 
         Returns:
             npt.NDArray: The performance of the design in terms of compliance.
         """
         if self.__p is None:
             self.__p = Params()
-            base_config = {"max_iter": 100}
-            base_config.update(self.conditions)
-            base_config.update(config)
-            self.__p.update(base_config)
+            self.__p.update({"nely": self.resolution[0], "nelx": self.resolution[1]})
             self.__p = setup(self.__p)
 
         if len(design.shape) > 1:
@@ -148,13 +144,12 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
         # Prepares the optimization script/function with the optimization configuration
-        if self.__p is None:
-            self.__p = Params()
-            base_config = {"max_iter": 100}
-            base_config.update(self.conditions)
-            base_config.update(config)
-            self.__p.update(base_config)
-            self.__p = setup(self.__p)
+        self.__p = Params()
+        base_config = {"max_iter": 100}
+        base_config.update(self.conditions)
+        base_config.update(config)
+        self.__p.update(base_config)
+        self.__p = setup(self.__p)
 
         # Make sure to include the intermediate designs of size (5000,)
         # Make sure to return the full history of the optimization instead of just the last step
@@ -268,7 +263,7 @@ if __name__ == "__main__":
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
     try:
-        c_ref = problem.simulate(design, config=config)[0]
+        c_ref = problem.simulate(design)[0]
         print(f"Calculated compliance: {c_ref:.4f}")
     except ArithmeticError:
         print("Failed to calculate compliance for upscaled design.")
