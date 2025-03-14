@@ -1,14 +1,14 @@
 """This module contains the Python implementation of the thermoelastic 2D problem."""
 
+from __future__ import annotations
+
 from math import ceil
 from math import sqrt
 import time
 
-import cvxopt
-from cvxopt import matrix
-import cvxopt.cholmod
 import numpy as np
 from scipy.sparse import coo_matrix
+from scipy.sparse.linalg import spsolve
 
 from engibench.problems.thermoelastic2d.model.fem_matrix_builder import fe_melthm
 from engibench.problems.thermoelastic2d.model.fem_setup import fe_mthm_bc
@@ -17,25 +17,75 @@ from engibench.problems.thermoelastic2d.model.mma_subroutine import mmasub
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 from engibench.problems.thermoelastic2d.utils import plot_multi_physics
 
-# ruff: noqa: PLR2004, ANN001, PLR0915, ANN201, D102, D107, D100, N999, D101
+SECOND_ITERATION_THRESHOLD = 2
+FIRST_ITERATION_THRESHOLD = 1
+MIN_ITERATIONS = 10
+UPDATE_THRESHOLD = 0.01
 
 
-class PythonModel:
-    def __init__(self, plot=False, eval_only=False) -> None:
+class FeaModel:
+    """Finite Element Analysis (FEA) model for coupled 2D thermoelastic topology optimization."""
+
+    def __init__(self, plot: bool | None = False, eval_only: bool | None = False) -> None:
+        """Instantiates a new model for the thermoelastic 2D problem.
+
+        Args:
+            plot: (bool, optional): If True, the updated design will be plotted at each iteration.
+            eval_only: (bool, optional): If True, the model will only evaluate the design and return the objective values.
+        """
         self.plot = plot
         self.eval_only = eval_only
 
-    def get_initial_design(self, volume_fraction, nelx, nely):
+    def get_initial_design(self, volume_fraction: float, nelx: int, nely: int) -> np.ndarray:
+        """Generates the initial design variable field for the optimization process.
+
+        Args:
+            volume_fraction (float): The initial volume fraction for the material distribution.
+            nelx (int): Number of elements in the x-direction.
+            nely (int): Number of elements in the y-direction.
+
+        Returns:
+            np.ndarray: A 2D NumPy array of shape (nely, nelx) initialized with the given volume fraction.
+        """
         return volume_fraction * np.ones((nely, nelx))
 
-    def get_matricies(self, nu, e, k, alpha):
+    def get_matricies(self, nu: float, e: float, k: float, alpha: float) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+        """Computes and returns the element matrices required for the structural-thermal analysis.
+
+        Args:
+            nu (float): Poisson's ratio.
+            e (float): Young's modulus (modulus of elasticity).
+            k (float): Thermal conductivity.
+            alpha (float): Coefficient of thermal expansion.
+
+        Returns:
+            Tuple[np.ndarray, np.ndarray, np.ndarray]: A tuple containing:
+                - The stiffness matrix for mechanical analysis.
+                - The thermal stiffness matrix.
+                - The coupling matrix for thermal expansion effects.
+        """
         return fe_melthm([nu, e, k, alpha])
 
-    def get_filter(self, nelx, nely, rmin):
-        int(nelx * nely * ((2 * (ceil(rmin) - 1) + 1) ** 2))
+    def get_filter(self, nelx: int, nely: int, rmin: float) -> tuple[coo_matrix, np.ndarray]:
+        """Constructs a sensitivity filtering matrix to smoothen the design variables.
+
+        The filter helps mitigate checkerboarding issues in topology optimization by averaging
+        sensitivities over neighboring elements.
+
+        Args:
+            nelx (int): Number of elements in the x-direction.
+            nely (int): Number of elements in the y-direction.
+            rmin (float): Minimum filter radius.
+
+        Returns:
+            Tuple[csr_matrix, np.ndarray]: A tuple containing:
+                - `h` (csr_matrix): A sparse matrix that represents the filtering operation.
+                - `hs` (np.ndarray): A normalization factor for the filtering.
+        """
         i_h = []
         j_h = []
         s_h = []
+
         for i1 in range(nelx):
             for j1 in range(nely):
                 e1 = i1 * nely + j1
@@ -52,17 +102,37 @@ class PythonModel:
 
         h = coo_matrix((s_h, (i_h, j_h)), shape=(nelx * nely, nelx * nely)).tocsr()
         hs = np.array(h.sum(axis=1)).flatten()
+
         return h, hs
 
-    def run(self, bcs, x_init=None):
-        """This function runs the optimization algorithm for the coupled structural-thermal problem.
+    def run(self, bcs: dict[str, any], x_init: np.ndarray | None = None) -> dict[str, any]:  # noqa: PLR0915
+        """Run the optimization algorithm for the coupled structural-thermal problem.
 
-        - bcs : a dictionary containing the boundary conditions for the problem.
+        This method performs an iterative optimization procedure that adjusts the design
+        variables for a coupled structural-thermal problem until convergence criteria are met.
+        The algorithm utilizes finite element analysis (FEA), sensitivity analysis, and the Method
+        of Moving Asymptotes (MMA) to update the design.
 
-        bcs = {
-            'fixed_elements': [...], # List of fixed elements
-            'load_elements': [...],  # List of force elements
-        }
+        Args:
+            bcs (dict[str, any]): A dictionary containing boundary conditions and problem parameters.
+                Expected keys include:
+                    - 'nelx' (int): Number of elements along the x-direction.
+                    - 'nely' (int): Number of elements along the y-direction.
+                    - 'volfrac' (float): Target volume fraction.
+                    - 'fixed_elements' (List[Any], optional): List of fixed elements.
+                    - 'load_elements' (List[Any], optional): List of force elements.
+                    - 'weight' (float, optional): Weighting factor between structural and thermal objectives.
+            x_init (Optional[np.ndarray]): Initial design variable array. If None, the design is generated
+                using the get_initial_design method.
+
+        Returns:
+            Dict[str, Any]: A dictionary containing the optimization results. The dictionary includes:
+                - 'design' (np.ndarray): Final design layout.
+                - 'bcs' (Dict[str, Any]): The input boundary conditions.
+                - 'sc' (float): Structural cost component.
+                - 'tc' (float): Thermal cost component.
+                - 'vf' (float): Volume fraction error.
+            If self.eval_only is True, returns a dictionary with keys 'sc', 'tc', and 'vf' only.
         """
         nelx = bcs["nelx"]
         nely = bcs["nely"]
@@ -104,7 +174,7 @@ class PythonModel:
         change_evol = []
         obj = []
 
-        while change > 0.01 or iterr < 10:
+        while change > UPDATE_THRESHOLD or iterr < MIN_ITERATIONS:
             iterr += 1
             s_time = time.time()
             curr_time = time.time()
@@ -117,37 +187,33 @@ class PythonModel:
             t_forward = time.time() - curr_time
             curr_time = time.time()
 
-            # Plot physics
+            # Plot design update
             if self.plot is True:
                 plot_multi_physics(x, fixeddofsm, fixeddofsth, nelx, nely, fp, um, uth, open_plot=True)
 
-            # OBJECTIVE FUNCTION AND SENSITIVITY ANALYSIS
             ndofm = 2 * (nely + 1) * (nelx + 1)
 
-            # Initialize lamm as a 1D array
-            lamm = np.zeros(ndofm)
+            # Flatten the force matrix once
             flam = fm.flatten()
 
-            # Extract submatrix and vector for free degrees of freedom
-            km_ff = km[np.ix_(freedofsm, freedofsm)].toarray()
+            # --- Solve for free degrees of freedom ---
+            km_ff = km[freedofsm, :][:, freedofsm].tocsc()
             flam_freedofs = flam[freedofsm]
-            km_ff_sparse = coo_matrix(km_ff)  # Convert to Compressed Sparse Column (CSC) format first
-            km_ff_cvxopt = cvxopt.spmatrix(km_ff_sparse.data, km_ff_sparse.row, km_ff_sparse.col)
-            flam_freedofs_cvxopt = cvxopt.matrix(flam_freedofs)
-            cvxopt.cholmod.linsolve(km_ff_cvxopt, flam_freedofs_cvxopt)
-            lamm_freedofs = -np.array(flam_freedofs_cvxopt).flatten()  # Convert back to NumPy array
-
-            # Assign the results back to lamm
+            lamm_freedofs = -spsolve(km_ff, flam_freedofs)
+            lamm = np.zeros(ndofm)
             lamm[freedofsm] = lamm_freedofs
-            lamm[fixeddofsm] = 0  # This line may be optional since lamm is initialized to zeros
+
+            # --- Sensitivity analysis or second solve ---
             temp = lamm.T @ d_cthm - um.T @ d_cthm - fth.T
-            kth_coo = kth.tocoo()
-            kth_cvx = cvxopt.spmatrix(kth_coo.data, kth_coo.row, kth_coo.col, size=kth_coo.shape)
-            temp_cvx = matrix(temp.T)
-            cvxopt.cholmod.linsolve(kth_cvx, temp_cvx)
-            lamth = np.array(temp_cvx).reshape(-1)  # Convert back to a NumPy array if needed
+            temp = np.asarray(temp).flatten()
+            kth_sparse = kth.tocsc()
+            lamth = spsolve(kth_sparse, temp)
+
+            # ------- END OPTIMIZED CODE ------- #
 
             # PREPARE SENSITIVITY ANALYSIS
+            t_sensitivity = time.time() - curr_time
+            curr_time = time.time()
             f0val = 0
             f0valm = 0
             f0valt = 0
@@ -161,8 +227,6 @@ class PythonModel:
             volconst = np.sum(x) / (volfrac * n) - 1
             fval = volconst  # Column vector of size (1xm)
             dfdx = np.ones((1, n)) / (volfrac * n)
-            t_sensitivity = time.time() - curr_time
-            curr_time = time.time()
 
             # WEIGHTING
             w1 = bcs.get("weight", 0.5)
@@ -188,11 +252,12 @@ class PythonModel:
                     # Separate
                     f0valm += x_p * ume.T @ ke @ ume
                     f0valt += x_p * uthe.T @ k_eth @ uthe
-                    f0val += (f0valm * w1) + (f0valt * w2)
 
                     df0dx_m[ely, elx] = -x_p_minus1 * ume.T @ ke @ ume
                     df0dx_t[ely, elx] = lamthe.T @ (x_p_minus1 * k_eth @ uthe)
                     df0dx_mat[ely, elx] = (df0dx_m[ely, elx] * w1) + (df0dx_t[ely, elx] * w2)
+
+            f0val = (f0valm * w1) + (f0valt * w2)
 
             if self.eval_only is True:
                 vf_error = np.abs(np.mean(x) - volfrac)
@@ -234,10 +299,10 @@ class PythonModel:
             t_mma = time.time() - curr_time
 
             # Store previous density fields
-            if iterr > 2:
+            if iterr > SECOND_ITERATION_THRESHOLD:
                 xold2 = xold1
                 xold1 = xval
-            elif iterr > 1:
+            elif iterr > FIRST_ITERATION_THRESHOLD:
                 xold1 = xval
 
             x = xmma.reshape(nely, nelx)
@@ -268,7 +333,7 @@ if __name__ == "__main__":
     nelx = 64
     nely = 64
 
-    client = PythonModel(plot=True)
+    client = FeaModel(plot=True)
 
     lci, tri, rci, bri = get_res_bounds(nelx + 1, nely + 1)
 

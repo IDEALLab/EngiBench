@@ -15,7 +15,7 @@ from engibench.core import DesignType
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
-from engibench.problems.thermoelastic2d.model.PythonModel import PythonModel
+from engibench.problems.thermoelastic2d.model.PythonModel import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 
 
@@ -84,12 +84,12 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
             ("nelx", nelx),
             ("nely", nely),
             ("fixed_elements", (lci[21], lci[32], lci[43])),
-            ("force_elements_x", (bri[31])),
+            ("force_elements_x", (tri[31])),
             ("force_elements_y", (bri[31])),
             ("heatsink_elements", (lci[31], lci[32], lci[33])),
-            ("volfrac", 0.2),
+            ("volfrac", 0.5),
             ("rmin", 1.1),
-            ("weight", 1.0),  # 1.0 for pure structural, 0.0 for pure thermal
+            ("weight", 0.9),  # 1.0 for pure structural, 0.0 for pure thermal
         }
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nelx, nely), dtype=np.float32)
@@ -129,7 +129,7 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
         for key, value in config.items():
             if key in boundary_dict:
                 boundary_dict[key] = value
-        results = PythonModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
+        results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
         objectives = np.array([results["sc"], results["tc"], results["vf"]])
         return objectives
 
@@ -147,7 +147,7 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
         for key, value in config.items():
             if key in boundary_dict:
                 boundary_dict[key] = value
-        results = PythonModel(plot=True, eval_only=False).run(boundary_dict)
+        results = FeaModel(plot=True, eval_only=False).run(boundary_dict)
         design = np.array(results["design"])
         objectives = {"sc": results["sc"], "tc": results["tc"], "vf": results["vf"]}
         return design, objectives
