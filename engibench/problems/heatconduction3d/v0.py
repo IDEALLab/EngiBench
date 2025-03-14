@@ -30,12 +30,12 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
 
     ## Objectives
     The objective is defined and indexed as follows:
-    0. `C`: Thermal compliance coefficient to minimize.
+    0. `c`: Thermal compliance coefficient to minimize.
 
-    ## Boundary conditions
-    The boundary conditions are defined by the following parameters:
-    - `v`: the volume limits on the material distributions
-    - `a`: The area of the adiabatic region on the bottom side of the design domain.
+    ## Conditions
+    The conditions are defined by the following parameters:
+    - `volume`: the volume limits on the material distributions
+    - `area`: The area of the adiabatic region on the bottom side of the design domain.
 
     ## Simulator
     The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
@@ -47,10 +47,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
     ### v0
 
     #### Fields
-    The dataset contains the following fields:
-    - `volume`: The volume constraint.
-    - `area`: The area of adiabatic surface on the bottom side constraint.
-    - `Optimal_Design`: The optimal design.
+    The dataset only contains conditions and optimal designs (no objective).
 
     #### Creation Method
     The creation method for the dataset is specified in the reference paper.
@@ -64,8 +61,8 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
     """
 
     version = 0
-    possible_objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
+    conditions: frozenset[tuple[str, Any]] = frozenset(
         {
             ("volume", 0.3),
             ("area", 0.5),
@@ -76,17 +73,19 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
 
-    def __init__(self, config: dict[str, Any] = {}) -> None:
+    def __init__(self, volume: float = 0.3, area: float = 0.5, resolution: int = 51) -> None:
         """Initialize the HeatConduction3D problem.
 
         Args:
-            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,Area (float): Area constraint,resolution (int): Resolution of the design space) for the initialization.
+            volume (float): Volume constraint.
+            area (float): Area constraint.
+            resolution (int): Resolution of the design space.
         """
         super().__init__()
-        self.volume = config.get("volume", 0.3)
-        self.area = config.get("area", 0.5)
-        self.resolution = config.get("resolution", 51)
-        self.boundary_conditions = frozenset(
+        self.volume = volume
+        self.area = area
+        self.resolution = resolution
+        self.conditions = frozenset(
             {
                 ("volume", self.volume),
                 ("area", self.area),
@@ -225,8 +224,8 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = np.random.randint(low=0, high=len(self.dataset["train"]["Optimal_Design"]), dtype=int)  # type: ignore
-        return np.array(self.dataset["train"]["Optimal_Design"][rnd]), rnd  # type: ignore
+        rnd = np.random.randint(low=0, high=len(self.dataset["train"]["optimal_design"]), dtype=int)  # type: ignore
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
 
     def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -282,7 +281,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
 if __name__ == "__main__":
     # Create a HeatConduction3D problem instance
     problem = HeatConduction3D()
-    string_array = problem.dataset["train"]["Optimal_Design"][0]
-    numpy_array = np.array(string_array)
+    design_as_list = problem.dataset["train"]["optimal_design"][0]
+    numpy_array = np.array(design_as_list)
     des, traj = problem.optimize(starting_point=numpy_array)
     problem.render(design=numpy_array, open_window=True)
