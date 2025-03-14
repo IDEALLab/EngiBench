@@ -64,8 +64,8 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
     """
 
     version = 0
-    possible_objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    boundary_conditions: frozenset[tuple[str, Any]] = frozenset(
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
+    conditions: frozenset[tuple[str, Any]] = frozenset(
         {
             ("volume", 0.3),
             ("area", 0.5),
@@ -86,7 +86,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
         self.volume = config.get("volume", 0.3)
         self.area = config.get("area", 0.5)
         self.resolution = config.get("resolution", 51)
-        self.boundary_conditions = frozenset(
+        self.conditions = frozenset(
             {
                 ("volume", self.volume),
                 ("area", self.area),
