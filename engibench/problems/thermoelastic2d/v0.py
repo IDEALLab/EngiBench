@@ -71,7 +71,7 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
     Gabriel Apaza @gapaza
     """
 
-    possible_objectives: tuple[tuple[str, ObjectiveDirection]] = (
+    objectives: tuple[tuple[str, ObjectiveDirection]] = (
         ("sc", ObjectiveDirection.MINIMIZE),
         ("tc", ObjectiveDirection.MINIMIZE),
         ("vf", ObjectiveDirection.MINIMIZE),
