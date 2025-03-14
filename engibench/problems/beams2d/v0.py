@@ -92,7 +92,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             ("overhang_constraint", False),
         ]
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(5000,), dtype=np.float64)
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
     __p = None
