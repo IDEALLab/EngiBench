@@ -200,7 +200,7 @@ a_opt = solver.solve()
 # -------------------------------
 
 # Save optimized design
-mesh_output = UnitCubeMesh(NN, NN,NN)
+mesh_output = UnitCubeMesh(NN, NN, NN)
 V_output = FunctionSpace(mesh_output, "CG", 1)
 sol_output = a_opt
 

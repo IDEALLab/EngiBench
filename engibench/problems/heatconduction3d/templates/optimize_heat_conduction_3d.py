@@ -11,8 +11,6 @@ import numpy as np
 from fenics import *
 from fenics_adjoint import *
 
-# TODO can we clean this up?
-
 
 # Ensure IPOPT is available
 try:
@@ -175,7 +173,7 @@ problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstrain
 # Define filename for IPOPT log
 log_filename = f"/home/fenics/shared/templates/RES_OPT/solution_V={vol_f}_w={width}.txt"
 # Set optimization solver parameters
-solver_params = {"acceptable_tol": 1.0e-100, "maximum_iterations": 100,"file_print_level": 5,    "output_file": log_filename}
+solver_params = {"acceptable_tol": 1.0e-100, "maximum_iterations": 100, "file_print_level": 5,    "output_file": log_filename}
 solver = IPOPTSolver(problem, parameters=solver_params)
 # -------------------------------
 # Store and Save Results
@@ -198,7 +196,7 @@ with open(log_filename, "r") as f:
 # Convert to NumPy array
 objective_values = np.array(objective_values)
 # Save optimized design
-mesh_output = UnitCubeMesh(NN, NN,NN)
+mesh_output = UnitCubeMesh(NN, NN, NN)
 V_output = FunctionSpace(mesh_output, "CG", 1)
 sol_output = a_opt
 output_xdmf = XDMFFile("/home/fenics/shared/templates/RES_OPT/final_solution_v={}_w={}.xdmf".format(vol_f, width))
@@ -211,7 +209,7 @@ for xs in x_values:
         for zs in z_values:
             RES_OPTults[ind, 0] = a_opt(xs, ys, zs)
             ind = ind + 1
-RES_OPTults=RES_OPTults.reshape(NN+1,NN+1,NN+1)
+RES_OPTults=RES_OPTults.reshape(NN+1, NN+1, NN+1)
 output_npy = "/home/fenics/shared/templates/RES_OPT/hr_data_v_v={}_w={}.npy".format(vol_f, width)
 np.save(output_npy, RES_OPTults)
 xdmf_filename = XDMFFile(

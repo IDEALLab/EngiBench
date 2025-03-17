@@ -58,7 +58,7 @@ if __name__ == "__main__":
             for  zs in z_values:
                 results[ind, 0] = V  # Store the volume value
                 ind += 1
-    results=results.reshape(NN+1,NN+1,NN+1)
+    results=results.reshape(NN+1, NN+1, NN+1)
     # Save the results array to a .npy file
     filename = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN+1}_.npy")
     np.save(filename, results)
