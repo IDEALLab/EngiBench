@@ -68,7 +68,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
             ("area", 0.5),
         }
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(51, 51, 51), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(51, 51, 51), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_3d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
@@ -92,7 +92,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
             }
         )
         self.design_space = spaces.Box(
-            low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float32
+            low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float64
         )
 
     def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
