@@ -94,21 +94,17 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     _dataset = None
     container_id = None  # type: ignore
 
-    def __init__(self, resolution: tuple[int, int] = (50, 100), penal: float = 3.0, max_iter: int = 100):
+    def __init__(self, resolution: tuple[int, int] = (50, 100)):
         """Initializes the Beams2D problem.
 
         Args:
             resolution (tuple of [int, int]): The image resolution represented by (nely, nelx).
-            penal (float): Intermediate material penalization term (3.0 by default).
-            max_iter (int): Maximum optimization iterations, assuming no convergence (100 by default).
         """
         super().__init__()
         self.__p = Params()
         self.resolution = resolution
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=self.resolution, dtype=np.float64)
         self.dataset_id = f"IDEALLab/beams_2d_{self.resolution[0]}_{self.resolution[1]}_v0"
-        self.__p.update({"nely": self.resolution[0], "nelx": self.resolution[1], "penal": penal, "max_iter": max_iter})
-        self.__p = setup(self.__p)
 
     def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulates the performance of a beam design.
@@ -121,18 +117,26 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         Returns:
             npt.NDArray: The performance of the design in terms of compliance.
         """
-        if len(config) > 0:
-            self.__p.update(config)
-            self.__p = setup(self.__p)
-
         # This condition is needed to convert user-provided designs (images) to flat arrays. Normally does not apply, i.e., during optimization.
         if len(design.shape) > 1:
             design = image_to_design(design)
 
+        base_config = {
+            "penal": 3.0,
+        }
+
+        base_config.update(self.conditions)
+        base_config.update(config)
+
+        # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
+        # If setup has run, skips the process for repeated simulations during optimization.
+        if self.__p.ndof == 0:
+            self.__p = setup(base_config)
+
         if ce is None:
-            ce = calc_sensitivity(design, self.__p)
+            ce = calc_sensitivity(design, p=self.__p, cfg=base_config)
         c = (
-            (self.__p.Emin + design**self.__p.penal * (self.__p.Emax - self.__p.Emin)) * ce
+            (self.__p.Emin + design ** base_config["penal"] * (self.__p.Emax - self.__p.Emin)) * ce
         ).sum()  # compliance (objective)
         return np.array([c])
 
@@ -146,31 +150,36 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        if len(config) > 0:
-            self.__p.update(config)
-            self.__p = setup(self.__p)
+        base_config = {
+            "max_iter": 100,
+            "penal": 3.0,
+        }
+
+        base_config.update(self.conditions)
+        base_config.update(config)
+        self.__p = setup(base_config)
 
         # Returns the full history of the optimization instead of just the last step
         optisteps_history = []
 
         if design is None:
-            xPhys = x = self.__p.volfrac * np.ones(self.__p.nely * self.__p.nelx, dtype=float)
-            dc = np.zeros(self.__p.nely * self.__p.nelx)
-            dv = np.zeros(self.__p.nely * self.__p.nelx)
+            xPhys = x = base_config["volfrac"] * np.ones(base_config["nely"] * base_config["nelx"], dtype=float)
+            dc = np.zeros(base_config["nely"] * base_config["nelx"])
+            dv = np.zeros(base_config["nely"] * base_config["nelx"])
         else:
             design = image_to_design(design)
             assert design is not None
             xPhys = x = deepcopy(design)
-            ce = calc_sensitivity(design, p=self.__p)
-            dc = (-self.__p.penal * design ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
-            dv = np.ones(self.__p.nely * self.__p.nelx)
+            ce = calc_sensitivity(design, p=self.__p, cfg=base_config)
+            dc = (-base_config["penal"] * design ** (base_config["penal"] - 1) * (self.__p.Emax - self.__p.Emin)) * ce
+            dv = np.ones(base_config["nely"] * base_config["nelx"])
 
-        xPrint, _, _ = overhang_filter(xPhys, self.__p, dc, dv)
+        xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
         loop, change = (0, 1)
 
-        while change > self.__p.min_change and loop < self.__p.max_iter:
-            ce = calc_sensitivity(xPrint, p=self.__p)
-            c = self.simulate(xPrint, ce=ce)
+        while change > self.__p.min_change and loop < base_config["max_iter"]:
+            ce = calc_sensitivity(xPrint, p=self.__p, cfg=base_config)
+            c = self.simulate(xPrint, ce=ce, config=base_config)
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array(c), step=loop)
@@ -179,22 +188,24 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
             loop = loop + 1
 
-            dc = (-self.__p.penal * xPrint ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
-            dv = np.ones(self.__p.nely * self.__p.nelx)
-            xPrint, dc, dv = overhang_filter(xPhys, self.__p, dc, dv)  # MATLAB implementation
+            dc = (-base_config["penal"] * xPrint ** (base_config["penal"] - 1) * (self.__p.Emax - self.__p.Emin)) * ce
+            dv = np.ones(base_config["nely"] * base_config["nelx"])
+            xPrint, dc, dv = overhang_filter(xPhys, base_config, dc, dv)  # MATLAB implementation
 
             dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
             dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
 
-            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv)
+            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv, base_config)
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(
-                xnew.reshape(self.__p.nelx * self.__p.nely, 1) - x.reshape(self.__p.nelx * self.__p.nely, 1), np.inf
+                xnew.reshape(base_config["nelx"] * base_config["nely"], 1)
+                - x.reshape(base_config["nelx"] * base_config["nely"], 1),
+                np.inf,
             )
             x = deepcopy(xnew)
 
-        return design_to_image(xPrint, self.__p.nelx, self.__p.nely), optisteps_history
+        return design_to_image(xPrint, base_config["nelx"], base_config["nely"]), optisteps_history
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         r"""Reset numpy random to a given seed.
@@ -238,19 +249,11 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
 
 if __name__ == "__main__":
-    p = Params()
-    nely, nelx, penal, max_iter = p.nely, p.nelx, p.penal, p.max_iter
-    param_list = [nely, nelx, penal, max_iter]
-    for i in range(min(len(sys.argv[1:]), len(param_list))):
-        param_list[i] = type(param_list[i])(sys.argv[i + 1])
-    nely, nelx, penal, max_iter = param_list
-
-    problem = Beams2D(resolution=(nely, nelx), penal=penal, max_iter=max_iter)
+    (nely, nelx) = (50, 100) if len(sys.argv) == 1 else (int(sys.argv[1]), int(sys.argv[2]))
+    problem = Beams2D(resolution=(nely, nelx))
     problem.reset(seed=0)
 
-    print(
-        f"Loading dataset for nely={nely}, nelx={nelx}.\nOptimization parameters are penal={penal} and max_iter={max_iter}."
-    )
+    print(f"Loading dataset for nely={nely}, nelx={nelx}.")
     dataset = problem.dataset
 
     # Example of getting the training set

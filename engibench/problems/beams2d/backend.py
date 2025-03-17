@@ -24,19 +24,11 @@ class Params:
     """A structured representation of configuration parameters for a numerical computation.
 
     Attributes:
-        nelx (int): Width of the design domain (100 by default).
-        nely (int): Height of the design domain (50 by default).
-        volfrac (float): Desired solid volume fraction of the beam (0.35 by default).
-        rmin (float): Minimum feature scale (i.e., beam element width, 2.0 by default).
-        forcedist (float): Fractional distance of the downward force from the top-left (default) to the top-right corner.
-        overhang_constraint (bool): Whether to use a 45-degree overhang constraint in optimization (False by default).
-        penal (float): Intermediate material penalization term (3.0 by default).
-        max_iter (int): Maximum optimization iterations, assuming no convergence (100 by default).
-        ndof (int): Number of degrees of freedom.
         Emin: (float) Minimum possible stiffness (1e-9 by default).
         Emax: (float) Maximum possible stiffness (1 by default).
         min_change (float): Minimum change in terms of design variables between two consecutive designs to continue optimization (0.025 by default).
         min_ratio (float): Parameter determining when the bisection search on the Lagrange multiplier should stop (1e-3 by default).
+        ndof (int): Number of degrees of freedom.
         edofMat (np.ndarray): Element degrees of freedom mapping.
         iK (np.ndarray): Row indices for stiffness matrix.
         jK (np.ndarray]): Column indices for stiffness matrix.
@@ -50,24 +42,14 @@ class Params:
         KE (np.ndarray): Stiffness matrix.
     """
 
-    # Boundary conditions (editable by user)
-    nelx: int = 100
-    nely: int = 50
-    volfrac: float = 0.35
-    rmin: float = 2.0
-    forcedist: float = 0
-    overhang_constraint: bool = False
-
-    # Other parameters (editable; see v0)
-    penal: float = 3.0
-    max_iter: int = 100
-
-    # Other parameters (non-editable)
+    # Constants (non-editable)  # noqa: ERA001
     Emin: float = 1e-9
     Emax: float = 1.0
     min_change: float = 0.025
     min_ratio: float = 1.0e-3
-    ndof: int = 10302
+
+    # Items calculated for optimization and simulation
+    ndof: int = 0
     edofMat: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     iK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     jK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
@@ -175,17 +157,18 @@ def lk() -> npt.NDArray:
     return KE
 
 
-def calc_sensitivity(design: npt.NDArray, p: Params) -> npt.NDArray:
+def calc_sensitivity(design: npt.NDArray, p: Params, cfg: dict[str, Any] = {}) -> npt.NDArray:
     """Simulates the performance of a beam design. Assumes the Params object is already set up.
 
     Args:
         design (np.ndarray): The design to simulate.
-        p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the simulation.
+        p: Params object with needed vectors/matrices for the simulation.
+        cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the simulation.
 
     Returns:
         npt.NDArray: The sensitivity of the current design.
     """
-    sK = ((p.KE.flatten()[np.newaxis]).T * (p.Emin + design**p.penal * (p.Emax - p.Emin))).flatten(order="F")
+    sK = ((p.KE.flatten()[np.newaxis]).T * (p.Emin + design ** cfg["penal"] * (p.Emax - p.Emin))).flatten(order="F")
     K = coo_matrix((sK, (p.iK, p.jK)), shape=(p.ndof, p.ndof)).tocsc()
     m = K.shape[0]
     keep = np.delete(np.arange(0, m), p.fixed)
@@ -200,59 +183,64 @@ def calc_sensitivity(design: npt.NDArray, p: Params) -> npt.NDArray:
 
     ############################################################################################################
     # Sensitivity
-    ce = (np.dot(p.u[p.edofMat].reshape(p.nelx * p.nely, 8), p.KE) * p.u[p.edofMat].reshape(p.nelx * p.nely, 8)).sum(1)
+    ce = (
+        np.dot(p.u[p.edofMat].reshape(cfg["nelx"] * cfg["nely"], 8), p.KE)
+        * p.u[p.edofMat].reshape(cfg["nelx"] * cfg["nely"], 8)
+    ).sum(1)
     return np.array(ce)
 
 
-def setup(p: Params) -> Params:
+def setup(cfg: dict[str, Any] = {}) -> Params:
     r"""Set up the matrices and parameters for optimization or simulation.
 
     Args:
-        p: Params object with initial configuration (e.g., boundary conditions).
+        cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization or simulation.
 
     Returns:
         Params object with the relevant matrices and other parameters used in optimization and simulation.
     """
-    ndof = 2 * (p.nelx + 1) * (p.nely + 1)
-    edofMat = np.zeros((p.nelx * p.nely, 8), dtype=int)
-    for elx in range(p.nelx):
-        for ely in range(p.nely):
-            el = ely + elx * p.nely
-            n1 = (p.nely + 1) * elx + ely
-            n2 = (p.nely + 1) * (elx + 1) + ely
+    p = Params()
+
+    ndof = 2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1)
+    edofMat = np.zeros((cfg["nelx"] * cfg["nely"], 8), dtype=int)
+    for elx in range(cfg["nelx"]):
+        for ely in range(cfg["nely"]):
+            el = ely + elx * cfg["nely"]
+            n1 = (cfg["nely"] + 1) * elx + ely
+            n2 = (cfg["nely"] + 1) * (elx + 1) + ely
             edofMat[el, :] = np.array(
                 [2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1]
             )
     iK = np.kron(edofMat, np.ones((8, 1))).flatten()
     jK = np.kron(edofMat, np.ones((1, 8))).flatten()
 
-    nfilter = int(p.nelx * p.nely * ((2 * (np.ceil(p.rmin) - 1) + 1) ** 2))
+    nfilter = int(cfg["nelx"] * cfg["nely"] * ((2 * (np.ceil(cfg["rmin"]) - 1) + 1) ** 2))
     iH = np.zeros(nfilter)
     jH = np.zeros(nfilter)
     sH = np.zeros(nfilter)
     cc = 0
-    for i in range(p.nelx):
-        for j in range(p.nely):
-            row = i * p.nely + j
-            kk1 = int(np.maximum(i - (np.ceil(p.rmin) - 1), 0))
-            kk2 = int(np.minimum(i + np.ceil(p.rmin), p.nelx))
-            ll1 = int(np.maximum(j - (np.ceil(p.rmin) - 1), 0))
-            ll2 = int(np.minimum(j + np.ceil(p.rmin), p.nely))
+    for i in range(cfg["nelx"]):
+        for j in range(cfg["nely"]):
+            row = i * cfg["nely"] + j
+            kk1 = int(np.maximum(i - (np.ceil(cfg["rmin"]) - 1), 0))
+            kk2 = int(np.minimum(i + np.ceil(cfg["rmin"]), cfg["nelx"]))
+            ll1 = int(np.maximum(j - (np.ceil(cfg["rmin"]) - 1), 0))
+            ll2 = int(np.minimum(j + np.ceil(cfg["rmin"]), cfg["nely"]))
             for k in range(kk1, kk2):
                 for l in range(ll1, ll2):
-                    col = k * p.nely + l
-                    fac = p.rmin - np.sqrt((i - k) * (i - k) + (j - l) * (j - l))
+                    col = k * cfg["nely"] + l
+                    fac = cfg["rmin"] - np.sqrt((i - k) * (i - k) + (j - l) * (j - l))
                     iH[cc] = row
                     jH[cc] = col
                     sH[cc] = np.maximum(0.0, fac)
                     cc = cc + 1
     # Finalize assembly and convert to csc format
-    H = coo_matrix((sH, (iH, jH)), shape=(p.nelx * p.nely, p.nelx * p.nely)).tocsc()
+    H = coo_matrix((sH, (iH, jH)), shape=(cfg["nelx"] * cfg["nely"], cfg["nelx"] * cfg["nely"])).tocsc()
     Hs = H.sum(1)
 
     # BC's and support
-    dofs = np.arange(2 * (p.nelx + 1) * (p.nely + 1))
-    fixed = np.union1d(dofs[0 : 2 * (p.nely + 1) : 2], np.array([2 * (p.nelx + 1) * (p.nely + 1) - 1]))
+    dofs = np.arange(2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1))
+    fixed = np.union1d(dofs[0 : 2 * (cfg["nely"] + 1) : 2], np.array([2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1) - 1]))
     free = np.setdiff1d(dofs, fixed)
 
     # Solution and RHS vectors
@@ -260,7 +248,7 @@ def setup(p: Params) -> Params:
     u = np.zeros((ndof, 1))
 
     # Set load at the specified fractional distance (p.forcedist) from the top-left (default) to the top-right corner.
-    f[int(1 + (2 * p.forcedist * p.nelx) * (p.nely + 1)), 0] = -1
+    f[int(1 + (2 * cfg["forcedist"] * cfg["nelx"]) * (cfg["nely"] + 1)), 0] = -1
 
     p.update(
         {
@@ -281,14 +269,17 @@ def setup(p: Params) -> Params:
     return p
 
 
-def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+def inner_opt(
+    x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray, cfg: dict[str, Any] = {}
+) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
     Args:
         x: (npt.NDArray) The current density field during optimization.
-        p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the optimization.
+        p: Params object with needed vectors/matrices for the optimization.
         dc: (npt.NDArray) The sensitivity field wrt. compliance.
         dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
+        cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization.
 
     Returns:
         Tuple of:
@@ -299,7 +290,7 @@ def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tu
     # Optimality criteria
     l1, l2, move = (0, 1e9, 0.2)
     # reshape to perform vector operations
-    xnew = np.zeros(p.nelx * p.nely)
+    xnew = np.zeros(cfg["nelx"] * cfg["nely"])
 
     while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > p.min_ratio:
         lmid = 0.5 * (l2 + l1)
@@ -312,9 +303,9 @@ def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tu
 
         # Filter design variables
         xPhys = np.asarray(p.H * xnew[np.newaxis].T / p.Hs)[:, 0]
-        xPrint, _, _ = overhang_filter(xPhys, p)
+        xPrint, _, _ = overhang_filter(xPhys, cfg)
 
-        if xPrint.sum() > p.volfrac * p.nelx * p.nely:
+        if xPrint.sum() > cfg["volfrac"] * cfg["nelx"] * cfg["nely"]:
             l1 = lmid
         else:
             l2 = lmid
@@ -323,30 +314,30 @@ def inner_opt(x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray) -> tu
 
 
 def overhang_filter(
-    x: npt.NDArray, p: Params, dc: npt.NDArray | None = None, dv: npt.NDArray | None = None
+    x: npt.NDArray, cfg: dict[str, Any] = {}, dc: npt.NDArray | None = None, dv: npt.NDArray | None = None
 ) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:
     """Topology Optimization (TO) filter.
 
     Args:
         x: (npt.NDArray) The current density field during optimization.
-        p: Params object with configs (e.g., boundary conditions) and needed vectors/matrices for the optimization.
+        cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization.
         dc: (npt.NDArray) The sensitivity field wrt. compliance.
         dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
 
     Returns:
         Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivity dv, respectively.
     """
-    if p.overhang_constraint:
+    if cfg["overhang_constraint"]:
         P = 40
         ep = 1e-4
         xi_0 = 0.5
         Ns = 3
         nSens = 2  # dc and dv (hard-coded)
 
-        x = design_to_image(x, p.nelx, p.nely)
+        x = design_to_image(x, cfg["nelx"], cfg["nely"])
         if dc is not None and dv is not None:
-            dc = design_to_image(dc, p.nelx, p.nely)
-            dv = design_to_image(dv, p.nelx, p.nely)
+            dc = design_to_image(dc, cfg["nelx"], cfg["nely"])
+            dv = design_to_image(dv, cfg["nelx"], cfg["nely"])
 
         Q = P + np.log(Ns) / np.log(xi_0)
         SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
@@ -356,10 +347,10 @@ def overhang_filter(
         keep = np.zeros(x.shape)
         sq = np.zeros(x.shape)
 
-        xi[p.nely - 1, :] = x[p.nely - 1, :].copy()
-        for i in reversed(range(p.nely - 1)):
+        xi[cfg["nely"] - 1, :] = x[cfg["nely"] - 1, :].copy()
+        for i in reversed(range(cfg["nely"] - 1)):
             cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
-            keep[i, :] = cbr[: p.nelx] ** P + cbr[1 : p.nelx + 1] ** P + cbr[2:] ** P
+            keep[i, :] = cbr[: cfg["nelx"]] ** P + cbr[1 : cfg["nelx"] + 1] ** P + cbr[2:] ** P
             Xi[i, :] = keep[i, :] ** (1 / Q) - BACKSHIFT
             sq[i, :] = np.sqrt((x[i, :] - Xi[i, :]) ** 2 + ep)
             xi[i, :] = 0.5 * ((x[i, :] + Xi[i, :]) - sq[i, :] + np.sqrt(ep))
@@ -369,18 +360,18 @@ def overhang_filter(
             dv_copy = dv.copy()
             dfxi = [np.array(dc_copy), np.array(dv_copy)]
             dfx = [np.array(dc_copy), np.array(dv_copy)]
-            lamb = np.zeros((nSens, p.nelx))
-            for i in range(p.nely - 1):
+            lamb = np.zeros((nSens, cfg["nelx"]))
+            for i in range(cfg["nely"] - 1):
                 dsmindx = 0.5 * (1 - (x[i, :] - Xi[i, :]) / sq[i, :])
                 dsmindXi = 1 - dsmindx
                 cbr = np.array([0, *list(xi[i + 1, :]), 0]) + SHIFT
 
-                dmx = np.zeros((Ns, p.nelx))
+                dmx = np.zeros((Ns, cfg["nelx"]))
                 for j in range(Ns):
-                    dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : p.nelx + j] ** (P - 1))
+                    dmx[j, :] = (P / Q) * (keep[i, :] ** (1 / Q - 1)) * (cbr[j : cfg["nelx"] + j] ** (P - 1))
 
-                qi = np.ravel([[i] * 3 for i in range(p.nelx)])
-                qj = qi + [-1, 0, 1] * p.nelx
+                qi = np.ravel([[i] * 3 for i in range(cfg["nelx"])])
+                qj = qi + [-1, 0, 1] * cfg["nelx"]
                 qs = np.ravel(dmx.T)
 
                 dsmaxdxi = coo_matrix((qs[1:-1], (qi[1:-1], qj[1:-1]))).tocsc()
@@ -388,7 +379,7 @@ def overhang_filter(
                     dfx[k][i, :] = dsmindx * (dfxi[k][i, :] + lamb[k, :])
                     lamb[k, :] = ((dfxi[k][i, :] + lamb[k, :]) * dsmindXi) @ dsmaxdxi
 
-            i = p.nely - 1
+            i = cfg["nely"] - 1
             for k in range(nSens):
                 dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
 
