@@ -51,21 +51,23 @@ class Params:
     """
 
     # Boundary conditions (editable by user)
-    nelx: int = dataclasses.field(default=0)
-    nely: int = dataclasses.field(default=0)
-    volfrac: float = dataclasses.field(default=0)
-    rmin: float = dataclasses.field(default=0)
-    forcedist: float = dataclasses.field(default=0)
-    overhang_constraint: bool = dataclasses.field(default=False)
+    nelx: int = 100
+    nely: int = 50
+    volfrac: float = 0.35
+    rmin: float = 2.0
+    forcedist: float = 0
+    overhang_constraint: bool = False
+
+    # Other parameters (editable; see v0)
+    penal: float = 3.0
+    max_iter: int = 100
 
     # Other parameters (non-editable)
-    max_iter: int = 100
-    penal: float = 3.0
     Emin: float = 1e-9
     Emax: float = 1.0
     min_change: float = 0.025
     min_ratio: float = 1.0e-3
-    ndof: int = dataclasses.field(default=0)
+    ndof: int = 10302
     edofMat: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     iK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))
     jK: np.ndarray = dataclasses.field(default_factory=lambda: np.array([]))

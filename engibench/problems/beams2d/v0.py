@@ -69,7 +69,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
 
     #### Creation Method
-    We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
+    We created this dataset via uniform sampling across the following parameters: design space resolution (represented by nely), solid volume fraction (volfrac), minimum length scale (rmin), and fractional distance of the applied force between the top-left and top-right of the domain (forcedist). In this case, the top-left corresponds to the center of the full beam, since we only optimize and simulate over half of the beam.
 
     ## References
     If you use this problem in your research, please cite the following paper:
@@ -93,34 +93,37 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     )
     dataset_id = "IDEALLab/beams_2d_v0"
     _dataset = None
-    __p = None
     container_id = None  # type: ignore
 
-    def __init__(self, resolution: tuple[int, int] = (50, 100)):
+    def __init__(self, resolution: tuple[int, int] = (50, 100), penal: float = 3.0, max_iter: int = 100):
         """Initializes the Beams2D problem.
 
         Args:
-            resolution (tuple of [int, int]): the image resolution represented by (nely, nelx).
+            resolution (tuple of [int, int]): The image resolution represented by (nely, nelx).
+            penal (float): Intermediate material penalization term (3.0 by default).
+            max_iter (int): Maximum optimization iterations, assuming no convergence (100 by default).
         """
+        super().__init__()
+        self.__p = Params()
         self.resolution = resolution
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=self.resolution, dtype=np.float64)
         self.dataset_id = f"IDEALLab/beams_2d_{self.resolution[0]}_{self.resolution[1]}_v0"
+        self.__p.update({"nely": self.resolution[0], "nelx": self.resolution[1], "penal": penal, "max_iter": max_iter})
+        self.__p = setup(self.__p)
 
-        super().__init__()
-
-    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
         Args:
             design (np.ndarray): The design to simulate.
             ce: (np.ndarray, optional): If applicable, the pre-calculated sensitivity of the current design.
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
 
         Returns:
             npt.NDArray: The performance of the design in terms of compliance.
         """
-        if self.__p is None:
-            self.__p = Params()
-            self.__p.update({"nely": self.resolution[0], "nelx": self.resolution[1]})
+        if len(config) > 0:
+            self.__p.update(config)
             self.__p = setup(self.__p)
 
         if len(design.shape) > 1:
@@ -143,16 +146,11 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        # Prepares the optimization script/function with the optimization configuration
-        self.__p = Params()
-        base_config = {"max_iter": 100}
-        base_config.update(self.conditions)
-        base_config.update(config)
-        self.__p.update(base_config)
-        self.__p = setup(self.__p)
+        if len(config) > 0:
+            self.__p.update(config)
+            self.__p = setup(self.__p)
 
-        # Make sure to include the intermediate designs of size (5000,)
-        # Make sure to return the full history of the optimization instead of just the last step
+        # Returns the full history of the optimization instead of just the last step
         optisteps_history = []
 
         if design is None:
@@ -160,9 +158,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             dc = np.zeros(self.__p.nely * self.__p.nelx)
             dv = np.zeros(self.__p.nely * self.__p.nelx)
         else:
-            if len(design.shape) > 1:
-                design = image_to_design(design)
-                assert design is not None
+            design = image_to_design(design)
             xPhys = x = deepcopy(design)
             ce = calc_sensitivity(design, p=self.__p)
             dc = (-self.__p.penal * design ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
@@ -200,14 +196,13 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         return design_to_image(xPrint, self.__p.nelx, self.__p.nely), optisteps_history
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
-        r"""Reset the simulator and numpy random to a given seed.
+        r"""Reset numpy random to a given seed.
 
         Args:
             seed (int, optional): The seed to reset to. If None, a random seed is used.
             **kwargs: Additional keyword arguments.
         """
         super().reset(seed, **kwargs)
-        self.__p = None
 
     def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -242,17 +237,25 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
 
 if __name__ == "__main__":
-    (nely, nelx) = (50, 100) if len(sys.argv) == 1 else (int(sys.argv[1]), int(sys.argv[2]))
-    problem = Beams2D(resolution=(nely, nelx))
+    p = Params()
+    nely, nelx, penal, max_iter = p.nely, p.nelx, p.penal, p.max_iter
+    param_list = [nely, nelx, penal, max_iter]
+    for i in range(min(len(sys.argv[1:]), len(param_list))):
+        param_list[i] = type(param_list[i])(sys.argv[i + 1])
+    nely, nelx, penal, max_iter = param_list
+
+    problem = Beams2D(resolution=(nely, nelx), penal=penal, max_iter=max_iter)
     problem.reset(seed=0)
 
-    print(f"Loading dataset for nely={nely}, nelx={nelx}.")
+    print(
+        f"Loading dataset for nely={nely}, nelx={nelx}.\nOptimization parameters are penal={penal} and max_iter={max_iter}."
+    )
     dataset = problem.dataset
 
     # Example of getting the training set
     optimal_train = dataset["train"]["optimal_design"]  # type: ignore
     c_train = dataset["train"]["c"]  # type: ignore
-    params_train = dataset["train"].remove_columns(["optimal_design", "c", "optimization_history"])  # type: ignore
+    params_train = dataset["train"].select_columns(tuple(dict(problem.conditions).keys()))  # type: ignore
 
     # Get design and conditions from the dataset, render design
     design, idx = problem.random_design()
@@ -263,7 +266,7 @@ if __name__ == "__main__":
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
     try:
-        c_ref = problem.simulate(design)[0]
+        c_ref = problem.simulate(design, config=config)[0]
         print(f"Calculated compliance: {c_ref:.4f}")
     except ArithmeticError:
         print("Failed to calculate compliance for upscaled design.")
