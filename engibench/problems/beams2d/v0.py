@@ -159,6 +159,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             dv = np.zeros(self.__p.nely * self.__p.nelx)
         else:
             design = image_to_design(design)
+            assert design is not None
             xPhys = x = deepcopy(design)
             ce = calc_sensitivity(design, p=self.__p)
             dc = (-self.__p.penal * design ** (self.__p.penal - 1) * (self.__p.Emax - self.__p.Emin)) * ce
