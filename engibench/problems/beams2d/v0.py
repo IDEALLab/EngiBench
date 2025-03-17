@@ -126,6 +126,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             self.__p.update(config)
             self.__p = setup(self.__p)
 
+        # This condition is needed to convert user-provided designs (images) to flat arrays. Normally does not apply, i.e., during optimization.
         if len(design.shape) > 1:
             design = image_to_design(design)
 
