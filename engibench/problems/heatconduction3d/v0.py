@@ -237,6 +237,7 @@ class HeatConduction3D(Problem[npt.NDArray, str]):
         Returns:
             Any: The rendered design.
         """
+        print("For better visualization, also consider dedicated software like ParaView.")
         if design is None:
             design = self.initialize_design()
 
