@@ -65,8 +65,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
     #### Fields
 
-    The dataset contains optimal design, conditions, and objectives.
-
+    The dataset contains optimal design, conditions, and final objective value (compliance). It also contains the objective value history over the optimization steps of each sample.
 
     #### Creation Method
     We created this dataset via uniform sampling across the following parameters: design space resolution (represented by nely), solid volume fraction (volfrac), minimum length scale (rmin), and fractional distance of the applied force between the top-left and top-right of the domain (forcedist). In this case, the top-left corresponds to the center of the full beam, since we only optimize and simulate over half of the beam.

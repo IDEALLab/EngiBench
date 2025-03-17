@@ -6,14 +6,14 @@ Beams 2D is a benchmark problem that aims to optimize a 2D MBB beam using the st
 
 ## Side notes
 
-Here is the script I've used to generate the dataset conditions. Please note that `max_iter = 100` and it is assumed that `nelx = 2*nely`. This yields a total of 7623 samples, or 2541 samples for each of the three image resolutions.
+Here is the script I've used to generate the dataset conditions. Please note that `max_iter = 100` and it is assumed that `nelx = 2*nely`. This yields a total of 14553 samples, or 4851 samples for each of the three image resolutions.
 
 ```python
 all_params = [
     np.array([25, 50, 100]),                        # nely (nelx = 2*nely)
     np.round(np.linspace(0.15, 0.4, 21), 4),        # volfrac
     np.round(np.linspace(1.5, 4.0, 11), 4),         # rmin
-    np.round(np.linspace(0, 0.5, 11), 4)            # forcedist
+    np.round(np.linspace(0, 1, 21), 4)              # forcedist
 ]
 
 params = np.array(np.meshgrid(*all_params)).T.reshape(-1, len(all_params))
