@@ -1,6 +1,5 @@
 """Finite Element Model Setup for Thermoelastic 2D Problem."""
 
-import time
 from typing import Any
 
 import numpy as np
@@ -77,7 +76,10 @@ def fe_mthm_bc(
             - freedofsth (np.ndarray): Array of free thermal degrees of freedom.
             - fp (np.ndarray): Force vector used for mechanical loading.
     """
-    time.time()
+    # Domain Weighting
+    # - 0.0 for pure thermal
+    # - 1.0 for pure structural
+    weight = bcs.get("weight", 0.5)
 
     # ---------------------------
     # THERMAL GOVERNING EQUATIONS
@@ -132,66 +134,91 @@ def fe_mthm_bc(
     dof_per_node = 2
     ndofsm = dof_per_node * (nelx + 1) * (nely + 1)
 
+    # Fixed degrees of freedom (dofs)
     fixeddofsm_x = np.array(bcs["fixed_elements"]) * 2
     fixeddofsm_y = np.array(bcs["fixed_elements"]) * 2 + 1
     fixeddofsm = np.concatenate((fixeddofsm_x, fixeddofsm_y))
     alldofsm = np.arange(ndofsm)
     freedofsm = np.setdiff1d(alldofsm, fixeddofsm)
 
-    km_row = []
-    km_col = []
-    km_data = []
-    feps = np.zeros(ndofsm)
-    um = np.zeros(ndofsm)
-    d_cthm_row = []
-    d_cthm_col = []
-    d_cthm_data = []
-    time.time()
+    # Number of elements
+    n_elements = nelx * nely
+    elx_idx, ely_idx = np.meshgrid(np.arange(nelx), np.arange(nely), indexing="ij")
+    elx_idx = elx_idx.ravel()
+    ely_idx = ely_idx.ravel()
 
-    for elx in range(nelx):
-        for ely in range(nely):
-            n1 = (nely + 1) * elx + ely
-            n2 = (nely + 1) * (elx + 1) + ely
+    # Compute the base node numbers for each element
+    n1 = (nely + 1) * elx_idx + ely_idx
+    n2 = (nely + 1) * (elx_idx + 1) + ely_idx
 
-            edof4 = np.array([n1 + 1, n2 + 1, n2, n1], dtype=int)
-            edof8 = np.array(
-                [2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1], dtype=int
-            )
+    # Construct element degree-of-freedom arrays:
+    edof4 = np.stack([n1 + 1, n2 + 1, n2, n1], axis=1)
+    edof8 = np.stack([2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1], axis=1)
 
-            penalized_x = x[ely, elx] ** penal
+    # Compute penalized element stiffness factors.
+    penalized = x[ely_idx, elx_idx] ** penal
 
-            dof_pairs = np.array(np.meshgrid(edof8, edof8)).T.reshape(-1, 2)
-            km_row.extend(dof_pairs[:, 0])
-            km_col.extend(dof_pairs[:, 1])
-            km_data.extend((penalized_x * ke).flatten())
+    # --- Assemble stiffness matrix contributions ---
+    km_block = penalized[:, None, None] * ke
+    km_row = np.repeat(edof8, 8, axis=1)
+    km_col = np.tile(edof8, 8)
+    km_data = km_block.reshape(n_elements, 64)
 
-            uthe = uth[edof4]
-            feps[edof8] += penalized_x * c_ethm @ (uthe - tref)
+    # Flatten arrays for sparse assembly
+    km_row = km_row.ravel()
+    km_col = km_col.ravel()
+    km_data = km_data.ravel()
 
-            dof_pairs_d_cthm = np.array(np.meshgrid(edof8, edof4)).T.reshape(-1, 2)
-            d_cthm_row.extend(dof_pairs_d_cthm[:, 0])
-            d_cthm_col.extend(dof_pairs_d_cthm[:, 1])
-            d_cthm_data.extend((penalized_x * c_ethm).flatten())
+    # --- Assemble d_cthm contributions ---
+    d_cthm_block = penalized[:, None, None] * c_ethm
+    d_cthm_row = np.repeat(edof8, 4, axis=1)
+    d_cthm_col = np.tile(edof4, 8)
+    d_cthm_data = d_cthm_block.reshape(n_elements, 32)
 
+    # Flatten arrays for sparse assembly
+    d_cthm_row = d_cthm_row.ravel()
+    d_cthm_col = d_cthm_col.ravel()
+    d_cthm_data = d_cthm_data.ravel()
+
+    # --- Assemble thermal force contributions ---
+    uthe = uth[edof4]  # shape: (n_elements, 4)
+    diff = uthe - tref  # shape: (n_elements, 4)
+    thermal = penalized[:, None] * (c_ethm @ diff.T).T  # shape: (n_elements, 8)
+
+    # Instead of looping to add contributions to feps, use np.bincount to accumulate.
+    feps = np.bincount(edof8.ravel(), weights=thermal.ravel(), minlength=ndofsm)
+
+    # --- Create sparse matrices ---
     km = coo_matrix((km_data, (km_row, km_col)), shape=(ndofsm, ndofsm))
     d_cthm = coo_matrix((d_cthm_data, (d_cthm_row, d_cthm_col)), shape=(ndofsm, nn))
 
+    # ---------------------------
     # DEFINE LOADS
+    # ---------------------------
     fp = np.zeros(ndofsm)
-
     if "force_elements_x" in bcs:
         load_elements_x = np.array(bcs["force_elements_x"]) * 2
         fp[load_elements_x] = 0.5
-
     if "force_elements_y" in bcs:
         load_elements_y = np.array(bcs["force_elements_y"]) * 2 + 1
         fp[load_elements_y] = 0.5
 
-    fm = fp + feps
+    # Total force vector includes thermal contributions
+    if weight == 0.0:  # pure thermal
+        fm = feps
+    elif weight == 1.0:  # pure structural
+        fm = fp
+    else:
+        fm = fp + feps
 
+    # Finalize the stiffness matrix by converting to CSR format and symmetrizing.
     km = km.tocsr()
     km = (km + km.T) / 2.0
 
+    # ---------------------------
+    # SOLVE THE SYSTEM
+    # ---------------------------
+    um = np.zeros(ndofsm)
     um[freedofsm] = spsolve(km[np.ix_(freedofsm, freedofsm)], fm[freedofsm])
     um[fixeddofsm] = 0
 

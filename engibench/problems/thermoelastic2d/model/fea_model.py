@@ -28,7 +28,7 @@ UPDATE_THRESHOLD = 0.01
 class FeaModel:
     """Finite Element Analysis (FEA) model for coupled 2D thermoelastic topology optimization."""
 
-    def __init__(self, plot: bool | None = False, eval_only: bool | None = False) -> None:
+    def __init__(self, plot: bool = False, eval_only: bool | None = False) -> None:
         """Instantiates a new model for the thermoelastic 2D problem.
 
         Args:
@@ -136,6 +136,10 @@ class FeaModel:
                 - 'vf' (float): Volume fraction error.
             If self.eval_only is True, returns a dictionary with keys 'sc', 'tc', and 'vf' only.
         """
+        # WEIGHTING
+        w1 = bcs.get("weight", 0.5)
+        w2 = 1.0 - w1
+
         nelx = bcs["nelx"]
         nely = bcs["nely"]
         volfrac = bcs["volfrac"]
@@ -229,13 +233,9 @@ class FeaModel:
 
             xval = x.reshape(n, 1)
             # DEFINE CONSTRAINTS
-            volconst = np.sum(x) / (volfrac * n) - 1
+            volconst = np.sum(x) / (volfrac * n) - 1  # shape ()
             fval = volconst  # Column vector of size (1xm)
-            dfdx = np.ones((1, n)) / (volfrac * n)
-
-            # WEIGHTING
-            w1 = bcs.get("weight", 0.5)
-            w2 = 1.0 - w1
+            dfdx = np.ones((1, n)) / (volfrac * n)  # shape (1, n)
 
             # CALCULATE SENSITIVITIES
             for elx in range(nelx):
@@ -260,7 +260,7 @@ class FeaModel:
 
                     df0dx_m[ely, elx] = -x_p_minus1 * ume.T @ ke @ ume
                     df0dx_t[ely, elx] = lamthe.T @ (x_p_minus1 * k_eth @ uthe)
-                    df0dx_mat[ely, elx] = (df0dx_m[ely, elx] * w1) + (df0dx_t[ely, elx] * w2)
+                    df0dx_mat[ely, elx] = (df0dx_m[ely, elx] * w1) + (df0dx_t[ely, elx] * w2)  # Weighted sensitivity
 
             f0val = (f0valm * w1) + (f0valt * w2)
 
@@ -278,7 +278,7 @@ class FeaModel:
                 opti_steps.append(opti_step)
 
             df0dx = df0dx_mat.reshape(nely * nelx, 1)
-            df0dx = (h @ (xval * df0dx)) / hs[:, None] / np.maximum(1e-3, xval)
+            df0dx = (h @ (xval * df0dx)) / hs[:, None] / np.maximum(1e-3, xval)  # Filtered sensitivity
 
             t_sensitivity_calc = time.time() - curr_time
             curr_time = time.time()
@@ -296,7 +296,7 @@ class FeaModel:
                 xold1=xold1,
                 xold2=xold2,
                 df0dx=df0dx[:, 0],  # selecting appropriate column
-                fval=fval,
+                fval=fval,  # Constraint values
                 dfdx=dfdx,
                 low=low_vec,
                 upp=upp_vec,
@@ -304,9 +304,9 @@ class FeaModel:
                 a=a[0],
                 c=c[0],
                 d=d[0],
+                f0val=f0val,
             )
             xmma = mmasub(mmainputs)
-
             t_mma = time.time() - curr_time
 
             # Store previous density fields
