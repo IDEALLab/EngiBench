@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from copy import deepcopy
 import dataclasses
-import sys
 from typing import Any
 
 from gymnasium import spaces
@@ -22,8 +21,8 @@ from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import image_to_design
 from engibench.problems.beams2d.backend import inner_opt
 from engibench.problems.beams2d.backend import overhang_filter
-from engibench.problems.beams2d.backend import Params
 from engibench.problems.beams2d.backend import setup
+from engibench.problems.beams2d.backend import State
 
 
 @dataclasses.dataclass
@@ -94,15 +93,18 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
     _dataset = None
     container_id = None  # type: ignore
 
-    def __init__(self, resolution: tuple[int, int] = (50, 100)):
+    def __init__(self, config: dict[str, Any] = {}):
         """Initializes the Beams2D problem.
 
         Args:
-            resolution (tuple of [int, int]): The image resolution represented by (nely, nelx).
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
         """
         super().__init__()
-        self.__p = Params()
-        self.resolution = resolution
+
+        # Replace the conditions with any new configs passed in
+        self.conditions = frozenset((key, config.get(key, value)) for key, value in self.conditions)
+        self.__st = State()
+        self.resolution = (dict(self.conditions)["nely"], dict(self.conditions)["nelx"])
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=self.resolution, dtype=np.float64)
         self.dataset_id = f"IDEALLab/beams_2d_{self.resolution[0]}_{self.resolution[1]}_v0"
 
@@ -130,13 +132,13 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
         # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
         # If setup has run, skips the process for repeated simulations during optimization.
-        if self.__p.ndof == 0:
-            self.__p = setup(base_config)
+        if self.__st.ndof == 0:
+            self.__st = setup(base_config)
 
         if ce is None:
-            ce = calc_sensitivity(design, p=self.__p, cfg=base_config)
+            ce = calc_sensitivity(design, st=self.__st, cfg=base_config)
         c = (
-            (self.__p.Emin + design ** base_config["penal"] * (self.__p.Emax - self.__p.Emin)) * ce
+            (self.__st.Emin + design ** base_config["penal"] * (self.__st.Emax - self.__st.Emin)) * ce
         ).sum()  # compliance (objective)
         return np.array([c])
 
@@ -157,7 +159,7 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
         base_config.update(self.conditions)
         base_config.update(config)
-        self.__p = setup(base_config)
+        self.__st = setup(base_config)
 
         # Returns the full history of the optimization instead of just the last step
         optisteps_history = []
@@ -170,15 +172,15 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             design = image_to_design(design)
             assert design is not None
             xPhys = x = deepcopy(design)
-            ce = calc_sensitivity(design, p=self.__p, cfg=base_config)
-            dc = (-base_config["penal"] * design ** (base_config["penal"] - 1) * (self.__p.Emax - self.__p.Emin)) * ce
+            ce = calc_sensitivity(design, st=self.__st, cfg=base_config)
+            dc = (-base_config["penal"] * design ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config["nely"] * base_config["nelx"])
 
         xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
         loop, change = (0, 1)
 
-        while change > self.__p.min_change and loop < base_config["max_iter"]:
-            ce = calc_sensitivity(xPrint, p=self.__p, cfg=base_config)
+        while change > self.__st.min_change and loop < base_config["max_iter"]:
+            ce = calc_sensitivity(xPrint, st=self.__st, cfg=base_config)
             c = self.simulate(xPrint, ce=ce, config=base_config)
 
             # Record the current state in optisteps_history
@@ -188,14 +190,14 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
             loop = loop + 1
 
-            dc = (-base_config["penal"] * xPrint ** (base_config["penal"] - 1) * (self.__p.Emax - self.__p.Emin)) * ce
+            dc = (-base_config["penal"] * xPrint ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config["nely"] * base_config["nelx"])
             xPrint, dc, dv = overhang_filter(xPhys, base_config, dc, dv)  # MATLAB implementation
 
-            dc = np.asarray(self.__p.H * (dc[np.newaxis].T / self.__p.Hs))[:, 0]
-            dv = np.asarray(self.__p.H * (dv[np.newaxis].T / self.__p.Hs))[:, 0]
+            dc = np.asarray(self.__st.H * (dc[np.newaxis].T / self.__st.Hs))[:, 0]
+            dv = np.asarray(self.__st.H * (dv[np.newaxis].T / self.__st.Hs))[:, 0]
 
-            xnew, xPhys, xPrint = inner_opt(x, self.__p, dc, dv, base_config)
+            xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, base_config)
 
             # Compute the change by the inf. norm
             change = np.linalg.norm(
@@ -249,11 +251,18 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
 
 if __name__ == "__main__":
-    (nely, nelx) = (50, 100) if len(sys.argv) == 1 else (int(sys.argv[1]), int(sys.argv[2]))
-    problem = Beams2D(resolution=(nely, nelx))
+    # Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
+    # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
+    # If a new nely and nelx are not passed in, self.resolution uses the default conditions.
+    new_cfg = {
+        "nely": 25,
+        "nelx": 50,
+    }
+
+    problem = Beams2D(new_cfg)
     problem.reset(seed=0)
 
-    print(f"Loading dataset for nely={nely}, nelx={nelx}.")
+    print(f"Loading dataset for nely={problem.resolution[0]}, nelx={problem.resolution[1]}.")
     dataset = problem.dataset
 
     # Example of getting the training set
@@ -262,6 +271,7 @@ if __name__ == "__main__":
     params_train = dataset["train"].select_columns(tuple(dict(problem.conditions).keys()))  # type: ignore
 
     # Get design and conditions from the dataset, render design
+    # Note that here, we override any previous configs to re-optimize the same design as a test case.
     design, idx = problem.random_design()
     config = params_train[idx]
     compliance = c_train[idx]

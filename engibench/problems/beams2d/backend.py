@@ -20,8 +20,8 @@ from scipy.sparse import csc_array
 
 
 @dataclasses.dataclass
-class Params:
-    """A structured representation of configuration parameters for a numerical computation.
+class State:
+    """A structured representation of scalars and matrices for optimization and simulation.
 
     Attributes:
         Emin: (float) Minimum possible stiffness (1e-9 by default).
@@ -63,18 +63,18 @@ class Params:
     KE: np.ndarray = dataclasses.field(default_factory=lambda: np.array(lk()))
 
     def get(self, keys: list[str]) -> dict[str, Any]:
-        """Retrieve a subset of parameter values based on a list of keys.
+        """Retrieve a subset of state values based on a list of keys.
 
         Args:
-            keys (List[str]): List of parameter names to retrieve.
+            keys (List[str]): List of state names to retrieve.
 
         Returns:
-            Dict[str, Any]: Dictionary of requested parameter names and values.
+            Dict[str, Any]: Dictionary of requested state names and values.
         """
         return {key: getattr(self, key) for key in keys if hasattr(self, key)}
 
     def update(self, updates: dict[str, Any]) -> None:
-        """Update multiple parameter values efficiently.
+        """Update multiple state values efficiently.
 
         Args:
             updates (Dict[str, Any]): Dictionary of key-value pairs to update.
@@ -87,7 +87,7 @@ class Params:
         """Convert the dataclass to a dictionary representation.
 
         Returns:
-            Dict[str, Any]: Dictionary containing all parameters.
+            Dict[str, Any]: Dictionary containing all state values.
         """
         return dataclasses.asdict(self)
 
@@ -157,49 +157,49 @@ def lk() -> npt.NDArray:
     return KE
 
 
-def calc_sensitivity(design: npt.NDArray, p: Params, cfg: dict[str, Any] = {}) -> npt.NDArray:
-    """Simulates the performance of a beam design. Assumes the Params object is already set up.
+def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -> npt.NDArray:
+    """Simulates the performance of a beam design. Assumes the State object is already set up.
 
     Args:
         design (np.ndarray): The design to simulate.
-        p: Params object with needed vectors/matrices for the simulation.
+        st: State object with needed vectors/matrices for the simulation.
         cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the simulation.
 
     Returns:
         npt.NDArray: The sensitivity of the current design.
     """
-    sK = ((p.KE.flatten()[np.newaxis]).T * (p.Emin + design ** cfg["penal"] * (p.Emax - p.Emin))).flatten(order="F")
-    K = coo_matrix((sK, (p.iK, p.jK)), shape=(p.ndof, p.ndof)).tocsc()
+    sK = ((st.KE.flatten()[np.newaxis]).T * (st.Emin + design ** cfg["penal"] * (st.Emax - st.Emin))).flatten(order="F")
+    K = coo_matrix((sK, (st.iK, st.jK)), shape=(st.ndof, st.ndof)).tocsc()
     m = K.shape[0]
-    keep = np.delete(np.arange(0, m), p.fixed)
+    keep = np.delete(np.arange(0, m), st.fixed)
     K = K[keep, :]
-    keep = np.delete(np.arange(0, m), p.fixed)
+    keep = np.delete(np.arange(0, m), st.fixed)
     K = K[:, keep].tocoo()
     # Solve system
     K = cvxopt.spmatrix(K.data, K.row.astype(int), K.col.astype(int))
-    B = cvxopt.matrix(p.f[p.free, 0])
+    B = cvxopt.matrix(st.f[st.free, 0])
     cvxopt.cholmod.linsolve(K, B)
-    p.u[p.free, 0] = np.array(B)[:, 0]
+    st.u[st.free, 0] = np.array(B)[:, 0]
 
     ############################################################################################################
     # Sensitivity
     ce = (
-        np.dot(p.u[p.edofMat].reshape(cfg["nelx"] * cfg["nely"], 8), p.KE)
-        * p.u[p.edofMat].reshape(cfg["nelx"] * cfg["nely"], 8)
+        np.dot(st.u[st.edofMat].reshape(cfg["nelx"] * cfg["nely"], 8), st.KE)
+        * st.u[st.edofMat].reshape(cfg["nelx"] * cfg["nely"], 8)
     ).sum(1)
     return np.array(ce)
 
 
-def setup(cfg: dict[str, Any] = {}) -> Params:
-    r"""Set up the matrices and parameters for optimization or simulation.
+def setup(cfg: dict[str, Any] = {}) -> State:
+    r"""Set up the scalars and matrices for optimization or simulation.
 
     Args:
         cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization or simulation.
 
     Returns:
-        Params object with the relevant matrices and other parameters used in optimization and simulation.
+        State object with the relevant scalars and matrices used in optimization and simulation.
     """
-    p = Params()
+    st = State()
 
     ndof = 2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1)
     edofMat = np.zeros((cfg["nelx"] * cfg["nely"], 8), dtype=int)
@@ -250,7 +250,7 @@ def setup(cfg: dict[str, Any] = {}) -> Params:
     # Set load at the specified fractional distance (p.forcedist) from the top-left (default) to the top-right corner.
     f[int(1 + (2 * cfg["forcedist"] * cfg["nelx"]) * (cfg["nely"] + 1)), 0] = -1
 
-    p.update(
+    st.update(
         {
             "ndof": ndof,
             "edofMat": edofMat,
@@ -266,17 +266,17 @@ def setup(cfg: dict[str, Any] = {}) -> Params:
         }
     )
 
-    return p
+    return st
 
 
 def inner_opt(
-    x: npt.NDArray, p: Params, dc: npt.NDArray, dv: npt.NDArray, cfg: dict[str, Any] = {}
+    x: npt.NDArray, st: State, dc: npt.NDArray, dv: npt.NDArray, cfg: dict[str, Any] = {}
 ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
     Args:
         x: (npt.NDArray) The current density field during optimization.
-        p: Params object with needed vectors/matrices for the optimization.
+        st: State object with needed vectors/matrices for the optimization.
         dc: (npt.NDArray) The sensitivity field wrt. compliance.
         dv: (npt.NDArray) The sensitivity field wrt. volume fraction.
         cfg (dict): A dictionary with configurations (e.g., boundary conditions) for the optimization.
@@ -292,7 +292,7 @@ def inner_opt(
     # reshape to perform vector operations
     xnew = np.zeros(cfg["nelx"] * cfg["nely"])
 
-    while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > p.min_ratio:
+    while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > st.min_ratio:
         lmid = 0.5 * (l2 + l1)
         if lmid > 0:
             xnew = np.maximum(
@@ -302,7 +302,7 @@ def inner_opt(
             xnew = np.maximum(0.0, np.maximum(x - move, np.minimum(1.0, x + move)))
 
         # Filter design variables
-        xPhys = np.asarray(p.H * xnew[np.newaxis].T / p.Hs)[:, 0]
+        xPhys = np.asarray(st.H * xnew[np.newaxis].T / st.Hs)[:, 0]
         xPrint, _, _ = overhang_filter(xPhys, cfg)
 
         if xPrint.sum() > cfg["volfrac"] * cfg["nelx"] * cfg["nely"]:
