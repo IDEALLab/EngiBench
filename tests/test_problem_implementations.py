@@ -18,6 +18,7 @@ PYTHON_PROBLEMS = [p for p in BUILTIN_PROBLEMS.values() if p.container_id is Non
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
 def test_problem_impl(problem_class: type[Problem]) -> None:
     """Check that all builtin problems define all required class attributes and methods."""
+    print(f"Testing {problem_class.__name__}...")
     # Check generic parameters of Problem[]:
     (base,) = getattr(problem_class, "__orig_bases__", (None,))
     assert (
@@ -90,6 +91,7 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     2. The optimization produces valid designs within the design space
     3. The optimization history contains valid objective values
     """
+    print(f"Testing optimization and simulation for {problem_class.__name__}...")
     # Initialize problem and get a random design
     problem = problem_class()
     problem.reset(seed=0)
