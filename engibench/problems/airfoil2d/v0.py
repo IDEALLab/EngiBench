@@ -129,9 +129,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
             cleanup (bool): Deletes the previous study directory if True.
         """
-        # docker pull image if not already pulled
-        if container.RUNTIME is not None:
-            container.pull(self.container_id)
         if cleanup:
             shutil.rmtree(self.__local_study_dir)
 
@@ -375,6 +372,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
+        # docker pull image if not already pulled
+        if container.RUNTIME is not None:
+            container.pull(self.container_id)
         # pre-process the design and run the simulation
         self.__design_to_simulator_input(design)
 
@@ -426,6 +426,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
+        # docker pull image if not already pulled
+        if container.RUNTIME is not None:
+            container.pull(self.container_id)
         # pre-process the design and run the simulation
         filename = "candidate_design"
         self.__design_to_simulator_input(starting_point, filename)
