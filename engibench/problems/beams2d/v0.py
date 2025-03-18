@@ -142,11 +142,13 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         ).sum()  # compliance (objective)
         return np.array([c])
 
-    def optimize(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> tuple[np.ndarray, list[OptiStep]]:
+    def optimize(
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
+    ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
         Args:
-            design (npt.NDArray or None): The design to begin warm-start optimization from (optional).
+            starting_point (npt.NDArray or None): The design to begin warm-start optimization from (optional).
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the optimization.
 
         Returns:
@@ -164,16 +166,18 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         # Returns the full history of the optimization instead of just the last step
         optisteps_history = []
 
-        if design is None:
+        if starting_point is None:
             xPhys = x = base_config["volfrac"] * np.ones(base_config["nely"] * base_config["nelx"], dtype=float)
             dc = np.zeros(base_config["nely"] * base_config["nelx"])
             dv = np.zeros(base_config["nely"] * base_config["nelx"])
         else:
-            design = image_to_design(design)
-            assert design is not None
-            xPhys = x = deepcopy(design)
-            ce = calc_sensitivity(design, st=self.__st, cfg=base_config)
-            dc = (-base_config["penal"] * design ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)) * ce
+            starting_point = image_to_design(starting_point)
+            assert starting_point is not None
+            xPhys = x = deepcopy(starting_point)
+            ce = calc_sensitivity(starting_point, st=self.__st, cfg=base_config)
+            dc = (
+                -base_config["penal"] * starting_point ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)
+            ) * ce
             dv = np.ones(base_config["nely"] * base_config["nelx"])
 
         xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
@@ -289,7 +293,7 @@ if __name__ == "__main__":
     print("\nNow conducting a sample optimization with the given configs:", config)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize(config=config)
+    optimal_design, optisteps_history = problem.optimize(starting_point=design)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 

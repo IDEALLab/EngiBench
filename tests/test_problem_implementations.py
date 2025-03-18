@@ -95,19 +95,21 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Testing optimization and simulation for {problem_class.__name__}...")
     # Initialize problem and get a random design
     problem = problem_class()
-    problem.reset(seed=0)
+    problem.reset(seed=1)
     design, _ = problem.random_design()
 
     # Test simulation outputs
+    print(f"Simulating {problem_class.__name__}...")
     objs = problem.simulate(design)
     expected_obj_count = len(problem.objectives)
     assert objs.shape[0] == expected_obj_count, (
         f"Problem {problem_class.__name__}: Simulation returned {objs.shape[0]} objectives "
         f"but expected {expected_obj_count}"
     )
-
+    print(f"Done simulating {problem_class.__name__}.")
     # Test optimization outputs
-    optimal_design, history = problem.optimize(design)
+    print(f"Optimizing {problem_class.__name__}...")
+    optimal_design, history = problem.optimize(starting_point=design)
     assert np.all(
         optimal_design >= problem.design_space.low
     ), f"Problem {problem_class.__name__}: The optimal design should be within the design space."
