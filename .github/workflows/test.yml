@@ -26,4 +26,4 @@ jobs:
         uv pip install --system -e .[all]
     - name: Full Python tests
       run: |
-        pytest
+        pytest -s
