@@ -80,6 +80,7 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     assert (
         "optimal_design" in dataset["train"].column_names
     ), f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
+    print(f"Done testing {problem_class.__name__}.")
 
 
 @pytest.mark.parametrize("problem_class", PYTHON_PROBLEMS)
@@ -129,3 +130,4 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
             f"Problem {problem_class.__name__}: Step {step_num} has {len(optistep.obj_values)} objectives "
             f"but expected {expected_obj_count}"
         )
+    print(f"Done testing {problem_class.__name__}.")
