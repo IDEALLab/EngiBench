@@ -36,6 +36,7 @@ if __name__ == "__main__":
     T = $temperature
 
     comm = MPI.COMM_WORLD
+    print(f"Processor {comm.rank} of {comm.size} is running")
     if not os.path.exists(output_dir):
         if comm.rank == 0:
             os.mkdir(output_dir)

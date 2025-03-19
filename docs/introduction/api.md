@@ -1,11 +1,26 @@
 # API
 
+```{toctree}
+:hidden:
+:glob:
+
+./api/utils/index
+```
+
 The main class defining a problem is `engibench.core.Problem`. It is defined as follows
 ```{eval-rst}
 .. autoclass:: engibench.core.Problem
 ```
 
 
+ ## Dataset
+The dataset is a HuggingFace `Dataset` object that defines the dataset of the problem. This is typically useful to train ML models for inverse design or surrogate modeling.
+
+A dataset is generally composed of several columns:
+- `optimal_design`: The optimal design of the problem.
+- All columns listed in `problem.objectives`: The objectives of the problem.
+- All columns listed in `problem.conditions`: The conditions of the problem.
+- Additional columns which can be useful for advanced usage.
 
 ## Methods
 ```{eval-rst}
@@ -23,23 +38,23 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 
 ## Attributes
 ```{eval-rst}
-.. autoattribute:: engibench.core.Problem.possible_objectives
+.. autoattribute:: engibench.core.Problem.objectives
 
-    This attribute is a list of possible objectives that can be optimized. The objectives are defined as tuples where the first member is the objective name, and the second member is 'maximize' or 'minimize'.
+    This attribute is a list of objectives that can be optimized. The objectives are defined as tuples where the first member is the objective name, and the second member is 'maximize' or 'minimize'.
 
     .. code::
 
         >>> problem.possible_objectives
-        frozenset({('lift', 'maximize'), ('drag', 'minimize')})
+        frozenset({('cl_val', ObjectiveDirection.MAXIMIZE), ('cd_val', ObjectiveDirection.MINIMIZE)})
 
-.. autoattribute:: engibench.core.Problem.boundary_conditions
+.. autoattribute:: engibench.core.Problem.conditions
 
-    This attribute list the boundary conditions of the problem. The boundary conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value.
+    This attribute list the conditions of the problem. The conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value.
 
     .. code::
 
         >>> problem.boundary_conditions
-        frozenset({('marchDist', 100.0), ('s0', 3e-06)})
+        frozenset({('marchDist', 100.0), ('s0', 3e-06)}) # TODO update this
 
 .. autoattribute:: engibench.core.Problem.design_space
 
@@ -79,8 +94,4 @@ The main class defining a problem is `engibench.core.Problem`. It is defined as 
 
         >>> problem.dataset_id
         'mdolab/public:u22-gcc-ompi-stable'
-
-.. autoattribute:: engibench.core.Problem.input_space
-
-    This is an internal attribute that defines the input space of the simulator -- we use str for simulators relying on files. Users should not use this attribute.
 ```
