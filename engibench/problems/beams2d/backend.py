@@ -293,7 +293,6 @@ def inner_opt(
     xnew = np.zeros(cfg["nelx"] * cfg["nely"])
 
     while l1 + l2 > 0 and (l2 - l1) / (l1 + l2) > st.min_ratio:
-        print(f"l1: {l1}, l2: {l2}, min_ratio: {st.min_ratio}")
         lmid = 0.5 * (l2 + l1)
         if lmid > 0:
             xnew = np.maximum(
@@ -310,6 +309,10 @@ def inner_opt(
             l1 = lmid
         else:
             l2 = lmid
+
+        # Ensures this loop does not become stuck due to abs(l2 - l1) converging to near 0
+        if abs(l2 - l1) < np.finfo(float).eps:
+            break
 
     return (xnew, xPhys, xPrint)
 

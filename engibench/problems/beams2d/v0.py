@@ -184,10 +184,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         loop, change = (0, 1)
 
         while change > self.__st.min_change and loop < base_config["max_iter"]:
-            print(f"Iteration {loop} of {base_config['max_iter']}")
             ce = calc_sensitivity(xPrint, st=self.__st, cfg=base_config)
             c = self.simulate(xPrint, ce=ce, config=base_config)
-            print(f"Compliance: {c[0]:.4f}")
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array(c), step=loop)
@@ -199,20 +197,17 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
             dc = (-base_config["penal"] * xPrint ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config["nely"] * base_config["nelx"])
             xPrint, dc, dv = overhang_filter(xPhys, base_config, dc, dv)  # MATLAB implementation
-            print(f"xPrint: {xPrint.shape}")
 
             dc = np.asarray(self.__st.H * (dc[np.newaxis].T / self.__st.Hs))[:, 0]
             dv = np.asarray(self.__st.H * (dv[np.newaxis].T / self.__st.Hs))[:, 0]
 
             xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, base_config)
-            print(f"xnew: {xnew.shape}")
             # Compute the change by the inf. norm
             change = np.linalg.norm(
                 xnew.reshape(base_config["nelx"] * base_config["nely"], 1)
                 - x.reshape(base_config["nelx"] * base_config["nely"], 1),
                 np.inf,
             )
-            print(f"change: {change}")
             x = deepcopy(xnew)
 
         return design_to_image(xPrint, base_config["nelx"], base_config["nely"]), optisteps_history
@@ -297,7 +292,7 @@ if __name__ == "__main__":
     print("\nNow conducting a sample optimization with the given configs:", config)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize(starting_point=design)
+    optimal_design, optisteps_history = problem.optimize(config=config)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 
