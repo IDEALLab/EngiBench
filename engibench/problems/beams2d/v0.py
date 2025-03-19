@@ -184,31 +184,35 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         loop, change = (0, 1)
 
         while change > self.__st.min_change and loop < base_config["max_iter"]:
+            print(f"Iteration {loop} of {base_config['max_iter']}")
             ce = calc_sensitivity(xPrint, st=self.__st, cfg=base_config)
             c = self.simulate(xPrint, ce=ce, config=base_config)
+            print(f"Compliance: {c[0]:.4f}")
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array(c), step=loop)
             current_step.design = np.array(xPrint)
             optisteps_history.append(current_step)
 
-            loop = loop + 1
+            loop += 1
 
             dc = (-base_config["penal"] * xPrint ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config["nely"] * base_config["nelx"])
             xPrint, dc, dv = overhang_filter(xPhys, base_config, dc, dv)  # MATLAB implementation
+            print(f"xPrint: {xPrint.shape}")
 
             dc = np.asarray(self.__st.H * (dc[np.newaxis].T / self.__st.Hs))[:, 0]
             dv = np.asarray(self.__st.H * (dv[np.newaxis].T / self.__st.Hs))[:, 0]
 
             xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, base_config)
-
+            print(f"xnew: {xnew.shape}")
             # Compute the change by the inf. norm
             change = np.linalg.norm(
                 xnew.reshape(base_config["nelx"] * base_config["nely"], 1)
                 - x.reshape(base_config["nelx"] * base_config["nely"], 1),
                 np.inf,
             )
+            print(f"change: {change}")
             x = deepcopy(xnew)
 
         return design_to_image(xPrint, base_config["nelx"], base_config["nely"]), optisteps_history
