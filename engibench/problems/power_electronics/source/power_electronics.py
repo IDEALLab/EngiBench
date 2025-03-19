@@ -64,10 +64,10 @@ class PowerElectronics(Problem):
         super().__init__()
 
         source_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of source/
-        print(source_dir)
+        print("init: source_dir =", source_dir)
 
         self.ngSpice64 = os.path.normpath(os.path.join(source_dir, "../ngSpice64/bin/ngspice.exe"))
-        print(self.ngSpice64)
+        print("init: ngSpice64 dir =", self.ngSpice64)
 
         self.netlist_dir = os.path.normpath(os.path.join(source_dir, "../data/netlist"))
         if not os.path.exists(self.netlist_dir):
@@ -370,7 +370,7 @@ class PowerElectronics(Problem):
                     self.rewrite_netlist_path,
                 ]  # interactive mode with control section
             print(f"Running command: {cmd}")
-            # subprocess.run(cmd, check=True, timeout=30)
+            subprocess.run(cmd, check=True, timeout=30)
 
             for i in range(self.cmp_cnt["C"]):
                 # Assuming dissipiation factor = 5 at 200Khz freq;  ESR = Disspiation_factor/ 2*pi*f*C
@@ -446,7 +446,7 @@ class PowerElectronics(Problem):
                         VoltageRipple = float(parts[2])
         return DcGain, VoltageRipple  # type: ignore
 
-    def simulate(self, design_variable: dict[str, float]) -> np.ndarray:
+    def simulate(self, design_variable: dict[str, list]) -> np.ndarray:
         """Simulates the performance of a Power Electronics design.
 
         Args:
@@ -470,12 +470,17 @@ class PowerElectronics(Problem):
 
 
 if __name__ == "__main__":
+    # Create an empty problem
+    problem = build()
+
+    # Load the netlist and set the bucket_id
     original_netlist_path = (
         os.path.dirname(os.path.abspath(__file__)) + "/../data/netlist/5_4_3_6_10-dcdc_converter_1.net"
     )  # sweep 141
     bucket_id = "5_4_3_6_10"
-    problem = PowerElectronics(original_netlist_path, bucket_id)
+    problem.load_netlist(original_netlist_path, bucket_id)
 
+    # Manually add the sweep data
     sweep_data = {
         "C_val": [0.000015485, 0.00001948, 0.000015185, 0.000002442, 0.000009287, 0.000015377],
         "L_val": [0.000354659, 0.000706596, 0.000195361],
@@ -484,5 +489,7 @@ if __name__ == "__main__":
         "L1_val": [1, 1, 0, 0, 1],
         "L2_val": [1, 1, 1, 0, 0],
     }
+
+    # Simulate the problem with the provided design variable
     problem.simulate(design_variable=sweep_data)
-    print(problem.simulation_results)
+    print(problem.simulation_results)  # [-1.27858   -0.025081   0.7827396]
