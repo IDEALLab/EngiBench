@@ -27,13 +27,15 @@ dependencies = [
     "gymnasium >= 1.0.0",
     "datasets[vision] == 3.1.0", # imports modules with image features
     "pandas >= 2.2.3",
+    "pandas == 2.2.3",
+    "networkx == 3.4.2",
     "matplotlib >= 3.9.3",
 ]
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
 airfoil2d = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
-electronics = ["networkx==3.4.2"]
+electronics = ["networkx == 3.4.2"]
 beams2d = ["cvxopt == 1.3.2", "seaborn"]
 all = [
     # All dependencies above

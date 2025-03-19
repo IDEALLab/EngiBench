@@ -1,29 +1,35 @@
 # Title
 
 ## Problem Statement
-no best solution
+
+### Design Variables
+Insert the wave plot of PWL switch and pulse switch.
+[[Youtube] LTSpice Pulse Voltage Parameters](https://www.youtube.com/watch?v=5sYnePkanfU)
+
+- `GS#_Ts`: The time of a specific point in a PWL voltage source. In our case, it is equivalent to `Tperiod` (LTSpice syntax).
+  It is set to the **constant** `GS#_Ts` = 5e-6. So we do not count it as a design variable.
+- `GS#_T1`: The time of a specific point in a PWL voltage source. In our case, this is the "off" time and equals (`Tdelay` + `Trise`).
+  All switches share the same `T1`, meaning that all switches will switch their on/off states (including on to on and off to off) at the same time.
+- `GS#_T2`: The time of a specific point in a PWL voltage source. In our case, `GS#_T2` = `GS#_T1` = 5e-6. So we do not count it as a design variable.
+- `GS#_L1` and `GS#_L2`: Binary. Each switch has a pair of {`GS#_L1`, `GS#_L2`}, which means the on/off pattern of the switch. For example, {`GS3_L1`=1, `GS#_L2`=0} means switch 3 first turns on for (approximately) `GS3_T1` seconds, then turns off for (approximately) (`GS_Ts` - `GS_T1`) seconds.
+
+In summary, the dimension of the design variable is `n_C + n_L + 1 (for T1) + 2 * n_S`.
 
 ## Dataset
-The dataset consists of input (netlist files) and output (DcGain, Voltage Ripple and Efficiency) of the ngSpice simulator. There is no ``optimal'' solutions of the circuit parameters provided. 
-
-Since all the circuits in the same problem share the same circuit topology, we provide 2 forms of input:
-
-1. Circuit parameters only. For exapmle, each circuit parameter of topology 0 is a __ dimensinal np.ndarray.
-2. Networkx objects. Node labels TODO.
-
-The direct input netlist files are stored in the folder data/netlist/, with the name of TODO. You can pick any one of them to test the installation of ngSpice.
-
-In correspondence to the input, the output also has 2 forms:
-1. np.ndarray. [DcGain, VoltageRipple, Efficiency]
-2. Networkx objects. Graph attribute.
+Since all the circuits in the same problem share the same circuit topology,
 
 ## Installation of ngSpice
 ### 1. Windows
-Directly use the provided ngSpice64/ folder. Remember to keep the .log files and the /lib folder in .gitignore.
+Directly use the provided `ngSpice64/` folder.
+
+Remember to keep the `.log` files and the `/lib` folder in `.gitignore`.
 
 ### 2. Ubuntu
+``` bash
 sudo apt update
 sudo apt install ngspice
+```
 
 Available in Ubuntu 20, 22 and 24. Not sure about earlier versions of Ubuntu.
-``pip install`` won't work.
+
+Note: ``pip install`` won't work.
