@@ -200,6 +200,8 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
             dc = np.asarray(self.__st.H * (dc[np.newaxis].T / self.__st.Hs))[:, 0]
             dv = np.asarray(self.__st.H * (dv[np.newaxis].T / self.__st.Hs))[:, 0]
+            # Ensure dc remains nonpositive
+            dc = np.clip(dc, None, 0.0)
 
             xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, base_config)
             # Compute the change by the inf. norm
