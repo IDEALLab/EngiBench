@@ -19,7 +19,7 @@ from engibench.core import Problem
 from engibench.utils import container
 
 
-class HeatConduction2D(Problem[npt.NDArray, str]):
+class HeatConduction2D(Problem[str, npt.NDArray]):
     r"""HeatConduction 2D topology optimization problem.
 
     ## Problem Description
@@ -68,7 +68,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
             ("length", 0.5),
         }
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
     _dataset = None
@@ -91,7 +91,7 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
                 ("length", self.length),
             }
         )
-        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float32)
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float64)
 
     def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulate the design.
@@ -222,8 +222,8 @@ class HeatConduction2D(Problem[npt.NDArray, str]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = np.random.randint(low=0, high=len(self.dataset["train"]["Optimal_Design"]), dtype=int)  # type: ignore
-        return np.array(self.dataset["train"]["Optimal_Design"][rnd]), rnd  # type: ignore
+        rnd = np.random.randint(low=0, high=len(self.dataset["train"]["optimal_design"]), dtype=int)  # type: ignore
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
 
     def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
@@ -255,7 +255,7 @@ if __name__ == "__main__":
     # Create a HeatConduction2D problem instance
     problem = HeatConduction2D()
     problem.reset(seed=0)
-    design_as_list = problem.dataset["train"]["Optimal_Design"][0]
+    design_as_list = problem.dataset["train"]["optimal_design"][0]
     design_as_array = np.array(design_as_list)
     des, traj = problem.optimize(starting_point=design_as_array)
     problem.render(design=des, open_window=True)

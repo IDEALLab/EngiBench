@@ -44,8 +44,8 @@ class Airfoil2D(Problem[str, npt.NDArray]):
     - `alpha`: Angle of attack in degrees.
     - `mach`: Mach number.
     - `reynolds`: Reynolds number.
-    - `altitude`: Altitude in meters.
-    - `temperature`: Temperature in Kelvin.
+    - `altitude`: Altitude in meters. # TODO this is not in the dataset
+    - `temperature`: Temperature in Kelvin. # TODO this is not in the dataset
     - `cl_target`: Target lift coefficient (constraint).
 
     ## Simulator
@@ -86,11 +86,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             ("alpha", 1.5),
             ("mach", 0.8),
             ("reynolds", 1e6),
-            ("altitude", 10000),
-            (
-                "temperature",
-                223.150,
-            ),  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            # ("altitude", 10000), # noqa: ERA001
+            # ("temperature", 223.150),  # noqa: ERA001
+            # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
             ("cl_target", 0.5),
         }
     )
@@ -105,10 +103,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         Args:
             base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
         """
-        super().__init__()
-        self.seed = None
-
-        self.current_study = f"study_{self.seed}"
         # This is used for intermediate files
         # Local file are prefixed with self.local_base_directory
         if base_directory is not None:
@@ -120,13 +114,13 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             os.path.dirname(os.path.abspath(__file__)) + "/templates"
         )  # These templates are shipped with the lib
         self.__local_scripts_dir = os.path.dirname(os.path.abspath(__file__)) + "/scripts"
-        self.__local_study_dir = self.__local_target_dir + "/" + self.current_study
 
         # Docker target directory
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
-        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
+
+        super().__init__()
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
         """Resets the simulator and numpy random to a given seed.
@@ -135,8 +129,6 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
             cleanup (bool): Deletes the previous study directory if True.
         """
-        # docker pull image if not already pulled
-        container.pull(self.container_id)
         if cleanup:
             shutil.rmtree(self.__local_study_dir)
 
@@ -177,7 +169,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "N_grid": 100,
         }
         # Adds the boundary conditions to the configuration
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
@@ -380,6 +372,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
+        # docker pull image if not already pulled
+        if container.RUNTIME is not None:
+            container.pull(self.container_id)
         # pre-process the design and run the simulation
         self.__design_to_simulator_input(design)
 
@@ -395,7 +390,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.  # noqa: FIX002
         }
 
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
         base_config.update(config)
 
         replace_template_values(
@@ -431,6 +426,9 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
+        # docker pull image if not already pulled
+        if container.RUNTIME is not None:
+            container.pull(self.container_id)
         # pre-process the design and run the simulation
         filename = "candidate_design"
         self.__design_to_simulator_input(starting_point, filename)
@@ -448,7 +446,7 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
         }
 
-        base_config.update(self.boundary_conditions)
+        base_config.update(self.conditions)
         base_config.update(config)
 
         replace_template_values(
@@ -502,14 +500,14 @@ class Airfoil2D(Problem[str, npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> DesignType:
+    def random_design(self) -> tuple[DesignType, int]:
         """Samples a valid random design.
 
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial"]))  # pyright: ignore[reportArgumentType, reportCallIssue, reportOptionalMemberAccess]
-        return np.array(self.dataset["train"]["initial"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))  # pyright: ignore[reportOptionalMemberAccess]
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
 
 if __name__ == "__main__":
@@ -519,7 +517,9 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Get design and conditions from the dataset
-    design = problem.random_design()
+    design, _ = problem.random_design()
+    objs = problem.simulate(design=design)
+    print(objs)
     fig, ax = problem.render(design, open_window=True)
     fig.savefig(
         "airfoil.png",
