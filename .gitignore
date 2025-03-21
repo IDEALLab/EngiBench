@@ -58,8 +58,6 @@ cover/
 
 # Django stuff:
 *.log
-# liang: intermediate rawfile from spice simulation
-*.raw
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
