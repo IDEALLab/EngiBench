@@ -1,5 +1,0 @@
-GS0_L1, GS0_L2, GS1_L1, GS1_L2, GS2_L1, GS2_L2, GS3_L1, GS3_L2, GS4_L1, GS4_L2, dataset_name, number_of_simulations, convergence_rate(%)
-1, 1, 1, 1, 0, 1, 0, 0, 1, 0, dataset_v0_0, 4608, 100
-1, 1, 1, 1, 0, 1, 0, 0, 1, 1, dataset_v0_1, 4608, TBD
-1, 1, 1, 1, 0, 1, 0, 1, 1, 1, dataset_v0_2, 4608, TBD
-1, 1, 1, 1, 0, 1, 1, 0, 1, 1, dataset_v0_3, 4608, TBD
