@@ -1,3 +1,5 @@
+"""@Author: Naga Siva Srinivas Putta <nagasiva@umd.edu>."""
+
 import numpy as np
 
 # Diode data sheet

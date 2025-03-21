@@ -1,3 +1,5 @@
+"""@Author: Naga Siva Srinivas Putta <nagasiva@umd.edu>."""
+
 import numpy as np
 
 from engibench.problems.power_electronics.utils import raw_read as r

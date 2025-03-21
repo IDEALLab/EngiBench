@@ -144,15 +144,9 @@ def rawread(fname: str) -> tuple[np.ndarray, dict]:
                 """
                 # We should have all the metadata by now
                 arrs.append(np.fromfile(fp, dtype=rowdtype, count=npoints))
-                # print(f"Retrieved the values. np.fromfile() changed the pointer to {fp.tell()}.")
-                # print("arrs", arrs)  # This looks better in jupyter notebook.
-                # print("arrs[0].shape", arrs[0].shape)
                 plots.append(plot)
-
                 fp.readline()  # Move the pointer to the end of line.
-
         else:
-            # print(f"length of mdata = {len(mdata)}. Break the iteration.")
             break
 
     return (arrs[0], plots[0])

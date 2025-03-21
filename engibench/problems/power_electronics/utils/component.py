@@ -1,3 +1,6 @@
+"""@Author: Naga Siva Srinivas Putta <nagasiva@umd.edu>."""
+
+
 class Simulation_params:
     def __init__(self, params):
         self.Tstart = params.get("Tstart")
