@@ -6,7 +6,10 @@ from __future__ import annotations
 
 import os
 import subprocess
+from typing import Any
 
+import matplotlib.pyplot as plt
+import networkx as nx
 import numpy as np
 
 from engibench.core import Problem
@@ -66,18 +69,18 @@ class PowerElectronics(Problem):
         source_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of source/
         print("init: source_dir =", source_dir)
 
-        self.ngSpice64 = os.path.normpath(os.path.join(source_dir, "../ngSpice64/bin/ngspice.exe"))
+        self.ngSpice64 = os.path.normpath(os.path.join(source_dir, "./ngSpice64/bin/ngspice.exe"))
         print("init: ngSpice64 dir =", self.ngSpice64)
 
-        self.netlist_dir = os.path.normpath(os.path.join(source_dir, "../data/netlist"))
+        self.netlist_dir = os.path.normpath(os.path.join(source_dir, "./data/netlist"))
         if not os.path.exists(self.netlist_dir):
             os.makedirs(self.netlist_dir)
 
-        self.raw_file_dir = os.path.normpath(os.path.join(source_dir, "../data/raw_file"))
+        self.raw_file_dir = os.path.normpath(os.path.join(source_dir, "./data/raw_file"))
         if not os.path.exists(self.raw_file_dir):
             os.makedirs(self.raw_file_dir)
 
-        self.log_file_dir = os.path.normpath(os.path.join(source_dir, "../data/log_file"))
+        self.log_file_dir = os.path.normpath(os.path.join(source_dir, "./data/log_file"))
         if not os.path.exists(self.log_file_dir):
             os.makedirs(self.log_file_dir)
 
@@ -97,17 +100,19 @@ class PowerElectronics(Problem):
         self.cmp_edg_str: str = ""
 
         # components of the design variable
-        self.capacitor_val: list[float] = []
-        self.inductor_val: list[float] = []
-        self.switch_T1: list[float] = []  # TODO: Need a range
-        self.switch_T2: list[float] = []  # Binary. TODO: might need to specify this.
+        self.capacitor_val: list[float] = []  # range: [1e-6, 2e-5]
+        self.inductor_val: list[float] = []  # range: [1e-6, 1e-3]
+        self.switch_T1: list[float] = []  # range: [0.1, 0.9]
+        self.switch_T2: list[float] = []  # Constant. All 1 for now
         self.switch_L1: list[float] = []  # Binary.
         self.switch_L2: list[float] = []  # Binary.
-        # TODO: self.design_variable
 
         self.cmp_cnt: dict[str, int] = {"V": 1, "R": 1, "C": 0, "S": 0, "L": 0, "D": 0}
 
         self.simulation_results: np.ndarray = np.array([])
+
+        self.G: nx.Graph = nx.Graph()
+        self.color_dict: dict[str, str] = {"R": "b", "L": "g", "C": "r", "D": "yellow", "V": "orange", "S": "purple"}
 
     def load_netlist(self, original_netlist_path: str, bucket_id: str) -> None:
         self.original_netlist_path = os.path.abspath(original_netlist_path)
@@ -126,9 +131,8 @@ class PowerElectronics(Problem):
         ----------
         sweep_dict : dict. variable.
         """
-        print(f"Processing topology from original netlist path: {self.original_netlist_path}")
-
         self.cmp_edg_str = ""  # reset
+        self.G = nx.Graph()  # reset
 
         self.capacitor_val = sweep_dict["C_val"]
         self.inductor_val = sweep_dict["L_val"]
@@ -178,6 +182,12 @@ class PowerElectronics(Problem):
                         self.edge_map[line_spl[0]] = [int(line_spl[1]), int(line_spl[2])]
                         self.cmp_edg_str = self.cmp_edg_str + line  # Liang: do not add a '\n' at the end of this line.
                         calc_comp_count[line[0]] = calc_comp_count[line[0]] + 1
+
+                        self.G.add_node(line_spl[0], bipartite=0, color=self.color_dict[line[0]])
+                        self.G.add_node(line_spl[1], bipartite=1, color="gray")
+                        self.G.add_node(line_spl[2], bipartite=1, color="gray")
+                        self.G.add_edge(line_spl[0], line_spl[1])
+                        self.G.add_edge(line_spl[0], line_spl[2])
 
         if ref_comp_count != calc_comp_count:
             print("Error - process_topology component check")
@@ -468,6 +478,13 @@ class PowerElectronics(Problem):
     def optimize(self):
         return NotImplementedError
 
+    def render(self):
+        plt.figure()
+        node_colors = [self.G.nodes[n]["color"] for n in self.G.nodes()]
+        pos = nx.spring_layout(self.G)
+        nx.draw(self.G, pos, with_labels=True, node_color=node_colors, node_size=200, font_size=10)
+        plt.show()
+
 
 if __name__ == "__main__":
     # Create an empty problem
@@ -475,7 +492,7 @@ if __name__ == "__main__":
 
     # Load the netlist and set the bucket_id
     original_netlist_path = (
-        os.path.dirname(os.path.abspath(__file__)) + "/../data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+        os.path.dirname(os.path.abspath(__file__)) + "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
     )  # sweep 141
     bucket_id = "5_4_3_6_10"
     problem.load_netlist(original_netlist_path, bucket_id)
@@ -493,3 +510,5 @@ if __name__ == "__main__":
     # Simulate the problem with the provided design variable
     problem.simulate(design_variable=sweep_data)
     print(problem.simulation_results)  # [-1.27858   -0.025081   0.7827396]
+
+    problem.render()

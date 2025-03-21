@@ -1,5 +1,9 @@
 # Title
 
+
+## Example circuit graph
+![5_4_3_6_10-dcdc_converter_1](5_4_3_6_10-dcdc_converter_1.png)
+
 ## Problem Statement
 
 ### Design Variables
