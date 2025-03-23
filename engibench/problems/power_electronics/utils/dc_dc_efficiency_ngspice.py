@@ -1,35 +1,60 @@
-"""@Author: Naga Siva Srinivas Putta <nagasiva@umd.edu>."""
+# ruff: noqa: N802, N803, N806  # Ignore uppercase names.
+# ruff: noqa: PLR0912, PLR0913, PLR0915, FIX002  # TODO
 
-import numpy as np
+"""Calculate the efficiency of a DC-DC converter using ngspice simulation data.
 
-from engibench.problems.power_electronics.utils import raw_read as r
-
-"""
 https://www.iosrjournals.org/iosr-jeee/Papers/Vol14%20Issue%203/Series-1/F1403014348.pdf
-
 In order to determine the efficiency of a system it is rudimentary to understand the power loss in each
 of its elements and the power delivered to the load. Power calculations in general are done under steady state
 and the calculated power is the average power dissipation. However, the calculations get distorted with average
 quantities of voltages and currents. Hence we use RMS values of the quantities involved to estimate the power
 loss in a system.
+
+@Author: Naga Siva Srinivas Putta <nagasiva@umd.edu>.
 """
 
+from __future__ import annotations
 
-def calc_peak2peak(wav_arr):
+import numpy as np
+import numpy.typing as npt
+
+from engibench.problems.power_electronics.utils import component as cmpt  # for type hint only
+from engibench.problems.power_electronics.utils import raw_read as r
+
+
+def calc_peak2peak(wav_arr: npt.NDArray) -> float:
+    """Calculate the peak-to-peak value of a waveform."""
     return max(wav_arr) - min(wav_arr)
 
 
-def calc_average(wav_arr):
-    Ts = 5e6
+def calc_average(wav_arr: npt.NDArray) -> float:
+    """Calculate the average value of a waveform."""
     return np.abs(np.mean(wav_arr))
 
 
-def calc_rms(wav_arr, Fsw):
-    Ts = 1 / Fsw
+def calc_rms(wav_arr: npt.NDArray) -> float:
+    """Calculate the RMS (Root Mean Square) value of a waveform.
+
+    Parameters:
+        wav_arr (numpy.ndarray): Array containing the waveform data.
+
+    Returns:
+        float: The RMS value of the waveform.
+    """
     return np.sqrt(np.mean(np.power(wav_arr, 2)))
 
 
-def calc_mosfet_Coss(wav_arr, Coss_table):
+def calc_mosfet_Coss(wav_arr: npt.NDArray, Coss_table: npt.NDArray) -> tuple[float, float]:
+    """Calculate the Coss value of a MOSFET based on the maximum Vds.
+
+    Parameters:
+        wav_arr (numpy.ndarray): Array containing the waveform data.
+        Coss_table (numpy.ndarray): 2D array containing the Coss values (2nd column) as a function of Vds_max (1st column).
+
+    Returns:
+        Vds_max (float): x. Maximum absolute value of the waveform.
+        Coss_res (float): y. The "interpolated" Coss value from Coss_table.
+    """
     Vds_max = max(np.abs(wav_arr))
 
     for i in range(len(Coss_table)):
@@ -41,11 +66,19 @@ def calc_mosfet_Coss(wav_arr, Coss_table):
             Coss_slope = (Coss_table[i][1] - Coss_table[i - 1][1]) / (Coss_table[i][0] - Coss_table[i - 1][0])
             Coss_res = Coss_slope * (Vds_max - Coss_table[i - 1][0]) + Coss_table[i - 1][1]
             return Vds_max, Coss_res
-        else:
+        else:  # when i == 0 and Vds_max <= Coss_table[0][0]
             return Vds_max, Coss_table[i][1]
 
 
-def find_eff_calc_indx(num_cycles, skip_cycles, time_axis, Fsw, Vgs_mosfet_D, Vgs_mosfet_Dc):
+def find_eff_calc_indx(
+    num_cycles: int,
+    skip_cycles: int,
+    time_axis: npt.NDArray,
+    Fsw: float,
+    Vgs_mosfet_D: npt.NDArray,
+    Vgs_mosfet_Dc: npt.NDArray,
+) -> tuple[list[list[int]], list[list[int]]]:
+    """Find the indices for efficiency calculation."""
     cycle_indx = []
 
     Ts = 1 / Fsw
@@ -72,7 +105,7 @@ def find_eff_calc_indx(num_cycles, skip_cycles, time_axis, Fsw, Vgs_mosfet_D, Vg
     cycle_edg_det_Dc = []
 
     i = 0
-    # For detections of rise, fall and sw time indexs in 'DT' duty cycle Vgs pules
+    # For detections of rise, fall and sw time indices in 'DT' duty cycle Vgs pules
     while i < num_cycles:
         cycle_indx_edg = []
         j = cycle_indx[i]
@@ -98,7 +131,7 @@ def find_eff_calc_indx(num_cycles, skip_cycles, time_axis, Fsw, Vgs_mosfet_D, Vg
         i = i + 1
 
     i = 0
-    # For detections of rise, fall and sw time indexs in '(1-D)T' duty cycle Vgs pules
+    # For detections of rise, fall and sw time indices in '(1-D)T' duty cycle Vgs pules
     while i < num_cycles:
         cycle_indx_edg = []
         j = cycle_indx[i]
@@ -125,22 +158,29 @@ def find_eff_calc_indx(num_cycles, skip_cycles, time_axis, Fsw, Vgs_mosfet_D, Vg
 
 
 def metric_compute_DC_DC_efficiency_ngspice(
-    file_path,
-    sim_start,
-    comp_num,
-    edg_map,
-    capacitor_model,
-    inductor_model,
-    switch_model,
-    diode_model,
-    num_cycles,
-    skip_cycles,
-    gs_L1,
-    gs_L2,
-    t_sw_T1,
-    t_sw_Ts,
-    Fsw,
-):
+    file_path: str,
+    sim_start: float,
+    comp_num: dict[str, int],
+    edg_map: dict[str, list[int]],
+    capacitor_model: list[cmpt.Capacitor],
+    inductor_model: list[cmpt.Inductor],
+    switch_model: list[cmpt.MOSFET],
+    diode_model: list[cmpt.Diode],
+    num_cycles: int,
+    skip_cycles: int,
+    gs_L1: list[int],
+    gs_L2: list[int],
+    t_sw_T1: list[float],
+    t_sw_Ts: list[float],
+    Fsw: float,
+) -> tuple[int, float, float]:
+    """Calculate the efficiency of a DC-DC converter using ngspice simulation data.
+
+    Returns:
+        err_report (int): Error report code (0 for no error, 8 if ).
+        Power_loss (float): Total power loss in the system.
+        P_src (float): Power delivered by the source.
+    """
     arr, plt = r.rawread(file_path)
     data_arr = r.parse(arr, plt)
 
@@ -162,7 +202,16 @@ def metric_compute_DC_DC_efficiency_ngspice(
     Vgs_ref_D = data_arr["v(gs_ref_d)"]
     Vgs_ref_Dc = data_arr["v(gs_ref_dc)"]
 
-    Ids_mosfet, Vds_mosfet, Vgs_mosfet, I_cap, I_Rcap, V_cap, I_L, V_L, I_D, V_D = [], [], [], [], [], [], [], [], [], []
+    Ids_mosfet: list = []
+    Vds_mosfet: list = []
+    Vgs_mosfet: list = []
+    I_cap: list = []
+    I_Rcap: list = []
+    V_cap: list = []
+    I_L: list = []
+    V_L: list = []
+    I_D: list = []
+    V_D: list = []
 
     for i in range(n_SW):
         Ids_mosfet.append([])
@@ -233,6 +282,7 @@ def metric_compute_DC_DC_efficiency_ngspice(
         else:
             V_D[i] = data_arr["v(" + str(V_D_edg[0]) + ")"] - data_arr["v(" + str(V_D_edg[1]) + ")"]
 
+    print(type(time_axis), type(Vgs_ref_D))
     cycle_edg_det_D, cycle_edg_det_Dc = find_eff_calc_indx(num_cycles, skip_cycles, time_axis, Fsw, Vgs_ref_D, Vgs_ref_Dc)
 
     # ===========================MOSFET power loss calculations====================================================================
@@ -245,9 +295,7 @@ def metric_compute_DC_DC_efficiency_ngspice(
     for i in range(n_SW):
         j = 0
 
-        t_sw_rise = switch_model[i].td_on + switch_model[i].tr
         t_sw_fall = switch_model[i].td_off + switch_model[i].tf
-        t_sw_tot = t_sw_rise + t_sw_fall
 
         duty_cycle_type = 0
 
@@ -261,15 +309,10 @@ def metric_compute_DC_DC_efficiency_ngspice(
             elif Ids_mosfet[i][int((cycle_edg_det_D[0][2] + cycle_edg_det_D[0][3]) / 2)] == 0:
                 duty_cycle_type = 0
             else:
-                # err_report = 8 #we will hit this condition if there is no cycle generation and current is increasing or decreasing curve
+                err_report = 8  # we will hit this condition if there is no cycle generation and current is increasing or decreasing curve
                 duty_cycle_type = 0  # duty cycle typw will not matter anyway as it is not a cycle curve
 
-        if duty_cycle_type == 0:
-            t_sw_on = t_sw_T1[i] - t_sw_fall
-            t_sw_off = t_sw_Ts[i] - t_sw_rise - t_sw_T1[i]
-        else:
-            t_sw_on = t_sw_Ts[i] - t_sw_fall - t_sw_T1[i]
-            t_sw_off = t_sw_T1[i] - t_sw_rise
+        t_sw_on = t_sw_T1[i] - t_sw_fall if duty_cycle_type == 0 else t_sw_Ts[i] - t_sw_fall - t_sw_T1[i]
 
         while j < num_cycles:
             # Conduction Losses
@@ -284,11 +327,7 @@ def metric_compute_DC_DC_efficiency_ngspice(
                 I_mosfet_pp = calc_peak2peak(Ids_mosfet[i][cycle_edg_det_Dc[j][2] : cycle_edg_det_Dc[j][3]])
                 P_cond_loss[i] += (Fsw * t_sw_on) * (I_mosfet_avg**2 + (I_mosfet_pp**2) / 12) * switch_model[i].Ron
 
-            # off-state losses - neglected
-            # if gs_L1[i]==1 and gs_L2[i]==0:
-            #    P_off_state[i] = P_off_state[i] + (Fsw*t_sw_off)*Idss[i]*calc_rms(Vds_mosfet[i][cycle_edg_det_D[j][2] : cycle_edg_det_D[j][3]], 1)
-            # elif gs_L1[i]==0 and gs_L2[i]==1:
-            #    P_off_state[i] = P_off_state[i] + (Fsw*t_sw_off)*Idss[i]*calc_rms(Vds_mosfet[i][cycle_edg_det_Dc[j][0] : cycle_edg_det_Dc[j][1]], 1)
+            # Off-state losses are neglected.
 
             # Switching losses
 
@@ -368,13 +407,6 @@ def metric_compute_DC_DC_efficiency_ngspice(
     I_load = data_arr["i(@r0[i])"]
     decision_1 = 1 if edg_map["R0"][0] > 0 else 0
     decision_2 = 1 if edg_map["R0"][1] > 0 else 0
-    if decision_1 + decision_2 == 1:
-        if decision_2 == 0:
-            V_load = data_arr["v(" + str(edg_map["R0"][0]) + ")"]
-        else:
-            V_load = [-ii for ii in data_arr["v(" + str(edg_map["R0"][1]) + ")"]]
-    else:
-        V_load = data_arr["v(" + str(edg_map["R0"][0]) + ")"] - data_arr["v(" + str(edg_map["R0"][1]) + ")"]
 
     I_src = data_arr["i(v0)"]
     decision_1 = 1 if edg_map["V0"][0] > 0 else 0
@@ -392,9 +424,8 @@ def metric_compute_DC_DC_efficiency_ngspice(
     P_src = 0
     j = 0
     while j < num_cycles:
-        Irms_load = calc_rms(I_load[cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]], Fsw)
-        Vrms_load = calc_rms(V_load[cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]], Fsw)
-        Irms_src = calc_rms(I_src[cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]], Fsw)
+        Irms_load = calc_rms(I_load[cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
+        Irms_src = calc_rms(I_src[cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
 
         P_load += (Irms_load**2) * R_load
         P_src += calc_average(V_src) * Irms_src
@@ -406,7 +437,7 @@ def metric_compute_DC_DC_efficiency_ngspice(
     for i in range(n_L):
         j = 0
         while j < num_cycles:
-            I_L_rms = calc_rms(I_L[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]], Fsw)
+            I_L_rms = calc_rms(I_L[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
             P_L[i] += inductor_model[i].DCR * (I_L_rms**2)  # Resistive Loss
             j = j + 1
 
@@ -417,8 +448,8 @@ def metric_compute_DC_DC_efficiency_ngspice(
     for i in range(n_C):
         j = 0
         while j < num_cycles:
-            Irms_Rcap = calc_rms(I_Rcap[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]], Fsw)
-            Irms_cap = calc_rms(I_cap[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]], Fsw)
+            Irms_Rcap = calc_rms(I_Rcap[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
+            Irms_cap = calc_rms(I_cap[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
             P_Rcap[i] += capacitor_model[i].Rp * (Irms_Rcap**2)
             P_cap[i] += capacitor_model[i].ESR * (Irms_cap**2)
             j = j + 1
@@ -430,7 +461,7 @@ def metric_compute_DC_DC_efficiency_ngspice(
         j = 0
         while j < num_cycles:
             I_D_avg = calc_average(I_D[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
-            I_D_rms = calc_rms(I_D[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]], Fsw)
+            I_D_rms = calc_rms(I_D[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
 
             # On state losses
             P_D_con[i] += diode_model[i].Rd * (I_D_rms**2) + diode_model[i].Vt0 * I_D_avg
@@ -447,15 +478,5 @@ def metric_compute_DC_DC_efficiency_ngspice(
         + np.sum(P_coss)
         + np.sum(P_gate_driver)
     )
-
-    if 0:
-        print("P_Rcap " + str(np.sum(P_Rcap)))
-        print("P_cap " + str(np.sum(P_cap)))
-        print("P_cond_loss " + str(np.sum(P_cond_loss)))
-        print("P_sw_loss " + str(np.sum(P_sw_loss)))
-        print("P_coss " + str(np.sum(P_coss)))
-        print("P_gate_driver " + str(np.sum(P_gate_driver)))
-        print("P_src " + str(P_src))
-        print("P_D_con " + str(np.sum(P_D_con)))
 
     return err_report, Power_loss, P_src
