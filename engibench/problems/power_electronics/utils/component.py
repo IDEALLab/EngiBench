@@ -54,7 +54,11 @@ class MOSFET:
     """MOSFET parameters for power electronics simulation."""
 
     def __init__(self, params: dict[str, float]):
-        """Initialize simulation parameters."""
+        """Initialize simulation parameters.
+
+        t_rise = td_on + tr
+        t_fall = td_off + tf
+        """
         self.Ron = params.get("R_DS_on")
         self.Coss_vs_Vds = params.get("Coss vs Vds")
         self.td_on = params.get("Turn-on delay time")
