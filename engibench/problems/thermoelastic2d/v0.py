@@ -1,5 +1,4 @@
 """Thermo Elastic 2D Problem."""
-# ruff: noqa: ARG002
 
 from __future__ import annotations
 

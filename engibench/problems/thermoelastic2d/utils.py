@@ -1,6 +1,5 @@
 """Utility functions for the thermoelastic2d problem."""
 
-# ruff: noqa: PLR0913, PLR0915
 from __future__ import annotations
 
 from matplotlib import colors
@@ -32,7 +31,7 @@ def get_res_bounds(x_res: npt.NDArray, y_res: npt.NDArray) -> tuple[npt.NDArray,
     return left_col_indices, top_row_indices, right_col_indices, bottom_row_indices
 
 
-def plot_multi_physics(
+def plot_multi_physics(  # noqa: PLR0913, PLR0915
     design: npt.NDArray,
     structural_bcs: npt.NDArray,
     thermal_bcs: npt.NDArray,
@@ -70,8 +69,6 @@ def plot_multi_physics(
 
     if _um is None:
         _um = np.zeros((x_elements * y_elements * 2,))
-    disp_x = _um[::2]
-    disp_y = _um[1::2]
 
     left_col_indices, top_row_indices, right_col_indices, bottom_row_indices = get_res_bounds(x_elements, y_elements)
 
@@ -98,14 +95,6 @@ def plot_multi_physics(
     fpy_img = fp_y.reshape((x_elements, y_elements))
     fpy_img_clip = np.clip(fpy_img * 127.5 + 127.5, 0.0, 255.0).astype(np.uint8)
     fpy_img_clip = fpy_img_clip.T  # transpose to flip bottom left and top right
-
-    disp_x.reshape((x_elements, y_elements))
-    np.arange(nelx + 1)
-    -np.arange(nely + 1)
-
-    disp_y.reshape((x_elements, y_elements))
-    np.arange(nelx + 1)
-    -np.arange(nely + 1)
 
     # Create Plots
     fig, ax = plt.subplots(2, 4, figsize=(7, 5))

@@ -1,5 +1,6 @@
 """Finite Element Model Setup for Thermoelastic 2D Problem."""
 
+from dataclasses import dataclass
 from typing import Any
 
 import numpy as np
@@ -7,10 +8,28 @@ from scipy.sparse import coo_matrix
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
 
-# ruff: noqa: PLR0915, PLR0913
+
+@dataclass
+class FEMthmBCResult:
+    """Dataclass encapsulating all output parameters for the fem setup code."""
+
+    km: csr_matrix  # Global mechanical stiffness matrix.
+    kth: csr_matrix  # Global thermal conductivity matrix.
+    um: np.ndarray  # Displacement vector.
+    uth: np.ndarray  # Temperature vector.
+    fm: np.ndarray  # Mechanical loading vector.
+    fth: np.ndarray  # Thermal loading vector.
+    d_cthm: coo_matrix  # Derivative of the coupling matrix with respect to temperature.
+    fixeddofsm: np.ndarray  # Array of fixed mechanical degrees of freedom.
+    alldofsm: np.ndarray  # Array of all mechanical degrees of freedom.
+    freedofsm: np.ndarray  # Array of free mechanical degrees of freedom.
+    fixeddofsth: np.ndarray  # Array of fixed thermal degrees of freedom.
+    alldofsth: np.ndarray  # Array of all thermal degrees of freedom.
+    freedofsth: np.ndarray  # Array of free thermal degrees of freedom.
+    fp: np.ndarray  # Force vector used for mechanical loading.
 
 
-def fe_mthm_bc(
+def fe_mthm_bc(  # noqa: PLR0915, PLR0913
     nely: int,
     nelx: int,
     penal: float,
@@ -20,22 +39,7 @@ def fe_mthm_bc(
     c_ethm: np.ndarray,
     tref: float,
     bcs: dict[str, Any],
-) -> tuple[
-    csr_matrix,  # km: Global mechanical stiffness matrix
-    csr_matrix,  # kth: Global thermal conductivity matrix
-    np.ndarray,  # um: Displacement vector
-    np.ndarray,  # uth: Temperature vector
-    np.ndarray,  # fm: Mechanical loading vector
-    np.ndarray,  # fth: Thermal loading vector
-    coo_matrix,  # d_cthm: Derivative coupling matrix with respect to temperature
-    np.ndarray,  # fixeddofsm: Fixed mechanical degrees of freedom
-    np.ndarray,  # alldofsm: All mechanical degrees of freedom
-    np.ndarray,  # freedofsm: Free mechanical degrees of freedom
-    np.ndarray,  # fixeddofsth: Fixed thermal degrees of freedom
-    np.ndarray,  # alldofsth: All thermal degrees of freedom
-    np.ndarray,  # freedofsth: Free thermal degrees of freedom
-    np.ndarray,  # fp: Force vector used for mechanical loading
-]:
+) -> FEMthmBCResult:
     """Constructs the finite element model matrices for coupled structural-thermal topology optimization.
 
     This function assembles the global mechanical and thermal matrices for a coupled
@@ -59,8 +63,7 @@ def fe_mthm_bc(
             - "force_elements_y" (optional): Indices for y-direction force elements.
 
     Returns:
-        Tuple[csr_matrix, csr_matrix, np.ndarray, np.ndarray, np.ndarray, np.ndarray, coo_matrix,
-              np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+        FEMthmBCResult: Dataclass containing the following fields:
             - km (csr_matrix): Global mechanical stiffness matrix.
             - kth (csr_matrix): Global thermal conductivity matrix.
             - um (np.ndarray): Displacement vector.
@@ -222,4 +225,19 @@ def fe_mthm_bc(
     um[freedofsm] = spsolve(km[np.ix_(freedofsm, freedofsm)], fm[freedofsm])
     um[fixeddofsm] = 0
 
-    return km, kth, um, uth, fm, fth, d_cthm, fixeddofsm, alldofsm, freedofsm, fixeddofsth, alldofsth, freedofsth, fp
+    return FEMthmBCResult(
+        km=km,
+        kth=kth,
+        um=um,
+        uth=uth,
+        fm=fm,
+        fth=fth,
+        d_cthm=d_cthm,
+        fixeddofsm=fixeddofsm,
+        alldofsm=alldofsm,
+        freedofsm=freedofsm,
+        fixeddofsth=fixeddofsth,
+        alldofsth=alldofsth,
+        freedofsth=freedofsth,
+        fp=fp,
+    )

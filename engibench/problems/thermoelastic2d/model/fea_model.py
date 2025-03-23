@@ -66,7 +66,7 @@ class FeaModel:
                 - The thermal stiffness matrix.
                 - The coupling matrix for thermal expansion effects.
         """
-        return fe_melthm([nu, e, k, alpha])
+        return fe_melthm(nu, e, k, alpha)
 
     def get_filter(self, nelx: int, nely: int, rmin: float) -> tuple[coo_matrix, np.ndarray]:
         """Constructs a sensitivity filtering matrix to smoothen the design variables.
@@ -190,9 +190,18 @@ class FeaModel:
 
             # FE-ANALYSIS
             results = fe_mthm_bc(nely, nelx, penal, x, ke, k_eth, c_ethm, tref, bcs)
-            km, kth, um, uth, fm, fth, d_cthm, fixeddofsm, alldofsm, freedofsm, fixeddofsth, alldofsth, freedofsth, fp = (
-                results
-            )
+            km = results.km
+            kth = results.kth
+            um = results.um
+            uth = results.uth
+            fm = results.fm
+            fth = results.fth
+            d_cthm = results.d_cthm
+            fixeddofsm = results.fixeddofsm
+            freedofsm = results.freedofsm
+            fixeddofsth = results.fixeddofsth
+            fp = results.fp
+
             t_forward = time.time() - curr_time
             curr_time = time.time()
 
@@ -333,7 +342,7 @@ class FeaModel:
         print("Optimization finished...")
         vf_error = np.abs(np.mean(x) - volfrac)
 
-        result = {
+        return {
             "design": x,
             "bcs": bcs,
             "structural_compliance": f0valm,
@@ -341,7 +350,6 @@ class FeaModel:
             "volume_fraction": vf_error,
             "opti_steps": opti_steps,
         }
-        return result
 
 
 if __name__ == "__main__":
