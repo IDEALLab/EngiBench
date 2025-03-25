@@ -24,7 +24,7 @@ from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
 
-class Airfoil2D(Problem[str, npt.NDArray]):
+class Airfoil2D(Problem[npt.NDArray]):
     r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
@@ -314,10 +314,10 @@ class Airfoil2D(Problem[str, npt.NDArray]):
         return np.array([coords_x_reordered, coords_y_reordered])
 
     def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray:
-        """Converts a simulator input to a design.
+        """Converts a simulator output to a design.
 
         Args:
-            simulator_output (str): The simulator input to convert.
+            simulator_output (str): The simulator output to convert.
 
         Returns:
             np.ndarray: The corresponding design.

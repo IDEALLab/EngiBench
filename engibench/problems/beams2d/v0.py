@@ -32,7 +32,7 @@ class ExtendedOptiStep(OptiStep):
     design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
 
 
-class Beams2D(Problem[npt.NDArray, npt.NDArray]):
+class Beams2D(Problem[npt.NDArray]):
     r"""Beam 2D topology optimization problem.
 
     ## Problem Description
