@@ -518,7 +518,7 @@ if __name__ == "__main__":
 
     # Get design and conditions from the dataset
     design, idx = problem.random_design()
-    cfgs = dataset["train"].select_columns(tuple(dict(problem.conditions).keys()))
+    cfgs = dataset["train"].select_columns(problem.conditions_dict.keys())
     cfg = cfgs[idx]
     opti, objs = problem.optimize(starting_point=design, config=cfg, mpicores=1)
     print(objs)

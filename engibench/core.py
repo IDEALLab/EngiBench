@@ -113,6 +113,11 @@ class Problem(Generic[SimulatorInputType, DesignType]):
             self._dataset = load_dataset(self.dataset_id)
         return self._dataset
 
+    @property
+    def conditions_dict(self) -> dict[str, Any]:
+        """Returns the conditions as a dictionary."""
+        return dict(self.conditions)
+
     def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
 
