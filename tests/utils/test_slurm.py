@@ -11,10 +11,6 @@ from engibench.core import Problem
 from engibench.utils import slurm
 
 
-class FakeSimInput:
-    """It's only a model."""
-
-
 class FakeDesign:
     """It's only a model."""
 
@@ -22,7 +18,7 @@ class FakeDesign:
         self.design_id = design_id
 
 
-class FakeProblem(Problem[FakeSimInput, FakeDesign]):
+class FakeProblem(Problem[FakeDesign]):
     def __init__(self, problem_id: int, some_arg: bool) -> None:
         self.problem_id = problem_id
         self.some_arg = some_arg
