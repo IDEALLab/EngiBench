@@ -44,15 +44,14 @@ def merge_args(a: Args, b: Args) -> Args:
     )
 
 
-SimulatorInputType = TypeVar("SimulatorInputType")
 DesignType = TypeVar("DesignType")
 
 
 @dataclass
-class Job(Generic[SimulatorInputType, DesignType]):
+class Job(Generic[DesignType]):
     """Representation of a single slurm job."""
 
-    problem: Callable[..., Problem[SimulatorInputType, DesignType]]
+    problem: Callable[..., Problem[DesignType]]
     design_factory: Callable[..., DesignType] | None
     args: Args
 

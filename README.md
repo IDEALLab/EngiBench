@@ -104,8 +104,7 @@ In general, follow the `airfoil2d/` example.
    ```py
    from engibench.core import Problem
 
-   class NewProblem(Problem[...]) # <- insert types for
-                                  #    SimulatorInputType, DesignType here
+   class NewProblem(Problem[...]) # <- insert type for DesignType here
        ... # define your problem here
    ```
 
