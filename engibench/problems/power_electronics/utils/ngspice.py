@@ -1,0 +1,116 @@
+"""NgSpice wrapper for cross-platform support."""
+
+from __future__ import annotations
+
+import os
+import platform
+import subprocess
+
+
+class NgSpice:
+    """A class to handle ngspice execution across different operating systems."""
+
+    def __init__(self, ngspice_windows_path: str | None = None) -> None:
+        """Initialize the NgSpice wrapper.
+
+        Args:
+            ngspice_windows_path: The path to the ngspice executable for Windows.
+        """
+        self.ngspice_windows_path = os.path.normpath(ngspice_windows_path) if ngspice_windows_path else None
+        self.system = platform.system().lower()
+        self._ngspice_path = self._get_ngspice_path()
+        if self.version != "44.2":
+            raise RuntimeError(f"Unsupported ngspice version: {self.version}. We only support version 44.2.")  # noqa: TRY003
+
+    def _get_ngspice_path(self) -> str | None:
+        """Get the path to the ngspice executable based on the operating system.
+
+        Returns:
+            The path to ngspice executable or None if not found
+        """
+        if self.system == "windows":
+            # For Windows, use the bundled ngspice.exe
+            # Look for ngspice in Spice64 folder and common install locations
+            possible_paths = [
+                self.ngspice_windows_path,
+                os.path.normpath(os.path.join("C:/Program Files/Spice64/bin/ngspice.exe")),
+                os.path.normpath(os.path.join("C:/Program Files (x86)/ngspice/bin/ngspice.exe")),
+            ]
+
+            for path in possible_paths:
+                if path and os.path.exists(path):
+                    ngspice_path = path
+                    break
+            else:
+                ngspice_path = possible_paths[0]  # Default to first path if none found
+            if not os.path.exists(ngspice_path):
+                raise FileNotFoundError(  # noqa: TRY003
+                    f"ngspice.exe not found at {ngspice_path}. You can download it from https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/"
+                )
+            return ngspice_path
+        elif self.system in ["darwin", "linux"]:
+            # For MacOS and Linux, use system-installed ngspice
+            try:
+                # Check if ngspice is installed
+                subprocess.run(["ngspice", "--version"], capture_output=True, check=True)
+            except (subprocess.CalledProcessError, FileNotFoundError):
+                raise RuntimeError(  # noqa: B904, TRY003
+                    "ngspice is not installed on your system. "
+                    "Please install it using your package manager:\n"
+                    "  - MacOS: brew install ngspice\n"
+                    "  - Linux: sudo apt-get install ngspice"
+                )
+            return "ngspice"
+        else:
+            raise RuntimeError(  # noqa: TRY003
+                f"Unsupported operating system for ngspice: {self.system}, we only support Windows, MacOS and Linux."
+            )
+
+    def run(self, netlist_path: str, log_file_path: str, timeout: int = 30) -> None:
+        """Run ngspice with the given netlist file.
+
+        Args:
+            netlist_path: Path to the netlist file
+            log_file_path: Path to the log file
+            timeout: Maximum time to wait for the simulation in seconds
+
+        Raises:
+            subprocess.CalledProcessError: If ngspice fails to run
+            subprocess.TimeoutExpired: If the simulation takes too long
+        """
+        cmd = [
+            self._ngspice_path,
+            "-o",
+            log_file_path,
+            netlist_path,
+        ]
+        print(f"Running command: {cmd}")
+        subprocess.run(cmd, check=True, timeout=timeout)
+
+    @property
+    def version(self) -> str:
+        """Get the version of ngspice.
+
+        Returns:
+            The version string of ngspice
+
+        Raises:
+            subprocess.CalledProcessError: If ngspice fails to run
+        """
+        cmd = [self._ngspice_path, "--version"]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+
+        # Extract version number from second line of output
+
+        # Example output:
+        # ******
+        # ** ngspice-44.2 : Circuit level simulation program
+        # ** Compiled with KLU Direct Linear Solver
+        # ** The U. C. Berkeley CAD Group
+        # ** Copyright 1985-1994, Regents of the University of California.
+        # ** Copyright 2001-2024, The ngspice team.
+        # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
+        # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
+        # ******
+        version = result.stdout.splitlines()[1].split()[1].split("-")[1]
+        return version

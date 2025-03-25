@@ -16,6 +16,7 @@ from engibench.core import Problem
 from engibench.problems.power_electronics.utils import component as cmpt
 from engibench.problems.power_electronics.utils import data_sheet as ds
 from engibench.problems.power_electronics.utils import dc_dc_efficiency_ngspice as dc_lib_ng
+from engibench.problems.power_electronics.utils.ngspice import NgSpice
 from engibench.problems.power_electronics.utils.str_to_value import str_to_value
 
 
@@ -62,15 +63,19 @@ class PowerElectronics(Problem):
     Xuliang Dong @ liangXD523
     """
 
-    def __init__(self) -> None:
-        """Initializes the Power Electronics problem."""
+    def __init__(self, ngspice_path: str | None = None) -> None:
+        """Initializes the Power Electronics problem.
+
+        Args:
+            ngspice_path: The path to the ngspice executable for Windows.
+        """
         super().__init__()
 
-        source_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of source/
-        print("init: source_dir =", source_dir)
+        source_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of power_electronics/
+        # TODO: check if this works from another repo like EngiOpt
 
-        self.ngSpice64 = os.path.normpath(os.path.join(source_dir, "./ngSpice64/bin/ngspice.exe"))
-        print("init: ngSpice64 dir =", self.ngSpice64)
+        # Initialize ngspice wrapper
+        self.ngspice = NgSpice(ngspice_path)
 
         self.netlist_dir = os.path.normpath(os.path.join(source_dir, "./data/netlist"))
         if not os.path.exists(self.netlist_dir):
@@ -365,22 +370,8 @@ class PowerElectronics(Problem):
             diode_model.append(cmpt.Diode(dict(zip(ds.diode_properties, ds.APT30SCD65B))))
 
         try:
-            if exe:  # Windows: use the provided ngspice.exe
-                cmd = [
-                    self.ngSpice64,
-                    "-o",
-                    self.log_file_path,
-                    self.rewrite_netlist_path,
-                ]  # interactive mode with control section
-            else:  # Ubuntu: use the ngspice package
-                cmd = [
-                    "ngspice",
-                    "-o",
-                    self.log_file_path,
-                    self.rewrite_netlist_path,
-                ]  # interactive mode with control section
-            print(f"Running command: {cmd}")
-            subprocess.run(cmd, check=True, timeout=30)
+            # Use the ngspice wrapper to run the simulation
+            self.ngspice.run(self.rewrite_netlist_path, self.log_file_path)
 
             for i in range(self.cmp_cnt["C"]):
                 # Assuming dissipiation factor = 5 at 200Khz freq;  ESR = Disspiation_factor/ 2*pi*f*C
@@ -393,7 +384,6 @@ class PowerElectronics(Problem):
                 ind_model_values = [self.inductor_val[i], 0.43e-3]
                 inductor_model.append(cmpt.Inductor(dict(zip(ds.inductor_properties, ind_model_values))))
 
-            # try:
             err, P_loss, P_src = dc_lib_ng.metric_compute_DC_DC_efficiency_ngspice(
                 self.raw_file_path,
                 0.001,
@@ -416,18 +406,6 @@ class PowerElectronics(Problem):
             error_report = err
             if efficiency < 0 or efficiency > 1:
                 error_report += 1  # bit 0 will be 1 to report invalid efficiency calculation
-
-            # except ValueError:  # In some conditions LTspice is not generating waveforms with invalid values
-            #     efficiency = np.nan
-            #     error_report = 16  # bit 4 will be 1 to report Process error such as invalid circuit
-            #     P_loss = np.nan
-            #     P_src = np.nan
-
-            # except IndexError:  # For some circuits the gate voltage is not created properly
-            #     efficiency = np.nan
-            #     error_report = 32  # bit 5 will be 1 to report Process error such as invalid circuit
-            #     P_loss = np.nan
-            #     P_src = np.nan
 
         except subprocess.CalledProcessError as err:
             efficiency = np.nan
