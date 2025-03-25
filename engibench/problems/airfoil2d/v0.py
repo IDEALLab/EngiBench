@@ -520,7 +520,6 @@ if __name__ == "__main__":
     design, idx = problem.random_design()
     cfgs = dataset["train"].select_columns(tuple(dict(problem.conditions).keys()))
     cfg = cfgs[idx]
-    print(cfg)
     opti, objs = problem.optimize(starting_point=design, config=cfg, mpicores=1)
     print(objs)
     fig, ax = problem.render(opti, open_window=True)
