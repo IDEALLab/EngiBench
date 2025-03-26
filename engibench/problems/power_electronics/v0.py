@@ -19,6 +19,7 @@ from engibench.core import Problem
 from engibench.problems.power_electronics.utils import component as cmpt
 from engibench.problems.power_electronics.utils import data_sheet as ds
 from engibench.problems.power_electronics.utils import dc_dc_efficiency_ngspice as dc_lib_ng
+from engibench.problems.power_electronics.utils.ngspice import NgSpice
 from engibench.problems.power_electronics.utils.str_to_value import str_to_value
 
 
@@ -67,25 +68,29 @@ class PowerElectronics(Problem[npt.NDArray]):
     container_id = None
     _dataset = None
 
-    def __init__(self) -> None:
-        """Initializes the Power Electronics problem."""
+    def __init__(self, ngspice_path: str | None = None) -> None:
+        """Initializes the Power Electronics problem.
+
+        Args:
+            ngspice_path: The path to the ngspice executable for Windows.
+        """
         super().__init__()
 
-        pe_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of power_electronics/
-        print("init: power_electronics dir =", pe_dir)
+        source_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of power_electronics/
+        # TODO: check if this works from another repo like EngiOpt
 
-        self.ngSpice64 = os.path.normpath(os.path.join(pe_dir, "./ngSpice64/bin/ngspice.exe"))
-        print("init... ngSpice64 dir =", self.ngSpice64)
+        # Initialize ngspice wrapper
+        self.ngspice = NgSpice(ngspice_path)
 
-        self.netlist_dir = os.path.normpath(os.path.join(pe_dir, "./data/netlist"))
+        self.netlist_dir = os.path.normpath(os.path.join(source_dir, "./data/netlist"))
         if not os.path.exists(self.netlist_dir):
             os.makedirs(self.netlist_dir)
 
-        self.raw_file_dir = os.path.normpath(os.path.join(pe_dir, "./data/raw_file"))
+        self.raw_file_dir = os.path.normpath(os.path.join(source_dir, "./data/raw_file"))
         if not os.path.exists(self.raw_file_dir):
             os.makedirs(self.raw_file_dir)
 
-        self.log_file_dir = os.path.normpath(os.path.join(pe_dir, "./data/log_file"))
+        self.log_file_dir = os.path.normpath(os.path.join(source_dir, "./data/log_file"))
         if not os.path.exists(self.log_file_dir):
             os.makedirs(self.log_file_dir)
 
@@ -390,22 +395,8 @@ class PowerElectronics(Problem[npt.NDArray]):
             diode_model.append(cmpt.Diode(dict(zip(ds.diode_properties, ds.APT30SCD65B))))
 
         try:
-            if exe:  # Windows: use the provided ngspice.exe
-                cmd = [
-                    self.ngSpice64,
-                    "-o",
-                    self.log_file_path,
-                    self.rewrite_netlist_path,
-                ]  # interactive mode with control section
-            else:  # Ubuntu: use the ngspice package
-                cmd = [
-                    "ngspice",
-                    "-o",
-                    self.log_file_path,
-                    self.rewrite_netlist_path,
-                ]  # interactive mode with control section
-            print(f"Running command: {cmd}")
-            subprocess.run(cmd, check=True, timeout=30)
+            # Use the ngspice wrapper to run the simulation
+            self.ngspice.run(self.rewrite_netlist_path, self.log_file_path)
 
             for i in range(self.cmp_cnt["C"]):
                 # Assuming dissipiation factor = 5 at 200Khz freq;  ESR = Disspiation_factor/ 2*pi*f*C
