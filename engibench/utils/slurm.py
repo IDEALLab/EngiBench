@@ -90,7 +90,7 @@ def design_type(t: type[Problem] | Callable[..., Problem]) -> type[Any]:
         msg = f"Could not deduce the design type corresponding to `{t.__name__}`: The object is not a Problem type"
         raise TypeError(msg) from None
     try:
-        _, design_type = t.__orig_bases__[0].__args__  # type: ignore[attr-defined]
+        (design_type,) = t.__orig_bases__[0].__args__  # type: ignore[attr-defined]
     except AttributeError:
         msg = f"Could not deduce the design type corresponding to `{t.__name__}`: The Problem class does not specify its type for its design"
         raise ValueError(msg) from None
