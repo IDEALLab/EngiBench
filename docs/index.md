@@ -49,6 +49,7 @@ introduction/api
 
 problems/airfoil2d
 problems/beams2d
+problems/thermoelastic2d
 problems/heatconduction
 ```
 
