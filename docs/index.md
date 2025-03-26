@@ -55,12 +55,19 @@ problems/heatconduction
 
 ```{toctree}
 :hidden:
+:caption: Utils
+
+utils/container
+utils/slurm
+```
+
+```{toctree}
+:hidden:
 :glob:
 :caption: Tutorials
 
 tutorials/*
 ```
-
 
 ```{toctree}
 :hidden:
