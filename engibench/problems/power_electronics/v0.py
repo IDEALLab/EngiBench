@@ -1,5 +1,5 @@
 # ruff: noqa: N806, FIX002  # Upper case variable names such as Ts, TODO
-# ruff: noqa
+
 """Power Electronics problem."""
 
 from __future__ import annotations
@@ -8,10 +8,13 @@ import os
 import subprocess
 from typing import Any
 
+from gymnasium import spaces
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+import numpy.typing as npt
 
+from engibench.core import ObjectiveDirection
 from engibench.core import Problem
 from engibench.problems.power_electronics.utils import component as cmpt
 from engibench.problems.power_electronics.utils import data_sheet as ds
@@ -19,16 +22,7 @@ from engibench.problems.power_electronics.utils import dc_dc_efficiency_ngspice 
 from engibench.problems.power_electronics.utils.str_to_value import str_to_value
 
 
-def build(**kwargs) -> PowerElectronics:
-    """Builds an Power Electronics problem.
-
-    Args:
-        **kwargs: Arguments to pass to the constructor.
-    """
-    return PowerElectronics(**kwargs)
-
-
-class PowerElectronics(Problem):
+class PowerElectronics(Problem[npt.NDArray]):
     r"""Power Electronics parameter optimization problem.
 
     ## Problem Description
@@ -62,25 +56,37 @@ class PowerElectronics(Problem):
     Xuliang Dong @ liangXD523
     """
 
+    version = 0
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
+        ("DcGain", ObjectiveDirection.MINIMIZE),
+        ("Voltage_Ripple", ObjectiveDirection.MAXIMIZE),
+    )
+    conditions: frozenset[tuple[str, Any]] = frozenset()
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(20,), dtype=np.float32)
+    dataset_id = "IDEALLab/power_electronics_v0"
+    container_id = None
+    _dataset = None
+
+
     def __init__(self) -> None:
         """Initializes the Power Electronics problem."""
         super().__init__()
 
-        source_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of source/
-        print("init: source_dir =", source_dir)
+        pe_dir = os.path.dirname(os.path.abspath(__file__))  # The absolute path of power_electronics/
+        print("init: power_electronics dir =", pe_dir)
 
-        self.ngSpice64 = os.path.normpath(os.path.join(source_dir, "./ngSpice64/bin/ngspice.exe"))
-        print("init: ngSpice64 dir =", self.ngSpice64)
+        self.ngSpice64 = os.path.normpath(os.path.join(pe_dir, "./ngSpice64/bin/ngspice.exe"))
+        print("init... ngSpice64 dir =", self.ngSpice64)
 
-        self.netlist_dir = os.path.normpath(os.path.join(source_dir, "./data/netlist"))
+        self.netlist_dir = os.path.normpath(os.path.join(pe_dir, "./data/netlist"))
         if not os.path.exists(self.netlist_dir):
             os.makedirs(self.netlist_dir)
 
-        self.raw_file_dir = os.path.normpath(os.path.join(source_dir, "./data/raw_file"))
+        self.raw_file_dir = os.path.normpath(os.path.join(pe_dir, "./data/raw_file"))
         if not os.path.exists(self.raw_file_dir):
             os.makedirs(self.raw_file_dir)
 
-        self.log_file_dir = os.path.normpath(os.path.join(source_dir, "./data/log_file"))
+        self.log_file_dir = os.path.normpath(os.path.join(pe_dir, "./data/log_file"))
         if not os.path.exists(self.log_file_dir):
             os.makedirs(self.log_file_dir)
 
@@ -115,6 +121,7 @@ class PowerElectronics(Problem):
         self.color_dict: dict[str, str] = {"R": "b", "L": "g", "C": "r", "D": "yellow", "V": "orange", "S": "purple"}
 
     def load_netlist(self, original_netlist_path: str, bucket_id: str) -> None:
+        """Save the original netlist path and bucket id. Create paths for log and raw files."""
         self.original_netlist_path = os.path.abspath(original_netlist_path)
         self.bucket_id = bucket_id  # Alternatively, we can get this from self.original_netlist_path.
 
@@ -124,7 +131,7 @@ class PowerElectronics(Problem):
         self.log_file_path = os.path.normpath(os.path.join(self.log_file_dir, f"{self.netlist_name}.log"))
         self.raw_file_path = os.path.normpath(os.path.join(self.raw_file_dir, f"{self.netlist_name}.raw"))
 
-    def __process_topology(self, sweep_dict: dict[str, list]) -> None:
+    def __process_topology(self, sweep_data: list[float]) -> None:
         """Read from self.original_netlist_path to get the topology. With the argument sweep_dict (C, L, T1, T2, L1, L2), set variables for rewriting.
 
         It only keeps component lines and .PARAM lines. So the following lines are discarded in this process: .model, .tran, .save etc.
@@ -134,13 +141,6 @@ class PowerElectronics(Problem):
         self.cmp_edg_str = ""  # reset
         self.G = nx.Graph()  # reset
 
-        self.capacitor_val = sweep_dict["C_val"]
-        self.inductor_val = sweep_dict["L_val"]
-        self.switch_T1 = sweep_dict["T1_val"]
-        self.switch_T2 = sweep_dict["T2_val"]
-        self.switch_L1 = sweep_dict["L1_val"]
-        self.switch_L2 = sweep_dict["L2_val"]
-
         calc_comp_count = {"V": 0, "R": 0, "C": 0, "S": 0, "L": 0, "D": 0}
         ref_comp_count = {"V": 1, "R": 1, "C": 0, "S": 0, "L": 0, "D": 0}
         num_comp = self.bucket_id.split("_")
@@ -149,13 +149,32 @@ class PowerElectronics(Problem):
         ref_comp_count["L"] = int(num_comp[2])
         ref_comp_count["C"] = int(num_comp[3])
 
+        self.capacitor_val = sweep_data[: ref_comp_count["C"]]  # 6 capacitors
+        self.inductor_val = sweep_data[ref_comp_count["C"] : ref_comp_count["C"] + ref_comp_count["L"]]  # 3 inductors
+        self.switch_T1 = [sweep_data[ref_comp_count["C"] + ref_comp_count["L"]]] * ref_comp_count[
+            "S"
+        ]  # 5 switches (T1)
+        self.switch_T2 = [1.0] * ref_comp_count["S"]  # 5 switches (T2), all set to 1.0 for now
+        self.switch_L1 = sweep_data[
+            ref_comp_count["C"] + ref_comp_count["L"] + 1 : ref_comp_count["C"]
+            + ref_comp_count["L"]
+            + 1
+            + ref_comp_count["S"]
+        ]  # 5 switches (L1), binary values (0 or 1)
+        self.switch_L2 = sweep_data[
+            ref_comp_count["C"] + ref_comp_count["L"] + 1 + ref_comp_count["S"] : ref_comp_count["C"]
+            + ref_comp_count["L"]
+            + 1
+            + ref_comp_count["S"] * 2
+        ]  # 5 switches (L2), binary values (0 or 1)
+
         with open(self.original_netlist_path) as file:
             for line in file:
                 if line.strip() != "":
-                    line = line.replace("=", " ")  # to deal with .PARAM problems. See the comments below.
+                    line_ = line.replace("=", " ")  # to deal with .PARAM problems. See the comments below.
                     # liang: Note that line still contains \n at the end of it!
-                    line_spl = line.split()
-                    if line_spl[0] == ".PARAM" and sweep_dict is None:
+                    line_spl = line_.split()
+                    if line_spl[0] == ".PARAM" and sweep_data is None:
                         # e.g. .PARAM V0_value = 10
                         # e.g. .PARAM C0_value = 10u
                         # e.g. .PARAM L2_value=0.001. Note the whitespace! It appears in new files provided by RTRC.
@@ -173,7 +192,7 @@ class PowerElectronics(Problem):
                             self.switch_L1.append(value)
                         elif "L2" in line_spl[1]:
                             self.switch_L2.append(value)
-                    elif line[0] in self.components.keys():
+                    elif line[0] in self.components:
                         line_spl = line.split(" ")[:3]
 
                         if "RC" in line_spl[0] or "_GS" in line_spl[0]:
@@ -194,6 +213,11 @@ class PowerElectronics(Problem):
         self.cmp_cnt = ref_comp_count
 
     def __rewrite_netlist(self, mode: str = "control") -> None:
+        """Rewrite the netlist based on the topology and the sweep data.
+
+        It creates the direct input file sent to ngSpice.
+        The main difference between this rewrite.netlist and the original netlist is the control section that contains simulation parameters.
+        """
         self.rewrite_netlist_path = os.path.join(self.netlist_dir, f"rewrite_{mode}_{self.netlist_name}.net")
         print(f"rewriting netlist to: {self.rewrite_netlist_path}")
 
@@ -305,7 +329,9 @@ class PowerElectronics(Problem):
                     self.cmp_edg_str = self.cmp_edg_str + "@S" + str(i) + "[i] "
                 for i in range(self.cmp_cnt["D"]):
                     self.cmp_edg_str = self.cmp_edg_str + "@D" + str(i) + "[i] "
-                self.cmp_edg_str = self.cmp_edg_str + "@R0[i] "  # TODO: Debugging
+                self.cmp_edg_str = (
+                    self.cmp_edg_str + "@R0[i] "
+                )  # This line should be outside the for loop, otherwise it will be duplicated.
                 self.cmp_edg_str = self.cmp_edg_str + "\n.save all\n"
 
                 self.cmp_edg_str = self.cmp_edg_str + ".tran 5n 1.06m 1m 5n uic\n"
@@ -333,7 +359,9 @@ class PowerElectronics(Problem):
                     self.cmp_edg_str = self.cmp_edg_str + "@S" + str(i) + "[i] "
                 for i in range(self.cmp_cnt["D"]):
                     self.cmp_edg_str = self.cmp_edg_str + "@D" + str(i) + "[i] "
-                self.cmp_edg_str = self.cmp_edg_str + "@R0[i] "  # TODO: Debugging
+                self.cmp_edg_str = (
+                    self.cmp_edg_str + "@R0[i] "
+                )  # This line should be outside the for loop, otherwise it will be duplicated.
                 self.cmp_edg_str = self.cmp_edg_str + "\nsave all\n"
 
                 self.cmp_edg_str = self.cmp_edg_str + "tran 5n 1.06m 1m 5n uic\n"
@@ -353,7 +381,7 @@ class PowerElectronics(Problem):
             file.write(self.cmp_edg_str)
             file.close()  # explicitly added this line to ensure that the rewritten netlist file is closed
 
-    def __calculate_efficiency(self, exe=False) -> tuple[float, int, float, float]:
+    def __calculate_efficiency(self, exe: bool = False) -> tuple[float, int, float, float]:
         capacitor_model, inductor_model, switch_model, diode_model = [], [], [], []
         max_comp_size = 12
         Ts = 5e-6
@@ -393,7 +421,6 @@ class PowerElectronics(Problem):
                 ind_model_values = [self.inductor_val[i], 0.43e-3]
                 inductor_model.append(cmpt.Inductor(dict(zip(ds.inductor_properties, ind_model_values))))
 
-            # try:
             err, P_loss, P_src = dc_lib_ng.metric_compute_DC_DC_efficiency_ngspice(
                 self.raw_file_path,
                 0.001,
@@ -415,19 +442,7 @@ class PowerElectronics(Problem):
 
             error_report = err
             if efficiency < 0 or efficiency > 1:
-                error_report += 1  # bit 0 will be 1 to report invalid efficiency calculation
-
-            # except ValueError:  # In some conditions LTspice is not generating waveforms with invalid values
-            #     efficiency = np.nan
-            #     error_report = 16  # bit 4 will be 1 to report Process error such as invalid circuit
-            #     P_loss = np.nan
-            #     P_src = np.nan
-
-            # except IndexError:  # For some circuits the gate voltage is not created properly
-            #     efficiency = np.nan
-            #     error_report = 32  # bit 5 will be 1 to report Process error such as invalid circuit
-            #     P_loss = np.nan
-            #     P_src = np.nan
+                error_report = 1  # report invalid efficiency calculation
 
         except subprocess.CalledProcessError as err:
             efficiency = np.nan
@@ -456,15 +471,22 @@ class PowerElectronics(Problem):
                         VoltageRipple = float(parts[2])
         return DcGain, VoltageRipple  # type: ignore
 
-    def simulate(self, design_variable: dict[str, list]) -> np.ndarray:
+    def simulate(self, design_variable: list[float]) -> npt.NDArray:
         """Simulates the performance of a Power Electronics design.
 
         Args:
-            design_variable:
+            design_variable: sweep data. It is a list of floats representing the design parameters for the simulation.
+                    - Capacitor values (C0, C1, C2, ...) in Farads
+                    - Inductor values (L0, L1, L2, ...) in Henries
+                    - Switch parameter T1 duty cycle. Fraction [0.1, 0.9]. All switches have the same T1.
+                    - Switch parameter T2 is not included. Set to constant 1.0 for all switches.
+                    - Switch parameter (L1_1, L1_2, L1_3, ...). Binary (0 or 1).
+                    - Switch parameter (L2_1, L2_2, L2_3, ...). Binary (0 or 1).
+
         Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
+            simulation_results: a numpy array containing the simulation results [DcGain, VoltageRipple, Efficiency].
         """
-        self.__process_topology(sweep_dict=design_variable)
+        self.__process_topology(sweep_data=design_variable)
         self.__rewrite_netlist(mode="control")
         Efficiency, error_report, _, _ = self.__calculate_efficiency(
             exe=True
@@ -488,7 +510,7 @@ class PowerElectronics(Problem):
 
 if __name__ == "__main__":
     # Create an empty problem
-    problem = build()
+    problem = PowerElectronics()
 
     # Load the netlist and set the bucket_id
     original_netlist_path = (
@@ -498,17 +520,31 @@ if __name__ == "__main__":
     problem.load_netlist(original_netlist_path, bucket_id)
 
     # Manually add the sweep data
-    sweep_data = {
-        "C_val": [0.000015485, 0.00001948, 0.000015185, 0.000002442, 0.000009287, 0.000015377],
-        "L_val": [0.000354659, 0.000706596, 0.000195361],
-        "T1_val": [0.867615857, 0.867615857, 0.867615857, 0.867615857, 0.867615857],
-        "T2_val": [1, 1, 1, 1, 1],
-        "L1_val": [1, 1, 0, 0, 1],
-        "L2_val": [1, 1, 1, 0, 0],
-    }
+    sweep_data = [
+        0.000015600,
+        0.00001948,
+        0.000015185,
+        0.000002442,
+        0.000009287,
+        0.000015377,  # C values
+        0.000354659,
+        0.000706596,
+        0.000195361,  # L values
+        0.867615857,  # T1
+        1,
+        0,
+        0,
+        1,
+        1,  # L1 values
+        1,
+        0,
+        1,
+        1,
+        0,  # L2 values
+    ]
 
     # Simulate the problem with the provided design variable
     problem.simulate(design_variable=sweep_data)
     print(problem.simulation_results)  # [-1.27858   -0.025081   0.7827396]
 
-    problem.render()
+    # problem.render()

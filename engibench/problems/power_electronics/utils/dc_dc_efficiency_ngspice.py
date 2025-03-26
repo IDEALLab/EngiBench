@@ -168,8 +168,8 @@ def metric_compute_DC_DC_efficiency_ngspice(
     diode_model: list[cmpt.Diode],
     num_cycles: int,
     skip_cycles: int,
-    gs_L1: list[int],
-    gs_L2: list[int],
+    gs_L1: list[float],
+    gs_L2: list[float],
     t_sw_T1: list[float],
     t_sw_Ts: list[float],
     Fsw: float,
@@ -282,7 +282,6 @@ def metric_compute_DC_DC_efficiency_ngspice(
         else:
             V_D[i] = data_arr["v(" + str(V_D_edg[0]) + ")"] - data_arr["v(" + str(V_D_edg[1]) + ")"]
 
-    print(type(time_axis), type(Vgs_ref_D))
     cycle_edg_det_D, cycle_edg_det_Dc = find_eff_calc_indx(num_cycles, skip_cycles, time_axis, Fsw, Vgs_ref_D, Vgs_ref_Dc)
 
     # ===========================MOSFET power loss calculations====================================================================
