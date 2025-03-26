@@ -67,7 +67,6 @@ class PowerElectronics(Problem[npt.NDArray]):
     container_id = None
     _dataset = None
 
-
     def __init__(self) -> None:
         """Initializes the Power Electronics problem."""
         super().__init__()
@@ -151,9 +150,7 @@ class PowerElectronics(Problem[npt.NDArray]):
 
         self.capacitor_val = sweep_data[: ref_comp_count["C"]]  # 6 capacitors
         self.inductor_val = sweep_data[ref_comp_count["C"] : ref_comp_count["C"] + ref_comp_count["L"]]  # 3 inductors
-        self.switch_T1 = [sweep_data[ref_comp_count["C"] + ref_comp_count["L"]]] * ref_comp_count[
-            "S"
-        ]  # 5 switches (T1)
+        self.switch_T1 = [sweep_data[ref_comp_count["C"] + ref_comp_count["L"]]] * ref_comp_count["S"]  # 5 switches (T1)
         self.switch_T2 = [1.0] * ref_comp_count["S"]  # 5 switches (T2), all set to 1.0 for now
         self.switch_L1 = sweep_data[
             ref_comp_count["C"] + ref_comp_count["L"] + 1 : ref_comp_count["C"]
