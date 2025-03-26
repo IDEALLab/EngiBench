@@ -91,7 +91,7 @@ class Beams2D(Problem[npt.NDArray]):
             ("overhang_constraint", False),
         ]
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(nelx, nely), dtype=np.float64)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
     dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v0"
     _dataset = None
     container_id = None  # type: ignore
@@ -110,7 +110,7 @@ class Beams2D(Problem[npt.NDArray]):
         if "nely" in config and "nelx" in config:
             self.nelx = config["nelx"]
             self.nely = config["nely"]
-            self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nelx, self.nely), dtype=np.float64)
+            self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
             self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
 
     def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
