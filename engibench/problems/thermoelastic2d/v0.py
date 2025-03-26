@@ -18,7 +18,7 @@ from engibench.problems.thermoelastic2d.model.fea_model import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 
 
-class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
+class ThermoElastic2D(Problem[npt.NDArray]):
     r"""Truss 2D integer optimization problem.
 
     ## Problem Description
@@ -77,6 +77,7 @@ class ThermoElastic2D(Problem[npt.NDArray, npt.NDArray]):
     Gabriel Apaza @gapaza
     """
 
+    version = 0
     objectives: tuple[tuple[str, ObjectiveDirection]] = (
         ("structural_compliance", ObjectiveDirection.MINIMIZE),
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),

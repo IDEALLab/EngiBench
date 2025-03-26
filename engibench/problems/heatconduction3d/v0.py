@@ -19,7 +19,7 @@ from engibench.core import Problem
 from engibench.utils import container
 
 
-class HeatConduction3D(Problem[npt.NDArray, str]):
+class HeatConduction3D(Problem[npt.NDArray]):
     r"""HeatConduction 3D topology optimization problem.
 
     ## Problem Description

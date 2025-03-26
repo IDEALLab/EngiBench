@@ -13,7 +13,6 @@ from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
-SimulatorInputType = TypeVar("SimulatorInputType")
 DesignType = TypeVar("DesignType")
 
 
@@ -32,7 +31,7 @@ class ObjectiveDirection(Enum):
     MAXIMIZE = auto()
 
 
-class Problem(Generic[SimulatorInputType, DesignType]):
+class Problem(Generic[DesignType]):
     r"""Main class for defining an engineering design problem.
 
     This class assumes there is:
@@ -47,11 +46,6 @@ class Problem(Generic[SimulatorInputType, DesignType]):
     - :meth:`reset` - to reset the simulator and numpy random to a given seed.
     - :meth:`render` - to render a design in a human-readable format.
     - :meth:`random_design` - to generate a valid random design.
-
-    Some methods are used internally:
-
-    - :meth:`__design_to_simulator_input` - to convert a design (output of an algorithm) to an input of the simulation.
-    - :meth:`__simulator_output_to_design` - to convert a simulation output to a design (output of an algorithm).
 
     There are some attributes that help understanding the problem:
 
@@ -68,9 +62,7 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         This class is generic and should be subclassed to define the specific problem.
 
     Note:
-        This class is parameterized with two types: `SimulatorInputType` and `DesignType`. `SimulatorInputType` is the type
-        of the input to the simulator (e.g. a file containing a mesh), while `DesignType` is the type of the design that is
-        optimized (e.g. a Numpy array representing the design).
+        This class is parameterized with `DesignType` is the type of the design that is optimized (e.g. a Numpy array representing the design).
 
     Note:
         Some simulators also ask for simulator related configurations. These configurations are generally defined in the
@@ -96,7 +88,6 @@ class Problem(Generic[SimulatorInputType, DesignType]):
 
     # This handles the RNG properly
     np_random: np.random.Generator | None = None
-    __np_random_seed: int | None = None
 
     def __init__(self, **kwargs):
         """Initialize the problem.
@@ -172,29 +163,5 @@ class Problem(Generic[SimulatorInputType, DesignType]):
         Returns:
             DesignType: The random design.
             idx: The index of the design in the dataset.
-        """
-        raise NotImplementedError
-
-    def __design_to_simulator_input(self, design: DesignType, **kwargs) -> SimulatorInputType:
-        r"""Convert a design to a simulator input.
-
-        Args:
-            design (DesignType): The design to convert.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            SimulatorInputType: The corresponding design as a simulator input.
-        """
-        raise NotImplementedError
-
-    def __simulator_output_to_design(self, simulator_output: SimulatorInputType, **kwargs) -> DesignType:
-        r"""Convert a simulator input to a design.
-
-        Args:
-            simulator_output (SimulatorInputType): The input to convert.
-            **kwargs: Additional keyword arguments.
-
-        Returns:
-            DesignType: The corresponding design.
         """
         raise NotImplementedError

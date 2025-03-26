@@ -32,7 +32,7 @@ class ExtendedOptiStep(OptiStep):
     design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
 
 
-class Beams2D(Problem[npt.NDArray, npt.NDArray]):
+class Beams2D(Problem[npt.NDArray]):
     r"""Beam 2D topology optimization problem.
 
     ## Problem Description
@@ -79,17 +79,20 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection]] = (("c", ObjectiveDirection.MINIMIZE),)
+    nelx = 100
+    nely = 50
     conditions: frozenset[tuple[str, Any]] = frozenset(
         [
-            ("nelx", 100),
-            ("nely", 50),
+            ("nelx", nelx),
+            ("nely", nely),
             ("volfrac", 0.35),
             ("rmin", 2.0),
             ("forcedist", 0.0),
             ("overhang_constraint", False),
         ]
     )
-    dataset_id = "IDEALLab/beams_2d_v0"
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
+    dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v0"
     _dataset = None
     container_id = None  # type: ignore
 
@@ -104,9 +107,11 @@ class Beams2D(Problem[npt.NDArray, npt.NDArray]):
         # Replace the conditions with any new configs passed in
         self.conditions = frozenset((key, config.get(key, value)) for key, value in self.conditions)
         self.__st = State()
-        self.resolution = (dict(self.conditions)["nely"], dict(self.conditions)["nelx"])
-        self.design_space = spaces.Box(low=0.0, high=1.0, shape=self.resolution, dtype=np.float64)
-        self.dataset_id = f"IDEALLab/beams_2d_{self.resolution[0]}_{self.resolution[1]}_v0"
+        if "nely" in config and "nelx" in config:
+            self.nelx = config["nelx"]
+            self.nely = config["nely"]
+            self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
+            self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
 
     def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
         """Simulates the performance of a beam design.

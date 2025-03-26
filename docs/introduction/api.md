@@ -1,12 +1,5 @@
 # API
 
-```{toctree}
-:hidden:
-:glob:
-
-./api/utils/index
-```
-
 The main class defining a problem is `engibench.core.Problem`. It is defined as follows
 ```{eval-rst}
 .. autoclass:: engibench.core.Problem

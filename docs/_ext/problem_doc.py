@@ -40,7 +40,7 @@ class ProblemDirective(SphinxDirective):
         problem = BUILTIN_PROBLEMS[problem_id]
         docstring = unindent(problem.__doc__) if problem.__doc__ is not None else None
 
-        image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="500px", align="center")
+        image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="450px", align="center")
 
         objectives = [f"{obj}: ↑" if direction == "maximize" else f"{obj}: ↓" for obj, direction in problem.objectives]
         conditions = [f"{cond}: {value}" for cond, value in problem.conditions]
