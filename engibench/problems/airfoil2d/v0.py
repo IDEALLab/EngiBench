@@ -506,21 +506,23 @@ class Airfoil2D(Problem[npt.NDArray]):
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))  # pyright: ignore[reportOptionalMemberAccess]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]), dtype=int)  # pyright: ignore[reportOptionalMemberAccess]
         return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
 
 if __name__ == "__main__":
     problem = Airfoil2D()
-    problem.reset(seed=0, cleanup=False)
+    problem.reset(seed=1, cleanup=False)
 
     dataset = problem.dataset
 
     # Get design and conditions from the dataset
-    design, _ = problem.random_design()
-    objs = problem.simulate(design=design)
+    design, idx = problem.random_design()
+    cfgs = dataset["train"].select_columns(problem.conditions_dict.keys())
+    cfg = cfgs[idx]
+    opti, objs = problem.optimize(starting_point=design, config=cfg, mpicores=1)
     print(objs)
-    fig, ax = problem.render(design, open_window=True)
+    fig, ax = problem.render(opti, open_window=True)
     fig.savefig(
         "airfoil.png",
         dpi=300,
