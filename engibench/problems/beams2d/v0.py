@@ -81,15 +81,13 @@ class Beams2D(Problem[npt.NDArray]):
     objectives: tuple[tuple[str, ObjectiveDirection]] = (("c", ObjectiveDirection.MINIMIZE),)
     nelx = 100
     nely = 50
-    conditions: frozenset[tuple[str, Any]] = frozenset(
-        [
-            ("nelx", nelx),
-            ("nely", nely),
-            ("volfrac", 0.35),
-            ("rmin", 2.0),
-            ("forcedist", 0.0),
-            ("overhang_constraint", False),
-        ]
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("nelx", nelx),
+        ("nely", nely),
+        ("volfrac", 0.35),
+        ("rmin", 2.0),
+        ("forcedist", 0.0),
+        ("overhang_constraint", False),
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
     dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v0"
@@ -105,7 +103,7 @@ class Beams2D(Problem[npt.NDArray]):
         super().__init__()
 
         # Replace the conditions with any new configs passed in
-        self.conditions = frozenset((key, config.get(key, value)) for key, value in self.conditions)
+        self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
         self.__st = State()
         if "nely" in config and "nelx" in config:
             self.nelx = config["nelx"]

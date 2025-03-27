@@ -75,7 +75,7 @@ class Problem(Generic[DesignType]):
     """Version of the problem"""
     objectives: tuple[tuple[str, ObjectiveDirection], ...]
     """Objective names and types (minimize or maximize)"""
-    conditions: frozenset[tuple[str, Any]]
+    conditions: tuple[tuple[str, Any], ...]
     """Conditions for the design problem"""
     design_space: spaces.Space[DesignType]
     """Design space (algorithm output)"""

@@ -62,11 +62,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    conditions: frozenset[tuple[str, Any]] = frozenset(
-        {
-            ("volume", 0.5),
-            ("length", 0.5),
-        }
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("volume", 0.5),
+        ("length", 0.5),
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
@@ -85,11 +83,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
         self.volume = volume
         self.length = length
         self.resolution = resolution
-        self.conditions = frozenset(
-            {
-                ("volume", self.volume),
-                ("length", self.length),
-            }
+        self.conditions = (
+            ("volume", self.volume),
+            ("length", self.length),
         )
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float64)
 

@@ -86,18 +86,16 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     nelx = 64
     nely = 64
     lci, tri, rci, bri = get_res_bounds(nelx + 1, nely + 1)
-    conditions: frozenset[tuple[str, Any]] = frozenset(
-        {
-            ("nelx", nelx),
-            ("nely", nely),
-            ("fixed_elements", (lci[21], lci[32], lci[43])),
-            ("force_elements_x", (bri[31])),
-            ("force_elements_y", (bri[31])),
-            ("heatsink_elements", (lci[31], lci[32], lci[33])),
-            ("volfrac", 0.3),
-            ("rmin", 1.1),
-            ("weight", 0.5),  # 1.0 for pure structural, 0.0 for pure thermal
-        }
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("nelx", nelx),
+        ("nely", nely),
+        ("fixed_elements", (lci[21], lci[32], lci[43])),
+        ("force_elements_x", (bri[31])),
+        ("force_elements_y", (bri[31])),
+        ("heatsink_elements", (lci[31], lci[32], lci[33])),
+        ("volfrac", 0.3),
+        ("rmin", 1.1),
+        ("weight", 0.5),  # 1.0 for pure structural, 0.0 for pure thermal
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nelx, nely), dtype=np.float32)
     dataset_id = "IDEALLab/thermoelastic_2d_v0"
@@ -150,9 +148,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
         boundary_dict = dict(self.conditions)
-        for key, value in config.items():
-            if key in boundary_dict:
-                boundary_dict[key] = value
+        boundary_dict.update({k: v for k, v in config.items() if k in dict(self.conditions)})
         results = FeaModel(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)
         design = np.array(results["design"]).astype(np.float32)
         opti_steps = results["opti_steps"]
