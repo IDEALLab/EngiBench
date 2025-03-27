@@ -70,7 +70,7 @@ class Airfoil2D(Problem[npt.NDArray]):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    C. Diniz and M. Fuge, “Optimizing Diffusion to Diffuse Optimal Designs,” in AIAA SCITECH 2024 Forum, 2024. doi: 10.2514/6.2024-2013.
+    C. Diniz and M. Fuge, "Optimizing Diffusion to Diffuse Optimal Designs," in AIAA SCITECH 2024 Forum, 2024. doi: 10.2514/6.2024-2013.
 
     ## Lead
     Cashen Diniz @cashend
@@ -177,13 +177,29 @@ class Airfoil2D(Problem[npt.NDArray]):
 
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
-        # Bash command:
-        container.run(
-            command=["/bin/bash", self.__docker_target_dir + "/pre_process.sh", self.__docker_study_dir],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-        )
+        try:
+            container.run(
+                command=["/bin/bash", self.__docker_target_dir + "/pre_process.sh", self.__docker_study_dir],
+                image=self.container_id,
+                name="machaero",
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            )
+        except Exception as e:
+            raise RuntimeError(f"Pre-processing failed: {e}. Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
+
+        # Verify output files exist
+        mesh_file = self.__local_study_dir + "/" + filename + ".cgns"
+        ffd_file = self.__local_study_dir + "/" + filename + "_ffd.xyz"
+
+        if not os.path.exists(mesh_file):
+            raise FileNotFoundError(  # noqa: TRY003
+                f"Mesh file not generated: {mesh_file}. Please look at the logs in {self.__local_study_dir}."
+            )
+        if not os.path.exists(ffd_file):
+            raise FileNotFoundError(  # noqa: TRY003
+                f"FFD file not generated: {ffd_file}. Please look at the logs in {self.__local_study_dir}."
+            )
+
         return filename
 
     def __reorder_coords(self, df_slice: pd.DataFrame) -> npt.NDArray:  # noqa: PLR0915
@@ -398,13 +414,17 @@ class Airfoil2D(Problem[npt.NDArray]):
 
         # Launches a docker container with the airfoil_analysis.py script
         # The script takes a mesh and ffd and performs an optimization
-        # Bash command:
-        container.run(
-            command=[self.__docker_target_dir + "/analyze.sh", str(mpicores), self.__docker_study_dir],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-        )
+        try:
+            container.run(
+                command=[self.__docker_target_dir + "/analyze.sh", str(mpicores), self.__docker_study_dir],
+                image=self.container_id,
+                name="machaero",
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            )
+        except Exception as e:
+            raise RuntimeError(  # noqa: TRY003
+                f"Failed to run airfoil analysis: {e!s}. Please check logs in {self.__local_study_dir}."
+            ) from e
 
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
@@ -452,15 +472,17 @@ class Airfoil2D(Problem[npt.NDArray]):
             base_config,
         )
 
-        # Launches a docker container with the optimize_airfoil.py script
-        # The script takes a mesh and ffd and performs an optimization
-        # Bash command:
-        container.run(
-            command=[self.__docker_target_dir + "/optimize.sh", str(mpicores), self.__docker_study_dir],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-        )
+        try:
+            # Launches a docker container with the optimize_airfoil.py script
+            # The script takes a mesh and ffd and performs an optimization
+            container.run(
+                command=[self.__docker_target_dir + "/optimize.sh", str(mpicores), self.__docker_study_dir],
+                image=self.container_id,
+                name="machaero",
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            )
+        except Exception as e:
+            raise RuntimeError(f"Optimization failed: {e}. Check logs in {self.__local_study_dir}/output/") from e  # noqa: TRY003
 
         # post process -- extract the shape and objective values
         optisteps_history = []
