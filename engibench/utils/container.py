@@ -37,10 +37,15 @@ def run(
         name: Optional name for the container (not supported by all runtimes).
     """
     if RUNTIME is None:
-        msg = "No container runtime found"
+        msg = "No container runtime found. Please ensure Docker, Podman, or Singularity is installed and running."
         raise FileNotFoundError(msg)
 
-    RUNTIME.run(command, image, mounts, env, name).check_returncode()
+    try:
+        result = RUNTIME.run(command, image, mounts, env, name)
+        result.check_returncode()
+    except subprocess.CalledProcessError as e:
+        msg = f"Container command failed with exit code {e.returncode}:\nCommand: {' '.join(command)}\nOutput: {e.output.decode() if e.output else 'No output'}"
+        raise RuntimeError(msg) from e
 
 
 def runtime() -> type[ContainerRuntime] | None:
