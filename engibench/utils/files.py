@@ -1,6 +1,7 @@
 """Utility functions for file operations."""
 
 import os
+import shutil
 from string import Template
 from typing import Any
 
@@ -42,10 +43,8 @@ def clone_dir(source_dir: str, target_dir: str) -> None:
                 try:
                     if not os.path.exists(os.path.dirname(study_file_path)):
                         os.makedirs(os.path.dirname(study_file_path))
-                    with open(file_path) as f:
-                        content = f.read()
-                    with open(study_file_path, "w") as f:
-                        f.write(content)
+                    # Use shutil.copy2 to preserve metadata including permissions
+                    shutil.copy2(file_path, study_file_path)
                 except OSError as e:
                     msg = f"Failed to copy file {file_path} to {study_file_path}: {e!s}"
                     raise RuntimeError(msg) from e
