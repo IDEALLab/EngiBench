@@ -42,12 +42,14 @@ A dataset is generally composed of several columns:
 
 .. autoattribute:: engibench.core.Problem.conditions
 
-    This attribute list the conditions of the problem. The conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value.
+    This attribute list the conditions of the problem. The conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value. You can also access the condition keys only through problem.condition_keys.
 
     .. code::
 
-        >>> problem.boundary_conditions
-        frozenset({('marchDist', 100.0), ('s0', 3e-06)}) # TODO update this
+        >>> problem.conditions
+        tuple(('marchDist', 100.0), ('s0', 3e-06))
+        >>> problem.conditions_keys
+        ['marchDist', 's0']
 
 .. autoattribute:: engibench.core.Problem.design_space
 

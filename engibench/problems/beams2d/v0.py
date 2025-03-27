@@ -276,7 +276,7 @@ if __name__ == "__main__":
     # Example of getting the training set
     optimal_train = dataset["train"]["optimal_design"]  # type: ignore
     c_train = dataset["train"]["c"]  # type: ignore
-    params_train = dataset["train"].select_columns(tuple(dict(problem.conditions).keys()))  # type: ignore
+    params_train = dataset["train"].select_columns(problem.conditions_keys)  # type: ignore
 
     # Get design and conditions from the dataset, render design
     # Note that here, we override any previous configs to re-optimize the same design as a test case.

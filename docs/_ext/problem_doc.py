@@ -42,7 +42,7 @@ class ProblemDirective(SphinxDirective):
 
         image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="450px", align="center")
 
-        objectives = [f"{obj}: ↑" if direction == "maximize" else f"{obj}: ↓" for obj, direction in problem.objectives]
+        objectives = [f"{obj}: ↑" if direction == problem.ObjectiveDirection.MAXIMIZE else f"{obj}: ↓" for obj, direction in problem.objectives]
         conditions = [f"{cond}: {value}" for cond, value in problem.conditions]
 
         tab_data = [
