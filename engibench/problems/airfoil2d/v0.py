@@ -184,21 +184,18 @@ class Airfoil2D(Problem[npt.NDArray]):
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
+
         except Exception as e:
-            raise RuntimeError(f"Pre-processing failed: {e}. Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
+            # Verify output files exist
+            mesh_file = self.__local_study_dir + "/" + filename + ".cgns"
+            ffd_file = self.__local_study_dir + "/" + filename + "_ffd.xyz"
+            msg = ""
 
-        # Verify output files exist
-        mesh_file = self.__local_study_dir + "/" + filename + ".cgns"
-        ffd_file = self.__local_study_dir + "/" + filename + "_ffd.xyz"
-
-        if not os.path.exists(mesh_file):
-            raise FileNotFoundError(  # noqa: TRY003
-                f"Mesh file not generated: {mesh_file}. Please look at the logs in {self.__local_study_dir}."
-            )
-        if not os.path.exists(ffd_file):
-            raise FileNotFoundError(  # noqa: TRY003
-                f"FFD file not generated: {ffd_file}. Please look at the logs in {self.__local_study_dir}."
-            )
+            if not os.path.exists(mesh_file):
+                msg += f"Mesh file not generated: {mesh_file}."
+            if not os.path.exists(ffd_file):
+                msg += f"FFD file not generated: {ffd_file}."
+            raise RuntimeError(f"Pre-processing failed: {e!s}. {msg} Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
 
         return filename
 
@@ -482,7 +479,7 @@ class Airfoil2D(Problem[npt.NDArray]):
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
         except Exception as e:
-            raise RuntimeError(f"Optimization failed: {e}. Check logs in {self.__local_study_dir}/output/") from e  # noqa: TRY003
+            raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}/output/") from e  # noqa: TRY003
 
         # post process -- extract the shape and objective values
         optisteps_history = []
