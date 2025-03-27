@@ -75,7 +75,7 @@ class Problem(Generic[DesignType]):
     """Version of the problem"""
     objectives: tuple[tuple[str, ObjectiveDirection], ...]
     """Objective names and types (minimize or maximize)"""
-    conditions: frozenset[tuple[str, Any]]
+    conditions: tuple[tuple[str, Any], ...]
     """Conditions for the design problem"""
     design_space: spaces.Space[DesignType]
     """Design space (algorithm output)"""
@@ -108,6 +108,11 @@ class Problem(Generic[DesignType]):
     def conditions_dict(self) -> dict[str, Any]:
         """Returns the conditions as a dictionary."""
         return dict(self.conditions)
+
+    @property
+    def conditions_keys(self) -> list[str]:
+        """Returns the condition names as a list."""
+        return [name for name, _ in self.conditions]
 
     def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.

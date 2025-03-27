@@ -81,16 +81,14 @@ class Airfoil2D(Problem[npt.NDArray]):
         ("cd_val", ObjectiveDirection.MINIMIZE),
         ("cl_val", ObjectiveDirection.MAXIMIZE),
     )
-    conditions: frozenset[tuple[str, Any]] = frozenset(
-        {
-            ("alpha", 1.5),
-            ("mach", 0.8),
-            ("reynolds", 1e6),
-            # ("altitude", 10000), # noqa: ERA001
-            # ("temperature", 223.150),  # noqa: ERA001
-            # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
-            ("cl_target", 0.5),
-        }
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("alpha", 1.5),
+        ("mach", 0.8),
+        ("reynolds", 1e6),
+        # ("altitude", 10000), # noqa: ERA001
+        # ("temperature", 223.150),  # noqa: ERA001
+        # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+        ("cl_target", 0.5),
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
     dataset_id = "IDEALLab/airfoil_2d_v0"
@@ -518,7 +516,7 @@ if __name__ == "__main__":
 
     # Get design and conditions from the dataset
     design, idx = problem.random_design()
-    cfgs = dataset["train"].select_columns(problem.conditions_dict.keys())
+    cfgs = dataset["train"].select_columns(problem.conditions_keys)
     cfg = cfgs[idx]
     opti, objs = problem.optimize(starting_point=design, config=cfg, mpicores=1)
     print(objs)
