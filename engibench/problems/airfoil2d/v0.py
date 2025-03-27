@@ -479,7 +479,7 @@ class Airfoil2D(Problem[npt.NDArray]):
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
         except Exception as e:
-            raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}/output/") from e  # noqa: TRY003
+            raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
 
         # post process -- extract the shape and objective values
         optisteps_history = []
@@ -529,7 +529,7 @@ class Airfoil2D(Problem[npt.NDArray]):
 
 if __name__ == "__main__":
     problem = Airfoil2D()
-    problem.reset(seed=1, cleanup=False)
+    problem.reset(seed=0, cleanup=False)
 
     dataset = problem.dataset
 
