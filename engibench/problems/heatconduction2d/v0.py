@@ -122,7 +122,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
         with open(r"templates/RES_SIM/Performance.txt") as fp:
             perf = fp.read()
-        return np.array(perf)
+        return np.array([float(perf)])
 
     def optimize(
         self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
