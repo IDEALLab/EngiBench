@@ -27,31 +27,58 @@ class PowerElectronics(Problem[npt.NDArray]):
     r"""Power Electronics parameter optimization problem.
 
     ## Problem Description
-    This problem tries to find the optimal circuit parameters for a given circuit topology.
-    The ngSpice simulator takes the topology and parameters as input and returns DcGain and Voltage Ripple.  Then Efficiency is calculated from
-    As a single-objective optimization problem,
+    This problem simulates a power converter circuit which has a fixed circuit topology. There are 5 switches, 4 diodes, 3 inductors and 6 capacitors.
+    The circuit topology is fixed. It is defined in the netlist file `5_4_3_6_10-dcdc_converter_1.net`.
+    By changing circuit parameters such as capacitance, we rewrite the netlist file and use ngSpice to simulate the circuits to get the performance metrics, which are defined as the objectives of this problem.
+    You can use this problem to train your regression model. You can also try to find the optimal circuit parameters that minimize objectives.
 
     ## Design space
-    The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in [0., 1.) per design) that define the airfoil shape.
-    Dependent on the dataset. In specific, TODO:
+    The design space is represented by a 20-dimensional vector that defines the cicuit parameters.
+    - `C0`, `C1`, `C2`, `C3`, `C4`, `C5`: Capacitor values in Farads for each capacitor. Range: [1e-6, 2e-5].
+    - `L0`, `L1`, `L2`: Inductor values in Henries for each inductance. Range: [1e-6, 1e-3].
+    - `T1`: Duty cycle, the fraction of "on" time. Range: [0.1, 0.9]. Because all the 5 switches change their on/off state at the samete time, we only need to set one `T1` value.
+        For example, `T1 = 0.1` means that all the switches are first turned "on" for 10% of the time, then "off" for the remaining 90%. This on-off pattern repeats at a high frequency until the simulation is over.
+    - `GS0_L1`, `GS1_L1`, `GS2_L1`, `GS3_L1`, `GS4_L1`: Switches `L1`. Binary values (0 or 1).
+    - `GS0_L2`, `GS1_L2`, `GS2_L2`, `GS3_L2`, `GS4_L2`: Switches `L2`. Binary values (0 or 1).
+        Each switch is a voltage-controlled switch. For exapmle, `S0` is controlled by `V_GS0`, whose voltage is defined by `GS0_L1` and `GS0_L2`.
+        In short, 0 means `S0` is off and 1 means `S0` is on.
+        For exapmle, When `GS0_L1 = 0` and `GS0_L2 = 1`, `S0` is first turned off for time `T1 * Ts`, and then turned on for `(1 - T1) * Ts`, where `Ts` is set to 5e-6.
+        As a result, each switch can be on -> off, on -> on, off -> on, or off -> off independently.
 
     ## Objectives
     The objectives are defined by the following parameters:
-    - `DcGain`: Ratio of load vs. input voltage. It's a preset constant and the simulation result should be as close to the constant as possible.
-    - `Voltage Ripple`: Fluctuation of voltage on the load side. The lower the better.
-    - `Efficiency`: Range is (0, 1). The higher the better.
+    - `DcGain-0.25`: The ratio of load vs. input voltage. It's desired to be as close to a preset constant, such as 0.25, as possible.
+    - `Voltage Ripple`: Fluctuation of voltage on the load `R0`. The lower the better.
 
-    ## Boundary conditions
-    The boundary conditions are defined by the following parameters:
-    N/A
-
-    ## Dataset
-    TODO: The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
-    Networkx objects + netlists.
-    New simulation data points can be appended locally.
+    ## Conditions
+    There is no condition for this problem.
 
     ## Simulator
-    Supports both Ubuntu ngspice package and Windows ngspice.exe.
+    The simulator is ngSpice circuit simulator. You can download it based on your operating system:
+    - Windows: https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/
+    - MacOS: `brew install ngspice`
+    - Linux: `sudo apt-get install ngspice`
+
+    ## Dataset
+    The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/power_electronics).
+
+    ### v0
+
+    #### Fields
+    The dataset contains 3 fields:
+    - `initial_design`: The 20-dimensional design variable defined above.
+    - `DcGain`: The ratio of load vs. input voltage.
+    - `Voltage_Ripple`: The fluctuation of voltage on the load `R0`.
+
+    #### Creation Method
+    We created this dataset in 3 parts. All the 3 parts are simulated with {`GS0_L1`, `GS1_L1`, `GS2_L1`, `GS3_L1`, `GS4_L1`} = {1, 0, 0, 1, 1} and {`GS0_L2`, `GS1_L2`, `GS2_L2`, `GS3_L2`, `GS4_L2`} = {1, 0, 1, 1, 0}.
+    Here are the 3 parts:
+    1. 6 capacitors and 3 inductors only take their min and max values. `T1` ranges {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}. There are 2^6 * 2^3 * 9 = 4608 samples.
+    2. Random sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Min and max values in each dimension will not be sampled.
+    3. Latin hypercube sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Each dimension is splitted into 10 intervals. Min and max values in each dimension will not be sampled.
+
+    ## References
+    If you use this problem in your research, please cite the following paper:
 
     ## Lead
     Xuliang Dong @ liangXD523
