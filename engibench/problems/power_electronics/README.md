@@ -7,8 +7,9 @@
 ### Design Variables
 This is a more detailed version compared to that in `v0.py`.
 Insert the wave plot of PWL switch and pulse switch.
-TODO: comparison betwwen Pulse and PWL.
+TODO: comparison between Pulse and PWL.
 [[Youtube] LTSpice Pulse Voltage Parameters](https://www.youtube.com/watch?v=5sYnePkanfU)
+
 
 - `GS#_Ts`: The time of a specific point in a PWL voltage source. In our case, it is equivalent to `Tperiod` (LTSpice syntax).
   It is set to the **constant** `GS#_Ts` = 5e-6. So we do not count it as a design variable.
@@ -18,7 +19,7 @@ TODO: comparison betwwen Pulse and PWL.
 - `GS#_L1` and `GS#_L2`: Binary. Each switch has a pair of {`GS#_L1`, `GS#_L2`}, which is the on/off pattern of the switch. For example, {`GS3_L1`=1, `GS#_L2`=0} means switch 3 first turns on for (approximately) `GS3_T1` seconds, then turns off for (approximately) (`GS_Ts` - `GS_T1`) seconds.
 
 In summary, the dimension of the design variable is `n_C + n_L + 1 (for T1) + 2 * n_S`.
-
+In our specific case, it decreases to `n_C`.
 
 ## Installation of ngSpice
 ### 1. Windows
