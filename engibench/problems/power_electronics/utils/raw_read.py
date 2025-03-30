@@ -124,7 +124,7 @@ def rawread(fname: str) -> tuple[np.ndarray, dict]:
                 # print("binary content:", mdata[1])
                 """mdata = [b'Binary', b'\n'], len = 2 """
                 names = plot["varnames"]
-                formats = [np.complex_ if b"complex" in plot[b"flags"] else np.float64] * nvars
+                formats = [np.complex128 if b"complex" in plot[b"flags"] else np.float64] * nvars
 
                 rowdtype = np.dtype(
                     {"names": names, "formats": formats}
