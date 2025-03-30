@@ -4,10 +4,10 @@
 ## Example circuit graph
 ![5_4_3_6_10-dcdc_converter_1](5_4_3_6_10-dcdc_converter_1.png)
 
-## Problem Statement
-
 ### Design Variables
+This is a more detailed version compared to that in `v0.py`.
 Insert the wave plot of PWL switch and pulse switch.
+TODO: comparison betwwen Pulse and PWL.
 [[Youtube] LTSpice Pulse Voltage Parameters](https://www.youtube.com/watch?v=5sYnePkanfU)
 
 - `GS#_Ts`: The time of a specific point in a PWL voltage source. In our case, it is equivalent to `Tperiod` (LTSpice syntax).
@@ -19,14 +19,10 @@ Insert the wave plot of PWL switch and pulse switch.
 
 In summary, the dimension of the design variable is `n_C + n_L + 1 (for T1) + 2 * n_S`.
 
-## Dataset
-Since all the circuits in the same problem share the same circuit topology,
 
 ## Installation of ngSpice
 ### 1. Windows
 Directly use the provided `ngSpice64/` folder.
-
-Remember to keep the `.log` files and the `/lib` folder in `.gitignore`.
 
 ### 2. Ubuntu
 ``` bash
