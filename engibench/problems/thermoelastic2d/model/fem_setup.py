@@ -110,7 +110,7 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
             n2 = (nely + 1) * (elx + 1) + ely
             edof = np.array([n1 + 1, n2 + 1, n2, n1], dtype=int)
             dof_pairs = np.array(np.meshgrid(edof, edof)).T.reshape(-1, 2)
-            local_data = (x[ely, elx] ** penal * k_eth).flatten()
+            local_data = ((2e-2 + x[ely, elx]) ** penal * k_eth).flatten()
             row.extend(dof_pairs[:, 0])
             col.extend(dof_pairs[:, 1])
             data.extend(local_data)
