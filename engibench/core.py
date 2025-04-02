@@ -114,6 +114,11 @@ class Problem(Generic[DesignType]):
         """Returns the condition names as a list."""
         return [name for name, _ in self.conditions]
 
+    @property
+    def objectives_keys(self) -> list[str]:
+        """Returns the objective names as a list."""
+        return [name for name, _ in self.objectives]
+
     def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
 

@@ -33,12 +33,14 @@ A dataset is generally composed of several columns:
 ```{eval-rst}
 .. autoattribute:: engibench.core.Problem.objectives
 
-    This attribute is a list of objectives that can be optimized. The objectives are defined as tuples where the first member is the objective name, and the second member is 'maximize' or 'minimize'.
+    This attribute is a list of objectives that can be optimized. The objectives are defined as tuples where the first member is the objective name, and the second member is an enum saying 'maximize' or 'minimize'.
 
     .. code::
 
-        >>> problem.possible_objectives
-        frozenset({('cl_val', ObjectiveDirection.MAXIMIZE), ('cd_val', ObjectiveDirection.MINIMIZE)})
+        >>> problem.objectives
+        (("c", ObjectiveDirection.MINIMIZE),)
+        >>> problem.objectives_keys
+        ["c"]
 
 .. autoattribute:: engibench.core.Problem.conditions
 
@@ -47,9 +49,9 @@ A dataset is generally composed of several columns:
     .. code::
 
         >>> problem.conditions
-        tuple(('marchDist', 100.0), ('s0', 3e-06))
+        (("volfrac", 0.35), ("forcedist", 0.0),...)
         >>> problem.conditions_keys
-        ['marchDist', 's0']
+        ["marchDist", "forcedist"]
 
 .. autoattribute:: engibench.core.Problem.design_space
 
@@ -58,7 +60,7 @@ A dataset is generally composed of several columns:
     .. code::
 
         >>> problem.design_space
-        Box(0.0, 1.0, (2, 192), float32)
+        Box(0.0, 1.0, (50, 100), float64)
 
 .. autoattribute:: engibench.core.Problem.dataset_id
 
@@ -67,7 +69,7 @@ A dataset is generally composed of several columns:
     .. code::
 
         >>> problem.dataset_id
-        'IDEALLab/airfoil_2d_v0'
+        'IDEALLab/beams_2d_50_100_v0'
 
 .. autoattribute:: engibench.core.Problem.dataset
 
@@ -77,7 +79,7 @@ A dataset is generally composed of several columns:
 
         >>> problem.dataset
         Dataset({
-            features: ['design', 'objective'],
+            features: ["optimal_design", "volfrac", "forcedist", "c"],
             num_rows: 1000
         })
 
