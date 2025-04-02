@@ -42,7 +42,7 @@ problem = Beams2D()
 # Inspect problem
 problem.design_space  # Box(0.0, 1.0, (50, 100), float64)
 problem.objectives  # (("compliance", "MINIMIZE"),)
-problem.conditions  # (('volfrac', 0.35), ("forcedist", 0.0),...)
+problem.conditions  # (("volfrac", 0.35), ("forcedist", 0.0),...)
 problem.dataset # A HuggingFace Dataset object
 
 # Train your inverse design model or surrogate model
