@@ -58,7 +58,7 @@ surr_model = train_surrogate(inputs=cond_designs, outputs=objs)
 
 # Use the model predictions, inverse design here
 desired_conds = {"volfrac": 0.7, "forcedist": 0.3}
-generated_design = id_model.predict(desired_conds)
+generated_design = inverse_model.predict(desired_conds)
 # Only simulate to get objective values
 objs = problem.simulate(design=generated_design, config=desired_conds)
 # Or run a gradient-based optimizer to polish the generate design
