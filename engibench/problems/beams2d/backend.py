@@ -270,11 +270,11 @@ def setup(cfg: dict[str, Any] = {}) -> State:
 
 
 def inner_opt(
-    x: npt.NDArray,
+    x: npt.NDArray,  # type: ignore
     st: State,
-    dc: npt.NDArray,
-    dv: npt.NDArray,
-    cfg: dict[str, Any] = {},  # type: ignore
+    dc: npt.NDArray,  # type: ignore
+    dv: npt.NDArray,  # type: ignore
+    cfg: dict[str, Any] = {},
 ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:  # type: ignore
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
@@ -301,7 +301,7 @@ def inner_opt(
         if lmid > 0:
             xnew = np.maximum(
                 0.0, np.maximum(x - move, np.minimum(1.0, np.minimum(x + move, x * np.sqrt(-dc / dv / lmid))))
-            )  # type: ignore
+            )
         else:
             xnew = np.maximum(0.0, np.maximum(x - move, np.minimum(1.0, x + move)))
 
@@ -322,9 +322,9 @@ def inner_opt(
 
 
 def overhang_filter(
-    x: npt.NDArray,
+    x: npt.NDArray,  # type: ignore
     cfg: dict[str, Any] = {},
-    dc: npt.NDArray | None = None,
+    dc: npt.NDArray | None = None,  # type: ignore
     dv: npt.NDArray | None = None,  # type: ignore
 ) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:  # type: ignore
     """Topology Optimization (TO) filter.

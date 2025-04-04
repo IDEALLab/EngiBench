@@ -88,7 +88,7 @@ class Beams2D(Problem[npt.NDArray]):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
     dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v0"
     _dataset = None
-    container_id = None  # type: ignore
+    container_id = None
 
     def __init__(self, config: dict[str, Any] = {}):
         """Initializes the Beams2D problem.
@@ -145,8 +145,8 @@ class Beams2D(Problem[npt.NDArray]):
 
     def optimize(
         self,
-        starting_point: npt.NDArray | None = None,
-        config: dict[str, Any] = {},  # type: ignore
+        starting_point: npt.NDArray | None = None,  # type: ignore
+        config: dict[str, Any] = {},
     ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
