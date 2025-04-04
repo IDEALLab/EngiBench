@@ -92,7 +92,7 @@ class State:
         return dataclasses.asdict(self)
 
 
-def image_to_design(im: npt.NDArray) -> npt.NDArray:
+def image_to_design(im: npt.NDArray) -> npt.NDArray:  # type: ignore
     r"""Flatten the 2D image(s) to 1D vector(s).
 
     Args:
@@ -104,7 +104,7 @@ def image_to_design(im: npt.NDArray) -> npt.NDArray:
     return np.swapaxes(im, -2, -1).reshape(*im.shape[:-2], -1)
 
 
-def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:
+def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:  # type: ignore
     r"""Reshape the 1D vector(s) into 2D image(s).
 
     Args:
@@ -118,7 +118,7 @@ def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDAr
     return np.swapaxes(x.reshape(*x.shape[:-1], nelx, nely), -2, -1)
 
 
-def lk() -> npt.NDArray:
+def lk() -> npt.NDArray:  # type: ignore
     r"""Set up the stiffness matrix.
 
     Returns:
@@ -157,7 +157,7 @@ def lk() -> npt.NDArray:
     return KE
 
 
-def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -> npt.NDArray:
+def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -> npt.NDArray:  # type: ignore
     """Simulates the performance of a beam design. Assumes the State object is already set up.
 
     Args:
@@ -270,8 +270,12 @@ def setup(cfg: dict[str, Any] = {}) -> State:
 
 
 def inner_opt(
-    x: npt.NDArray, st: State, dc: npt.NDArray, dv: npt.NDArray, cfg: dict[str, Any] = {}
-) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
+    x: npt.NDArray,
+    st: State,
+    dc: npt.NDArray,
+    dv: npt.NDArray,
+    cfg: dict[str, Any] = {},  # type: ignore
+) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:  # type: ignore
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
     Args:
@@ -318,8 +322,11 @@ def inner_opt(
 
 
 def overhang_filter(
-    x: npt.NDArray, cfg: dict[str, Any] = {}, dc: npt.NDArray | None = None, dv: npt.NDArray | None = None
-) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:
+    x: npt.NDArray,
+    cfg: dict[str, Any] = {},
+    dc: npt.NDArray | None = None,
+    dv: npt.NDArray | None = None,  # type: ignore
+) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:  # type: ignore
     """Topology Optimization (TO) filter.
 
     Args:

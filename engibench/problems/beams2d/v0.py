@@ -29,7 +29,7 @@ from engibench.problems.beams2d.backend import State
 class ExtendedOptiStep(OptiStep):
     """Extended OptiStep to store a single NumPy array representing a density field at a given optimization step."""
 
-    design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))
+    design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))  # type: ignore
 
 
 class Beams2D(Problem[npt.NDArray]):
@@ -47,8 +47,6 @@ class Beams2D(Problem[npt.NDArray]):
 
     ## Conditions
     The conditions are defined by the following parameters:
-    - `nelx`: Width of the domain.
-    - `nely`: Height of the domain.
     - `volfrac`: Desired volume fraction (in terms of solid material) for the design.
     - `rmin`: Minimum feature length of beam members.
     - `forcedist`: Fractional distance of the downward force from the top-left (default) to the top-right corner.
@@ -82,8 +80,6 @@ class Beams2D(Problem[npt.NDArray]):
     nelx = 100
     nely = 50
     conditions: tuple[tuple[str, Any], ...] = (
-        ("nelx", nelx),
-        ("nely", nely),
         ("volfrac", 0.35),
         ("rmin", 2.0),
         ("forcedist", 0.0),
@@ -111,7 +107,7 @@ class Beams2D(Problem[npt.NDArray]):
             self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
             self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
 
-    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:  # type: ignore
         """Simulates the performance of a beam design.
 
         Args:
@@ -127,6 +123,8 @@ class Beams2D(Problem[npt.NDArray]):
             design = image_to_design(design)
 
         base_config = {
+            "nelx": self.nelx,
+            "nely": self.nely,
             "penal": 3.0,
         }
 
@@ -146,7 +144,9 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array([c])
 
     def optimize(
-        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
+        self,
+        starting_point: npt.NDArray | None = None,
+        config: dict[str, Any] = {},  # type: ignore
     ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
@@ -158,6 +158,8 @@ class Beams2D(Problem[npt.NDArray]):
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
         base_config = {
+            "nelx": self.nelx,
+            "nely": self.nely,
             "max_iter": 100,
             "penal": 3.0,
         }
@@ -246,7 +248,7 @@ class Beams2D(Problem[npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> tuple[npt.NDArray, int]:
+    def random_design(self) -> tuple[npt.NDArray, int]:  # type: ignore
         """Samples a valid random design.
 
         Returns:
@@ -261,16 +263,12 @@ class Beams2D(Problem[npt.NDArray]):
 if __name__ == "__main__":
     # Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
     # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
-    # If a new nely and nelx are not passed in, self.resolution uses the default conditions.
-    new_cfg = {
-        "nely": 25,
-        "nelx": 50,
-    }
+    # If a new nely and nelx are not passed in, uses the default conditions.
 
-    problem = Beams2D(new_cfg)
+    problem = Beams2D()
     problem.reset(seed=0)
 
-    print(f"Loading dataset for nely={problem.resolution[0]}, nelx={problem.resolution[1]}.")
+    print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
 
     # Example of getting the training set
