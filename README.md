@@ -45,24 +45,16 @@ problem.objectives  # (("compliance", "MINIMIZE"),)
 problem.conditions  # (("volfrac", 0.35), ("forcedist", 0.0),...)
 problem.dataset # A HuggingFace Dataset object
 
-# Train your inverse design model or surrogate model
-conditions = problem.dataset["train"].select_columns(problem.conditions_keys)
-designs = problem.dataset["train"].select_columns("optimal_design")
-cond_designs_keys = problem.conditions_keys + ["optimal_design"]
-cond_designs = problem.dataset["train"].select_columns(cond_designs_keys)
-objs = problem.dataset["train"].select_columns(problem.objectives_keys)
-
-# Train your models
-inverse_model = train_inverse(inputs=conditions, outputs=designs)
-surr_model = train_surrogate(inputs=cond_designs, outputs=objs)
-
-# Use the model predictions, inverse design here
+# Train your models, e.g. inverse design
+# inverse_model = train_inverse(problem.dataset)
 desired_conds = {"volfrac": 0.7, "forcedist": 0.3}
-generated_design = inverse_model.predict(desired_conds)
+# generated_design = inverse_model.predict(desired_conds)
+
+random_design, _ = problem.random_design()
 # Only simulate to get objective values
-objs = problem.simulate(design=generated_design, config=desired_conds)
-# Or run a gradient-based optimizer to polish the generate design
-opt_design, history = problem.optimize(starting_point=generated_design, config=desired_conds)
+objs = problem.simulate(design=random_design, config=desired_conds)
+# Or run a gradient-based optimizer to polish the design
+opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
 ```
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
