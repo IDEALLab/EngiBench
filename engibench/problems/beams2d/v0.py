@@ -99,7 +99,7 @@ class Beams2D(Problem[npt.NDArray]):
         ("overhang_constraint", False),
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
-    dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v0"
+    dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v{version}"
     _dataset = None
     container_id = None
 
@@ -118,9 +118,11 @@ class Beams2D(Problem[npt.NDArray]):
             self.nelx = config["nelx"]
             self.nely = config["nely"]
             self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
-            self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
+            self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
 
-    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:  # type: ignore
+    def simulate(
+        self, design: npt.NDArray, config: dict[str, Any] = {}, *, ce: npt.NDArray | None = None, **_kwargs
+    ) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
         Args:
@@ -135,14 +137,7 @@ class Beams2D(Problem[npt.NDArray]):
         if len(design.shape) > 1:
             design = image_to_design(design)
 
-        base_config = {
-            "nelx": self.nelx,
-            "nely": self.nely,
-            "penal": 3.0,
-        }
-
-        base_config.update(self.conditions)
-        base_config.update(config)
+        base_config = {"nelx": self.nelx, "nely": self.nely, "penal": 3.0, **dict(self.conditions), **config}
 
         # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
         # If setup has run, skips the process for repeated simulations during optimization.
@@ -157,9 +152,7 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array([c])
 
     def optimize(
-        self,
-        starting_point: npt.NDArray | None = None,  # type: ignore
-        config: dict[str, Any] = {},
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}, **_kwargs
     ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
@@ -175,10 +168,11 @@ class Beams2D(Problem[npt.NDArray]):
             "nely": self.nely,
             "max_iter": 100,
             "penal": 3.0,
+            **dict(self.conditions),
+            **config,
         }
+        check_field_constraints(Params(**base_config))
 
-        base_config.update(self.conditions)
-        base_config.update(config)
         self.__st = setup(base_config)
 
         # Returns the full history of the optimization instead of just the last step
@@ -241,7 +235,7 @@ class Beams2D(Problem[npt.NDArray]):
         """
         super().reset(seed, **kwargs)
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, open_window: bool = False, **_kwargs) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
