@@ -179,6 +179,11 @@ def operator_blur(rho: npt.NDArray, radius: int = 2, num_blurs: int = 1) -> npt.
 
 # --- Parameterization ---
 
+def wavelength_to_frequency(wavelength: float) -> float:
+    """Converts wavelength (in micrometers) to frequency (in Hz)."""
+    C0 = 299792458 # Speed of light in vacuum (m/s)
+    return (C0* 2 * np.pi * 1e6) / wavelength
+
 def mask_combine_rho(rho: npt.NDArray, bg_rho: npt.NDArray, design_region: npt.NDArray) -> npt.NDArray:
     """Combines the design rho with the background rho using the design region mask.
 

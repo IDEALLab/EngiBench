@@ -37,6 +37,7 @@ from engibench.problems.photonicmultiplexer2d.backend import init_domain
 from engibench.problems.photonicmultiplexer2d.backend import insert_mode
 from engibench.problems.photonicmultiplexer2d.backend import mode_overlap
 from engibench.problems.photonicmultiplexer2d.backend import Slice
+from engibench.problems.photonicmultiplexer2d.backend import wavelength_to_frequency
 
 
 class PhotonicMultiplexer2D(Problem[npt.NDArray]):
@@ -53,11 +54,13 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
     Stored as `design_space` (gymnasium.spaces.Box).
 
     ## Objectives
-    0. `raw_objective`: Combined objective to minimize, defined as
+    0. `neg_field_overlap`: Combined objective to minimize, defined as
        `penalty - overlap1 * overlap2`. Lower is better. This is the value
-       returned by `simulate`. Note that `optimize` internally works with a
-       normalized version for stability (`penalty - normalized_overlap`) and
-       reports history (`OptiStep`) corresponding to that normalized version.
+       returned by `simulate` and corresponds to the overlap in the target
+       electrical fields with the desired demultiplexing locations.
+       Note that `optimize` internally works with a normalized version for
+       stability (`penalty - normalized_overlap`) and reports history
+       (`OptiStep`) corresponding to that normalized version.
 
     ## Conditions (Configurable Parameters)
     Default problem parameters that can be overridden via the `config` dict:
@@ -66,9 +69,6 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
     - `blur_radius`: Radius for the density blurring filter (default: 2).
     - `num_elems_x`: Number of grid cells in x (default: 120).
     - `num_elems_y`: Number of grid cells in y (default: 120).
-    - `space`: Space between PML and design region (pixels) (default: 10).
-    - `wg_width`: Width of waveguides (pixels) (default: 12).
-    - `wg_shift`: Lateral shift for output waveguides (pixels) (default: 9).
     - `num_optimization_steps`: Number of optimization steps (default: 100).
     - `step_size`: Adam optimizer step size (default: 1e-2).
     - `penalty_weight`: Weight for the L2 penalty term (default: 1e-2).
@@ -122,111 +122,79 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
     # Note: optimize internally uses a normalized objective, see OptiStep values.
     # We keep a single objective name for simplicity in the list.
 
-    # --- Default Conditions, Internal Constants, Design Space (same as before) ---
-    _omega1_default = 2 * np.pi * 200e12
-    _omega2_default = 2 * np.pi * 230e12
-    _blur_radius_default = 2
-    _num_elems_x_default = 120
-    _num_elems_y_default = 120
-    _space_default = 10
-    _wg_width_default = 12
-    _wg_shift_default = 9
-    _max_opt_steps_default = 100
-    _step_size_default = 1e-2
-    _penalty_weight_default = 1e-7
-    _beta_default = 10.0
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("lambda1", 1.5),
+        ("lambda2", 1.3),
+        ("blur_radius", 2),
+        ("num_elems_x", 120),
+        ("num_elems_y", 120)
+    )
+
+    # Constants specific to problem design
+    _pml_space = 10      # Space between PML and design region (pixels)
+    _wg_width = 12       # Width of waveguides (pixels)
+    _wg_shift = 9        # Lateral shift for output waveguides (pixels)
+    _dl = 40e-9          # Spatial resolution (meters)
+    _num_elems_pml = 20  # Number of PML cells (pixels)
+    _epsr_min = 1.0      # Minimum relative permittivity (background)
+    _epsr_max = 12.0     # Maximum relative permittivity (material)
+    _space_slice = 8     # Extra space for source/probe slices (pixels)
+    _num_elems_x_default = 120 # Default number of grid cells in x
+    _num_elems_y_default = 120 # Default number of grid cells in y
+    _beta_default = 10.0 # Default projection strength parameter
     _eta_default = 0.5
     _num_projections_default = 1
+    _penalty_weight_default = 1e-4 # Default weight for L2 penalty term
     _num_blurs_default = 1
-    _save_frame_interval_default = 0 # 0 means disabled by default
-
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("omega1", _omega1_default), ("omega2", _omega2_default),
-        ("blur_radius", _blur_radius_default), ("num_elems_x", _num_elems_x_default), ("num_elems_y", _num_elems_y_default),
-        ("space", _space_default), ("wg_width", _wg_width_default), ("wg_shift", _wg_shift_default),
-        ("max_opt_steps", _max_opt_steps_default), ("step_size", _step_size_default),
-        ("penalty_weight", _penalty_weight_default), ("beta", _beta_default),
-        ("eta", _eta_default), ("num_projections", _num_projections_default), ("num_blurs", _num_blurs_default),
-        ("save_frame_interval", _save_frame_interval_default), 
-    )
-
-    dl = 40e-9
-    num_elems_pml = 20
-    epsr_min = 1.0
-    epsr_max = 12.0
-    space_slice = 8
-
-    design_space = spaces.Box(
-        low=0.0, high=1.0, shape=(_num_elems_x_default, _num_elems_y_default), dtype=np.float32
-    )
 
     dataset_id = f"IDEALLab/photonicmultiplexer_2d_{_num_elems_x_default}_{_num_elems_y_default}_v0"
     container_id = None # type: ignore
     _dataset = None
 
-    # --- Private attributes for simulation state ---
-    _bg_rho: npt.NDArray | None = None
-    _design_region: npt.NDArray | None = None
-    _input_slice: Slice | None = None
-    _output_slice1: Slice | None = None
-    _output_slice2: Slice | None = None
-    _simulation1: fdfd_ez | None = None
-    _simulation2: fdfd_ez | None = None
-    _source1: npt.NDArray | None = None # Used only during optimize
-    _source2: npt.NDArray | None = None # Used only during optimize
-    _probe1: npt.NDArray | None = None # Used only during optimize
-    _probe2: npt.NDArray | None = None # Used only during optimize
-    _E01: float = 0.0 # Normalization constant (used only during optimize)
-    _E02: float = 0.0 # Normalization constant (used only during optimize)
-    _current_beta: float = _beta_default
+    def __init__(self, config: dict[str, Any] = {}, **kwargs) -> None:
+        """Initializes the Photonics2D problem.
 
-    # --- Attributes to store last simulation results ---
-    _last_epsr: npt.NDArray | None = None
-    _last_Ez1: npt.NDArray | None = None
-    _last_Ez2: npt.NDArray | None = None
-
-
-    def __init__(self, **kwargs) -> None:
-        """Initializes the Photonics2D problem."""
+        Args:
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
+            **kwargs: Additional keyword arguments.
+        """
         super().__init__(**kwargs)
+
+        # Replace the conditions with any new configs passed in
+        self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
         current_conditions = dict(self.conditions)
         num_elems_x = current_conditions.get("num_elems_x", self._num_elems_x_default)
         num_elems_y = current_conditions.get("num_elems_y", self._num_elems_y_default)
         self.design_space = spaces.Box(
             low=0.0, high=1.0, shape=(num_elems_x, num_elems_y), dtype=np.float32
         )
-        self._reset_simulation_state()
 
+        # Setup basic simulation parameters
+        self.omega1 = wavelength_to_frequency(current_conditions["lambda1"])
+        self.omega2 = wavelength_to_frequency(current_conditions["lambda2"])
+        self._current_beta = current_conditions.get("beta", self._beta_default)
 
-    def _reset_simulation_state(self) -> None:
-        """Helper to clear simulation-specific state."""
-        self._bg_rho = None
-        self._design_region = None
-        self._input_slice = None
-        self._output_slice1 = None
-        self._output_slice2 = None
-        self._simulation1 = None
-        self._simulation2 = None
-        self._source1 = None
-        self._source2 = None
-        self._probe1 = None
-        self._probe2 = None
-        self._E01 = 0.0
-        self._E02 = 0.0
-        self._last_epsr = None
-        self._last_Ez1 = None
-        self._last_Ez2 = None
-        self._current_beta = dict(self.conditions).get("beta", self._beta_default)
+        # --- Private attributes for simulation state ---
+        _bg_rho: npt.NDArray
+        _design_region: npt.NDArray
+        _input_slice: Slice
+        _output_slice1: Slice
+        _output_slice2: Slice
+        _simulation1: fdfd_ez
+        _simulation2: fdfd_ez
+        _source1: npt.NDArray # Used only during optimize
+        _source2: npt.NDArray # Used only during optimize
+        _probe1: npt.NDArray # Used only during optimize
+        _probe2: npt.NDArray # Used only during optimize
+        _e01: float = 0.0 # Normalization constant (used only during optimize)
+        _e02: float = 0.0 # Normalization constant (used only during optimize)
+        _current_beta: float = 10
 
-    def reset(self, seed: int | None = None, **kwargs) -> None:
-        """Resets the simulator state and numpy random seed."""
-        super().reset(seed=seed, **kwargs)
-        if self.np_random is None: self.np_random = np.random.default_rng(seed)
-        # Seed legacy numpy random if needed, using the generator from base class
-        np.random.seed(self.np_random.integers(0, 2**32 - 1))
-        self._reset_simulation_state()
+        # --- Attributes to store last simulation results ---
+        _last_epsr: npt.NDArray
+        _last_ez1: npt.NDArray
+        _last_ez2: npt.NDArray
 
-    # --- _setup_simulation, _run_fdfd helpers remain the same as previous version ---
     def _setup_simulation(self, config: dict[str, Any]) -> dict[str, Any]:
         """Helper function to setup simulation parameters and domain."""
         # Merge config with default conditions
@@ -236,53 +204,44 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         num_elems_x = current_conditions["num_elems_x"]
         num_elems_y = current_conditions["num_elems_y"]
 
-        # Initialize domain geometry (only if not already done or if size changed)
-        if self._design_region is None or self._design_region.shape != (num_elems_x, num_elems_y):
-             # --- This is the corrected unpacking line (expects 5 items) ---
-             self._bg_rho, self._design_region, self._input_slice, \
-             self._output_slice1, self._output_slice2 = init_domain(
-                 num_elems_x=num_elems_x, num_elems_y=num_elems_y, num_elems_pml=self.num_elems_pml, space=current_conditions["space"],
-                 wg_width=current_conditions["wg_width"],
-                 space_slice=self.space_slice, wg_shift=current_conditions["wg_shift"]
-             )
-             # -------------------------------------------------------------
+        # Initialize domain geometry
+        self._bg_rho, self._design_region, self._input_slice, \
+        self._output_slice1, self._output_slice2 = init_domain(
+            num_elems_x=num_elems_x, num_elems_y=num_elems_y, num_elems_pml=self._num_elems_pml, space=self._pml_space,
+            wg_width=self._wg_width, wg_shift=self._wg_shift,
+            space_slice=self._space_slice
+        )
 
         return current_conditions
 
     def _run_fdfd(self, design: npt.NDArray, conditions: dict[str, Any]) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
         """Helper to run FDFD and return key components (epsr, fields, sources, probes)."""
-        omega1 = conditions["omega1"]
-        omega2 = conditions["omega2"]
+        omega1 = self.omega1
+        omega2 = self.omega2
         # Use scheduled beta if optimizing, otherwise use beta from conditions
-        beta = self._current_beta if self._simulation1 is not None else conditions["beta"]
+        beta = self._current_beta
+        num_blurs = conditions.get("num_blurs", self._num_blurs_default)
+        num_projections = conditions.get("num_projections", self._num_projections_default)
+        eta = conditions.get("eta", self._eta_default)
 
         # 1. Parameterize
         epsr = epsr_parameterization(
             rho=design, bg_rho=self._bg_rho, design_region=self._design_region,
-            radius=conditions["blur_radius"], num_blurs=conditions["num_blurs"],
-            beta=beta, eta=conditions["eta"], num_projections=conditions["num_projections"],
-            epsr_min=self.epsr_min, epsr_max=self.epsr_max
+            radius=conditions["blur_radius"], num_blurs=num_blurs,
+            beta=beta, eta=eta, num_projections=num_projections,
+            epsr_min=self._epsr_min, epsr_max=self._epsr_max
         )
 
         # 2. Setup Sources and Probes (depend on epsr)
-        source1 = insert_mode(omega1, self.dl, self._input_slice.x, self._input_slice.y, epsr, m=1)
-        source2 = insert_mode(omega2, self.dl, self._input_slice.x, self._input_slice.y, epsr, m=1)
-        probe1 = insert_mode(omega1, self.dl, self._output_slice1.x, self._output_slice1.y, epsr, m=1)
-        probe2 = insert_mode(omega2, self.dl, self._output_slice2.x, self._output_slice2.y, epsr, m=1)
+        source1 = insert_mode(omega1, self._dl, self._input_slice.x, self._input_slice.y, epsr, m=1)
+        source2 = insert_mode(omega2, self._dl, self._input_slice.x, self._input_slice.y, epsr, m=1)
+        probe1 = insert_mode(omega1, self._dl, self._output_slice1.x, self._output_slice1.y, epsr, m=1)
+        probe2 = insert_mode(omega2, self._dl, self._output_slice2.x, self._output_slice2.y, epsr, m=1)
 
         # 3. Setup FDFD Simulations
-        # TODO: Not really sure if I need this check
-        if self._simulation1 is None or self._simulation1.omega != omega1:
-            self._simulation1 = fdfd_ez(omega1, self.dl, epsr, [self.num_elems_pml, self.num_elems_pml])
-        # Update eps_r only if it actually changes to potentially avoid cache misses inside solve if any exist
-        elif not np.array_equal(self._simulation1.eps_r, epsr): 
-             self._simulation1.eps_r = epsr
+        self._simulation1 = fdfd_ez(omega1, self._dl, epsr, [self._num_elems_pml, self._num_elems_pml])
+        self._simulation2 = fdfd_ez(omega2, self._dl, epsr, [self._num_elems_pml, self._num_elems_pml])
 
-        # TODO: Not really sure if I need this check
-        if self._simulation2 is None or self._simulation2.omega != omega2:
-            self._simulation2 = fdfd_ez(omega2, self.dl, epsr, [self.num_elems_pml, self.num_elems_pml])
-        elif not np.array_equal(self._simulation2.eps_r, epsr):
-             self._simulation2.eps_r = epsr
         # 4. Solve FDFD
         # Always solve as Ez fields are needed for return value or objective calc
         _, _, Ez1 = self._simulation1.solve(source1)
@@ -325,7 +284,8 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         # Use standard numpy here, no gradients needed
         overlap1 = np.abs(np.sum(np.conj(Ez1) * probe1)) * 1e6
         overlap2 = np.abs(np.sum(np.conj(Ez2) * probe2)) * 1e6
-        penalty = conditions["penalty_weight"] * np.linalg.norm(design)
+        penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default) # Default to max epsr
+        penalty = penalty_weight * np.linalg.norm(design)
 
         raw_objective = penalty - (overlap1 * overlap2) # Minimize this
 
@@ -341,7 +301,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
 
         Args:
             starting_point (npt.NDArray): The starting design `rho` (shape num_elems_x, num_elems_y).
-            config (dict): Dictionary to override default conditions (e.g., num_optimization_steps,
+            config (dict): Dictionary to override default conditions (e.g., max_optimization_steps,
                            step_size, penalty_weight, save_frame_interval).
             **kwargs: Additional keyword arguments (ignored).
 
@@ -355,20 +315,27 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         """
         conditions = self._setup_simulation(config)
 
+        # Pull out problem-specific parameters from conditions
         num_elems_x = conditions["num_elems_x"]
         num_elems_y = conditions["num_elems_y"]
-        num_optimization_steps = conditions["num_optimization_steps"]
-        step_size = conditions["step_size"]
-        penalty_weight = conditions["penalty_weight"]
-        self._current_beta = conditions["beta"]
-        # --- Get the frame saving interval from conditions ---
-        save_frame_interval = conditions["save_frame_interval"]
+        # Pull out optimization parameters from conditions
+        # Parameters specific to optimization
+        num_optimization_steps = conditions.get("max_opt_steps", 100)
+        step_size = conditions.get("step_size", 1e-2)
+        penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default)
+        self._current_beta = conditions.get("beta",self._beta_default)
+        self._eta = conditions.get("eta",self._eta_default)
+        self._num_projections = conditions.get("num_projections",self._num_projections_default)
+        self._num_blurs = conditions.get("num_blurs",self._num_blurs_default)
+        # --- Get the frame saving interval from conditions for plotting ---
+        save_frame_interval = conditions.get("save_frame_interval",0)
+
         # --- Initial Simulation for Normalization Constants E01, E02 ---
         print("Optimize: Calculating E01/E02 using starting_point...") # Keep this info message
-        epsr_init, Ez1_init, Ez2_init, source1_init, source2_init, probe1_init, probe2_init = self._run_fdfd(starting_point, conditions)
+        epsr_init, ez1_init, ez2_init, source1_init, source2_init, probe1_init, probe2_init = self._run_fdfd(starting_point, conditions)
 
-        self._E01 = npa.abs(npa.sum(npa.conj(Ez1_init) * probe1_init)) * 1e6
-        self._E02 = npa.abs(npa.sum(npa.conj(Ez2_init) * probe2_init)) * 1e6
+        self._E01 = npa.abs(npa.sum(npa.conj(ez1_init) * probe1_init)) * 1e6
+        self._E02 = npa.abs(npa.sum(npa.conj(ez2_init) * probe2_init)) * 1e6
 
         if self._E01 == 0 or self._E02 == 0:
              print(f"Warning: Initial overlap zero (E01={self._E01:.3e}, E02={self._E02:.3e}). Using fallback.") # Keep this warning
@@ -389,22 +356,21 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
             # --- Parameterization and Simulation ---
             epsr = epsr_parameterization(
                  rho=rho, bg_rho=self._bg_rho, design_region=self._design_region,
-                 radius=conditions["blur_radius"], num_blurs=conditions["num_blurs"],
-                 beta=self._current_beta, eta=conditions["eta"], num_projections=conditions["num_projections"],
-                 epsr_min=self.epsr_min, epsr_max=self.epsr_max
+                 radius=conditions["blur_radius"], num_blurs=self._num_blurs,
+                 beta=self._current_beta, eta=self._eta, num_projections=self._num_projections,
+                 epsr_min=self._epsr_min, epsr_max=self._epsr_max
             )
-            if self._simulation1 is None or self._simulation2 is None: raise RuntimeError("Sim objects not set")
             self._simulation1.eps_r = epsr
             self._simulation2.eps_r = epsr
-            _, _, Ez1 = self._simulation1.solve(self._source1)
-            _, _, Ez2 = self._simulation2.solve(self._source2)
+            _, _, ez1 = self._simulation1.solve(self._source1)
+            _, _, ez2 = self._simulation2.solve(self._source2)
 
             # Calculate overlaps
-            overlap1 = mode_overlap(Ez1, self._probe1)
-            overlap2 = mode_overlap(Ez2, self._probe2)
-            current_E01 = self._E01 # Assume already handled zero case
-            current_E02 = self._E02
-            normalized_overlap = (overlap1 / current_E01) * (overlap2 / current_E02)
+            overlap1 = mode_overlap(ez1, self._probe1)
+            overlap2 = mode_overlap(ez2, self._probe2)
+            current_e01 = self._E01 # Assume already handled zero case
+            current_e02 = self._E02
+            normalized_overlap = (overlap1 / current_e01) * (overlap2 / current_e02)
 
             penalty = penalty_weight * npa.linalg.norm(rho)
             # print(f"input {type(rho_flat)}")
@@ -472,7 +438,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
             # Also check iteration > 0 to avoid saving the initial state redundantly
             if save_frame_interval is not None and save_frame_interval > 0 and iteration > 0 and iteration % save_frame_interval == 0:
                 try:
-                    print(f"Callback Iter {iteration}: Generating render frame...") # Info message
+                    #print(f"Callback Iter {iteration}: Generating render frame...") # Info message
 
                     # Reshape the current design parameters
                     current_rho = rho_flat.reshape((num_elems_x, num_elems_y))
@@ -492,7 +458,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
                     # Save the figure returned by render
                     fig.savefig(save_path, dpi=100)
                     plt_save.close(fig) # Close the figure to free memory
-                    print(f"Callback Iter {iteration}: Saved frame to {save_path}")
+                    #print(f"Callback Iter {iteration}: Saved frame to {save_path}")
 
                 except Exception as e:
                     # Print traceback for detailed debugging if rendering fails
@@ -540,30 +506,28 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         # Run simulation for the given design to get fields for plotting
         conditions["beta"] = conditions.get("beta", self._beta_default)
         # Use run_fdfd but ignore most outputs, just need epsr, Ez1, Ez2
-        epsr, Ez1, Ez2, _, _, _, _ = self._run_fdfd(design, conditions) 
+        epsr, ez1, ez2, _, _, _, _ = self._run_fdfd(design, conditions) 
 
         # Store these fields as the "last" simulated ones as well
         self._last_epsr = epsr.copy()
-        self._last_Ez1 = Ez1.copy()
-        self._last_Ez2 = Ez2.copy()
+        self._last_Ez1 = ez1.copy()
+        self._last_Ez2 = ez2.copy()
 
         # --- Plotting (same as before) ---
         fig, ax = plt.subplots(1, 3, constrained_layout=True, figsize=(9, 3))
-        ceviche.viz.abs(Ez1, outline=epsr, ax=ax[0], cbar=False, cmap='magma', outline_alpha=0.9, outline_val=np.sqrt(self.epsr_min/self.epsr_max))
-        ceviche.viz.abs(Ez2, outline=epsr, ax=ax[1], cbar=False, cmap='magma', outline_alpha=0.9, outline_val=np.sqrt(self.epsr_min/self.epsr_max))
+        ceviche.viz.abs(ez1, outline=epsr, ax=ax[0], cbar=False, cmap='magma', outline_alpha=0.9, outline_val=np.sqrt(self._epsr_min/self._epsr_max))
+        ceviche.viz.abs(ez2, outline=epsr, ax=ax[1], cbar=False, cmap='magma', outline_alpha=0.9, outline_val=np.sqrt(self._epsr_min/self._epsr_max))
         ceviche.viz.real(epsr, ax=ax[2], cmap='Greys')
         slices_to_plot = [self._input_slice, self._output_slice1, self._output_slice2]
         for sl in slices_to_plot:
             if sl:
                 for axis in ax[:2]: # Plot on field plots
                     axis.plot(sl.x * np.ones(len(sl.y)), sl.y, 'w-', alpha=0.5, linewidth=1)
-        omega1 = conditions["omega1"]
-        omega2 = conditions["omega2"]
-        lambda1_um = 299792458 / (omega1 / (2 * np.pi)) / 1e-6
-        lambda2_um = 299792458 / (omega2 / (2 * np.pi)) / 1e-6
+        lambda1_um = conditions["lambda1"]
+        lambda2_um = conditions["lambda2"]
         ax[0].set_title(f'|Ez| at $\\lambda_1$ = {lambda1_um:.2f} $\\mu$m')
         ax[1].set_title(f'|Ez| at $\\lambda_2$ = {lambda2_um:.2f} $\\mu$m')
-        ax[2].set_title(f'Permittivity $\epsilon_r$')
+        ax[2].set_title(r'Permittivity $\epsilon_r$')
         for axis in ax:
             axis.set_xlabel('')
             axis.set_ylabel('')
@@ -587,19 +551,18 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         current_conditions = dict(self.conditions)
         num_elems_x = current_conditions.get("num_elems_x", self._num_elems_x_default)
         num_elems_y = current_conditions.get("num_elems_y", self._num_elems_y_default)
-        space = current_conditions.get("space", self._space_default)
-        num_elems_pml = self.num_elems_pml
+        space = self._pml_space
+        num_elems_pml = self._num_elems_pml
 
         design_region = np.zeros((num_elems_x, num_elems_y))
         design_region[num_elems_pml + space:num_elems_x - num_elems_pml - space, num_elems_pml + space:num_elems_y - num_elems_pml - space] = 1
 
-        # Use randomized initialization
-        # TODO: Will below ever happen?
         # Ensure np_random is initialized
         if self.np_random is None:
             self.reset()
         # Generate random numbers using the problem's RNG
-        random_noise = 0.001 * self.np_random.random((num_elems_x, num_elems_y))
+        # Use randomized initialization
+        random_noise = 0.1 * self.np_random.random((num_elems_x, num_elems_y))
         rho_start = design_region * (0.5 + random_noise)
 
         return rho_start.astype(np.float32), 0
@@ -621,7 +584,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     opt_config = {
-        "num_optimization_steps": 20,
+        "max_opt_steps": 20,
         "step_size": 1e-1,
         "penalty_weight": 1e-1,
         "save_frame_interval": 2
