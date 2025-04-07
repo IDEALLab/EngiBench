@@ -99,7 +99,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
     provided by the original library authors:
     ```
     @article{hughes2019forward,
-        title={Forward-Mode Differentiation of Maxwell’s Equations},
+        title={Forward-Mode Differentiation of Maxwell's Equations},
         author={Hughes, Tyler W and Williamson, Ian AD and Minkov, Momchil and Fan, Shanhui},
         journal={ACS Photonics},
         volume={6},
@@ -117,7 +117,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
     version = 0
     # --- Objective Definition (Raw, non-normalized version for simulate) ---
     objectives: tuple[tuple[str, ObjectiveDirection]] = (
-        ("raw_objective", ObjectiveDirection.MINIMIZE),
+        ("neg_field_overlap", ObjectiveDirection.MINIMIZE),
     )
     # Note: optimize internally uses a normalized objective, see OptiStep values.
     # We keep a single objective name for simplicity in the list.
@@ -160,9 +160,8 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         low=0.0, high=1.0, shape=(_num_elems_x_default, _num_elems_y_default), dtype=np.float32
     )
 
-    # TODO: until I have this part working with the dataset generation
-    dataset_id = None
-    container_id = None
+    dataset_id = f"IDEALLab/photonicmultiplexer_2d_{_num_elems_x_default}_{_num_elems_y_default}_v0"
+    container_id = None # type: ignore
     _dataset = None
 
     # --- Private attributes for simulation state ---
@@ -382,7 +381,6 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         self._probe2 = probe2_init
 
         # --- Define Objective Function for Ceviche Optimizer ---
-        # Memoization is disabled
         def objective_for_optimizer(rho_flat):
             """Calculates (normalized_overlap - penalty) for maximization."""
             rho = rho_flat.reshape((num_elems_x, num_elems_y))
