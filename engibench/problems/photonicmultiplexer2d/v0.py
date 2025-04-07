@@ -244,10 +244,10 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
 
         # 4. Solve FDFD
         # Always solve as Ez fields are needed for return value or objective calc
-        _, _, Ez1 = self._simulation1.solve(source1)
-        _, _, Ez2 = self._simulation2.solve(source2)
+        _, _, ez1 = self._simulation1.solve(source1)
+        _, _, ez2 = self._simulation2.solve(source2)
 
-        return epsr, Ez1, Ez2, source1, source2, probe1, probe2
+        return epsr, ez1, ez2, source1, source2, probe1, probe2
 
     def simulate(self, design: npt.NDArray, config: dict[str, Any] = {}, **kwargs) -> npt.NDArray:
         """Simulates the performance of a design, returning the raw objective value.
@@ -273,17 +273,17 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
 
         # --- Run Simulation ---
         # We don't need source returns here
-        epsr, Ez1, Ez2, _, _, probe1, probe2 = self._run_fdfd(design, conditions)
+        epsr, ez1, ez2, _, _, probe1, probe2 = self._run_fdfd(design, conditions)
 
         # --- Store Results Internally ---
         self._last_epsr = epsr.copy()
-        self._last_Ez1 = Ez1.copy()
-        self._last_Ez2 = Ez2.copy()
+        self._last_Ez1 = ez1.copy()
+        self._last_Ez2 = ez2.copy()
 
         # --- Calculate Raw Objective (No Normalization) ---
         # Use standard numpy here, no gradients needed
-        overlap1 = np.abs(np.sum(np.conj(Ez1) * probe1)) * 1e6
-        overlap2 = np.abs(np.sum(np.conj(Ez2) * probe2)) * 1e6
+        overlap1 = np.abs(np.sum(np.conj(ez1) * probe1)) * 1e6
+        overlap2 = np.abs(np.sum(np.conj(ez2) * probe2)) * 1e6
         penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default) # Default to max epsr
         penalty = penalty_weight * np.linalg.norm(design)
 
@@ -292,7 +292,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         return np.array([raw_objective], dtype=np.float64)
 
 
-    def optimize(self, starting_point: npt.NDArray, config: dict[str, Any] = {}, **kwargs) -> tuple[npt.NDArray, list[OptiStep]]:
+    def optimize(self, starting_point: npt.NDArray, config: dict[str, Any] = {}, **kwargs) -> tuple[npt.NDArray, list[OptiStep]]:  # noqa: PLR0915
         """Optimizes a topology (rho) starting from `starting_point` using Adam.
 
            Internally maximizes a normalized objective (`normalized_overlap - penalty`)
@@ -348,7 +348,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         self._probe2 = probe2_init
 
         # --- Define Objective Function for Ceviche Optimizer ---
-        def objective_for_optimizer(rho_flat):
+        def objective_for_optimizer(rho_flat: npt.NDArray|ArrayBox) -> npt.float64 | ArrayBox:
             """Calculates (normalized_overlap - penalty) for maximization."""
             rho = rho_flat.reshape((num_elems_x, num_elems_y))
             conditions["beta"] = self._current_beta # Use scheduled beta
@@ -373,8 +373,6 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
             normalized_overlap = (overlap1 / current_e01) * (overlap2 / current_e02)
 
             penalty = penalty_weight * npa.linalg.norm(rho)
-            # print(f"input {type(rho_flat)}")
-            # print(f"output {type(normalized_overlap - penalty)}")
             return normalized_overlap - penalty # Value to MAXIMIZE
 
         # --- Define Gradient ---
@@ -384,7 +382,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
         opti_steps_history: list[OptiStep] = []
         # No need for of_list_for_beta
 
-        def callback(iteration, objective_history_list, rho_flat):
+        def callback(iteration: int, objective_history_list: list, rho_flat: npt.NDArray|ArrayBox) -> None:
             """Callback for adam_optimize. Receives the history of objective values."""
             # Handle Empty History
             if not objective_history_list:
@@ -438,8 +436,6 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
             # Also check iteration > 0 to avoid saving the initial state redundantly
             if save_frame_interval is not None and save_frame_interval > 0 and iteration > 0 and iteration % save_frame_interval == 0:
                 try:
-                    #print(f"Callback Iter {iteration}: Generating render frame...") # Info message
-
                     # Reshape the current design parameters
                     current_rho = rho_flat.reshape((num_elems_x, num_elems_y))
 
@@ -458,7 +454,7 @@ class PhotonicMultiplexer2D(Problem[npt.NDArray]):
                     # Save the figure returned by render
                     fig.savefig(save_path, dpi=100)
                     plt_save.close(fig) # Close the figure to free memory
-                    #print(f"Callback Iter {iteration}: Saved frame to {save_path}")
+                    print(f"Callback Iter {iteration}: Saved frame to {save_path}")
 
                 except Exception as e:
                     # Print traceback for detailed debugging if rendering fails
