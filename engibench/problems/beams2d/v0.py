@@ -43,7 +43,9 @@ class Beams2D(Problem[npt.NDArray]):
 
     ## Objectives
     The goal is to optimize the distribution of solid material to minimize compliance (equivalently, maximize stiffness) while satisfying constraints on material usage and minimum feature size.
+
     The objectives are defined and indexed as follows:
+
     0. `c`: Compliance to minimize.
 
     ## Conditions
