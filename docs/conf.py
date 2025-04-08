@@ -42,7 +42,6 @@ extensions = [
     "sphinx.ext.viewcode",  # Add links to the source code
     "myst_parser",  # Markdown support
     "sphinx_github_changelog",  # Generate changelog
-    "sphinx_multiversion",  # Versioning
     "sphinx.ext.mathjax",  # Math support
     "problem_doc",
 ]
@@ -65,7 +64,7 @@ napoleon_custom_sections = [("Returns", "params_style")]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "furo"
+html_theme = "sphinx_book_theme"
 html_title = "EngiBench Documentation"
 html_baseurl = ""
 html_logo = "_static/img/logo_2.png"
@@ -79,41 +78,9 @@ html_theme_options = {
     "source_directory": "docs/",
 }
 
-# Add version information to the context
-html_context = {
-    "version_info": {
-        "version": release,
-        "versions": {
-            "latest": "/",
-            "stable": "/v" + release,
-        },
-        "current": "latest",
-    }
-}
-
-# Add version switcher to the left sidebar
-html_sidebars = {
-    "**": [
-        "sidebar/brand.html",
-        "sidebar/search.html",
-        "sidebar/scroll-start.html",
-        "sidebar/navigation.html",
-        "sidebar/scroll-end.html",
-        "versions.html",
-    ]
-}
-
 html_static_path = ["_static"]
 html_css_files: list[str] = []
 
 # -- Generate Changelog -------------------------------------------------
 
 sphinx_github_changelog_token = os.environ.get("SPHINX_GITHUB_CHANGELOG_TOKEN")
-
-# -- Versioning configuration ------------------------------------------------
-
-# Configure sphinx-multiversion
-smv_tag_whitelist = r'^v\d+\.\d+\.\d+$'  # Only include version tags
-smv_branch_whitelist = r'^main$'  # Only include main branch
-smv_remote_whitelist = r'^.*$'
-smv_latest_version = 'main'  # Use main branch as latest version
