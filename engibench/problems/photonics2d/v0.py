@@ -1,4 +1,4 @@
-"""PhotonicsMultiplexer2D problem.
+"""Photonics2D problem.
 
 This is essentially re-factored from the code at
 https://nbviewer.org/github/fancompute/workshop-invdesign/blob/master/04_Invdes_wdm_scheduling.ipynb
@@ -31,18 +31,18 @@ import numpy.typing as npt
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
-from engibench.problems.photonicmultiplexer2d.backend import epsr_parameterization
+from engibench.problems.photonics2d.backend import epsr_parameterization
 
 # --- EngiBench Problem-Specific Backend ---
-from engibench.problems.photonicmultiplexer2d.backend import init_domain
-from engibench.problems.photonicmultiplexer2d.backend import insert_mode
-from engibench.problems.photonicmultiplexer2d.backend import mode_overlap
-from engibench.problems.photonicmultiplexer2d.backend import operator_proj
-from engibench.problems.photonicmultiplexer2d.backend import Slice
-from engibench.problems.photonicmultiplexer2d.backend import wavelength_to_frequency
+from engibench.problems.photonics2d.backend import init_domain
+from engibench.problems.photonics2d.backend import insert_mode
+from engibench.problems.photonics2d.backend import mode_overlap
+from engibench.problems.photonics2d.backend import operator_proj
+from engibench.problems.photonics2d.backend import Slice
+from engibench.problems.photonics2d.backend import wavelength_to_frequency
 
 
-class PhotonicMultiplexer2D(Problem[npt.NDArray]):
+class Photonics2D(Problem[npt.NDArray]):
     r"""Photonic Inverse Design 2D Problem (Wavelength Demultiplexer).
 
     ## Problem Description
@@ -638,7 +638,7 @@ if __name__ == "__main__":
         "lambda2": 1.4,
         "blur_radius": 2,
     }
-    problem = PhotonicMultiplexer2D(problem_config)
+    problem = Photonics2D(problem_config)
     problem.reset(seed=42)  # Use a seed
 
     start_design, _ = problem.random_design()
