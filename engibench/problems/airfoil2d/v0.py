@@ -59,14 +59,14 @@ class Airfoil2D(Problem[npt.NDArray]):
     #### Fields
     The dataset contains optimal design, conditions, objectives and these additional fields:
     - `initial`: Design before the adjoint optimization.
-    - `cl_target`: Target lift coefficient. # TODO IDK what this is
+    - `cl_target`: Target lift coefficient to satisfy equality constraint.
     - `area_target`: Target area. # TODO this too
     - `area_initial`: Initial area. # TODO this too
     - `cl_con`: # TODO this too
     - `area_con`: # TODO this too
 
     #### Creation Method
-    We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
+    We created this dataset by sampling using Latin Hypercube Sampling. 
 
     ## References
     If you use this problem in your research, please cite the following paper:
@@ -117,7 +117,8 @@ class Airfoil2D(Problem[npt.NDArray]):
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
-
+        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
+        
         super().__init__()
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
@@ -179,7 +180,13 @@ class Airfoil2D(Problem[npt.NDArray]):
         # The script generates the mesh and FFD files
         try:
             container.run(
-                command=["/bin/bash", self.__docker_target_dir + "/pre_process.sh", self.__docker_study_dir],
+                command=[
+                "/bin/bash",
+                "-c",
+                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
+                + self.__docker_study_dir
+                + "/pre_process.py",
+                ],
                 image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
@@ -413,7 +420,17 @@ class Airfoil2D(Problem[npt.NDArray]):
         # The script takes a mesh and ffd and performs an optimization
         try:
             container.run(
-                command=[self.__docker_target_dir + "/analyze.sh", str(mpicores), self.__docker_study_dir],
+            command=[
+                "/bin/bash",
+                "-c",
+                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                + str(mpicores)
+                + " python "
+                + self.__docker_study_dir
+                + "/airfoil_analysis.py > "
+                + self.__docker_study_dir
+                + "/output/output.log",
+                ],
                 image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
@@ -473,7 +490,17 @@ class Airfoil2D(Problem[npt.NDArray]):
             # Launches a docker container with the optimize_airfoil.py script
             # The script takes a mesh and ffd and performs an optimization
             container.run(
-                command=[self.__docker_target_dir + "/optimize.sh", str(mpicores), self.__docker_study_dir],
+                command=[
+                    "/bin/bash",
+                    "-c",
+                    "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                    + str(mpicores)
+                    + " python "
+                    + self.__docker_study_dir
+                    + "/airfoil_opt.py > "
+                    + self.__docker_study_dir
+                    + "/output/airfoil_opt.log",
+                ],
                 image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
@@ -528,18 +555,39 @@ class Airfoil2D(Problem[npt.NDArray]):
 
 
 if __name__ == "__main__":
+    # problem = Airfoil2D()
+    # problem.reset(seed=0, cleanup=False)
+
+    # dataset = problem.dataset
+
+    # # Get design and conditions from the dataset
+    # design, idx = problem.random_design()
+    # cfgs = dataset["train"].select_columns(problem.conditions_keys)
+    # cfg = cfgs[idx]
+    # opti, objs = problem.optimize(starting_point=design, config=cfg, mpicores=1)
+    # print(objs)
+    # fig, ax = problem.render(opti, open_window=True)
+    # fig.savefig(
+    #     "airfoil.png",
+    #     dpi=300,
+    # )
+
     problem = Airfoil2D()
     problem.reset(seed=0, cleanup=False)
 
     dataset = problem.dataset
-
     # Get design and conditions from the dataset
-    design, idx = problem.random_design()
-    cfgs = dataset["train"].select_columns(problem.conditions_keys)
-    cfg = cfgs[idx]
-    opti, objs = problem.optimize(starting_point=design, config=cfg, mpicores=1)
-    print(objs)
-    fig, ax = problem.render(opti, open_window=True)
+    # Print Dataset object keys
+    design = np.array(dataset["train"]["initial_design"][1])  # type: ignore
+
+    # Get design and conditions from the dataset, render design
+
+    config_keys = dataset.keys() - ["initial_design", "optimized_design"]
+    config = {key: dataset[key][1] for key in config_keys}
+
+    print(problem.simulate(design, config=config, mpicores=1))
+
+    fig, ax = problem.render(design, open_window=True)
     fig.savefig(
         "airfoil.png",
         dpi=300,
