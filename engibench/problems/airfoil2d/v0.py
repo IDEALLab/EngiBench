@@ -117,7 +117,6 @@ class Airfoil2D(Problem[npt.NDArray]):
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
-        self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
         
         super().__init__()
 
@@ -186,6 +185,7 @@ class Airfoil2D(Problem[npt.NDArray]):
                 "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
                 + self.__docker_study_dir
                 + "/pre_process.py",
+                " > " + self.__docker_study_dir + "output_preprocess.log"
                 ],
                 image=self.container_id,
                 name="machaero",
@@ -429,7 +429,7 @@ class Airfoil2D(Problem[npt.NDArray]):
                 + self.__docker_study_dir
                 + "/airfoil_analysis.py > "
                 + self.__docker_study_dir
-                + "/output/output.log",
+                + "/output.log",
                 ],
                 image=self.container_id,
                 name="machaero",
@@ -499,7 +499,7 @@ class Airfoil2D(Problem[npt.NDArray]):
                     + self.__docker_study_dir
                     + "/airfoil_opt.py > "
                     + self.__docker_study_dir
-                    + "/output/airfoil_opt.log",
+                    + "/airfoil_opt.log",
                 ],
                 image=self.container_id,
                 name="machaero",
@@ -578,14 +578,14 @@ if __name__ == "__main__":
     dataset = problem.dataset
     # Get design and conditions from the dataset
     # Print Dataset object keys
-    design = np.array(dataset["train"]["initial_design"][1])  # type: ignore
+    design = np.array(dataset["train"]["initial_design"][20])  # type: ignore
 
     # Get design and conditions from the dataset, render design
 
     config_keys = dataset.keys() - ["initial_design", "optimized_design"]
-    config = {key: dataset[key][1] for key in config_keys}
+    config = {key: dataset[key][20] for key in config_keys}
 
-    print(problem.simulate(design, config=config, mpicores=1))
+    print(problem.optimize(design, config=config, mpicores=8))
 
     fig, ax = problem.render(design, open_window=True)
     fig.savefig(

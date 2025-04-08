@@ -130,12 +130,12 @@ if __name__ == "__main__":
             CFDSolver.evalFunctions(ap, funcs)
             # Print the evaluated functions
             if comm.rank == 0:
+                print("hello")
                 print(funcs)
                 CL = funcs[f"{ap.name}_cl"]
                 CD = funcs[f"{ap.name}_cd"]
-                res = CFDSolver.getFreeStreamResidual(ap)
                 # Save the lift and drag coefficients to a file
-                outputs = np.array([mach, reynolds, alpha, CL, CD, res])
+                outputs = np.array([mach, reynolds, alpha, CL, CD])
                 print(f"Outputs: {outputs}")
                 np.save(os.path.join(output_dir, "outputs.npy"), outputs)
 
