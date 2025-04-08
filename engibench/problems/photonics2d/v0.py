@@ -629,6 +629,10 @@ class Photonics2D(Problem[npt.NDArray]):
 
         return rho_start.astype(np.float32), 0
 
+    def reset(self, seed: int | None = None, **kwargs) -> None:
+        """Resets the problem, which in this case, is just the random seed."""
+        return super().reset(seed, **kwargs)
+
 
 # --- Example Usage (main block) ---
 if __name__ == "__main__":
