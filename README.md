@@ -130,8 +130,9 @@ In general, follow the `airfoil2d/` example.
    Here, `new_problem/__init__.py` is crucial as it makes the problem class discoverable to the `problem` directive by
    the reexport `from engibench.problems.new_problem.v0 import NewProblem`.
 4. Add an image (result of `problem.render(design)`) in `docs/_static/img/problems`. The file's name should be `<new_problem>.png`, with your problem module as in the point above.
-5. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
-6. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
+5. `cd docs/`
+6. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
+7. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
 
 Congrats! You can commit your changes and open a PR.
 <!-- end new_problem -->
