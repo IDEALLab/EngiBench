@@ -20,10 +20,11 @@ from skimage.draw import disk as circle
 
 # --- Data Structures ---
 # Container for slice coordinates used for sources and probes
-Slice = collections.namedtuple('Slice', 'x y')
+Slice = collections.namedtuple("Slice", "x y")
 
 
 # --- Domain Initialization ---
+
 
 def init_domain(  # noqa: PLR0913
     num_elems_x: int, num_elems_y: int, num_elems_pml: int, space: int, wg_width: int, space_slice: int, wg_shift: int
@@ -54,47 +55,48 @@ def init_domain(  # noqa: PLR0913
     # --- Define Input Waveguide and Slice ---
     in_wg_y_min = num_elems_y // 2 - wg_width // 2
     in_wg_y_max = num_elems_y // 2 + wg_width // 2
-    bg_rho[0 : num_elems_pml + space, in_wg_y_min:in_wg_y_max] = 1.0 # Use 1.0 for float
+    bg_rho[0 : num_elems_pml + space, in_wg_y_min:in_wg_y_max] = 1.0  # Use 1.0 for float
 
     # Define input slice coordinates slightly inside PML
-    input_slice_x = num_elems_pml + 1 # Consistent slice position
+    input_slice_x = num_elems_pml + 1  # Consistent slice position
     input_slice_y_min = in_wg_y_min - space_slice
     input_slice_y_max = in_wg_y_max + space_slice
-    input_slice = Slice(x=np.array(input_slice_x),
-                        y=np.arange(input_slice_y_min, input_slice_y_max))
+    input_slice = Slice(x=np.array(input_slice_x), y=np.arange(input_slice_y_min, input_slice_y_max))
 
     # --- Define Output Waveguide 1 and Slice ---
     out_wg1_y_min = num_elems_pml + space + wg_shift
     out_wg1_y_max = num_elems_pml + space + wg_width + wg_shift
-    bg_rho[int(num_elems_x - num_elems_pml - space):, out_wg1_y_min:out_wg1_y_max] = 1.0
+    bg_rho[int(num_elems_x - num_elems_pml - space) :, out_wg1_y_min:out_wg1_y_max] = 1.0
 
     # Define output slice 1 coordinates slightly inside PML
     output_slice1_x = num_elems_x - num_elems_pml - 1
     output_slice1_y_min = out_wg1_y_min - space_slice
     output_slice1_y_max = out_wg1_y_max + space_slice
-    output_slice1 = Slice(x=np.array(output_slice1_x),
-                          y=np.arange(output_slice1_y_min, output_slice1_y_max))
+    output_slice1 = Slice(x=np.array(output_slice1_x), y=np.arange(output_slice1_y_min, output_slice1_y_max))
 
     # --- Define Output Waveguide 2 and Slice ---
     out_wg2_y_min = num_elems_y - num_elems_pml - space - wg_width - wg_shift
     out_wg2_y_max = num_elems_y - num_elems_pml - space - wg_shift
-    bg_rho[int(num_elems_x - num_elems_pml - space):, out_wg2_y_min:out_wg2_y_max] = 1.0
+    bg_rho[int(num_elems_x - num_elems_pml - space) :, out_wg2_y_min:out_wg2_y_max] = 1.0
 
     # Define output slice 2 coordinates slightly inside PML
     output_slice2_x = num_elems_x - num_elems_pml - 1
     output_slice2_y_min = out_wg2_y_min - space_slice
     output_slice2_y_max = out_wg2_y_max + space_slice
-    output_slice2 = Slice(x=np.array(output_slice2_x),
-                         y=np.arange(output_slice2_y_min, output_slice2_y_max))
+    output_slice2 = Slice(x=np.array(output_slice2_x), y=np.arange(output_slice2_y_min, output_slice2_y_max))
 
     # --- Define Design Region ---
-    design_region[num_elems_pml + space : num_elems_x - num_elems_pml - space, num_elems_pml + space : num_elems_y - num_elems_pml - space] = 1.0
+    design_region[
+        num_elems_pml + space : num_elems_x - num_elems_pml - space,
+        num_elems_pml + space : num_elems_y - num_elems_pml - space,
+    ] = 1.0
 
     # Return only geometry, rho initialization is handled by random_design
     return bg_rho, design_region, input_slice, output_slice1, output_slice2
 
 
 # --- Mathematical Operators (using autograd.numpy for differentiability) ---
+
 
 def operator_proj(rho: npt.NDArray, eta: float = 0.5, beta: float = 100, num_projections: int = 1) -> npt.NDArray:
     """Density projection operator using tanh functions. Drives rho towards 0 or 1.
@@ -110,9 +112,11 @@ def operator_proj(rho: npt.NDArray, eta: float = 0.5, beta: float = 100, num_pro
     """
     # Use autograd numpy functions for differentiability
     for _ in range(num_projections):
-        rho = npa.divide(npa.tanh(beta * eta) + npa.tanh(beta * (rho - eta)),
-                         npa.tanh(beta * eta) + npa.tanh(beta * (1 - eta)))
+        rho = npa.divide(
+            npa.tanh(beta * eta) + npa.tanh(beta * (rho - eta)), npa.tanh(beta * eta) + npa.tanh(beta * (1 - eta))
+        )
     return rho
+
 
 def _create_blur_kernel(radius: int) -> npt.NDArray:
     """Creates a circular convolution kernel using skimage.draw.disk.
@@ -123,10 +127,10 @@ def _create_blur_kernel(radius: int) -> npt.NDArray:
     Returns:
         A 2D numpy array representing the normalized convolution kernel.
     """
-    radius = int(max(1, radius)) # Ensure radius is at least 1
+    radius = int(max(1, radius))  # Ensure radius is at least 1
     diameter = 2 * radius + 1
     # Create coordinates for a circle centered in the kernel array
-    rr, cc = circle((radius, radius), radius=radius + 0.1) # Use radius+0.1 to ensure center pixel is included
+    rr, cc = circle((radius, radius), radius=radius + 0.1)  # Use radius+0.1 to ensure center pixel is included
 
     # Ensure coordinates are within bounds
     valid = (rr >= 0) & (rr < diameter) & (cc >= 0) & (cc < diameter)
@@ -157,32 +161,34 @@ def operator_blur(rho: npt.NDArray, radius: int = 2, num_blurs: int = 1) -> npt.
         Blurred density array.
     """
     min_blur_radius = 0.5
-    if radius < min_blur_radius: # Skip blurring if radius is negligible
+    if radius < min_blur_radius:  # Skip blurring if radius is negligible
         return rho
 
     kernel = _create_blur_kernel(radius)
-    pad_width = int(radius) # Padding width needed for 'valid' mode convolution
+    pad_width = int(radius)  # Padding width needed for 'valid' mode convolution
 
     # Use autograd's convolve for differentiability
     rho_blurred = rho
     for _ in range(num_blurs):
         # --- Corrected Padding Line ---
         # Change mode to 'constant' and specify constant_values (e.g., 0)
-        rho_padded = npa.pad(rho_blurred, pad_width, mode='constant', constant_values=0)
+        rho_padded = npa.pad(rho_blurred, pad_width, mode="constant", constant_values=0)
         # -----------------------------
 
         # Perform convolution using 'valid' mode, which handles boundary automatically
-        rho_blurred = conv_npa(rho_padded, kernel, mode='valid')
+        rho_blurred = conv_npa(rho_padded, kernel, mode="valid")
 
     return rho_blurred
 
 
 # --- Parameterization ---
 
+
 def wavelength_to_frequency(wavelength: float) -> float:
     """Converts wavelength (in micrometers) to frequency (in Hz)."""
-    C0 = 299792458 # Speed of light in vacuum (m/s)
-    return (C0* 2 * np.pi * 1e6) / wavelength
+    c0 = 299792458  # Speed of light in vacuum (m/s)
+    return (c0 * 2 * np.pi * 1e6) / wavelength
+
 
 def mask_combine_rho(rho: npt.NDArray, bg_rho: npt.NDArray, design_region: npt.NDArray) -> npt.NDArray:
     """Combines the design rho with the background rho using the design region mask.
@@ -210,7 +216,7 @@ def epsr_parameterization(  # noqa: PLR0913
     eta: float,
     num_projections: int,
     epsr_min: float,
-    epsr_max: float
+    epsr_max: float,
 ) -> npt.NDArray:
     """Applies filtering and projection to rho and converts to permittivity.
 
@@ -253,7 +259,8 @@ def epsr_parameterization(  # noqa: PLR0913
 
 # --- Simulation Utilities ---
 
-def mode_overlap(elec_field1: npt.NDArray, elec_field2: npt.NDArray) -> npa.ndarray:
+
+def mode_overlap(elec_field1: npt.NDArray, elec_field2: npt.NDArray) -> npt.NDArray:
     """Calculates the mode overlap integral: |sum(conj(elec_field1) * elec_field2)|.
 
     Uses autograd.numpy for differentiability during optimization.
@@ -267,16 +274,16 @@ def mode_overlap(elec_field1: npt.NDArray, elec_field2: npt.NDArray) -> npa.ndar
     """
     # Use autograd numpy for sum and abs as this is used in the objective function
     overlap = npa.sum(npa.conj(elec_field1) * elec_field2)
-    return npa.abs(overlap) * 1e6 # Scaling factor from source
+    return npa.abs(overlap) * 1e6  # Scaling factor from source
 
 
 def insert_mode(*args, **kwargs) -> npt.NDArray:  # noqa: ANN002
-     """Wrapper for ceviche.modes.insert_mode.
+    """Wrapper for ceviche.modes.insert_mode.
 
-     Passes arguments directly to the ceviche function. This allows using
-     a consistent backend function name.
+    Passes arguments directly to the ceviche function. This allows using
+    a consistent backend function name.
 
-     Returns:
-         The source or probe field array generated by ceviche.
-     """
-     return ceviche.modes.insert_mode(*args, **kwargs)
+    Returns:
+        The source or probe field array generated by ceviche.
+    """
+    return ceviche.modes.insert_mode(*args, **kwargs)
