@@ -16,7 +16,6 @@ from autograd.scipy.signal import convolve as conv_npa  # Use autograd's convolv
 import ceviche.modes
 import numpy as np
 import numpy.typing as npt
-from skimage.draw import disk as circle
 
 # --- Data Structures ---
 # Container for slice coordinates used for sources and probes
@@ -118,6 +117,54 @@ def operator_proj(rho: npt.NDArray, eta: float = 0.5, beta: float = 100, num_pro
     return rho
 
 
+# ---- Helper Functions from Skimage to prevent full dependency import ----
+def _ellipse_in_shape(shape, center, radii, rotation=0.0):  # noqa: ANN202, ANN001
+    """Generate coordinates of points within ellipse bounded by shape."""
+    r_lim, c_lim = np.ogrid[0 : float(shape[0]), 0 : float(shape[1])]
+    r_org, c_org = center
+    r_rad, c_rad = radii
+    rotation %= np.pi
+    sin_alpha, cos_alpha = np.sin(rotation), np.cos(rotation)
+    r, c = (r_lim - r_org), (c_lim - c_org)
+    distances = ((r * cos_alpha + c * sin_alpha) / r_rad) ** 2 + ((r * sin_alpha - c * cos_alpha) / c_rad) ** 2
+    return np.nonzero(distances < 1)
+
+
+def _pixels_in_circle(r: int, c: int, radius: int, shape=None, rotation: float = 0.0):  # noqa: ANN001, ANN202
+    """Using Scikit-Image circle definition to prevent having to import entire dependency."""
+    center = np.array([r, c])
+    radii = np.array([radius, radius])
+    # allow just rotation with in range +/- 180 degree
+    rotation %= np.pi
+
+    # compute rotated radii by given rotation
+    r_radius_rot = abs(radius * np.cos(rotation)) + radius * np.sin(rotation)
+    c_radius_rot = radius * np.sin(rotation) + abs(radius * np.cos(rotation))
+    # The upper_left and lower_right corners of the smallest rectangle
+    # containing the ellipse.
+    radii_rot = np.array([r_radius_rot, c_radius_rot])
+    upper_left = np.ceil(center - radii_rot).astype(int)
+    lower_right = np.floor(center + radii_rot).astype(int)
+
+    if shape is not None:
+        # Constrain upper_left and lower_right by shape boundary.
+        upper_left = np.maximum(upper_left, np.array([0, 0]))
+        lower_right = np.minimum(lower_right, np.array(shape[:2]) - 1)
+
+    shifted_center = center - upper_left
+    bounding_shape = lower_right - upper_left + 1
+
+    rr, cc = _ellipse_in_shape(bounding_shape, shifted_center, radii, rotation)
+    rr.flags.writeable = True
+    cc.flags.writeable = True
+    rr += upper_left[0]
+    cc += upper_left[1]
+    return rr, cc
+
+
+# ---- End Helper Functions ----
+
+
 def _create_blur_kernel(radius: int) -> npt.NDArray:
     """Creates a circular convolution kernel using skimage.draw.disk.
 
@@ -130,7 +177,7 @@ def _create_blur_kernel(radius: int) -> npt.NDArray:
     radius = int(max(1, radius))  # Ensure radius is at least 1
     diameter = 2 * radius + 1
     # Create coordinates for a circle centered in the kernel array
-    rr, cc = circle((radius, radius), radius=radius + 0.1)  # Use radius+0.1 to ensure center pixel is included
+    rr, cc = _pixels_in_circle(r=radius, c=radius, radius=radius + 0.1)  # Use radius+0.1 to ensure center pixel is included
 
     # Ensure coordinates are within bounds
     valid = (rr >= 0) & (rr < diameter) & (cc >= 0) & (cc < diameter)
