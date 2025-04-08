@@ -6,13 +6,19 @@
 from __future__ import annotations
 
 from copy import deepcopy
-import dataclasses
-from typing import Any
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Annotated, Any
 
 from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
+from engibench.constraint import bounded
+from engibench.constraint import Category
+from engibench.constraint import check_field_constraints
+from engibench.constraint import constraint
+from engibench.constraint import greater_than
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -25,11 +31,11 @@ from engibench.problems.beams2d.backend import setup
 from engibench.problems.beams2d.backend import State
 
 
-@dataclasses.dataclass
+@dataclass
 class ExtendedOptiStep(OptiStep):
     """Extended OptiStep to store a single NumPy array representing a density field at a given optimization step."""
 
-    design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))  # type: ignore
+    design: npt.NDArray[np.float64] = field(default_factory=lambda: np.array([], dtype=np.float64))
 
 
 class Beams2D(Problem[npt.NDArray]):
@@ -265,6 +271,32 @@ class Beams2D(Problem[npt.NDArray]):
         """
         rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type: ignore
         return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
+
+
+IMPL = Category.Implementation
+THEORY = Category.Theory
+
+
+@dataclass
+class Params:
+    """Structured representation of configuration parameters for a numerical computation."""
+
+    nelx: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)]
+    nely: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)]
+    volfrac: Annotated[
+        float, bounded(lower=0.0, upper=1.0).category(THEORY), bounded(lower=0.1, upper=0.9).warning().category(IMPL)
+    ]
+    penal: Annotated[float, bounded(lower=1.0).category(IMPL), bounded(lower=2.0, wupper=5.0).category(IMPL).warning()]
+    rmin: Annotated[float, greater_than(0.0).category(THEORY), bounded(lower=1.0, upper=10.0).category(IMPL).warning()]
+    forcedist: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)]
+    max_iter: Annotated[int, bounded(lower=0).category(THEORY), bounded(lower=1, upper=1000).category(IMPL).warning()]
+    overhang_constraint: bool = False
+
+    @constraint
+    @staticmethod
+    def rmin_bound(rmin: float, nelx: int, nely: int) -> None:
+        """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
+        assert 0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
 
 
 if __name__ == "__main__":
