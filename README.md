@@ -45,24 +45,16 @@ problem.objectives  # (("compliance", "MINIMIZE"),)
 problem.conditions  # (("volfrac", 0.35), ("forcedist", 0.0),...)
 problem.dataset # A HuggingFace Dataset object
 
-# Train your inverse design model or surrogate model
-conditions = problem.dataset["train"].select_columns(problem.conditions_keys)
-designs = problem.dataset["train"].select_columns("optimal_design")
-cond_designs_keys = problem.conditions_keys + ["optimal_design"]
-cond_designs = problem.dataset["train"].select_columns(cond_designs_keys)
-objs = problem.dataset["train"].select_columns(problem.objectives_keys)
-
-# Train your models
-inverse_model = train_inverse(inputs=conditions, outputs=designs)
-surr_model = train_surrogate(inputs=cond_designs, outputs=objs)
-
-# Use the model predictions, inverse design here
+# Train your models, e.g. inverse design
+# inverse_model = train_inverse(problem.dataset)
 desired_conds = {"volfrac": 0.7, "forcedist": 0.3}
-generated_design = inverse_model.predict(desired_conds)
+# generated_design = inverse_model.predict(desired_conds)
+
+random_design, _ = problem.random_design()
 # Only simulate to get objective values
-objs = problem.simulate(design=generated_design, config=desired_conds)
-# Or run a gradient-based optimizer to polish the generate design
-opt_design, history = problem.optimize(starting_point=generated_design, config=desired_conds)
+objs = problem.simulate(design=random_design, config=desired_conds)
+# Or run a gradient-based optimizer to polish the design
+opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
 ```
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
@@ -138,8 +130,9 @@ In general, follow the `airfoil2d/` example.
    Here, `new_problem/__init__.py` is crucial as it makes the problem class discoverable to the `problem` directive by
    the reexport `from engibench.problems.new_problem.v0 import NewProblem`.
 4. Add an image (result of `problem.render(design)`) in `docs/_static/img/problems`. The file's name should be `<new_problem>.png`, with your problem module as in the point above.
-5. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
-6. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
+5. `cd docs/`
+6. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
+7. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
 
 Congrats! You can commit your changes and open a PR.
 <!-- end new_problem -->
