@@ -43,6 +43,7 @@ extensions = [
     "myst_parser",  # Markdown support
     "sphinx_github_changelog",  # Generate changelog
     "sphinx_multiversion",  # Versioning
+    "sphinx.ext.mathjax", # Math support
     "problem_doc",
 ]
 
