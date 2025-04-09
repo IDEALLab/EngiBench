@@ -1,4 +1,6 @@
-# ruff: noqa: N806, FIX002  # Upper case variable names such as Ts, TODO
+# ruff: noqa: N806 # Upper case
+# ruff: noqa: PLR0912, PLR0915 # Too many branches. Too many statements
+# ruff: noqa: FIX002 # for TODO
 
 """Power Electronics problem."""
 
@@ -6,7 +8,7 @@ from __future__ import annotations
 
 import os
 import subprocess
-from typing import Any
+from typing import Any, NoReturn
 
 from gymnasium import spaces
 import matplotlib.pyplot as plt
@@ -36,13 +38,13 @@ class PowerElectronics(Problem[npt.NDArray]):
     The design space is represented by a 20-dimensional vector that defines the cicuit parameters.
     - `C0`, `C1`, `C2`, `C3`, `C4`, `C5`: Capacitor values in Farads for each capacitor. Range: [1e-6, 2e-5].
     - `L0`, `L1`, `L2`: Inductor values in Henries for each inductance. Range: [1e-6, 1e-3].
-    - `T1`: Duty cycle, the fraction of "on" time. Range: [0.1, 0.9]. Because all the 5 switches change their on/off state at the samete time, we only need to set one `T1` value.
+    - `T1`: Duty cycle, the fraction of "on" time. Range: [0.1, 0.9]. Because all the 5 switches change their on/off state at the same time, we only need to set one `T1` value.
         For example, `T1 = 0.1` means that all the switches are first turned "on" for 10% of the time, then "off" for the remaining 90%. This on-off pattern repeats at a high frequency until the simulation is over.
     - `GS0_L1`, `GS1_L1`, `GS2_L1`, `GS3_L1`, `GS4_L1`: Switches `L1`. Binary values (0 or 1).
     - `GS0_L2`, `GS1_L2`, `GS2_L2`, `GS3_L2`, `GS4_L2`: Switches `L2`. Binary values (0 or 1).
-        Each switch is a voltage-controlled switch. For exapmle, `S0` is controlled by `V_GS0`, whose voltage is defined by `GS0_L1` and `GS0_L2`.
+        Each switch is a voltage-controlled switch. For example, `S0` is controlled by `V_GS0`, whose voltage is defined by `GS0_L1` and `GS0_L2`.
         In short, 0 means `S0` is off and 1 means `S0` is on.
-        For exapmle, When `GS0_L1 = 0` and `GS0_L2 = 1`, `S0` is first turned off for time `T1 * Ts`, and then turned on for `(1 - T1) * Ts`, where `Ts` is set to 5e-6.
+        For example, When `GS0_L1 = 0` and `GS0_L2 = 1`, `S0` is first turned off for time `T1 * Ts`, and then turned on for `(1 - T1) * Ts`, where `Ts` is set to 5e-6.
         As a result, each switch can be on -> off, on -> on, off -> on, or off -> off independently.
 
     ## Objectives
@@ -75,7 +77,7 @@ class PowerElectronics(Problem[npt.NDArray]):
     Here are the 3 parts:
     1. 6 capacitors and 3 inductors only take their min and max values. `T1` ranges {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}. There are 2^6 * 2^3 * 9 = 4608 samples.
     2. Random sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Min and max values in each dimension will not be sampled.
-    3. Latin hypercube sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Each dimension is splitted into 10 intervals. Min and max values in each dimension will not be sampled.
+    3. Latin hypercube sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Each dimension is split into 10 intervals. Min and max values in each dimension will not be sampled.
 
     ## References
     If you use this problem in your research, please cite the following paper:
@@ -253,29 +255,33 @@ class PowerElectronics(Problem[npt.NDArray]):
         )  # add {mode} compared to that in __load_netlist()
         print(f"rewriting netlist to: {self.rewrite_netlist_path}")
 
+        n_C = len(self.capacitor_val)
+        n_L = len(self.inductor_val)
+        n_S = len(self.switch_T1)
+
         with open(self.rewrite_netlist_path, "w") as file:
             self.cmp_edg_str = "* rewrite netlist\n" + self.cmp_edg_str
 
             RC_str = ""
-            for i in range(len(self.capacitor_val)):
+            for i in range(n_C):
                 RC_str += f"RC{i} {self.edge_map[f'C{i}'][0]} {self.edge_map[f'C{i}'][1]} 100meg\n"
 
             self.cmp_edg_str += f"{RC_str}\n.PARAM V0_value=1000\n"
 
-            for i in range(len(self.capacitor_val)):
+            for i in range(n_C):
                 self.cmp_edg_str += f".PARAM C{i}_value = {self.capacitor_val[i]}\n"
 
-            for i in range(len(self.inductor_val)):
+            for i in range(n_L):
                 self.cmp_edg_str += f".PARAM L{i}_value = {self.inductor_val[i]}\n"
 
             self.cmp_edg_str += ".PARAM R0_value = 10\n\n.model Ideal_switch SW (Ron=1m Roff=10Meg Vt=0.5 Vh=0 Lser=0 Vser=0)\n.model Ideal_D D\n\n"
 
             self.cmp_edg_str += "V_GSref_D  gs_ref_D 0 pwl(0 1 {GS0_T1-10e-9} 1 {GS0_T1} 0 {GS0_T2-10e-9} 0 {GS0_Ts} 1) r=0\nV_GSref_Dc  gs_ref_Dc 0 pwl(0 0 {GS0_T1-10e-9} 0 {GS0_T1} 1 {GS0_T2-10e-9} 1 {GS0_Ts} 0) r=0\n"
 
-            for i in range(len(self.switch_T1)):
+            for i in range(n_S):
                 self.cmp_edg_str += f"V_GS{i} GS{i} 0 pwl(0 {{GS{i}_L1}} {{GS{i}_T1-10e-9}} {{GS{i}_L1}} {{GS{i}_T1}} {{GS{i}_L2}} {{GS{i}_T2-10e-9}} {{GS{i}_L2}} {{GS{i}_Ts}} {{GS{i}_L1}}) r=0\n"
 
-            for i in range(len(self.switch_T1)):
+            for i in range(n_S):
                 self.cmp_edg_str += f".PARAM GS{i}_Ts = {self.switch_T2[i] * 5}e-06\n"
                 self.cmp_edg_str += f".PARAM GS{i}_T1 = {self.switch_T1[i] * 5}e-06\n"
                 self.cmp_edg_str += f".PARAM GS{i}_T2 = {self.switch_T2[i] * 5}e-06\n"
@@ -289,11 +295,11 @@ class PowerElectronics(Problem[npt.NDArray]):
                 .save all
                 """
                 self.cmp_edg_str += "\n.save "
-                for i in range(len(self.capacitor_val)):
+                for i in range(n_C):
                     self.cmp_edg_str += f"@C{i}[i] @RC{i}[i] "
-                for i in range(len(self.inductor_val)):
+                for i in range(n_L):
                     self.cmp_edg_str += f"@L{i}[i] "
-                for i in range(len(self.switch_T1)):
+                for i in range(n_S):
                     self.cmp_edg_str += f"@S{i}[i] "
                 for i in range(self.cmp_cnt["D"]):
                     self.cmp_edg_str += f"@D{i}[i] "
@@ -310,11 +316,11 @@ class PowerElectronics(Problem[npt.NDArray]):
 
             elif mode == "control":
                 self.cmp_edg_str += "\n.control\nsave "
-                for i in range(len(self.capacitor_val)):
+                for i in range(n_C):
                     self.cmp_edg_str += f"@C{i}[i] @RC{i}[i] "
-                for i in range(len(self.inductor_val)):
+                for i in range(n_L):
                     self.cmp_edg_str += f"@L{i}[i] "
-                for i in range(len(self.switch_T1)):
+                for i in range(n_S):
                     self.cmp_edg_str += f"@S{i}[i] "
                 for i in range(self.cmp_cnt["D"]):
                     self.cmp_edg_str += f"@D{i}[i] "
@@ -339,10 +345,8 @@ class PowerElectronics(Problem[npt.NDArray]):
         Ts = 5e-6
         Fs = 1 / Ts
 
-        for _ in range(max_comp_size):
-            switch_model.append(cmpt.MOSFET(dict(zip(ds.MOSFET_properties, ds.APT40SM120B))))
-        for _ in range(max_comp_size):
-            diode_model.append(cmpt.Diode(dict(zip(ds.diode_properties, ds.APT30SCD65B))))
+        switch_model.extend([cmpt.MOSFET(dict(zip(ds.MOSFET_properties, ds.APT40SM120B))) for _ in range(max_comp_size)])
+        diode_model.extend([cmpt.Diode(dict(zip(ds.diode_properties, ds.APT30SCD65B))) for _ in range(max_comp_size)])
 
         try:
             # Use the ngspice wrapper to run the simulation
@@ -433,10 +437,16 @@ class PowerElectronics(Problem[npt.NDArray]):
 
         return self.simulation_results
 
-    def optimize(self):
+    def optimize(self) -> NoReturn:
+        """Optimize the design variable. Not applicable for this problem."""
         return NotImplementedError
 
-    def render(self):
+    def render(self) -> None:
+        """Render the circuit topology using NetworkX.
+
+        It displays the Graph of the circuit topology rather than the circuit diagram.
+        Each circuit element (V, L, C, etc.) is a node. Each wire/port is also a node.
+        """
         plt.figure()
         node_colors = [self.G.nodes[n]["color"] for n in self.G.nodes()]
         pos = nx.spring_layout(self.G)
