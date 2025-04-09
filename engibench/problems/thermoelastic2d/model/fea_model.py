@@ -121,8 +121,10 @@ class FeaModel:
                     - 'nelx' (int): Number of elements along the x-direction.
                     - 'nely' (int): Number of elements along the y-direction.
                     - 'volfrac' (float): Target volume fraction.
-                    - 'fixed_elements' (List[Any], optional): List of fixed elements.
-                    - 'load_elements' (List[Any], optional): List of force elements.
+                    - 'fixed_elements' (np.ndarray): NxN binary array encoding the location of fixed elements.
+                    - 'force_elements_x' (np.ndarray): NxN binary array encoding the location of loaded elements in the x direction.
+                    - 'force_elements_y' (np.ndarray): NxN binary array encoding the location of loaded elements in the y direction.
+                    - 'heatsink_elements' (np.ndarray): NxN binary array encoding the location of heatsink elements.
                     - 'weight' (float, optional): Weighting factor between structural and thermal objectives.
             x_init (Optional[np.ndarray]): Initial design variable array. If None, the design is generated
                 using the get_initial_design method.
