@@ -118,8 +118,6 @@ class FeaModel:
         Args:
             bcs (dict[str, any]): A dictionary containing boundary conditions and problem parameters.
                 Expected keys include:
-                    - 'nelx' (int): Number of elements along the x-direction.
-                    - 'nely' (int): Number of elements along the y-direction.
                     - 'volfrac' (float): Target volume fraction.
                     - 'fixed_elements' (np.ndarray): NxN binary array encoding the location of fixed elements.
                     - 'force_elements_x' (np.ndarray): NxN binary array encoding the location of loaded elements in the x direction.
@@ -142,8 +140,11 @@ class FeaModel:
         w1 = bcs.get("weight", 0.5)
         w2 = 1.0 - w1
 
-        nelx = bcs["nelx"]
-        nely = bcs["nely"]
+        fixed_elements = bcs["fixed_elements"]
+        fe_h, fe_w = fixed_elements.shape
+        nelx = fe_h - 1
+        nely = fe_w - 1
+
         volfrac = bcs["volfrac"]
         n = nely * nelx  # Total number of elements
 

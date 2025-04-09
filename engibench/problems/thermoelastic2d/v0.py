@@ -88,8 +88,6 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     nely = 64
     lci, tri, rci, bri = get_res_bounds(nelx + 1, nely + 1)
     conditions: tuple[tuple[str, Any], ...] = (
-        ("nelx", nelx),
-        ("nely", nely),
         ("fixed_elements", indices_to_binary_matrix([lci[21], lci[32], lci[43]], nelx + 1, nely + 1)),
         ("force_elements_x", indices_to_binary_matrix([bri[31]], nelx + 1, nely + 1)),
         ("force_elements_y", indices_to_binary_matrix([bri[31]], nelx + 1, nely + 1)),
