@@ -6,13 +6,19 @@
 from __future__ import annotations
 
 from copy import deepcopy
-import dataclasses
-from typing import Any
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Annotated, Any
 
 from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
+from engibench.constraint import bounded
+from engibench.constraint import Category
+from engibench.constraint import check_field_constraints
+from engibench.constraint import constraint
+from engibench.constraint import greater_than
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -25,11 +31,11 @@ from engibench.problems.beams2d.backend import setup
 from engibench.problems.beams2d.backend import State
 
 
-@dataclasses.dataclass
+@dataclass
 class ExtendedOptiStep(OptiStep):
     """Extended OptiStep to store a single NumPy array representing a density field at a given optimization step."""
 
-    design: npt.NDArray[np.float64] = dataclasses.field(default_factory=lambda: np.array([], dtype=np.float64))  # type: ignore
+    design: npt.NDArray[np.float64] = field(default_factory=lambda: np.array([], dtype=np.float64))
 
 
 class Beams2D(Problem[npt.NDArray]):
@@ -99,7 +105,7 @@ class Beams2D(Problem[npt.NDArray]):
         ("overhang_constraint", False),
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
-    dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v0"
+    dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v{version}"
     _dataset = None
     container_id = None
 
@@ -118,9 +124,11 @@ class Beams2D(Problem[npt.NDArray]):
             self.nelx = config["nelx"]
             self.nely = config["nely"]
             self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
-            self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
+            self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
 
-    def simulate(self, design: npt.NDArray, ce: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:  # type: ignore
+    def simulate(
+        self, design: npt.NDArray, config: dict[str, Any] = {}, *, ce: npt.NDArray | None = None, **_kwargs
+    ) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
         Args:
@@ -135,14 +143,7 @@ class Beams2D(Problem[npt.NDArray]):
         if len(design.shape) > 1:
             design = image_to_design(design)
 
-        base_config = {
-            "nelx": self.nelx,
-            "nely": self.nely,
-            "penal": 3.0,
-        }
-
-        base_config.update(self.conditions)
-        base_config.update(config)
+        base_config = {"nelx": self.nelx, "nely": self.nely, "penal": 3.0, **dict(self.conditions), **config}
 
         # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
         # If setup has run, skips the process for repeated simulations during optimization.
@@ -157,9 +158,7 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array([c])
 
     def optimize(
-        self,
-        starting_point: npt.NDArray | None = None,  # type: ignore
-        config: dict[str, Any] = {},
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}, **_kwargs
     ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
@@ -175,10 +174,11 @@ class Beams2D(Problem[npt.NDArray]):
             "nely": self.nely,
             "max_iter": 100,
             "penal": 3.0,
+            **dict(self.conditions),
+            **config,
         }
+        check_field_constraints(Params(**base_config))
 
-        base_config.update(self.conditions)
-        base_config.update(config)
         self.__st = setup(base_config)
 
         # Returns the full history of the optimization instead of just the last step
@@ -241,7 +241,7 @@ class Beams2D(Problem[npt.NDArray]):
         """
         super().reset(seed, **kwargs)
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, open_window: bool = False, **_kwargs) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -271,6 +271,32 @@ class Beams2D(Problem[npt.NDArray]):
         """
         rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type: ignore
         return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
+
+
+IMPL = Category.Implementation
+THEORY = Category.Theory
+
+
+@dataclass
+class Params:
+    """Structured representation of configuration parameters for a numerical computation."""
+
+    nelx: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)]
+    nely: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)]
+    volfrac: Annotated[
+        float, bounded(lower=0.0, upper=1.0).category(THEORY), bounded(lower=0.1, upper=0.9).warning().category(IMPL)
+    ]
+    penal: Annotated[float, bounded(lower=1.0).category(IMPL), bounded(lower=2.0, wupper=5.0).category(IMPL).warning()]
+    rmin: Annotated[float, greater_than(0.0).category(THEORY), bounded(lower=1.0, upper=10.0).category(IMPL).warning()]
+    forcedist: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)]
+    max_iter: Annotated[int, bounded(lower=0).category(THEORY), bounded(lower=1, upper=1000).category(IMPL).warning()]
+    overhang_constraint: bool = False
+
+    @constraint
+    @staticmethod
+    def rmin_bound(rmin: float, nelx: int, nely: int) -> None:
+        """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
+        assert 0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
 
 
 if __name__ == "__main__":

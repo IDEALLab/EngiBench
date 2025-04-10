@@ -13,6 +13,8 @@ from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
+from engibench import constraint
+
 DesignType = TypeVar("DesignType")
 
 
@@ -85,6 +87,8 @@ class Problem(Generic[DesignType]):
     """Dataset with designs and performances"""
     container_id: str | None
     """String identifier for the singularity container"""
+    Config: type | None = None
+    """Dataclass declaring types, defaults (optional) and constraints"""
 
     # This handles the RNG properly
     np_random: np.random.Generator | None = None
@@ -180,3 +184,33 @@ class Problem(Generic[DesignType]):
             idx: The index of the design in the dataset.
         """
         raise NotImplementedError
+
+    def check_constraints(self, design: DesignType, config: dict[str, Any]) -> constraint.Violations:
+        """Check if config and design violate any constraints declared in `Config` and `design_space`.
+
+        Return a :class:`constraint.Violations` object containing all violations.
+        """
+        if self.Config is not None:
+            try:
+                checked_config = self.Config(**config)
+            except TypeError as e:
+                cause = str(e)
+                # The following is needed for Python 3.9:
+                if not cause.startswith(type(self).__name__):
+                    cause = self.Config.__name__ + "." + cause
+                if not cause.startswith(type(self).__name__):
+                    cause = type(self).__name__ + "." + cause
+                return constraint.Violations([constraint.Violation(constraint.Constraint(self.Config), cause=cause)])
+            violations = constraint.check_field_constraints(checked_config)
+        else:
+            violations = constraint.Violations([])
+
+        @constraint.constraint
+        def design_constraint(design: DesignType) -> None:
+            assert self.design_space.contains(design), "design ∉ design_space"
+
+        design_violation = design_constraint.check_value(design)
+        if design_violation is not None:
+            violations.violations.append(design_violation)
+
+        return violations
