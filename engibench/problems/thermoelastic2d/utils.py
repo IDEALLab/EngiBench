@@ -31,6 +31,37 @@ def get_res_bounds(x_res: npt.NDArray, y_res: npt.NDArray) -> tuple[npt.NDArray,
     return left_col_indices, top_row_indices, right_col_indices, bottom_row_indices
 
 
+def binary_matrix_to_indices(matrix: npt.NDArray) -> npt.NDArray:
+    """Flattens a binary matrix and returns the indices where the matrix is 1.
+
+    Args:
+        matrix (npt.NDArray): The binary matrix.
+
+    Returns:
+        npt.NDArray: The list of indices where the matrix is 1.
+    """
+    matrix_flat = matrix.flatten()
+    indices = np.where(matrix_flat == 1)[0]
+    return indices
+
+
+def indices_to_binary_matrix(indices: list[int], nelx: int, nely: int) -> npt.NDArray:
+    """Converts a list of indices to a binary matrix of a specific size.
+
+    Args:
+        indices (list[int]): The list of indices to set to 1 in the binary matrix.
+        nelx (int): Number of elements in the x-direction.
+        nely (int): Number of elements in the y-direction.
+
+    Returns:
+        npt.NDArray: The binary matrix.
+    """
+    flat_matrix = np.zeros((nelx * nely,), dtype=int)
+    flat_matrix[indices] = 1
+    matrix = flat_matrix.reshape((nelx, nely))
+    return matrix
+
+
 def plot_multi_physics(  # noqa: PLR0913, PLR0915
     design: npt.NDArray,
     structural_bcs: npt.NDArray,
