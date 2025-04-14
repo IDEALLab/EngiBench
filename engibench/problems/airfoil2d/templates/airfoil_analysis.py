@@ -57,10 +57,14 @@ if __name__ == "__main__":
         mach = $mach
         # Reynolds number
         reynolds = $reynolds
+        # altitude
+        altitude = $altitude
+        # temperature
+        T = $temperature
+        # Whether to use altitude
+        use_altitude = $use_altitude
         # Reynold's Length
         reynoldsLength = 1.0
-        # Temperature
-        T = $temperature
 
         comm = MPI.COMM_WORLD
         print(f"Processor {comm.rank} of {comm.size} is running")
@@ -108,17 +112,29 @@ if __name__ == "__main__":
 
         # rst Create AeroProblem
         alpha = $alpha
-        ap = AeroProblem(
-            name="fc",
-            alpha=alpha,
-            mach=mach,
-            T=T,
-            reynolds=reynolds,
-            reynoldsLength=reynoldsLength,
-            areaRef=1.0,
-            chordRef=1.0,
-            evalFuncs=["cl", "cd"],
-        )
+
+        if use_altitude:
+            ap = AeroProblem(
+                name="fc",
+                alpha=alpha,
+                mach=mach,
+                altitude=altitude,
+                areaRef=1.0,
+                chordRef=1.0,
+                evalFuncs=["cl", "cd"],
+            )
+        else:
+            ap = AeroProblem(
+                name="fc",
+                alpha=alpha,
+                mach=mach,
+                T=T,
+                reynolds=reynolds,
+                reynoldsLength=reynoldsLength,
+                areaRef=1.0,
+                chordRef=1.0,
+                evalFuncs=["cl", "cd"],
+            )
 
         # rst Run ADflow
         if task == "analysis":

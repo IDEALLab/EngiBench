@@ -4,7 +4,7 @@
 https://github.com/mdolab/MACH-Aero/blob/main/tutorial/
 
 TEMPLATED VARS:
-- $cl: The lift coefficient constraint (float).
+- $cl_target: The lift coefficient constraint (float).
 - $alpha: The angle of attack (float).
 - $mach: The Mach number (float).
 - $altitude: The cruising altitude (int).
@@ -106,13 +106,25 @@ if __name__ == "__main__":
         #         Specify parameters for optimization
         # ======================================================================
         # cL constraint
-        mycl = $cl
+        mycl = $cl_target
         # angle of attack
         alpha = $alpha
         # mach number
         mach = $mach
+        # Reynolds number
+        reynolds = $reynolds
         # cruising altitude
-        alt = $altitude
+        altitude = $altitude
+        # temperature
+        T = $temperature
+        # Whether to use altitude
+        use_altitude = $use_altitude
+        # Reynold's Length
+        reynoldsLength = 1.0
+        # volume constraint ratio
+        area_ratio = $area_target
+        area_initial = $area_initial
+
         # Optimization parameters
         opt = $opt
         opt_options = $opt_options
@@ -170,7 +182,30 @@ if __name__ == "__main__":
         # ======================================================================
         #         Set up flow conditions with AeroProblem
         # ======================================================================
-        ap = AeroProblem(name="fc", alpha=alpha, mach=mach, altitude=alt, areaRef=1.0, chordRef=1.0, evalFuncs=["cl", "cd"])
+
+        if use_altitude:
+            ap = AeroProblem(
+                name="fc",
+                alpha=alpha,
+                mach=mach,
+                altitude=altitude,
+                areaRef=1.0,
+                chordRef=1.0,
+                evalFuncs=["cl", "cd"],
+            )
+        else:
+            ap = AeroProblem(
+                name="fc",
+                alpha=alpha,
+                mach=mach,
+                T=T,
+                reynolds=reynolds,
+                reynoldsLength=reynoldsLength,
+                areaRef=1.0,
+                chordRef=1.0,
+                evalFuncs=["cl", "cd"],
+            )
+
         # Add angle of attack variable
         ap.addDV("alpha", value=alpha, lower=0.0, upper=10.0, scale=1.0)
         # ======================================================================
@@ -224,8 +259,8 @@ if __name__ == "__main__":
         leList = [[le, 0, le], [le, 0, 1.0 - le]]
         teList = [[1.0 - le, 0, le], [1.0 - le, 0, 1.0 - le]]
 
-        DVCon.addVolumeConstraint(leList, teList, 2, 100, lower=1, upper=1.2, scaled=True)
-        DVCon.addThicknessConstraints2D(leList, teList, 2, 100, lower=0.1, upper=3.0)
+        DVCon.addVolumeConstraint(leList, teList, 2, 100, lower=area_ratio, upper=1.2, scaled=True)
+        DVCon.addThicknessConstraints2D(leList, teList, 2, 100, lower=0.15, upper=3.0)
         # Final constraint to keep TE thickness at original or greater
         DVCon.addThicknessConstraints1D(ptList=teList, nCon=2, axis=[0, 1, 0], lower=1.0, scaled=True)
 
