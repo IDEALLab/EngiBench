@@ -263,7 +263,7 @@ class Beams2D(Problem[npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> tuple[npt.NDArray, int]:  # type: ignore
+    def random_design(self) -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
 
         Returns:
@@ -271,8 +271,8 @@ class Beams2D(Problem[npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type: ignore
-        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
 
 IMPL = Category.Implementation
@@ -313,9 +313,9 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Example of getting the training set
-    optimal_train = dataset["train"]["optimal_design"]  # type: ignore
-    c_train = dataset["train"]["c"]  # type: ignore
-    params_train = dataset["train"].select_columns(problem.conditions_keys)  # type: ignore
+    optimal_train = dataset["train"]["optimal_design"]
+    c_train = dataset["train"]["c"]
+    params_train = dataset["train"].select_columns(problem.conditions_keys)
 
     # Get design and conditions from the dataset, render design
     # Note that here, we override any previous configs to re-optimize the same design as a test case.

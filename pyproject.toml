@@ -262,3 +262,31 @@ reportPrivateImportUsage = "warning" # ->
 
 reportPrivateUsage = "warning"
 reportUnboundVariable = "warning"
+
+[tool.mypy]
+warn_redundant_casts = true
+warn_unused_ignores = true
+files = ["engibench/", "tests/"]
+exclude = [
+  "^build/",
+  "/templates/",
+  "^engibench_studies/problems/airfoil2d/study_[^/]*/",
+  "^docs/",
+]
+[[tool.mypy.overrides]]
+module = [
+    "mmapy",
+    "fenics",
+    "fenics_adjoint",
+    "gymnasium",
+    "scipy.*",
+    "seaborn",
+    "matplotlib",
+    "matplotlib.*",
+    "pyoptsparse",
+    "pandas",
+    "cvxopt",
+    "cvxopt.*",
+    "datasets",
+]
+ignore_missing_imports = true

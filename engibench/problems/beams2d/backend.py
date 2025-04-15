@@ -92,7 +92,7 @@ class State:
         return dataclasses.asdict(self)
 
 
-def image_to_design(im: npt.NDArray) -> npt.NDArray:  # type: ignore
+def image_to_design(im: npt.NDArray) -> npt.NDArray:
     r"""Flatten the 2D image(s) to 1D vector(s).
 
     Args:
@@ -104,7 +104,7 @@ def image_to_design(im: npt.NDArray) -> npt.NDArray:  # type: ignore
     return np.swapaxes(im, -2, -1).reshape(*im.shape[:-2], -1)
 
 
-def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:  # type: ignore
+def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:
     r"""Reshape the 1D vector(s) into 2D image(s).
 
     Args:
@@ -118,7 +118,7 @@ def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDAr
     return np.swapaxes(x.reshape(*x.shape[:-1], nelx, nely), -2, -1)
 
 
-def lk() -> npt.NDArray:  # type: ignore
+def lk() -> npt.NDArray:
     r"""Set up the stiffness matrix.
 
     Returns:
@@ -157,7 +157,7 @@ def lk() -> npt.NDArray:  # type: ignore
     return KE
 
 
-def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None = None) -> npt.NDArray:  # type: ignore
+def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None = None) -> npt.NDArray:
     """Simulates the performance of a beam design. Assumes the State object is already set up.
 
     Args:
@@ -272,12 +272,12 @@ def setup(cfg: dict[str, Any] | None = None) -> State:
 
 
 def inner_opt(
-    x: npt.NDArray,  # type: ignore
+    x: npt.NDArray,
     st: State,
-    dc: npt.NDArray,  # type: ignore
-    dv: npt.NDArray,  # type: ignore
+    dc: npt.NDArray,
+    dv: npt.NDArray,
     cfg: dict[str, Any] | None = None,
-) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:  # type: ignore
+) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
     Args:
