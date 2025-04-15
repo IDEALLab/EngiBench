@@ -10,9 +10,9 @@ To generate a dataset for training, we generate sweeps over the following parame
 
 
 - $\lambda_1,\lambda_2 \in [0.5μm,1.5μm]$ -- This corresponds to a portion of the visible spectrum up to near-infrared.
-- $r_{blur} \in [0,6]$
-- num_elems_x $\in [100,300]$
-- num_elems_y $\in [100,300]$
+- $r_{blur} \in [0,5]$
+- num_elems_x $\in [100,200]$
+- num_elems_y $\in [110,300]$
 
 
 ## Constraints
