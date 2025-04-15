@@ -37,6 +37,7 @@ from engibench.problems.photonics2d.backend import epsr_parameterization
 from engibench.problems.photonics2d.backend import init_domain
 from engibench.problems.photonics2d.backend import insert_mode
 from engibench.problems.photonics2d.backend import mode_overlap
+from engibench.problems.photonics2d.backend import operator_blur
 from engibench.problems.photonics2d.backend import operator_proj
 from engibench.problems.photonics2d.backend import Slice
 from engibench.problems.photonics2d.backend import wavelength_to_frequency
@@ -598,7 +599,7 @@ class Photonics2D(Problem[npt.NDArray]):
             plt.show(block=False)
         return fig
 
-    def _randomized_noise_field_design(self, noise: float = 0.001) -> npt.NDArray:
+    def _randomized_noise_field_design(self, noise: float = 0.001, blur: float = 0.0) -> npt.NDArray:
         """Generates a starting design with small random variations.
 
            Creates a design that is 0.5 within the design region, plus small
@@ -606,6 +607,9 @@ class Photonics2D(Problem[npt.NDArray]):
 
         Args:
             noise (float): The amount of noise to add to the uniform field.
+            blur (float): The amount of blurring to apply to random field. if >0 can produce
+                          different local optima for Adam, and thus can be useful for
+                          exploring multiple local optima in the problem. Disabled by default.
 
         Returns:
             tuple[npt.NDArray, int]: The starting design array (rho) and an integer (0).
@@ -629,6 +633,8 @@ class Photonics2D(Problem[npt.NDArray]):
         # Use randomized initialization -- for now keep
         random_noise = noise * self.np_random.standard_normal((num_elems_x, num_elems_y))  # type: ignore
         rho_start = design_region * (0.5 + random_noise)
+        if blur > 0.0:
+            rho_start = operator_blur(rho_start, blur)
 
         return rho_start.astype(np.float32)
 
