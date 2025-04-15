@@ -638,7 +638,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         return rho_start.astype(np.float32)
 
-    def random_design(self, noise: float | None = None) -> tuple[npt.NDArray, int]:
+    def random_design(self, noise: float | None = None, blur: float = 0.0) -> tuple[npt.NDArray, int]:
         """Generates a random initial design.
 
         Can return a design with small random variations or a uniform design, or can pull
@@ -646,6 +646,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         Args:
             noise (float|None): If None, pull from dataset. If float, use that as the noise level.
+            blur (float): The amount of blurring to apply to random field. Only active if noise is used.
 
         Returns:
             tuple[npt.NDArray, int]: The starting design array (rho) and an integer (0).
@@ -655,7 +656,7 @@ class Photonics2D(Problem[npt.NDArray]):
             self.reset()
 
         if noise is not None:
-            rho_start = self._randomized_noise_field_design(noise=noise)
+            rho_start = self._randomized_noise_field_design(noise=noise, blur=blur)
             return rho_start, 0
         elif self._dataset is not None:
             rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type:ignore
@@ -675,7 +676,7 @@ if __name__ == "__main__":
     # Problem Configuration Example
     problem_config = {
         "lambda1": 1.5,
-        "lambda2": 0.3,
+        "lambda2": 1.3,
         "blur_radius": 2,
         "num_elems_x": 120,
         "num_elems_y": 120,
