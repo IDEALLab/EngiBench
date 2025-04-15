@@ -14,3 +14,13 @@ jobs:
       - uses: astral-sh/ruff-action@v3
       - run: ruff check
       - run: ruff format --check
+
+  mypy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-python@v4
+        with:
+          python-version: 3.x
+      - uses: actions/checkout@v4
+      - run: pip install mypy numpy pytest
+      - run: mypy
