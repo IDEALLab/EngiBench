@@ -5,6 +5,7 @@ from __future__ import annotations
 from math import ceil
 from math import hypot
 import time
+from typing import Any
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -107,7 +108,7 @@ class FeaModel:
 
         return h, hs
 
-    def run(self, bcs: dict[str, any], x_init: np.ndarray | None = None) -> dict[str, any]:  # noqa: PLR0915
+    def run(self, bcs: dict[str, Any], x_init: np.ndarray | None = None) -> dict[str, Any]:  # noqa: PLR0915
         """Run the optimization algorithm for the coupled structural-thermal problem.
 
         This method performs an iterative optimization procedure that adjusts the design
@@ -285,7 +286,7 @@ class FeaModel:
                 }
             else:
                 vf_error = np.abs(np.mean(x) - volfrac)
-                obj_values = [f0valm, f0valt, vf_error]
+                obj_values = np.array([f0valm, f0valt, vf_error])
                 opti_step = OptiStep(obj_values=obj_values, step=iterr)
                 opti_steps.append(opti_step)
 

@@ -10,7 +10,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
-from engibench.core import DesignType
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -79,7 +78,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     """
 
     version = 0
-    objectives: tuple[tuple[str, ObjectiveDirection]] = (
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
         ("structural_compliance", ObjectiveDirection.MINIMIZE),
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
         ("volume_fraction", ObjectiveDirection.MINIMIZE),
@@ -174,7 +173,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
         return fig
 
-    def random_design(self) -> tuple[DesignType, int]:
+    def random_design(self) -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
 
         Returns:
@@ -208,5 +207,4 @@ if __name__ == "__main__":
 
     # --- Evaluate a design ---
     design, _ = problem.random_design()
-    objectives = problem.simulate(design)
-    print(objectives)
+    print(problem.simulate(design))

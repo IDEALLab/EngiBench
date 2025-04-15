@@ -9,7 +9,7 @@ import numpy as np
 import numpy.typing as npt
 
 
-def get_res_bounds(x_res: npt.NDArray, y_res: npt.NDArray) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
+def get_res_bounds(x_res: int, y_res: int) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
     """Generates the indices corresponding to the left, top, right, and bottom elements in the domain.
 
     Args:
@@ -69,8 +69,8 @@ def plot_multi_physics(  # noqa: PLR0913, PLR0915
     nelx: int,
     nely: int,
     _fp: npt.NDArray | None = None,
-    _um: None = None,
-    _t: None = None,
+    _um: npt.NDArray | None = None,
+    _t: npt.NDArray | None = None,
     open_plot: bool = False,
 ) -> Figure:
     """Plot the multi-physics design along with the boundary conditions.
@@ -103,14 +103,14 @@ def plot_multi_physics(  # noqa: PLR0913, PLR0915
 
     left_col_indices, top_row_indices, right_col_indices, bottom_row_indices = get_res_bounds(x_elements, y_elements)
 
-    structural_bcs_img = np.zeros((x_elements * y_elements,))
+    structural_bcs_img: npt.NDArray[np.float64] = np.zeros((x_elements * y_elements,))
     structural_bcs_img[structural_bcs // 2] = 1
     structural_bcs_img = structural_bcs_img.reshape((x_elements, y_elements))
     structural_bcs_img_clip = np.clip(structural_bcs_img * 127.5 + 127.5, 0.0, 255.0).astype(np.uint8)
 
     structural_bcs_img_clip = structural_bcs_img_clip.T  # transpose to flip bottom left and top right
 
-    thermal_bcs_img = np.zeros((x_elements * y_elements,))
+    thermal_bcs_img: npt.NDArray[np.float64] = np.zeros((x_elements * y_elements,))
     thermal_bcs_img[thermal_bcs] = 1
     thermal_bcs_img[right_col_indices] = 1
     thermal_bcs_img = thermal_bcs_img.reshape((x_elements, y_elements))
