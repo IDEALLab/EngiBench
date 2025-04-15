@@ -206,7 +206,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
         if not os.path.exists(design_file):
             error_msg = f"Design file {design_file} not found."
-            raise FileNotFoundError(error_msg)  # ruff: noqa: TRY003
+            raise FileNotFoundError(error_msg)
 
         return np.load(design_file)
 

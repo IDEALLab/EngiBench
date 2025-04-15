@@ -189,9 +189,9 @@ def bounded(*, lower: T | None = None, upper: T | None = None) -> Check:
     """Create a constraint which checks that the specified parameter is contained in an interval `[lower, upper]`."""
 
     def check(value: T) -> None:
-        assert (lower is None or lower <= value) and (
-            upper is None or value <= upper
-        ), f"{value} ∉ [{lower if lower is not None else '-∞'}, {upper if upper is not None else '∞'}]"
+        assert (lower is None or lower <= value) and (upper is None or value <= upper), (
+            f"{value} ∉ [{lower if lower is not None else '-∞'}, {upper if upper is not None else '∞'}]"
+        )
 
     return check
 
