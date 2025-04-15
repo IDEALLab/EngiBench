@@ -437,7 +437,7 @@ class Photonics2D(Problem[npt.NDArray]):
             # --- Process Valid Scalar Objective Value ---
 
             # Beta Scheduling Logic
-            if len(objective_history_list) >= 2:  # noqa: PLR2004
+            if len(objective_history_list) >= 5:  # noqa: PLR2004
                 # --- Start Beta Logic ---
                 differences = np.diff(objective_history_list)
                 prev_values = np.array(objective_history_list[:-1])
@@ -496,7 +496,7 @@ class Photonics2D(Problem[npt.NDArray]):
                 save_path = os.path.join(frame_dir, f"frame_iter_{iteration:04d}.png")  # Renamed file for clarity
 
                 # Save the figure returned by render
-                fig.savefig(save_path, dpi=100)
+                fig.savefig(save_path, dpi=200)
                 plt_save.close(fig)  # Close the figure to free memory
                 print(f"Callback Iter {iteration}: Saved frame to {save_path}")
             # --- End Frame Saving ---
@@ -598,11 +598,14 @@ class Photonics2D(Problem[npt.NDArray]):
             plt.show(block=False)
         return fig
 
-    def random_design(self) -> tuple[npt.NDArray, int]:
+    def _randomized_noise_field_design(self, noise: float = 0.001) -> npt.NDArray:
         """Generates a starting design with small random variations.
 
            Creates a design that is 0.5 within the design region, plus small
-           uniform random noise (0.001 * rand). Returns 0 as the index placeholder.
+           normal random noise (0.001 * randn). Returns 0 as the index placeholder.
+
+        Args:
+            noise (float): The amount of noise to add to the uniform field.
 
         Returns:
             tuple[npt.NDArray, int]: The starting design array (rho) and an integer (0).
@@ -623,11 +626,38 @@ class Photonics2D(Problem[npt.NDArray]):
         if self.np_random is None:
             self.reset()
         # Generate random numbers using the problem's RNG
-        # Use randomized initialization
-        random_noise = 0.1 * self.np_random.random((num_elems_x, num_elems_y))  # type: ignore
+        # Use randomized initialization -- for now keep
+        random_noise = noise * self.np_random.standard_normal((num_elems_x, num_elems_y))  # type: ignore
         rho_start = design_region * (0.5 + random_noise)
 
-        return rho_start.astype(np.float32), 0
+        return rho_start.astype(np.float32)
+
+    def random_design(self, noise: float | None = None) -> tuple[npt.NDArray, int]:
+        """Generates a random initial design.
+
+        Can return a design with small random variations or a uniform design, or can pull
+        from the datasets (when available).
+
+        Args:
+            noise (float|None): If None, pull from dataset. If float, use that as the noise level.
+
+        Returns:
+            tuple[npt.NDArray, int]: The starting design array (rho) and an integer (0).
+        """
+        # Ensure np_random is initialized
+        if self.np_random is None:
+            self.reset()
+
+        if noise is not None:
+            rho_start = self._randomized_noise_field_design(noise=noise)
+            return rho_start, 0
+        elif self._dataset is not None:
+            rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type:ignore
+            return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type:ignore
+        else:
+            # If noise is None, yet no dataset is available, raise an error.
+            # This can be removed once HF dataset is created and live.
+            raise NotImplementedError("Dataset not yet available. Please set noise to a float value.")
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         """Resets the problem, which in this case, is just the random seed."""
@@ -638,14 +668,16 @@ class Photonics2D(Problem[npt.NDArray]):
 if __name__ == "__main__":
     # Problem Configuration Example
     problem_config = {
-        "lambda1": 1.6,
-        "lambda2": 1.4,
+        "lambda1": 1.5,
+        "lambda2": 0.3,
         "blur_radius": 2,
+        "num_elems_x": 120,
+        "num_elems_y": 120,
     }
     problem = Photonics2D(problem_config)
     problem.reset(seed=42)  # Use a seed
 
-    start_design, _ = problem.random_design()
+    start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
     fig_start = problem.render(start_design)
 
     # Simulation Example
@@ -656,7 +688,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 5, "save_frame_interval": 2}
+    opt_config = {"num_optimization_steps": 20, "save_frame_interval": 2}
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (normalized_overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
