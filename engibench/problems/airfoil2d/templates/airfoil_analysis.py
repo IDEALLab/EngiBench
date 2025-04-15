@@ -213,6 +213,7 @@ if __name__ == "__main__":
                 # Save the lift and drag coefficients to a file
                 np.save(os.path.join(output_dir, "M_Re_alpha_CL_CD_res.npy"), outputs)
 
+        MPI.COMM_WORLD.Barrier()
         set_exit_code(0)
 
     except Exception as e:

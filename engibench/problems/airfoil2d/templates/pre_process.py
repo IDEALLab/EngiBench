@@ -28,8 +28,7 @@ if __name__ == "__main__":
 
     coords = prefoil.utils.readCoordFile($design_fname)
     airfoil = prefoil.Airfoil(coords)
-    airfoil.normalizeAirfoil()
-    # TODO Cashen airfoil.makeBluntTE(xCut=$xCut)
+    print("Running pre-process.py")
     airfoil.makeBluntTE(xCut=$xCut)
     N_sample = $N_sample
     nTEPts = $nTEPts

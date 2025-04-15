@@ -66,7 +66,7 @@ class Airfoil2D(Problem[npt.NDArray]):
     - `area_con`: # TODO this too
 
     #### Creation Method
-    We created this dataset by sampling using Latin Hypercube Sampling. 
+    We created this dataset by sampling using Latin Hypercube Sampling.
 
     ## References
     If you use this problem in your research, please cite the following paper:
@@ -84,9 +84,8 @@ class Airfoil2D(Problem[npt.NDArray]):
     conditions: tuple[tuple[str, Any], ...] = (
         ("mach", 0.8),
         ("reynolds", 1e6),
-        ("area_initial", None), 
+        ("area_initial", None),
         ("area_target", 0.7),
-
         # ("altitude", 10000), # noqa: ERA001
         # ("temperature", 223.150),  # noqa: ERA001
         # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
@@ -119,7 +118,7 @@ class Airfoil2D(Problem[npt.NDArray]):
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
-        
+
         super().__init__()
 
     def reset(self, seed: int | None = None, *, cleanup: bool = False) -> None:
@@ -140,34 +139,36 @@ class Airfoil2D(Problem[npt.NDArray]):
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
         clone_dir(source_dir=self.__local_scripts_dir, target_dir=self.__local_target_dir)
 
-    def __design_to_simulator_input(self, design: npt.NDArray, filename: str = "design", config) -> str:
+    def __design_to_simulator_input(self, config: dict[str, Any], design: npt.NDArray, filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
         The files are saved in the current directory with the name "$filename.cgns" and "$filename_ffd.xyz".
 
         Args:
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
             design (np.ndarray): The design to convert.
             filename (str): The filename to save the design to.
         """
         # Save the design to a temporary file
 
-
-
         np.savetxt(self.__local_study_dir + "/" + filename + ".dat", design.transpose())
+        s0 = self.calc_off_wall_distance(
+            mach=config["mach"], reynolds=config["reynolds"], freestreamTemp=config["temperature"]
+        )
 
         base_config = {
             "design_fname": f"'{self.__docker_study_dir}/{filename}.dat'",
             "tmp_xyz_fname": "'" + self.__docker_study_dir + "/tmp'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
-            "s0": 3e-6,  # Off-the-wall spacing for the purpose of modeling the boundary layer.
+            "s0": s0,  # Off-the-wall spacing for the purpose of modeling the boundary layer.
             "marchDist": 100.0,  # Distance to march the grid from the airfoil surface.
             "N_sample": 180,
             "nTEPts": 4,
             "xCut": 0.99,
-            "ffd_ymarginu": 0.02,
-            "ffd_ymarginl": 0.02,
+            "ffd_ymarginu": 0.05,
+            "ffd_ymarginl": 0.05,
             "ffd_pts": 10,
             "N_grid": 100,
             "estimate_s0": True,
@@ -187,14 +188,14 @@ class Airfoil2D(Problem[npt.NDArray]):
         try:
             container.run(
                 command=[
-                "/bin/bash",
-                "-c",
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
-                + self.__docker_study_dir
-                + "/pre_process.py"
-                + " > "
-                + self.__docker_study_dir
-                + "/output_preprocess.log"
+                    "/bin/bash",
+                    "-c",
+                    "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
+                    + self.__docker_study_dir
+                    + "/pre_process.py"
+                    + " > "
+                    + self.__docker_study_dir
+                    + "/output_preprocess.log",
                 ],
                 image=self.container_id,
                 name="machaero",
@@ -403,7 +404,6 @@ class Airfoil2D(Problem[npt.NDArray]):
         if container.RUNTIME is not None:
             container.pull(self.container_id)
         # pre-process the design and run the simulation
-        self.__design_to_simulator_input(design)
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
         base_config = {
@@ -417,9 +417,9 @@ class Airfoil2D(Problem[npt.NDArray]):
             "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
             "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.  # noqa: FIX002
         }
-
         base_config.update(self.conditions)
         base_config.update(config)
+        self.__design_to_simulator_input(base_config, design)
 
         replace_template_values(
             self.__local_study_dir + "/airfoil_analysis.py",
@@ -430,16 +430,16 @@ class Airfoil2D(Problem[npt.NDArray]):
         # The script takes a mesh and ffd and performs an optimization
         try:
             container.run(
-            command=[
-                "/bin/bash",
-                "-c",
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
-                + str(mpicores)
-                + " python "
-                + self.__docker_study_dir
-                + "/airfoil_analysis.py > "
-                + self.__docker_study_dir
-                + "/output.log",
+                command=[
+                    "/bin/bash",
+                    "-c",
+                    "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                    + str(mpicores)
+                    + " python "
+                    + self.__docker_study_dir
+                    + "/airfoil_analysis.py > "
+                    + self.__docker_study_dir
+                    + "/output.log",
                 ],
                 image=self.container_id,
                 name="machaero",
@@ -483,21 +483,17 @@ class Airfoil2D(Problem[npt.NDArray]):
             "altitude": 10000,
             "temperature": 300,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
             "use_altitude": False,
-            "area_initial": None, # actual initial airfoil area
-            "area_target": 0.7, # Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target
+            "area_initial": None,  # actual initial airfoil area
+            "area_target": 0.7,  # Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target
             "opt": "'SLSQP'",
             "opt_options": {},
             "output_dir": "'" + self.__docker_study_dir + "/output/'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
         }
-        print('config', config)
-        print('base_config', str(base_config))
         base_config.update(self.conditions)
         base_config.update(config)
-        print('updated_config', str(base_config))
-    
-        self.__design_to_simulator_input(starting_point, filename, base_config)
+        self.__design_to_simulator_input(base_config, starting_point, filename)
 
         replace_template_values(
             self.__local_study_dir + "/airfoil_opt.py",
@@ -579,8 +575,21 @@ class Airfoil2D(Problem[npt.NDArray]):
             DesignType: The valid design.
         """
         return np.array(self.dataset["train"]["initial_design"][idx])
-    
-    def calc_off_wall_distance(self, mach: float, reynolds: float, freestreamTemp:float = 300.0, reynoldsLength:float = 1.0, yplus:float=1, R:float=287.0, gamma:float=1.4):
+
+    def calc_off_wall_distance(  # noqa
+        self,
+        mach: float,
+        reynolds: float,
+        freestreamTemp: float = 300.0,  # noqa
+        reynoldsLength: float = 1.0,  # noqa
+        yplus: float = 1,
+        R: float = 287.0,  # noqa
+        gamma: float = 1.4,
+    ) -> float:
+        """Estimation of the off-wall distance for a given design.
+
+        The off-wall distance is calculated using the Reynolds number and the freestream temperature.
+        """
         # ---------------------------
         a = np.sqrt(gamma * R * freestreamTemp)
         u = mach * a
@@ -589,24 +598,24 @@ class Airfoil2D(Problem[npt.NDArray]):
         # Viscosity from Sutherland's law
         ## Sutherland's law parameters
         mu0 = 1.716e-5
-        T0 = 273.15
-        S = 110.4
+        T0 = 273.15  # noqa
+        S = 110.4  # noqa
         mu = mu0 * ((freestreamTemp / T0) ** (3 / 2)) * (T0 + S) / (freestreamTemp + S)
         # ---------------------------
         # Density
         rho = reynolds * mu / (reynoldsLength * u)
         ## Skin friction coefficient
-        Cf = (2*np.log10(reynolds) - 0.65) ** (-2.3)
+        Cf = (2 * np.log10(reynolds) - 0.65) ** (-2.3)  # noqa
         # Wall shear stress
-        tau = Cf * 0.5 * rho * (u ** 2)
+        tau = Cf * 0.5 * rho * (u**2)
         # Friction velocity
-        uTau = np.sqrt(tau / rho)
+        uTau = np.sqrt(tau / rho)  # noqa
         # Off wall distance
         delta = yplus * mu / (rho * uTau)
         return delta
 
+
 if __name__ == "__main__":
-    import matplotlib.pyplot as plt 
     problem = Airfoil2D()
     problem.reset(seed=0, cleanup=False)
 
@@ -614,17 +623,21 @@ if __name__ == "__main__":
     # Get design and conditions from the dataset
     # Print Dataset object keys
     design, idx = problem.random_design()
-    print(design.shape)
-    # Compute the distance from the y value of the first coordinate to 0
-    y_dist = design[1,0]
-    # Compute the distance from the x value of the first coordinate to 1
-    x_dist = 1 - design[0,0]
-    # Now shift all coordinates by the x and y distances
-    design[0,:] += x_dist
-    design[1,:] += -y_dist
 
-    design[0,:] = design[0,:] - design[0,0] + 1
-    design[1,:] = design[1,:] - design[1,0]
+    # Align all coordinates to [0,1]
+    y_dist = design[1, 0]
+    x_dist = 1 - design[0, 0]
+    design[0, :] += x_dist
+    design[1, :] += -y_dist
+
+    design[0, :] = design[0, :] - design[0, 0] + 1
+    design[1, :] = design[1, :] - design[1, 0]
+
+    design[0, 0] = 1
+    design[1, 0] = 0
+    design[0, -1] = 1
+    design[1, -1] = 0
+
     config = dataset["train"].select_columns(problem.conditions_keys)[idx]
 
     # Get design and conditions from the dataset, render design

@@ -317,9 +317,11 @@ if __name__ == "__main__":
         opt = OPT(opt, options=optOptions)
 
         # Run Optimization
-        sol = opt(optProb, MP.sens, storeHistory=os.path.join($output_dir, "opt.hst"))
+        sol = opt(optProb, MP.sens, sensMode='pgc', sensStep=1e-6, storeHistory=os.path.join($output_dir, "opt.hst"))
         if MPI.COMM_WORLD.rank == 0:
             print(sol)
+
+        MPI.COMM_WORLD.Barrier()
         set_exit_code(0)
 
     except Exception as e:
