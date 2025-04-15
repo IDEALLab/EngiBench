@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Sequence
 import dataclasses
 from enum import auto
 from enum import Enum
@@ -138,7 +139,7 @@ class Problem(Generic[DesignType]):
 
     def optimize(
         self, starting_point: DesignType, config: dict[str, Any] | None = None
-    ) -> tuple[DesignType, list[OptiStep]]:
+    ) -> tuple[DesignType, Sequence[OptiStep]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
         This is optional and will probably be implemented only for some problems.
