@@ -109,13 +109,15 @@ class Beams2D(Problem[npt.NDArray]):
     _dataset = None
     container_id = None
 
-    def __init__(self, config: dict[str, Any] = {}):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initializes the Beams2D problem.
 
         Args:
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
         """
         super().__init__()
+
+        config = config or {}
 
         # Replace the conditions with any new configs passed in
         self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
@@ -127,7 +129,7 @@ class Beams2D(Problem[npt.NDArray]):
             self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
 
     def simulate(
-        self, design: npt.NDArray, config: dict[str, Any] = {}, *, ce: npt.NDArray | None = None, **_kwargs
+        self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None, **_kwargs
     ) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
@@ -143,7 +145,7 @@ class Beams2D(Problem[npt.NDArray]):
         if len(design.shape) > 1:
             design = image_to_design(design)
 
-        base_config = {"nelx": self.nelx, "nely": self.nely, "penal": 3.0, **dict(self.conditions), **config}
+        base_config = {"nelx": self.nelx, "nely": self.nely, "penal": 3.0, **dict(self.conditions), **(config or {})}
 
         # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
         # If setup has run, skips the process for repeated simulations during optimization.
@@ -158,7 +160,7 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array([c])
 
     def optimize(
-        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}, **_kwargs
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None, **_kwargs
     ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
@@ -175,7 +177,7 @@ class Beams2D(Problem[npt.NDArray]):
             "max_iter": 100,
             "penal": 3.0,
             **dict(self.conditions),
-            **config,
+            **(config or {}),
         }
         check_field_constraints(Params(**base_config))
 

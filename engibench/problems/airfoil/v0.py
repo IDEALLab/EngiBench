@@ -393,7 +393,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         return self.__reorder_coords(slice_df)
 
-    def simulate(self, design: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, Any]:
+    def simulate(self, design: dict[str, Any], config: dict[str, Any], mpicores: int = 4) -> dict[str, Any]:
         """Simulates the performance of an airfoil design.
 
         Args:
@@ -422,7 +422,7 @@ class Airfoil(Problem[dict[str, Any]]):
             "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.  # noqa: FIX002
         }
         base_config.update(self.conditions)
-        base_config.update(config)
+        base_config.update(config or {})
         self.__design_to_simulator_input(design, base_config)
 
         replace_template_values(
@@ -459,7 +459,7 @@ class Airfoil(Problem[dict[str, Any]]):
         return np.array([drag, lift])
 
     def optimize(
-        self, starting_point: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4
+        self, starting_point: dict[str, Any], config: dict[str, Any] | None = None, mpicores: int = 4
     ) -> tuple[dict[str, Any], list[OptiStep]]:
         """Optimizes the design of an airfoil.
 
@@ -496,7 +496,7 @@ class Airfoil(Problem[dict[str, Any]]):
             "area_input_design": self._calc_area(starting_point["coords"]),
         }
         base_config.update(self.conditions)
-        base_config.update(config)
+        base_config.update(config or {})
         self.__design_to_simulator_input(starting_point, base_config, filename)
         replace_template_values(
             self.__local_study_dir + "/airfoil_opt.py",

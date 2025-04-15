@@ -91,7 +91,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
             low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float64
         )
 
-    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulate the design.
 
         Args:
@@ -101,6 +101,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         Returns:
             float: The thermal compliance of the design.
         """
+        config = config or {}
         volume = config.get("volume", self.volume)
         area = config.get("area", self.area)
         resolution = config.get("resolution", self.resolution)
@@ -127,7 +128,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         return np.array([float(perf)])
 
     def optimize(
-        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None
     ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes the design.
 
@@ -138,6 +139,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         Returns:
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
+        config = config or {}
         volume = config.get("volume", self.volume)
         area = config.get("area", self.area)
         resolution = config.get("resolution", self.resolution)

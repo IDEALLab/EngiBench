@@ -137,7 +137,7 @@ class Problem(Generic[DesignType]):
         raise NotImplementedError
 
     def optimize(
-        self, starting_point: DesignType, config: dict[str, Any] = {}, **kwargs
+        self, starting_point: DesignType, config: dict[str, Any] | None = None, **kwargs
     ) -> tuple[DesignType, list[OptiStep]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 

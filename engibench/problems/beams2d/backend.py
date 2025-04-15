@@ -157,7 +157,7 @@ def lk() -> npt.NDArray:  # type: ignore
     return KE
 
 
-def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -> npt.NDArray:  # type: ignore
+def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None = None) -> npt.NDArray:  # type: ignore
     """Simulates the performance of a beam design. Assumes the State object is already set up.
 
     Args:
@@ -168,6 +168,7 @@ def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -
     Returns:
         npt.NDArray: The sensitivity of the current design.
     """
+    cfg = cfg or {}
     sK = ((st.KE.flatten()[np.newaxis]).T * (st.Emin + design ** cfg["penal"] * (st.Emax - st.Emin))).flatten(order="F")
     K = coo_matrix((sK, (st.iK, st.jK)), shape=(st.ndof, st.ndof)).tocsc()
     m = K.shape[0]
@@ -190,7 +191,7 @@ def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -
     return np.array(ce)
 
 
-def setup(cfg: dict[str, Any] = {}) -> State:
+def setup(cfg: dict[str, Any] | None = None) -> State:
     r"""Set up the scalars and matrices for optimization or simulation.
 
     Args:
@@ -200,6 +201,7 @@ def setup(cfg: dict[str, Any] = {}) -> State:
         State object with the relevant scalars and matrices used in optimization and simulation.
     """
     st = State()
+    cfg = cfg or {}
 
     ndof = 2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1)
     edofMat = np.zeros((cfg["nelx"] * cfg["nely"], 8), dtype=int)
@@ -274,7 +276,7 @@ def inner_opt(
     st: State,
     dc: npt.NDArray,  # type: ignore
     dv: npt.NDArray,  # type: ignore
-    cfg: dict[str, Any] = {},
+    cfg: dict[str, Any] | None = None,
 ) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:  # type: ignore
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
@@ -291,6 +293,7 @@ def inner_opt(
             npt.NDArray: The processed density field (without overhang constraint)
             npt.NDArray: The processed density field (with overhang constraint if applicable)
     """
+    cfg = cfg or {}
     # Optimality criteria
     l1, l2, move = (0, 1e9, 0.2)
     # reshape to perform vector operations
@@ -323,7 +326,7 @@ def inner_opt(
 
 def overhang_filter(
     x: npt.NDArray,  # type: ignore
-    cfg: dict[str, Any] = {},
+    cfg: dict[str, Any] | None = None,
     dc: npt.NDArray | None = None,  # type: ignore
     dv: npt.NDArray | None = None,  # type: ignore
 ) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:  # type: ignore
@@ -338,6 +341,7 @@ def overhang_filter(
     Returns:
         Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivity dv, respectively.
     """
+    cfg = cfg or {}
     if cfg["overhang_constraint"]:
         P = 40
         ep = 1e-4
@@ -353,10 +357,7 @@ def overhang_filter(
         Q = P + np.log(Ns) / np.log(xi_0)
         SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
         BACKSHIFT = 0.95 * (Ns ** (1 / Q)) * (SHIFT ** (P / Q))
-        xi = np.zeros(x.shape)
-        Xi = np.zeros(x.shape)
-        keep = np.zeros(x.shape)
-        sq = np.zeros(x.shape)
+        xi, Xi, keep, sq = np.zeros((4, x.shape))
 
         xi[cfg["nely"] - 1, :] = x[cfg["nely"] - 1, :].copy()
         for i in reversed(range(cfg["nely"] - 1)):

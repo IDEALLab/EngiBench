@@ -100,7 +100,7 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
 
     # Test simulation outputs
     print(f"Simulating {problem_class.__name__}...")
-    objs = problem.simulate(design)
+    objs = problem.simulate(design, {})
     expected_obj_count = len(problem.objectives)
     assert objs.shape[0] == expected_obj_count, (
         f"Problem {problem_class.__name__}: Simulation returned {objs.shape[0]} objectives "

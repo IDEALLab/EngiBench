@@ -89,7 +89,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         )
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float64)
 
-    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulate the design.
 
         Args:
@@ -99,6 +99,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         Returns:
             float: The thermal compliance of the design.
         """
+        config = config or {}
         volume = config.get("volume", self.volume)
         length = config.get("length", self.length)
         resolution = config.get("resolution", self.resolution)
@@ -125,7 +126,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         return np.array([float(perf)])
 
     def optimize(
-        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None
     ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes the design.
 
@@ -136,6 +137,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         Returns:
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
+        config = config or {}
         volume = config.get("volume", self.volume)
         length = config.get("length", self.length)
         resolution = config.get("resolution", self.resolution)
