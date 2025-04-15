@@ -160,7 +160,10 @@ def find_eff_calc_indx(
 def metric_compute_DC_DC_efficiency_ngspice(
     file_path: str,
     sim_start: float,
-    comp_num: dict[str, int],
+    n_SW: int,
+    n_C: int,
+    n_L: int,
+    n_D: int,
     edg_map: dict[str, list[int]],
     capacitor_model: list[cmpt.Capacitor],
     inductor_model: list[cmpt.Inductor],
@@ -187,11 +190,6 @@ def metric_compute_DC_DC_efficiency_ngspice(
     err_report = 0
 
     time_axis = r.process_time(data_arr["time"], sim_start)
-
-    n_SW = comp_num["S"]
-    n_C = comp_num["C"]
-    n_L = comp_num["L"]
-    n_D = comp_num["D"]
 
     """
     Vgs_ref are extra signal added in netlist to find the boundaries of ON & OFF states
