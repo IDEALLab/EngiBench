@@ -48,7 +48,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
     ## Problem Description
     Optimize a 2D material distribution (`rho`) to function as a wavelength
-    demultiplexer, routing `omega1` to output 1 and `omega2` to output 2. The
+    demultiplexer, routing wave with `lambda1` to output 1 and `lambda2` to output 2. The
     design variables represent material density which is converted to permittivity
     using filtering and projection.
 
@@ -65,7 +65,8 @@ class Photonics2D(Problem[npt.NDArray]):
        stability (`penalty - normalized_overlap`) and reports history
        (`OptiStep`) corresponding to that normalized version.
 
-    ## Conditions (User-configurable parameters that alter the problem definition)
+    ## Conditions
+    These are designed as user-configurable parameters that alter the problem definition.
     Default problem parameters that can be overridden via the `config` dict:
     - `lambda1`: The first input wavelength in μm (default: 1.5 μm).
     - `lambda2`: The first input wavelength in μm (default: 1.3 μm).
@@ -75,9 +76,14 @@ class Photonics2D(Problem[npt.NDArray]):
     - `num_elems_x`: Number of grid cells in x (default: 120).
     - `num_elems_y`: Number of grid cells in y (default: 120).
 
-    ## Optimization Parameters (Advanced parameters that alter the optimization process --
-        we do not recommend changing these if you are only using the library for benchmarking,
-        as it could make results less reproducible across papers using this problem.)
+    In practice, for the dataset loading, we will keep `num_elems_x` and `num_elems_y`to set
+    values for each dataset, such that different resolutions correspond to different
+    independent datasets.
+
+    ## Optimization Parameters
+    Note: These are advanced parameters that alter the optimization process --
+    we do not recommend changing these if you are only using the library for benchmarking,
+    as it could make results less reproducible across papers using this problem.)
     - `num_optimization_steps`: Total number of optimization steps (default: 50).
     - `step_size`: Adam optimizer step size (default: 1e-1).
     - `penalty_weight`: Weight for the L2 penalty term (default: 1e-2). Larger values reduce
@@ -91,7 +97,8 @@ class Photonics2D(Problem[npt.NDArray]):
                              If > 0, saves a frame every `save_frame_interval` iterations
                              to the `opt_frames/` directory. Default is 0 (disabled).
 
-    ## Internal Constants (Not typically changed by users, but provided here for reference)
+    ## Internal Constants
+    Note: These are not typically changed by users, but provided here for technical reference
     - `dl`: Spatial resolution (meters) (default: 40e-9).
     - `Npml`: Number of PML cells (default: 20).
     - `epsr_min`: Minimum relative permittivity (default: 1.0).
@@ -131,14 +138,6 @@ class Photonics2D(Problem[npt.NDArray]):
     # Note: optimize internally uses a normalized objective, see OptiStep values.
     # We keep a single objective name for simplicity in the list.
 
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("lambda1", 1.5),
-        ("lambda2", 1.3),
-        ("blur_radius", 2),
-        ("num_elems_x", 120),
-        ("num_elems_y", 120),
-    )
-
     # Constants specific to problem design
     _pml_space = 10  # Space between PML and design region (pixels)
     _wg_width = 12  # Width of waveguides (pixels)
@@ -160,6 +159,16 @@ class Photonics2D(Problem[npt.NDArray]):
     _penalty_weight_default = 1e-2  # Default weight for L2 penalty term
     _num_blurs_default = 1
 
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("lambda1", 1.5),
+        ("lambda2", 1.3),
+        ("blur_radius", 2),
+        ("num_elems_x", _num_elems_x_default),
+        ("num_elems_y", _num_elems_y_default),
+    )
+
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(_num_elems_x_default, _num_elems_y_default), dtype=np.float64)
+
     dataset_id = f"IDEALLab/photonicmultiplexer_2d_{_num_elems_x_default}_{_num_elems_y_default}_v0"
     container_id = None  # type: ignore
     _dataset = None
@@ -179,6 +188,7 @@ class Photonics2D(Problem[npt.NDArray]):
         num_elems_x = current_conditions.get("num_elems_x", self._num_elems_x_default)
         num_elems_y = current_conditions.get("num_elems_y", self._num_elems_y_default)
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(num_elems_x, num_elems_y), dtype=np.float32)
+        self.dataset_id = f"IDEALLab/photonics_2d_{num_elems_x}_{num_elems_y}_v{self.version}"
 
         # Setup basic simulation parameters
         self.omega1 = wavelength_to_frequency(current_conditions["lambda1"])
