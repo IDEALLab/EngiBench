@@ -73,6 +73,8 @@ html_copy_source = False
 html_favicon = "_static/img/logo_2.png"
 
 # Theme options
+
+# Theme options
 html_theme_options = {
     "repository_url": "https://github.com/IDEALLab/EngiBench",
     "repository_branch": "main",
