@@ -65,7 +65,7 @@ napoleon_custom_sections = [("Returns", "params_style")]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = "furo"
+html_theme = "sphinx_book_theme"
 html_title = "EngiBench Documentation"
 html_baseurl = ""
 html_logo = "_static/img/logo_2.png"
@@ -74,31 +74,40 @@ html_favicon = "_static/img/logo_2.png"
 
 # Theme options
 html_theme_options = {
-    "source_repository": "https://github.com/IDEALLab/EngiBench",
-    "source_branch": "main",
-    "source_directory": "docs/",
+    "repository_url": "https://github.com/IDEALLab/EngiBench",
+    "repository_branch": "main",
+    "path_to_docs": "docs/",
+    "use_repository_button": True,
+    "use_edit_page_button": True,
+    "use_issues_button": True,
 }
 
 # Add version information to the context
 html_context = {
     "version_info": {
-        "version": release,
+        "current": release,
         "versions": {
-            "latest": "/",
-            "stable": "/v" + release,
-        },
-        "current": "latest",
+            "main": "/main/",
+        }
     }
 }
+
+# Add any tags to the versions dictionary
+import subprocess
+try:
+    tags = subprocess.check_output(['git', 'tag', '-l', 'v*.*.*']).decode().strip().split('\n')
+    for tag in tags:
+        if tag:
+            html_context["version_info"]["versions"][tag] = f"/{tag}/"
+except subprocess.CalledProcessError:
+    pass
 
 # Add version switcher to the left sidebar
 html_sidebars = {
     "**": [
-        "sidebar/brand.html",
-        "sidebar/search.html",
-        "sidebar/scroll-start.html",
-        "sidebar/navigation.html",
-        "sidebar/scroll-end.html",
+        "navbar-logo.html",
+        "search-field.html",
+        "sbt-sidebar-nav.html",
         "versions.html",
     ]
 }
