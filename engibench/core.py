@@ -92,7 +92,7 @@ class Problem(Generic[DesignType]):
     """Dataclass declaring types, defaults (optional) and constraints"""
 
     # This handles the RNG properly
-    np_random: np.random.Generator | None = None
+    np_random: np.random.Generator
 
     def __init__(self, **kwargs: Any) -> None:
         """Initialize the problem.
