@@ -379,7 +379,7 @@ class Photonics2D(Problem[npt.NDArray]):
         self._probe2 = probe2_init
 
         # --- Define Objective Function for Ceviche Optimizer ---
-        def objective_for_optimizer(rho_flat: npt.NDArray | ArrayBox) -> npt.float64 | ArrayBox:
+        def objective_for_optimizer(rho_flat: npt.NDArray | ArrayBox) -> float | ArrayBox:
             """Calculates (normalized_overlap - penalty) for maximization."""
             rho = rho_flat.reshape((num_elems_x, num_elems_y))
             conditions["beta"] = self._current_beta  # Use scheduled beta
@@ -599,7 +599,7 @@ class Photonics2D(Problem[npt.NDArray]):
             plt.show(block=False)
         return fig
 
-    def _randomized_noise_field_design(self, noise: float = 0.001, blur: float = 0.0) -> npt.NDArray:
+    def _randomized_noise_field_design(self, noise: float = 0.001, blur: int = 0) -> npt.NDArray:
         """Generates a starting design with small random variations.
 
            Creates a design that is 0.5 within the design region, plus small
@@ -638,7 +638,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         return rho_start.astype(np.float32)
 
-    def random_design(self, noise: float | None = None, blur: float = 0.0) -> tuple[npt.NDArray, int]:
+    def random_design(self, noise: float | None = None, blur: int = 0) -> tuple[npt.NDArray, int]:
         """Generates a random initial design.
 
         Can return a design with small random variations or a uniform design, or can pull
@@ -646,7 +646,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         Args:
             noise (float|None): If None, pull from dataset. If float, use that as the noise level.
-            blur (float): The amount of blurring to apply to random field. Only active if noise is used.
+            blur (int): The amount of pixel blurring to apply to random field. Only active if noise is used.
 
         Returns:
             tuple[npt.NDArray, int]: The starting design array (rho) and an integer (0).
