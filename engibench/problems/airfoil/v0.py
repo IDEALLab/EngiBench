@@ -22,8 +22,10 @@ from engibench.utils import container
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
+DesignType = dict[str, Any]
 
-class Airfoil(Problem[dict[str, Any]]):
+
+class Airfoil(Problem[DesignType]):
     r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
@@ -93,6 +95,7 @@ class Airfoil(Problem[dict[str, Any]]):
     dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     _dataset = None
+    __local_study_dir: str
 
     def __init__(self, base_directory: str | None = None) -> None:
         """Initializes the Airfoil problem.
@@ -136,7 +139,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
 
-    def __design_to_simulator_input(self, design: dict[str, Any], config: dict[str, Any], filename: str = "design") -> str:
+    def __design_to_simulator_input(self, design: DesignType, config: dict[str, Any], filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
@@ -346,7 +349,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         return np.array([coords_x_reordered, coords_y_reordered])
 
-    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
+    def __simulator_output_to_design(self, simulator_output: str | None = None) -> DesignType:
         """Converts a simulator output to a design.
 
         Args:
@@ -393,7 +396,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         return self.__reorder_coords(slice_df)
 
-    def simulate(self, design: dict[str, Any], config: dict[str, Any], mpicores: int = 4) -> dict[str, Any]:
+    def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
         """Simulates the performance of an airfoil design.
 
         Args:
@@ -459,8 +462,8 @@ class Airfoil(Problem[dict[str, Any]]):
         return np.array([drag, lift])
 
     def optimize(
-        self, starting_point: dict[str, Any], config: dict[str, Any] | None = None, mpicores: int = 4
-    ) -> tuple[dict[str, Any], list[OptiStep]]:
+        self, starting_point: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
+    ) -> tuple[DesignType, list[OptiStep]]:
         """Optimizes the design of an airfoil.
 
         Args:
@@ -540,7 +543,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
-    def render(self, design: dict[str, Any], open_window: bool = False) -> Any:
+    def render(self, design: DesignType, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
