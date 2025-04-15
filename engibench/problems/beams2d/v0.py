@@ -161,7 +161,7 @@ class Beams2D(Problem[npt.NDArray]):
 
     def optimize(
         self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None
-    ) -> tuple[np.ndarray, list[OptiStep]]:
+    ) -> tuple[np.ndarray, list[ExtendedOptiStep]]:
         """Optimizes the design of a beam.
 
         Args:
@@ -201,7 +201,7 @@ class Beams2D(Problem[npt.NDArray]):
             dv = np.ones(base_config["nely"] * base_config["nelx"])
 
         xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
-        loop, change = (0, 1)
+        loop, change = (0, 1.0)
 
         while change > self.__st.min_change and loop < base_config["max_iter"]:
             ce = calc_sensitivity(xPrint, st=self.__st, cfg=base_config)
@@ -225,7 +225,7 @@ class Beams2D(Problem[npt.NDArray]):
 
             xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, base_config)
             # Compute the change by the inf. norm
-            change = np.linalg.norm(
+            change = np.linalg.norm(  # type: ignore[assignment]
                 xnew.reshape(base_config["nelx"] * base_config["nely"], 1)
                 - x.reshape(base_config["nelx"] * base_config["nely"], 1),
                 np.inf,

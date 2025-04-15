@@ -9,7 +9,7 @@ This code has been adapted from the Python implementation by Niels Aage and Vill
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, overload
 
 import cvxopt
 import cvxopt.cholmod
@@ -295,7 +295,7 @@ def inner_opt(
     """
     cfg = cfg or {}
     # Optimality criteria
-    l1, l2, move = (0, 1e9, 0.2)
+    l1, l2, move = (0.0, 1e9, 0.2)
     # reshape to perform vector operations
     xnew = np.zeros(cfg["nelx"] * cfg["nely"])
 
@@ -324,12 +324,24 @@ def inner_opt(
     return (xnew, xPhys, xPrint)
 
 
+@overload
 def overhang_filter(
-    x: npt.NDArray,  # type: ignore
+    x: npt.NDArray[np.float64], cfg: dict[str, Any] | None = None
+) -> tuple[npt.NDArray[np.float64], None, None]: ...
+
+
+@overload
+def overhang_filter(
+    x: npt.NDArray[np.float64], cfg: dict[str, Any] | None, dc: npt.NDArray[np.float64], dv: npt.NDArray[np.float64]
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
+
+
+def overhang_filter(
+    x: npt.NDArray[np.float64],
     cfg: dict[str, Any] | None = None,
-    dc: npt.NDArray | None = None,  # type: ignore
-    dv: npt.NDArray | None = None,  # type: ignore
-) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:  # type: ignore
+    dc: npt.NDArray[np.float64] | None = None,
+    dv: npt.NDArray[np.float64] | None = None,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64] | None, npt.NDArray[np.float64] | None]:
     """Topology Optimization (TO) filter.
 
     Args:
@@ -357,7 +369,10 @@ def overhang_filter(
         Q = P + np.log(Ns) / np.log(xi_0)
         SHIFT = 100 * (np.finfo(float).tiny) ** (1 / P)
         BACKSHIFT = 0.95 * (Ns ** (1 / Q)) * (SHIFT ** (P / Q))
-        xi, Xi, keep, sq = np.zeros((4, x.shape))
+        xi = np.zeros(x.shape)
+        Xi = np.zeros(x.shape)
+        keep = np.zeros(x.shape)
+        sq = np.zeros(x.shape)
 
         xi[cfg["nely"] - 1, :] = x[cfg["nely"] - 1, :].copy()
         for i in reversed(range(cfg["nely"] - 1)):
@@ -395,10 +410,8 @@ def overhang_filter(
             for k in range(nSens):
                 dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
 
-            dc = dfx[0]
-            dv = dfx[1]
-            dc = image_to_design(dc)
-            dv = image_to_design(dv)
+            dc, dv = dfx
+            dc, dv = image_to_design(dc), image_to_design(dv)
 
         xi = image_to_design(xi)
 
