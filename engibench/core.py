@@ -93,7 +93,7 @@ class Problem(Generic[DesignType]):
     # This handles the RNG properly
     np_random: np.random.Generator | None = None
 
-    def __init__(self, **kwargs):
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize the problem.
 
         Args:
@@ -123,7 +123,7 @@ class Problem(Generic[DesignType]):
         """Returns the objective names as a list."""
         return [name for name, _ in self.objectives]
 
-    def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
+    def simulate(self, design: DesignType, config: dict[str, Any]) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
 
         Args:
@@ -137,7 +137,7 @@ class Problem(Generic[DesignType]):
         raise NotImplementedError
 
     def optimize(
-        self, starting_point: DesignType, config: dict[str, Any] | None = None, **kwargs
+        self, starting_point: DesignType, config: dict[str, Any] | None = None
     ) -> tuple[DesignType, list[OptiStep]]:
         r"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.
 
@@ -146,30 +146,27 @@ class Problem(Generic[DesignType]):
         Args:
             starting_point (DesignType): The starting point for the optimization.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
-            **kwargs: Additional keyword arguments.
 
         Returns:
             Tuple[DesignType, list[OptiStep]]: The optimized design and the optimization history.
         """
         raise NotImplementedError
 
-    def reset(self, seed: int | None = None, **kwargs) -> None:  # noqa: ARG002
+    def reset(self, seed: int | None = None) -> None:
         r"""Reset the simulator and numpy random to a given seed.
 
         Args:
             seed (int, optional): The seed to reset to. If None, a random seed is used.
-            **kwargs: Additional keyword arguments.
         """
         self.seed = seed
         self.np_random = np.random.default_rng(seed)
 
-    def render(self, design: DesignType, open_window: bool = False, **kwargs) -> Any:
+    def render(self, design: DesignType, open_window: bool = False) -> Any:
         r"""Render the design in a human-readable format.
 
         Args:
             design (DesignType): The design to render.
             open_window (bool): Whether to open a window to display the design.
-            **kwargs: Additional keyword arguments.
 
         Returns:
             Any: The rendered design.

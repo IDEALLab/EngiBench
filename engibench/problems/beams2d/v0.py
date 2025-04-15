@@ -129,7 +129,7 @@ class Beams2D(Problem[npt.NDArray]):
             self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
 
     def simulate(
-        self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None, **_kwargs
+        self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
     ) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
@@ -160,7 +160,7 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array([c])
 
     def optimize(
-        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None, **_kwargs
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None
     ) -> tuple[np.ndarray, list[OptiStep]]:
         """Optimizes the design of a beam.
 
@@ -243,7 +243,7 @@ class Beams2D(Problem[npt.NDArray]):
         """
         super().reset(seed, **kwargs)
 
-    def render(self, design: np.ndarray, open_window: bool = False, **_kwargs) -> Any:
+    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
