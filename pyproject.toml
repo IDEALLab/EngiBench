@@ -46,7 +46,6 @@ doc = [
     "myst-parser",
     "sphinx-gallery==0.14.0",
     "sphinx-book-theme",
-    "sphinx_multiversion",
     "sphinx_github_changelog",
     "tabulate",
 ]
