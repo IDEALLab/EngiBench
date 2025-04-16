@@ -122,8 +122,9 @@ if __name__ == "__main__":
         # Reynold's Length
         reynoldsLength = 1.0
         # volume constraint ratio
-        area_ratio = $area_target
+        area_ratio_min = $area_ratio_min
         area_initial = $area_initial
+        area_input_design = $area_input_design
 
         # Optimization parameters
         opt = $opt
@@ -259,7 +260,7 @@ if __name__ == "__main__":
         leList = [[le, 0, le], [le, 0, 1.0 - le]]
         teList = [[1.0 - le, 0, le], [1.0 - le, 0, 1.0 - le]]
 
-        DVCon.addVolumeConstraint(leList, teList, 2, 100, lower=area_ratio, upper=1.2, scaled=True)
+        DVCon.addVolumeConstraint(leList, teList, 2, 100, lower=area_ratio_min*area_initial/area_input_design, upper=1.2*area_initial/area_input_design, scaled=True)
         DVCon.addThicknessConstraints2D(leList, teList, 2, 100, lower=0.15, upper=3.0)
         # Final constraint to keep TE thickness at original or greater
         DVCon.addThicknessConstraints1D(ptList=teList, nCon=2, axis=[0, 1, 0], lower=1.0, scaled=True)

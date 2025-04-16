@@ -146,13 +146,10 @@ if __name__ == "__main__":
             CFDSolver.evalFunctions(ap, funcs)
             # Print the evaluated functions
             if comm.rank == 0:
-                print("hello")
-                print(funcs)
                 CL = funcs[f"{ap.name}_cl"]
                 CD = funcs[f"{ap.name}_cd"]
                 # Save the lift and drag coefficients to a file
                 outputs = np.array([mach, reynolds, alpha, CL, CD])
-                print(f"Outputs: {outputs}")
                 np.save(os.path.join(output_dir, "outputs.npy"), outputs)
 
         # rst Create polar arrays
@@ -169,8 +166,6 @@ if __name__ == "__main__":
             CLList = []
             CDList = []
             reslist = []
-            # resrhoList = []
-            # resrhoeList = []
             # rst Start loop
             # Loop over the alpha values and evaluate the polar
             for alpha in alphaList:
@@ -196,16 +191,12 @@ if __name__ == "__main__":
                 CLList.append(funcs[f"{ap.name}_cl"])
                 CDList.append(funcs[f"{ap.name}_cd"])
                 reslist.append(CFDSolver.getFreeStreamResidual(ap))
-                # resrhoList.append(funcs[f"{ap.name}_resrho"])
-                # resrhoeList.append(funcs[f"{ap.name}_resrhoe"])
                 if comm.rank == 0:
                     print(f"CL: {CLList[-1]}, CD: {CDList[-1]}")
 
             # rst Print polar
             # Print the evaluated functions in a table
             if comm.rank == 0:
-                print("{:>6} {:>8} {:>8}".format("Alpha", "CL", "CD"))
-                print("=" * 24)
                 outputs = []
                 for alpha_v, cl, cd, res in zip(alphaList, CLList, CDList, reslist):
                     print(f"{alpha_v:6.1f} {cl:8.4f} {cd:8.4f}")
