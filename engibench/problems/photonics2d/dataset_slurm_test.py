@@ -11,8 +11,9 @@ import numpy as np
 from engibench.problems.photonics2d import Photonics2D
 from engibench.utils import slurm
 
-lambda1 = np.linspace(start=0.5, stop=1.25, num=5)
-lambda2 = np.linspace(start=7.5, stop=1.5, num=5)
+rng = np.random.default_rng()
+lambda1 = rng.uniform(low=0.5, high=1.25, size=10)
+lambda2 = rng.uniform(low=0.75, high=1.5, size=10)
 blur_radius = range(0, 6)
 num_elems_x = 120
 num_elems_y = 120
@@ -51,7 +52,7 @@ print(f"Generating parameter space via SLURM with {len(parameter_space)} configu
 slurm.submit(
     problem=Photonics2D,
     parameter_space=parameter_space,
-    config=slurm.SlurmConfig(log_dir="./logs/", runtime="00:05:00", mem="1G"),
+    config=slurm.SlurmConfig(log_dir="./logs/", runtime="00:05:00"),
 )
 
 # If interactive, load the results from file
