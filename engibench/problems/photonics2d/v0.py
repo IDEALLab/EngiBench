@@ -350,6 +350,7 @@ class Photonics2D(Problem[npt.NDArray]):
                   The `step` attribute corresponds to the optimizer iteration.
         """
         conditions = self._setup_simulation(config)
+        print(f"Attempting to run Optimization for Photonics2D under the following conditions:\n{conditions!s}")
 
         # Pull out problem-specific parameters from conditions
         num_elems_x = conditions["num_elems_x"]
@@ -368,7 +369,7 @@ class Photonics2D(Problem[npt.NDArray]):
         save_frame_interval = conditions.get("save_frame_interval", 0)
 
         # --- Initial Simulation for Normalization Constants E01, E02 ---
-        print("Optimize: Calculating E01/E02 using starting_point...")  # Keep this info message
+        print("Optimize: Calculating E01/E02 using initial design...")  # Keep this info message
         epsr_init, ez1_init, ez2_init, source1_init, source2_init, probe1_init, probe2_init = self._run_fdfd(
             starting_point, conditions
         )

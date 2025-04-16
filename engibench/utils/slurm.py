@@ -77,9 +77,8 @@ class Job(Generic[DesignType]):
     def run(self) -> tuple[DesignType, list[OptiStep]]:
         """Run the optimization defined by the job."""
         problem = self.problem(**self.args.problem_args)
-        design_factory = self.design_factory if self.design_factory is not None else design_type(self.problem)
-        design = design_factory(**self.args.design_args)
-        return problem.optimize(design=design, **self.args.simulate_args)
+        design = self.args.design_args.get("design", None)
+        return problem.optimize(starting_point=design, **self.args.simulate_args)
 
 
 def design_type(t: type[Problem] | Callable[..., Problem]) -> type[Any]:
