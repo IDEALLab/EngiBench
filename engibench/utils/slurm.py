@@ -17,8 +17,7 @@ import sys
 import tempfile
 from typing import Any, Generic, TypeVar
 
-import numpy.typing as npt
-
+from engibench.core import OptiStep
 from engibench.core import Problem
 
 
@@ -30,6 +29,8 @@ class Args:
     """Keyword arguments to be passed to :class:`engibench.core.Problem()`."""
     simulate_args: dict[str, Any] = field(default_factory=dict)
     """Keyword arguments to be passed to :meth:`engibench.core.Problem.simulate()`."""
+    optimize_args: dict[str, Any] = field(default_factory=dict)
+    """Keyword arguments to be passed to :meth:`engibench.core.Problem.optimize()`."""
     design_args: dict[str, Any] = field(default_factory=dict)
     """Keyword arguments to be passed to `DesignType()` or
     the `design_factory` argument of :func:`submit`."""
@@ -73,12 +74,12 @@ class Job(Generic[DesignType]):
             design_factory=deserialize_callable(design_factory) if design_factory is not None else None,
         )
 
-    def run(self) -> npt.NDArray:
-        """Run the simulation defined by the job."""
+    def run(self) -> tuple[DesignType, list[OptiStep]]:
+        """Run the optimization defined by the job."""
         problem = self.problem(**self.args.problem_args)
         design_factory = self.design_factory if self.design_factory is not None else design_type(self.problem)
         design = design_factory(**self.args.design_args)
-        return problem.simulate(design=design, **self.args.simulate_args)
+        return problem.optimize(design=design, **self.args.simulate_args)
 
 
 def design_type(t: type[Problem] | Callable[..., Problem]) -> type[Any]:
@@ -150,7 +151,6 @@ class SlurmConfig:
 
 def submit(
     problem: type[Problem],
-    static_args: Args,
     parameter_space: list[Args],
     design_factory: Callable[..., DesignType] | None = None,
     config: SlurmConfig | None = None,
@@ -158,8 +158,7 @@ def submit(
     """Submit a job array for a parameter discovery to slurm.
 
     - :attr:`problem` - The problem type for which the simulation should be run.
-    - :attr:`static_args` - Arguments common to all simulation runs in form of an :class:`Args` instance.
-    - :attr:`parameter_space` - One :class:`Args` instance per simulation run to be submitted. Every item will be merged into `static_args`.
+    - :attr:`parameter_space` - One :class:`Args` instance per simulation run to be submitted.
     - :attr:`design_factory` - If not None, pass `Args.design_args` to `design_factory` instead of `DesignType()`.
     -  :attr:`design_factory` - Custom arguments passed to `sbatch`.
     """
@@ -173,7 +172,7 @@ def submit(
     # Dump parameter space:
     param_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
     for job_no, args in enumerate(parameter_space, start=1):
-        job = Job(problem=problem, design_factory=design_factory, args=merge_args(static_args, args))
+        job = Job(problem=problem, design_factory=design_factory, args=args)
         dump_job(job, param_dir, job_no)
 
     optional_args = (
