@@ -1,4 +1,4 @@
-# ruff: noqa: E741, N806, N815, N816
+# ruff: noqa: N806, N815, N816
 # Disabled variable name conventions
 
 """Beams 2D problem."""
@@ -243,7 +243,7 @@ class Beams2D(Problem[npt.NDArray]):
         """
         super().reset(seed, **kwargs)
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:

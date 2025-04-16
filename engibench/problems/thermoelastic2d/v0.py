@@ -132,8 +132,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             if key in boundary_dict:
                 boundary_dict[key] = value
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
-        objectives = np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
-        return objectives
+        return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
 
     def optimize(
         self, starting_point: npt.NDArray, config: dict[str, Any] | None = None
@@ -154,7 +153,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         opti_steps = results["opti_steps"]
         return design, opti_steps
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: np.ndarray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:

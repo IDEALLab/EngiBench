@@ -1,4 +1,4 @@
-# ruff: noqa: E741, N806, N815, N816
+# ruff: noqa: N806, N815, N816
 # Disabled variable name conventions
 
 """Beams 2D problem.
@@ -42,7 +42,7 @@ class State:
         KE (np.ndarray): Stiffness matrix.
     """
 
-    # Constants (non-editable)  # noqa: ERA001
+    # Non-editable Constants
     Emin: float = 1e-9
     Emax: float = 1.0
     min_change: float = 0.025
@@ -138,7 +138,7 @@ def lk() -> npt.NDArray:
             1 / 8 - 3 * nu / 8,
         ]
     )
-    KE = (
+    return (
         E
         / (1 - nu**2)
         * np.array(
@@ -154,7 +154,6 @@ def lk() -> npt.NDArray:
             ]
         )
     )
-    return KE
 
 
 def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None = None) -> npt.NDArray:

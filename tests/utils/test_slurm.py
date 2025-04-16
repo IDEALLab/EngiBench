@@ -19,7 +19,7 @@ class FakeDesign:
 
 
 class FakeProblem(Problem[FakeDesign]):
-    def __init__(self, problem_id: int, some_arg: bool) -> None:
+    def __init__(self, problem_id: int, *, some_arg: bool) -> None:
         self.problem_id = problem_id
         self.some_arg = some_arg
 

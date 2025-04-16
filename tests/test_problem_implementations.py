@@ -43,9 +43,8 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
         f"Problem {problem_class.__name__}: The first element of each objective should be a non-emtpy string."
     )
 
-    assert problem.dataset_id is not None and len(problem.dataset_id) > 0, (
-        f"Problem {problem_class.__name__}: The dataset_id should be defined."
-    )
+    assert problem.dataset_id is not None, f"Problem {problem_class.__name__}: The dataset_id should be defined."
+    assert len(problem.dataset_id) > 0, f"Problem {problem_class.__name__}: The dataset_id should positive."
 
     # Test the required methods are implemented
     class_methods = {

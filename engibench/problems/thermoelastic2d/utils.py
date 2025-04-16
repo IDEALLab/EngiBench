@@ -2,11 +2,15 @@
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 from matplotlib import colors
-from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
+
+if TYPE_CHECKING:
+    from matplotlib.figure import Figure
 
 
 def get_res_bounds(x_res: int, y_res: int) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:
@@ -41,8 +45,7 @@ def binary_matrix_to_indices(matrix: npt.NDArray) -> npt.NDArray:
         npt.NDArray: The list of indices where the matrix is 1.
     """
     matrix_flat = matrix.flatten()
-    indices = np.where(matrix_flat == 1)[0]
-    return indices
+    return np.where(matrix_flat == 1)[0]
 
 
 def indices_to_binary_matrix(indices: list[int], nelx: int, nely: int) -> npt.NDArray:
@@ -58,8 +61,7 @@ def indices_to_binary_matrix(indices: list[int], nelx: int, nely: int) -> npt.ND
     """
     flat_matrix = np.zeros((nelx * nely,), dtype=int)
     flat_matrix[indices] = 1
-    matrix = flat_matrix.reshape((nelx, nely))
-    return matrix
+    return flat_matrix.reshape((nelx, nely))
 
 
 def plot_multi_physics(  # noqa: PLR0913, PLR0915
@@ -71,6 +73,7 @@ def plot_multi_physics(  # noqa: PLR0913, PLR0915
     _fp: npt.NDArray | None = None,
     _um: npt.NDArray | None = None,
     _t: npt.NDArray | None = None,
+    *,
     open_plot: bool = False,
 ) -> Figure:
     """Plot the multi-physics design along with the boundary conditions.

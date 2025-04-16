@@ -29,7 +29,7 @@ UPDATE_THRESHOLD = 0.01
 class FeaModel:
     """Finite Element Analysis (FEA) model for coupled 2D thermoelastic topology optimization."""
 
-    def __init__(self, plot: bool = False, eval_only: bool | None = False) -> None:
+    def __init__(self, *, plot: bool = False, eval_only: bool | None = False) -> None:
         """Instantiates a new model for the thermoelastic 2D problem.
 
         Args:
@@ -284,11 +284,10 @@ class FeaModel:
                     "thermal_compliance": f0valt,
                     "volume_fraction": vf_error,
                 }
-            else:
-                vf_error = np.abs(np.mean(x) - volfrac)
-                obj_values = np.array([f0valm, f0valt, vf_error])
-                opti_step = OptiStep(obj_values=obj_values, step=iterr)
-                opti_steps.append(opti_step)
+            vf_error = np.abs(np.mean(x) - volfrac)
+            obj_values = np.array([f0valm, f0valt, vf_error])
+            opti_step = OptiStep(obj_values=obj_values, step=iterr)
+            opti_steps.append(opti_step)
 
             df0dx = df0dx_mat.reshape(nely * nelx, 1)
             df0dx = (h @ (xval * df0dx)) / hs[:, None] / np.maximum(1e-3, xval)  # Filtered sensitivity

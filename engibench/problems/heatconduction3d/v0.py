@@ -7,6 +7,7 @@ The problem is solved using the dolfin-adjoint software within a Docker containe
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import Any
 
 from gymnasium import spaces
@@ -176,7 +177,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         if not os.path.exists("templates"):
             os.mkdir("templates")
         templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
-        os.system(f"cp -r {templates_location}/* templates/")
+        subprocess.run(["cp", "-r", f"{templates_location}/*", "templates/"], check=True)
 
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
@@ -220,10 +221,10 @@ class HeatConduction3D(Problem[npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = np.random.randint(low=0, high=len(self.dataset["train"]["optimal_design"]), dtype=int)
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))
         return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
-    def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
+    def render(self, design: npt.NDArray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
