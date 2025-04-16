@@ -189,7 +189,7 @@ def submit(
         config.sbatch_executable,
         "--parsable",
         "--export=ALL",
-        f"--array=1-{len(parameter_space)}",
+        f"--array=1-{len(parameter_space)}%500",
         *(f"{arg}={value}" for arg, value in optional_args if value is not None),
         *config.extra_args,
         "--wrap",
@@ -270,9 +270,17 @@ def slurm_job_entrypoint() -> None:
         results = []
         for index, result_args in load_job_args(work_dir):
             result_file = os.path.join(work_dir, f"{index}.pkl")
-            with open(result_file, "rb") as stream:
-                result = pickle.load(stream)
-            results.append({"results": result, **result_args})
+            if not os.path.exists(result_file):
+                print(f"Warning: Result file {result_file} does not exist. Skipping.")
+                continue
+            try:
+                with open(result_file, "rb") as stream:
+                    result = pickle.load(stream)
+                results.append({"results": result, **result_args})
+            except Exception as e:  # noqa: BLE001
+                print(f"Error loading {result_file}: {e}. Skipping.")
+                continue
+
         print(os.getcwd())
         with open("results.pkl", "wb") as stream:
             pickle.dump(results, stream)

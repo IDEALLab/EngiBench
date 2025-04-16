@@ -5,6 +5,7 @@ This script generates a dataset for the Photonics2D problem using the SLURM API
 
 from itertools import product
 import pickle
+import time
 
 import numpy as np
 
@@ -12,8 +13,8 @@ from engibench.problems.photonics2d import Photonics2D
 from engibench.utils import slurm
 
 rng = np.random.default_rng()
-lambda1 = rng.uniform(low=0.5, high=1.25, size=10)
-lambda2 = rng.uniform(low=0.75, high=1.5, size=10)
+lambda1 = rng.uniform(low=0.5, high=1.25, size=50)
+lambda2 = rng.uniform(low=0.75, high=1.5, size=50)
 blur_radius = range(0, 6)
 num_elems_x = 120
 num_elems_y = 120
@@ -49,11 +50,14 @@ configs = [config_factory(l1, l2, br) for l1, l2, br in combinations]
 parameter_space = [slurm.Args(problem_args=config, design_args=design_factory(config)) for config in configs]
 print(f"Generating parameter space via SLURM with {len(parameter_space)} configurations.")
 
+start_time = time.time()
 slurm.submit(
     problem=Photonics2D,
     parameter_space=parameter_space,
     config=slurm.SlurmConfig(log_dir="./logs/", runtime="00:05:00"),
 )
+end_time = time.time()
+print(f"Elapsed time: {end_time - start_time:.2f} seconds")
 
 # If interactive, load the results from file
 with open("results.pkl", "rb") as stream:
