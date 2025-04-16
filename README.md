@@ -63,12 +63,13 @@ You can also play with the API here: [![Open In Colab](https://colab.research.go
 
 ## Development
 
-Clone the repo and install the pre-commit hooks:
+Clone the repo, install the pre-commit hooks and install all dev dependencies:
 
 ```bash
 git clone git@github.com:IDEALLab/EngiBench.git
 cd EngiBench
 pre-commit install
+pip install -e ".[dev]"
 ```
 
 ### Adding a new problem
