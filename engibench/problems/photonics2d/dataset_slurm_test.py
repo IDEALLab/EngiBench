@@ -12,9 +12,9 @@ import numpy as np
 from engibench.problems.photonics2d import Photonics2D
 from engibench.utils import slurm
 
-lambda1 = np.linspace(start=0.5, stop=1.5, num=2)
-lambda2 = np.linspace(start=0.5, stop=1.5, num=2)
-blur_radius = range(0, 1)
+lambda1 = np.linspace(start=0.5, stop=1.5, num=3)
+lambda2 = np.linspace(start=0.5, stop=1.5, num=3)
+blur_radius = range(0, 2)
 num_elems_x = 120
 num_elems_y = 120
 
