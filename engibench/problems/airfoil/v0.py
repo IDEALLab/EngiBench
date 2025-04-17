@@ -528,7 +528,7 @@ class Airfoil(Problem[dict[str, Any]]):
         optisteps_history = []
         history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
 
-        # TODO return the full history of the optimization instead of just the last step
+        # TODO return the full history of the optimization instead of just the last step # noqa: FIX002
         # Also, this is inconsistent with the definition of the problem saying we optimize 2 objectives...
         objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
             -1, -1
