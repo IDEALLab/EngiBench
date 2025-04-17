@@ -397,7 +397,7 @@ class Airfoil(Problem[dict[str, Any]]):
         """Simulates the performance of an airfoil design.
 
         Args:
-            design (tuple[np.ndarray[np.float32], float]): The design to simulate.
+            design (dict): The design to simulate.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
             mpicores (int): The number of MPI cores to use in the simulation.
 
