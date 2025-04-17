@@ -47,7 +47,7 @@ introduction/api
 :hidden:
 :caption: Problems
 
-problems/airfoil2d
+problems/airfoil
 problems/beams2d
 problems/thermoelastic2d
 problems/heatconduction

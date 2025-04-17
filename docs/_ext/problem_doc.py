@@ -3,7 +3,7 @@
 Example usage in md docs:
 `````md
 ``` {problem}
-airfoil2d
+airfoil
 ```
 `````
 """
