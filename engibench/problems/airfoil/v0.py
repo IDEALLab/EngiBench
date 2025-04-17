@@ -350,7 +350,7 @@ class Airfoil(Problem[DesignType]):
 
         return np.array([coords_x_reordered, coords_y_reordered])
 
-    def __simulator_output_to_design(self, simulator_output: str | None = None) -> DesignType:
+    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
         """Converts a simulator output to a design.
 
         Args:

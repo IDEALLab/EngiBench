@@ -127,7 +127,7 @@ class Problem(Generic[DesignType]):
         """Returns the objective names as a list."""
         return [name for name, _ in self.objectives]
 
-    def simulate(self, design: DesignType, config: dict[str, Any]) -> npt.NDArray:
+    def simulate(self, design: DesignType, config: dict[str, Any] | None = None) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
 
         Args:

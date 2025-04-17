@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import pickle
 import subprocess
@@ -23,8 +25,8 @@ class FakeProblem(Problem[FakeDesign]):
         self.problem_id = problem_id
         self.some_arg = some_arg
 
-    def simulate(self, design: FakeDesign, config: dict[str, Any], **kwargs) -> npt.NDArray:
-        offset = config["offset"]
+    def simulate(self, design: FakeDesign, config: dict[str, Any] | None = None, **kwargs) -> npt.NDArray:
+        offset = (config or {})["offset"]
         return np.array([design.design_id + offset])
 
 
