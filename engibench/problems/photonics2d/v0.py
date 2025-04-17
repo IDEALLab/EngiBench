@@ -156,7 +156,7 @@ class Photonics2D(Problem[npt.NDArray]):
     _step_size_default = 1e-1  # Default step size for Adam optimizer
     _eta_default = 0.5
     _num_projections_default = 1
-    _penalty_weight_default = 1e-2  # Default weight for L2 penalty term
+    _penalty_weight_default = 1e-2  # Default weight for mass penalty term
     _num_blurs_default = 1
 
     conditions: tuple[tuple[str, Any], ...] = (
@@ -449,33 +449,18 @@ class Photonics2D(Problem[npt.NDArray]):
             # --- Process Valid Scalar Objective Value ---
 
             # Beta Scheduling Logic
-            if len(objective_history_list) >= 5:  # noqa: PLR2004
-                # --- Start Beta Logic ---
-                differences = np.diff(objective_history_list)
-                prev_values = np.array(objective_history_list[:-1])
-                valid_indices = prev_values != 0
-                percentage_changes = np.zeros_like(differences)
-                len_diff = len(differences)
-                if len(valid_indices) >= len_diff > 0:
-                    valid_indices_aligned = valid_indices[:len_diff]
-                    diff_indices = valid_indices_aligned < len(differences)
-                    prev_indices = valid_indices_aligned < len(prev_values)
-                    aligned_indices = diff_indices & prev_indices & valid_indices_aligned
-                    if np.any(aligned_indices):
-                        percentage_changes[aligned_indices] = (
-                            np.abs(differences[aligned_indices] / prev_values[aligned_indices]) * 100
-                        )
-                if len(percentage_changes) > 0:
-                    last_change = percentage_changes[-1]
-                    percentile_5 = np.percentile(percentage_changes, 5) if len(percentage_changes) > 1 else last_change
-                    if (not np.isnan(last_change) and not np.isnan(percentile_5)) and (
-                        last_change <= percentile_5 and self._current_beta < max_beta
-                    ):
-                        self._current_beta += 5
-                        print(f"Callback Iter {iteration}: Increasing beta to {self._current_beta}")  # Commented out
-            if iteration == num_optimization_steps - 1:
+            iteration = len(objective_history_list)
+            # Spend first half on low continuation
+            early_continuation = num_optimization_steps / 2
+            mid_continuation = num_optimization_steps * 3 / 4
+            if iteration < early_continuation:
+                self._current_beta = 10
+            elif early_continuation <= iteration & iteration < mid_continuation:
+                self._current_beta = 100
+            elif mid_continuation <= iteration & iteration < num_optimization_steps:
+                self._current_beta = 200
+            else:  # Final continuation should be max_beta
                 self._current_beta = max_beta
-                print(f"Callback Final Iter {iteration}: Setting beta to max {max_beta}")
             # --- End Beta Logic ---
 
             # Store OptiStep info
@@ -568,25 +553,21 @@ class Photonics2D(Problem[npt.NDArray]):
         self._last_Ez1 = ez1.copy()
         self._last_Ez2 = ez2.copy()
 
-        # --- Plotting (same as before) ---
+        # --- Plotting ---
         fig, ax = plt.subplots(1, 3, constrained_layout=True, figsize=(9, 3))
         ceviche.viz.abs(
             ez1,
             outline=epsr,
             ax=ax[0],
             cbar=False,
-            cmap="magma",
-            outline_alpha=0.9,
-            outline_val=np.sqrt(self._epsr_min / self._epsr_max),
+            outline_alpha=0.25,
         )
         ceviche.viz.abs(
             ez2,
             outline=epsr,
             ax=ax[1],
             cbar=False,
-            cmap="magma",
-            outline_alpha=0.9,
-            outline_val=np.sqrt(self._epsr_min / self._epsr_max),
+            outline_alpha=0.25,
         )
         ceviche.viz.real(epsr, ax=ax[2], cmap="Greys")
         slices_to_plot = [self._input_slice, self._output_slice1, self._output_slice2]
@@ -686,9 +667,9 @@ class Photonics2D(Problem[npt.NDArray]):
 if __name__ == "__main__":
     # Problem Configuration Example
     problem_config = {
-        "lambda1": 1.5,
-        "lambda2": 1.3,
-        "blur_radius": 2,
+        "lambda1": 1.11,
+        "lambda2": 0.99,
+        "blur_radius": 1,
         "num_elems_x": 120,
         "num_elems_y": 120,
     }
@@ -706,7 +687,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 20, "save_frame_interval": 2}
+    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2}
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (normalized_overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)

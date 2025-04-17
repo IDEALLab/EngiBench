@@ -54,7 +54,7 @@ start_time = time.time()
 slurm.submit(
     problem=Photonics2D,
     parameter_space=parameter_space,
-    config=slurm.SlurmConfig(log_dir="./logs/", runtime="00:05:00"),
+    config=slurm.SlurmConfig(log_dir="./logs/", runtime="00:45:00"),
 )
 end_time = time.time()
 print(f"Elapsed time: {end_time - start_time:.2f} seconds")
