@@ -17,6 +17,9 @@ import sys
 import tempfile
 from typing import Any, Generic, TypeVar
 
+import matplotlib.pyplot as plt
+from numpy import typing as npt
+
 from engibench.core import OptiStep
 from engibench.core import Problem
 
@@ -52,6 +55,7 @@ DesignType = TypeVar("DesignType")
 class Job(Generic[DesignType]):
     """Representation of a single slurm job."""
 
+    job_type: str
     problem: Callable[..., Problem[DesignType]]
     design_factory: Callable[..., DesignType] | None
     args: Args
@@ -59,6 +63,7 @@ class Job(Generic[DesignType]):
     def serialize(self) -> dict[str, Any]:
         """Serialize a job object for an other python process."""
         return {
+            "job_type": self.job_type,
             "problem": serialize_callable(self.problem),
             "args": asdict(self.args),
             "design_factory": serialize_callable(self.design_factory) if self.design_factory is not None else None,
@@ -69,16 +74,26 @@ class Job(Generic[DesignType]):
         """Deserialize a job object from an other python process."""
         design_factory = serialized_job["design_factory"]
         return cls(
+            job_type=serialized_job["job_type"],
             problem=deserialize_callable(serialized_job["problem"]),
             args=Args(**serialized_job["args"]),
             design_factory=deserialize_callable(design_factory) if design_factory is not None else None,
         )
 
-    def run(self) -> tuple[DesignType, list[OptiStep]]:
+    def run(self) -> tuple[DesignType, list[OptiStep]] | npt.NDArray[Any] | plt.Figure:
         """Run the optimization defined by the job."""
-        problem = self.problem(**self.args.problem_args)
+        problem = self.problem(config=self.args.problem_args)
         design = self.args.design_args.get("design", None)
-        return problem.optimize(starting_point=design, **self.args.simulate_args)
+        if self.job_type == "simulate":
+            return problem.simulate(design=design, config=self.args.simulate_args)
+        if self.job_type == "optimize":
+            return problem.optimize(starting_point=design, config=self.args.optimize_args)
+        if self.job_type == "render":
+            return problem.render(design=design, config=self.args.simulate_args)
+        else:
+            msg = f"Unknown job type: {self.job_type}"
+            raise ValueError(msg)
+            return None
 
 
 def design_type(t: type[Problem] | Callable[..., Problem]) -> type[Any]:
@@ -149,6 +164,7 @@ class SlurmConfig:
 
 
 def submit(
+    job_type: str,
     problem: type[Problem],
     parameter_space: list[Args],
     design_factory: Callable[..., DesignType] | None = None,
@@ -156,6 +172,7 @@ def submit(
 ) -> None:
     """Submit a job array for a parameter discovery to slurm.
 
+    - :attr:`job_type` - The type of the job to be submitted: 'simulate', 'optimize', or 'render'.
     - :attr:`problem` - The problem type for which the simulation should be run.
     - :attr:`parameter_space` - One :class:`Args` instance per simulation run to be submitted.
     - :attr:`design_factory` - If not None, pass `Args.design_args` to `design_factory` instead of `DesignType()`.
@@ -171,7 +188,7 @@ def submit(
     # Dump parameter space:
     param_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
     for job_no, args in enumerate(parameter_space, start=1):
-        job = Job(problem=problem, design_factory=design_factory, args=args)
+        job = Job(job_type, problem=problem, design_factory=design_factory, args=args)
         dump_job(job, param_dir, job_no)
 
     optional_args = (

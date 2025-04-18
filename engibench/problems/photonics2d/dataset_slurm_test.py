@@ -46,12 +46,18 @@ def design_factory(config: dict) -> dict:
 # Generate configurations
 configs = [config_factory(l1, l2, br) for l1, l2, br in combinations]
 
+# Any optimization-wide configurations can be set here
+optimize_config = {"num_optimization_steps": 10}
+
 # Make slurm Args
-parameter_space = [slurm.Args(problem_args=config, design_args=design_factory(config)) for config in configs]
+parameter_space = [
+    slurm.Args(problem_args=config, design_args=design_factory(config), optimize_args=optimize_config) for config in configs
+]
 print(f"Generating parameter space via SLURM with {len(parameter_space)} configurations.")
 
 start_time = time.time()
 slurm.submit(
+    job_type="optimize",
     problem=Photonics2D,
     parameter_space=parameter_space,
     config=slurm.SlurmConfig(log_dir="./logs/", runtime="00:45:00"),
