@@ -23,7 +23,6 @@ from ceviche import jacobian
 from ceviche.optimizers import adam_optimize
 from gymnasium import spaces
 import matplotlib.pyplot as plt
-import matplotlib.pyplot as plt_save
 import numpy as np
 import numpy.typing as npt
 
@@ -170,7 +169,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
     dataset_id = f"IDEALLab/photonicmultiplexer_2d_{_num_elems_x_default}_{_num_elems_y_default}_v0"
     container_id = None  # type: ignore
-    _dataset = None
+    _dataset = "IDEALLab/photonics_2d_120_120_v0"
 
     def __init__(self, config: dict[str, Any], **kwargs) -> None:
         """Initializes the Photonics2D problem.
@@ -370,6 +369,10 @@ class Photonics2D(Problem[npt.NDArray]):
         self._probe1 = probe1_init
         self._probe2 = probe2_init
 
+        # Ensure directory exists for saving frames
+        frame_dir = "opt_frames"
+        os.makedirs(frame_dir, exist_ok=True)
+
         # --- Define Objective Function for Ceviche Optimizer ---
         def objective_for_optimizer(rho_flat: npt.NDArray | ArrayBox) -> float | ArrayBox:
             """Calculates (normalized_overlap - penalty) for maximization."""
@@ -419,15 +422,6 @@ class Photonics2D(Problem[npt.NDArray]):
             # Get the latest objective value
             last_scalar_obj_value = objective_history_list[-1]
 
-            # Check if the latest value is valid
-            if not isinstance(last_scalar_obj_value, (int, float, np.number, npa.numpy_boxes.ArrayBox)):
-                print(
-                    f"!!! WARNING: Last objective value in history is not numeric at iter {iteration}: Type={type(last_scalar_obj_value)}, Val={last_scalar_obj_value} !!! Skipping processing."
-                )  # Keep warning
-                return
-
-            # --- Process Valid Scalar Objective Value ---
-
             # Beta Scheduling Logic -- Quadratic ramp from 0 to max_beta
             iteration = len(objective_history_list)
             self._current_beta = poly_ramp(iteration, max_iter=num_optimization_steps, b0=0, bmax=max_beta, degree=2)
@@ -448,24 +442,31 @@ class Photonics2D(Problem[npt.NDArray]):
             ):
                 # Reshape the current design parameters
                 current_rho = rho_flat.reshape((num_elems_x, num_elems_y))
+                current_rho = operator_proj(current_rho, self._eta, beta=self._current_beta, num_projections=1)
 
                 # --- Call self.render to generate the plot ---
-                # Pass open_window=False as we just want the figure object
                 # Pass the current conditions dictionary in case render needs it
                 # Note: This will re-run the simulation for the current_rho
                 fig = self.render(current_rho, open_window=False, config=conditions)
                 # ---------------------------------------------
 
-                # Ensure directory exists
-                frame_dir = "opt_frames"
-                os.makedirs(frame_dir, exist_ok=True)
-                save_path = os.path.join(frame_dir, f"frame_iter_{iteration:04d}.png")  # Renamed file for clarity
+                save_path = os.path.join(frame_dir, f"frame_iter_{iteration:04d}.png")
 
                 # Save the figure returned by render
                 fig.savefig(save_path, dpi=200)
-                plt_save.close(fig)  # Close the figure to free memory
+                plt.close(fig)  # Close the figure to free memory
                 print(f"Callback Iter {iteration}: Saved frame to {save_path}")
             # --- End Frame Saving ---
+            if iteration == num_optimization_steps - 1:
+                print(f"Final Iteration {iteration}: Objective Value: {neg_norm_objective_value:.3e}")
+                print("Saving render of final design...")
+                current_rho = rho_flat.reshape((num_elems_x, num_elems_y))
+                current_rho = operator_proj(current_rho, self._eta, beta=self._current_beta, num_projections=1)
+                current_rho = np.rint(current_rho).astype(np.float32)  # Convert to binary for final save
+                fig = self.render(current_rho, open_window=False, config=conditions)
+                save_path = os.path.join(frame_dir, "frame_final.png")
+                fig.savefig(save_path, dpi=200)
+                plt.close(fig)
 
         # --- Run Optimization ---
         print(
@@ -485,7 +486,7 @@ class Photonics2D(Problem[npt.NDArray]):
         rho_optimum = rho_optimum_flat.reshape((num_elems_x, num_elems_y))
         # Project the optimized design to the valid range [0, 1]
         rho_optimum = operator_proj(rho_optimum, self._eta, beta=self._current_beta, num_projections=1)
-
+        rho_optimum = np.rint(rho_optimum).astype(np.float32)
         return rho_optimum.astype(np.float32), opti_steps_history
 
     # --- render method remains the same as previous version ---
@@ -656,7 +657,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 200, "save_frame_interval": 2}
+    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2}
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (normalized_overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
@@ -667,6 +668,8 @@ if __name__ == "__main__":
 
     print("Rendering optimized design...")
     fig_opt = problem.render(optimized_design, open_window=True)
+    frame_dir = "opt_frames"
+    fig_opt.savefig(frame_dir + "/optimized_design.png", dpi=200)
 
     print("Simulating the final optimized design...")
     # Simulate returns the raw objective = penalty - overlap1*overlap2
