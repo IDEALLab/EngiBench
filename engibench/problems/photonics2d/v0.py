@@ -85,7 +85,7 @@ class Photonics2D(Problem[npt.NDArray]):
     Note: These are advanced parameters that alter the optimization process --
     we do not recommend changing these if you are only using the library for benchmarking,
     as it could make results less reproducible across papers using this problem.)
-    - `num_optimization_steps`: Total number of optimization steps (default: 50).
+    - `num_optimization_steps`: Total number of optimization steps (default: 300).
     - `step_size`: Adam optimizer step size (default: 1e-1).
     - `penalty_weight`: Weight for the L2 penalty term (default: 1e-2). Larger values reduce
                         unnecessary material, but may lead to worse performance if too large.
@@ -152,7 +152,7 @@ class Photonics2D(Problem[npt.NDArray]):
     _num_elems_y_default = 120  # Default number of grid cells in y
 
     # Defaults for the optimization parameters
-    _num_optimization_steps_default = 100  # Default number of optimization steps
+    _num_optimization_steps_default = 300  # Default number of optimization steps
     _beta_default = 10.0  # Default projection strength parameter
     _step_size_default = 1e-1  # Default step size for Adam optimizer
     _eta_default = 0.5

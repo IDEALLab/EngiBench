@@ -13,9 +13,9 @@ from engibench.problems.photonics2d import Photonics2D
 from engibench.utils import slurm
 
 rng = np.random.default_rng()
-lambda1 = rng.uniform(low=0.5, high=1.25, size=20)
-lambda2 = rng.uniform(low=0.75, high=1.5, size=20)
-blur_radius = range(0, 6)
+lambda1 = rng.uniform(low=0.5, high=1.25, size=10)
+lambda2 = rng.uniform(low=0.75, high=1.5, size=10)
+blur_radius = range(0, 5)
 num_elems_x = 120
 num_elems_y = 120
 
@@ -38,7 +38,7 @@ def config_factory(lambda1: float, lambda2: float, blur_radius: int) -> dict:
 # Generate starting design for each problem based on each configuration
 def design_factory(config: dict) -> dict:
     """Produces starting design for the problem."""
-    problem = Photonics2D(**config)
+    problem = Photonics2D(config=config)
     start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
     return {"design": start_design}
 
@@ -47,7 +47,7 @@ def design_factory(config: dict) -> dict:
 configs = [config_factory(l1, l2, br) for l1, l2, br in combinations]
 
 # Any optimization-wide configurations can be set here
-optimize_config = {"num_optimization_steps": 10}
+optimize_config = {"num_optimization_steps": 300}
 
 # Make slurm Args
 parameter_space = [
