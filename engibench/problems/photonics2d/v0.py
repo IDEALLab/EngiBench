@@ -40,7 +40,7 @@ from engibench.problems.photonics2d.backend import insert_mode
 from engibench.problems.photonics2d.backend import mode_overlap
 from engibench.problems.photonics2d.backend import operator_blur
 from engibench.problems.photonics2d.backend import operator_proj
-from engibench.problems.photonics2d.backend import Slice
+from engibench.problems.photonics2d.backend import poly_ramp
 from engibench.problems.photonics2d.backend import wavelength_to_frequency
 
 
@@ -89,7 +89,6 @@ class Photonics2D(Problem[npt.NDArray]):
     - `step_size`: Adam optimizer step size (default: 1e-1).
     - `penalty_weight`: Weight for the L2 penalty term (default: 1e-2). Larger values reduce
                         unnecessary material, but may lead to worse performance if too large.
-    - `beta`: Initial Projection strength parameter (default: 10.0, then scheduled during opt.).
     - `eta`: Projection center parameter (default: 0.5). There is little reason to change this.
     - `N_proj`: Number of projection applications (default: 1). Increasing this can help make
                 the design more binary.
@@ -153,7 +152,6 @@ class Photonics2D(Problem[npt.NDArray]):
 
     # Defaults for the optimization parameters
     _num_optimization_steps_default = 200  # Default number of optimization steps
-    _beta_default = 10.0  # Default projection strength parameter
     _step_size_default = 1e-1  # Default step size for Adam optimizer
     _eta_default = 0.5
     _num_projections_default = 1
@@ -196,28 +194,7 @@ class Photonics2D(Problem[npt.NDArray]):
         # Setup basic simulation parameters
         self.omega1 = wavelength_to_frequency(current_conditions["lambda1"])
         self.omega2 = wavelength_to_frequency(current_conditions["lambda2"])
-        self._current_beta = current_conditions.get("beta", self._beta_default)
-
-        # --- Private attributes for simulation state ---
-        _bg_rho: npt.NDArray
-        _design_region: npt.NDArray
-        _input_slice: Slice
-        _output_slice1: Slice
-        _output_slice2: Slice
-        _simulation1: fdfd_ez
-        _simulation2: fdfd_ez
-        _source1: npt.NDArray  # Used only during optimize
-        _source2: npt.NDArray  # Used only during optimize
-        _probe1: npt.NDArray  # Used only during optimize
-        _probe2: npt.NDArray  # Used only during optimize
-        _e01: float = 0.0  # Normalization constant (used only during optimize)
-        _e02: float = 0.0  # Normalization constant (used only during optimize)
-        _current_beta: float = 10
-
-        # --- Attributes to store last simulation results ---
-        _last_epsr: npt.NDArray
-        _last_ez1: npt.NDArray
-        _last_ez2: npt.NDArray
+        self._current_beta: float = 1.0  # Placeholder for beta scheduling
 
     def _setup_simulation(self, config: dict[str, Any]) -> dict[str, Any]:
         """Helper function to setup simulation parameters and domain."""
@@ -247,7 +224,6 @@ class Photonics2D(Problem[npt.NDArray]):
         """Helper to run FDFD and return key components (epsr, fields, sources, probes)."""
         omega1 = self.omega1
         omega2 = self.omega2
-        # Use scheduled beta if optimizing, otherwise use beta from conditions
         beta = self._current_beta
         num_blurs = conditions.get("num_blurs", self._num_blurs_default)
         num_projections = conditions.get("num_projections", self._num_projections_default)
@@ -366,7 +342,6 @@ class Photonics2D(Problem[npt.NDArray]):
         num_optimization_steps = conditions.get("num_optimization_steps", self._num_optimization_steps_default)
         step_size = conditions.get("step_size", self._step_size_default)
         penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default)
-        self._current_beta = conditions.get("beta", self._beta_default)
         self._eta = conditions.get("eta", self._eta_default)
         self._num_projections = conditions.get("num_projections", self._num_projections_default)
         self._num_blurs = conditions.get("num_blurs", self._num_blurs_default)
@@ -434,7 +409,6 @@ class Photonics2D(Problem[npt.NDArray]):
 
         # --- Define Callback ---
         opti_steps_history: list[OptiStep] = []
-        # No need for of_list_for_beta
 
         def callback(iteration: int, objective_history_list: list, rho_flat: npt.NDArray | ArrayBox) -> None:
             """Callback for adam_optimize. Receives the history of objective values."""
@@ -454,26 +428,9 @@ class Photonics2D(Problem[npt.NDArray]):
 
             # --- Process Valid Scalar Objective Value ---
 
-            # Beta Scheduling Logic
+            # Beta Scheduling Logic -- Quadratic ramp from 0 to max_beta
             iteration = len(objective_history_list)
-            # Spend first half on low continuation
-            beta_schedule = [10, 100, 200, max_beta]
-            early_continuation = num_optimization_steps / 2
-            mid_continuation = num_optimization_steps * 3 / 4
-            if iteration < early_continuation:
-                self._current_beta = beta_schedule[0]  # 10
-            elif early_continuation <= iteration & iteration < mid_continuation:
-                if self._current_beta == beta_schedule[0]:
-                    print(f"Increasing beta to {beta_schedule[1]}...")
-                self._current_beta = beta_schedule[1]
-            elif mid_continuation <= iteration & iteration < num_optimization_steps - 1:
-                if self._current_beta == beta_schedule[1]:
-                    print(f"Increasing beta to {beta_schedule[2]}...")
-                self._current_beta = beta_schedule[2]
-            else:  # Final step continuation should be max_beta
-                print(f"Final beta set to {beta_schedule[3]}...")
-                self._current_beta = beta_schedule[3]
-            # --- End Beta Logic ---
+            self._current_beta = poly_ramp(iteration, max_iter=num_optimization_steps, b0=0, bmax=max_beta, degree=2)
 
             # Store OptiStep info
             neg_norm_objective_value = -last_scalar_obj_value
@@ -527,7 +484,7 @@ class Photonics2D(Problem[npt.NDArray]):
         # --- Final Result ---
         rho_optimum = rho_optimum_flat.reshape((num_elems_x, num_elems_y))
         # Project the optimized design to the valid range [0, 1]
-        rho_optimum = operator_proj(rho_optimum, self._eta, beta=max_beta, num_projections=1)
+        rho_optimum = operator_proj(rho_optimum, self._eta, beta=self._current_beta, num_projections=1)
 
         return rho_optimum.astype(np.float32), opti_steps_history
 
@@ -557,8 +514,6 @@ class Photonics2D(Problem[npt.NDArray]):
 
         print("Rendering design under the following conditions:")
         pprint.pp(conditions)
-        # Run simulation for the given design to get fields for plotting
-        conditions["beta"] = conditions.get("beta", self._beta_default)
         # Use run_fdfd but ignore most outputs, just need epsr, ez1, ez2
         epsr, ez1, ez2, _, _, _, _ = self._run_fdfd(design, conditions)
 
@@ -701,7 +656,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2}
+    opt_config = {"num_optimization_steps": 200, "save_frame_interval": 2}
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (normalized_overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
