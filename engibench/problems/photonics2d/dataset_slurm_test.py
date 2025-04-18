@@ -13,8 +13,8 @@ from engibench.problems.photonics2d import Photonics2D
 from engibench.utils import slurm
 
 rng = np.random.default_rng()
-lambda1 = rng.uniform(low=0.5, high=1.25, size=50)
-lambda2 = rng.uniform(low=0.75, high=1.5, size=50)
+lambda1 = rng.uniform(low=0.5, high=1.25, size=20)
+lambda2 = rng.uniform(low=0.75, high=1.5, size=20)
 blur_radius = range(0, 6)
 num_elems_x = 120
 num_elems_y = 120

@@ -151,7 +151,7 @@ class Photonics2D(Problem[npt.NDArray]):
     _num_elems_y_default = 120  # Default number of grid cells in y
 
     # Defaults for the optimization parameters
-    _num_optimization_steps_default = 50  # Default number of optimization steps
+    _num_optimization_steps_default = 100  # Default number of optimization steps
     _beta_default = 10.0  # Default projection strength parameter
     _step_size_default = 1e-1  # Default step size for Adam optimizer
     _eta_default = 0.5
@@ -451,16 +451,22 @@ class Photonics2D(Problem[npt.NDArray]):
             # Beta Scheduling Logic
             iteration = len(objective_history_list)
             # Spend first half on low continuation
+            beta_schedule = [10, 100, 200, max_beta]
             early_continuation = num_optimization_steps / 2
             mid_continuation = num_optimization_steps * 3 / 4
             if iteration < early_continuation:
-                self._current_beta = 10
+                self._current_beta = beta_schedule[0]  # 10
             elif early_continuation <= iteration & iteration < mid_continuation:
-                self._current_beta = 100
+                if self._current_beta == beta_schedule[0]:
+                    print(f"Increasing beta to {beta_schedule[1]}...")
+                self._current_beta = beta_schedule[1]
             elif mid_continuation <= iteration & iteration < num_optimization_steps:
-                self._current_beta = 200
+                if self._current_beta == beta_schedule[2]:
+                    print(f"Increasing beta to {beta_schedule[2]}...")
+                self._current_beta = beta_schedule[2]
             else:  # Final continuation should be max_beta
-                self._current_beta = max_beta
+                print(f"Final beta set to {beta_schedule[3]}...")
+                self._current_beta = beta_schedule[3]
             # --- End Beta Logic ---
 
             # Store OptiStep info

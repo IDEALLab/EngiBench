@@ -189,7 +189,7 @@ def submit(
         config.sbatch_executable,
         "--parsable",
         "--export=ALL",
-        f"--array=1-{len(parameter_space)}%500",
+        f"--array=1-{len(parameter_space)}%1000",
         *(f"{arg}={value}" for arg, value in optional_args if value is not None),
         *config.extra_args,
         "--wrap",
