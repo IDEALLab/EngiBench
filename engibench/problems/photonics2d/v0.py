@@ -486,7 +486,7 @@ class Photonics2D(Problem[npt.NDArray]):
         rho_optimum = rho_optimum_flat.reshape((num_elems_x, num_elems_y))
         # Project the optimized design to the valid range [0, 1]
         rho_optimum = operator_proj(rho_optimum, self._eta, beta=self._current_beta, num_projections=1)
-        rho_optimum = np.rint(rho_optimum).astype(np.float32)
+        rho_optimum = np.rint(rho_optimum)  # Convert to binary for final
         return rho_optimum.astype(np.float32), opti_steps_history
 
     # --- render method remains the same as previous version ---

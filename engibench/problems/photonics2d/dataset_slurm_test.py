@@ -87,7 +87,7 @@ def render_local(target_problem: Any, opt_results: list[dict], fig_path: str) ->
         final_design, obj_trajectory = result["results"]
         problem = target_problem(result["problem_args"])
         fig = problem.render(design=final_design, config=result["simulate_args"])
-        fig.savefig(fig_path+f"/final_design_{_i}.png")
+        fig.savefig(fig_path + f"/final_design_{_i}.png")
 
 
 # The below may be overkill, in the sense that if simulate and render are cheap functions,
@@ -133,7 +133,9 @@ def render_slurm(
         job_type="render",
         problem=target_problem,
         parameter_space=slurm_simulate_args,
-        config=slurm.SlurmConfig(log_dir="./sim_logs/", runtime=runtime_render),  # Shorter, since sim is faster
+        config=slurm.SlurmConfig(
+            log_dir="./sim_logs/", runtime=runtime_render, mem_per_cpu="4G"
+        ),  # Shorter, since sim is faster
     )
     end_time = time.time()
     print(f"Elapsed time for `render`: {end_time - start_time:.2f} seconds")
@@ -170,10 +172,22 @@ if __name__ == "__main__":
     """
     # Fetch command line arguments for render and simulate to know whether to run those functions
     parser = ArgumentParser()
-    parser.add_argument("-r", "--render", action='store_true', dest="render_flag", default=False, help="Should we render the optimized designs?")
+    parser.add_argument(
+        "-r",
+        "--render",
+        action="store_true",
+        dest="render_flag",
+        default=False,
+        help="Should we render the optimized designs?",
+    )
     parser.add_argument("--figure_path", dest="fig_path", default="./figs", help="Where should we place the figures?")
     parser.add_argument(
-        "-s", "--simulate", action='store_true', dest="simulate_flag", default=False, help="Should we simulate the optimized designs?"
+        "-s",
+        "--simulate",
+        action="store_true",
+        dest="simulate_flag",
+        default=False,
+        help="Should we simulate the optimized designs?",
     )
     args = parser.parse_args()
 
