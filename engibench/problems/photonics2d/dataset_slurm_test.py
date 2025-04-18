@@ -13,7 +13,10 @@ import numpy as np
 from engibench.problems.photonics2d import Photonics2D
 from engibench.utils import slurm
 
+# ============== Problem-specific elements ===================
+# The following elements are specific to the problem and should be modified accordingly
 target_problem = Photonics2D
+# Specify the parameters you want to sweep over for optimization
 rng = np.random.default_rng()
 lambda1 = rng.uniform(low=0.5, high=1.25, size=2)
 lambda2 = rng.uniform(low=0.75, high=1.5, size=2)
@@ -40,7 +43,7 @@ def config_factory(lambda1: float, lambda2: float, blur_radius: int) -> dict:
 # Generate starting design for each problem based on each configuration
 def design_factory(config: dict) -> dict:
     """Produces starting design for the problem."""
-    problem = Photonics2D(config=config)
+    problem = target_problem(config=config)
     start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
     return {"design": start_design}
 
@@ -50,6 +53,21 @@ configs = [config_factory(l1, l2, br) for l1, l2, br in combinations]
 
 # Any optimization-wide configurations can be set here
 optimize_config = {"num_optimization_steps": 200}
+
+# Timing information for `optimize` and `simulate` functions
+# If you can estimate the time it takes to run `optimize` and `simulate`,
+# you can set the runtimes here, and this will help with job scheduling.
+# Try to be conservative with the time estimates, so SLURM doesn't kill it prematurely.
+# The format is "HH:MM:SS"
+runtime_optimize = "00:10:00"  # ~10 minutes for optimization
+runtime_simulate = "00:01:00"  # ~1 minute for simulation
+runtime_render = "00:02:00"  # ~2 minutes for rendering
+
+# ============== End of problem-specific elements ===================
+
+
+# ============== Problem-agnostic elements ===================
+# The following elements are agnostic to the problem and can be reused across problems
 
 # Make slurm Args
 parameter_space = [
@@ -64,7 +82,7 @@ slurm.submit(
     job_type="optimize",
     problem=target_problem,
     parameter_space=parameter_space,
-    config=slurm.SlurmConfig(log_dir="./opt_logs/", runtime="00:10:00"),  # If longer than 10m, sim has prob. failed
+    config=slurm.SlurmConfig(log_dir="./opt_logs/", runtime=runtime_optimize),
 )
 end_time = time.time()
 print(f"Elapsed time for `optimize`: {end_time - start_time:.2f} seconds")
@@ -98,9 +116,9 @@ slurm_simulate_args = [
 start_time = time.time()
 slurm.submit(
     job_type="simulate",
-    problem=Photonics2D,
+    problem=target_problem,
     parameter_space=slurm_simulate_args,
-    config=slurm.SlurmConfig(log_dir="./sim_logs/", runtime="00:01:00"),  # Shorter, since sim is faster
+    config=slurm.SlurmConfig(log_dir="./sim_logs/", runtime=runtime_simulate),  # Shorter, since sim is faster
 )
 end_time = time.time()
 print(f"Elapsed time for `simulate`: {end_time - start_time:.2f} seconds")
@@ -119,9 +137,9 @@ os.rename("results.pkl", "results_sim.pkl")
 start_time = time.time()
 slurm.submit(
     job_type="render",
-    problem=Photonics2D,
+    problem=target_problem,
     parameter_space=slurm_simulate_args,
-    config=slurm.SlurmConfig(log_dir="./sim_logs/", runtime="00:02:00"),  # Shorter, since sim is faster
+    config=slurm.SlurmConfig(log_dir="./sim_logs/", runtime=runtime_render),  # Shorter, since sim is faster
 )
 end_time = time.time()
 print(f"Elapsed time for `render`: {end_time - start_time:.2f} seconds")
