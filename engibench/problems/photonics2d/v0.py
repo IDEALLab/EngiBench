@@ -10,6 +10,7 @@ from __future__ import annotations
 
 # Need os import for makedirs for saving plots
 import os
+import pprint
 from typing import Any
 
 import autograd.numpy as npa
@@ -160,11 +161,11 @@ class Photonics2D(Problem[npt.NDArray]):
     _num_blurs_default = 1
 
     conditions: tuple[tuple[str, Any], ...] = (
-        ("lambda1", 1.5),
-        ("lambda2", 1.3),
-        ("blur_radius", 2),
-        ("num_elems_x", _num_elems_x_default),
-        ("num_elems_y", _num_elems_y_default),
+        ("lambda1", 1.5),  # First input wavelength in μm
+        ("lambda2", 1.3),  # Second input wavelength in μm
+        ("blur_radius", 2),  # Radius for the density blurring filter (pixels)
+        ("num_elems_x", _num_elems_x_default),  # Number of grid cells in x (pixels)
+        ("num_elems_y", _num_elems_y_default),  # Number of grid cells in y (pixels)
     )
 
     design_space = spaces.Box(low=0.0, high=1.0, shape=(_num_elems_x_default, _num_elems_y_default), dtype=np.float64)
@@ -173,7 +174,7 @@ class Photonics2D(Problem[npt.NDArray]):
     container_id = None  # type: ignore
     _dataset = None
 
-    def __init__(self, config: dict[str, Any] = {}, **kwargs) -> None:
+    def __init__(self, config: dict[str, Any], **kwargs) -> None:
         """Initializes the Photonics2D problem.
 
         Args:
@@ -185,6 +186,8 @@ class Photonics2D(Problem[npt.NDArray]):
         # Replace the conditions with any new configs passed in
         self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
         current_conditions = dict(self.conditions)
+        print("Initializing Photonics Problem with configuration:")
+        pprint.pp(current_conditions)
         num_elems_x = current_conditions.get("num_elems_x", self._num_elems_x_default)
         num_elems_y = current_conditions.get("num_elems_y", self._num_elems_y_default)
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(num_elems_x, num_elems_y), dtype=np.float32)
@@ -305,6 +308,8 @@ class Photonics2D(Problem[npt.NDArray]):
 
         # --- Run Simulation ---
         # We don't need source returns here
+        print("Simulating design under the following conditions:")
+        pprint.pp(conditions)
         epsr, ez1, ez2, _, _, probe1, probe2 = self._run_fdfd(design, conditions)
 
         # --- Store Results Internally ---
@@ -350,7 +355,8 @@ class Photonics2D(Problem[npt.NDArray]):
                   The `step` attribute corresponds to the optimizer iteration.
         """
         conditions = self._setup_simulation(config)
-        print(f"Attempting to run Optimization for Photonics2D under the following conditions:\n{conditions!s}")
+        print("Attempting to run Optimization for Photonics2D under the following conditions:")
+        pprint.pp(conditions)
 
         # Pull out problem-specific parameters from conditions
         num_elems_x = conditions["num_elems_x"]
@@ -549,6 +555,8 @@ class Photonics2D(Problem[npt.NDArray]):
         if design.shape != (num_elems_x, num_elems_y):
             raise ValueError(f"Input design shape {design.shape} != ({num_elems_x}, {num_elems_y})")  # noqa: TRY003
 
+        print("Rendering design under the following conditions:")
+        pprint.pp(conditions)
         # Run simulation for the given design to get fields for plotting
         conditions["beta"] = conditions.get("beta", self._beta_default)
         # Use run_fdfd but ignore most outputs, just need epsr, ez1, ez2
@@ -679,7 +687,7 @@ if __name__ == "__main__":
         "num_elems_x": 120,
         "num_elems_y": 120,
     }
-    problem = Photonics2D(problem_config)
+    problem = Photonics2D(config=problem_config)
     problem.reset(seed=42)  # Use a seed
 
     start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
@@ -693,7 +701,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2}
+    opt_config = {"num_optimization_steps": 10, "save_frame_interval": 2}
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (normalized_overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
