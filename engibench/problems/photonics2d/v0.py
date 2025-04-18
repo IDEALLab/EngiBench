@@ -460,11 +460,11 @@ class Photonics2D(Problem[npt.NDArray]):
                 if self._current_beta == beta_schedule[0]:
                     print(f"Increasing beta to {beta_schedule[1]}...")
                 self._current_beta = beta_schedule[1]
-            elif mid_continuation <= iteration & iteration < num_optimization_steps:
-                if self._current_beta == beta_schedule[2]:
+            elif mid_continuation <= iteration & iteration < num_optimization_steps - 1:
+                if self._current_beta == beta_schedule[1]:
                     print(f"Increasing beta to {beta_schedule[2]}...")
                 self._current_beta = beta_schedule[2]
-            else:  # Final continuation should be max_beta
+            else:  # Final step continuation should be max_beta
                 print(f"Final beta set to {beta_schedule[3]}...")
                 self._current_beta = beta_schedule[3]
             # --- End Beta Logic ---
