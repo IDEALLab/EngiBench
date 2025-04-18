@@ -47,7 +47,7 @@ def design_factory(config: dict) -> dict:
 configs = [config_factory(l1, l2, br) for l1, l2, br in combinations]
 
 # Any optimization-wide configurations can be set here
-optimize_config = {"num_optimization_steps": 300}
+optimize_config = {"num_optimization_steps": 200}
 
 # Make slurm Args
 parameter_space = [

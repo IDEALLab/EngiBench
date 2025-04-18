@@ -152,7 +152,7 @@ class Photonics2D(Problem[npt.NDArray]):
     _num_elems_y_default = 120  # Default number of grid cells in y
 
     # Defaults for the optimization parameters
-    _num_optimization_steps_default = 300  # Default number of optimization steps
+    _num_optimization_steps_default = 200  # Default number of optimization steps
     _beta_default = 10.0  # Default projection strength parameter
     _step_size_default = 1e-1  # Default step size for Adam optimizer
     _eta_default = 0.5
