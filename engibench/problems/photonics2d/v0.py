@@ -681,8 +681,8 @@ class Photonics2D(Problem[npt.NDArray]):
 if __name__ == "__main__":
     # Problem Configuration Example
     problem_config = {
-        "lambda1": 1.11,
-        "lambda2": 0.99,
+        "lambda1": 1.07,
+        "lambda2": 0.84,
         "blur_radius": 1,
         "num_elems_x": 120,
         "num_elems_y": 120,
@@ -701,7 +701,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 10, "save_frame_interval": 2}
+    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2}
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (normalized_overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
