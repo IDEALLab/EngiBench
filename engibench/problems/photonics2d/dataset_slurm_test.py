@@ -40,7 +40,7 @@ def config_factory(lambda1: float, lambda2: float, blur_radius: int) -> dict:
 # Generate starting design for each problem based on each configuration
 def design_factory(config: dict) -> dict:
     """Produces starting design for the problem."""
-    problem = Photonics2D(**config)
+    problem = Photonics2D(config=config)
     start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
     return {"design": start_design}
 
@@ -49,7 +49,7 @@ def design_factory(config: dict) -> dict:
 configs = [config_factory(l1, l2, br) for l1, l2, br in combinations]
 
 # Any optimization-wide configurations can be set here
-optimize_config = {"num_optimization_steps": 10}
+optimize_config = {"num_optimization_steps": 200}
 
 # Make slurm Args
 parameter_space = [
