@@ -87,7 +87,7 @@ def render_local(target_problem: Any, opt_results: list[dict], fig_path: str) ->
         final_design, obj_trajectory = result["results"]
         problem = target_problem(result["problem_args"])
         fig = problem.render(design=final_design, config=result["simulate_args"])
-        fig.savefig(f"/final_design_{_i}.png")
+        fig.savefig(fig_path+f"/final_design_{_i}.png")
 
 
 # The below may be overkill, in the sense that if simulate and render are cheap functions,
@@ -124,7 +124,7 @@ def simulate_slurm(target_problem: Any, slurm_simulate_args: list[slurm.Args], r
 # Now let's test slurm render
 # We can reuse slurm_simulate_args, since the render function takes similar args
 def render_slurm(
-    target_problem: Any, slurm_simulate_args: list[slurm.Args], runtime_render: str, fig_path: str = "figs"
+    target_problem: Any, slurm_simulate_args: list[slurm.Args], runtime_render: str, fig_path: str = "./figs/"
 ) -> None:
     """Function to render designs via SLURM."""
     print("Starting `render` via SLURM...")
@@ -150,7 +150,7 @@ def render_slurm(
         os.makedirs(fig_path)
 
     for i, result in enumerate(render_results):
-        result["results"].savefig(fig_path + f"/final_design_{i}.png")
+        result["results"].savefig(fig_path + f"final_design_{i}.png")
     # Zip the figures for easy download
     shutil.make_archive("figures_all", "zip", fig_path)
 
@@ -170,10 +170,10 @@ if __name__ == "__main__":
     """
     # Fetch command line arguments for render and simulate to know whether to run those functions
     parser = ArgumentParser()
-    parser.add_argument("-r", "--render", dest="render_flag", default=False, help="Should we render the optimized designs?")
+    parser.add_argument("-r", "--render", action='store_true', dest="render_flag", default=False, help="Should we render the optimized designs?")
     parser.add_argument("--figure_path", dest="fig_path", default="./figs", help="Where should we place the figures?")
     parser.add_argument(
-        "-s", "--simulate", dest="simulate_flag", default=False, help="Should we simulate the optimized designs?"
+        "-s", "--simulate", action='store_true', dest="simulate_flag", default=False, help="Should we simulate the optimized designs?"
     )
     args = parser.parse_args()
 
@@ -182,9 +182,9 @@ if __name__ == "__main__":
     target_problem = Photonics2D
     # Specify the parameters you want to sweep over for optimization
     rng = np.random.default_rng()
-    lambda1 = rng.uniform(low=0.5, high=1.25, size=2)
-    lambda2 = rng.uniform(low=0.75, high=1.5, size=2)
-    blur_radius = range(0, 2)
+    lambda1 = rng.uniform(low=0.5, high=1.25, size=20)
+    lambda2 = rng.uniform(low=0.75, high=1.5, size=20)
+    blur_radius = range(0, 5)
     num_elems_x = 120
     num_elems_y = 120
 
@@ -220,9 +220,9 @@ if __name__ == "__main__":
     # you can set the runtimes here, and this will help with job scheduling.
     # Try to be conservative with the time estimates, so SLURM doesn't kill it prematurely.
     # The format is "HH:MM:SS"
-    runtime_optimize = "00:10:00"  # ~10 minutes for optimization
-    runtime_simulate = "00:01:00"  # ~1 minute for simulation
-    runtime_render = "00:01:00"  # ~1 minutes for rendering
+    runtime_optimize = "00:12:00"  # ~10 minutes for optimization
+    runtime_simulate = "00:02:00"  # ~1 minute for simulation
+    runtime_render = "00:02:00"  # ~1 minutes for rendering
 
     # ============== End of problem-specific elements ===================
 
