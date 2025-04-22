@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import platform
+import re
 import subprocess
 
 
@@ -20,7 +21,7 @@ class NgSpice:
         self.system = platform.system().lower()
         self._ngspice_path = self._get_ngspice_path()
         if self.version != "44.2":
-            raise RuntimeError(f"Unsupported ngspice version: {self.version}. We only support version 44.2.")  # noqa: TRY003
+            raise UnsupportedNgSpiceVersionError(self.version)
 
     def _get_ngspice_path(self) -> str | None:
         """Get the path to the ngspice executable based on the operating system.
@@ -97,20 +98,51 @@ class NgSpice:
         Raises:
             subprocess.CalledProcessError: If ngspice fails to run
         """
-        cmd = [self._ngspice_path, "--version"]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+        if self.system == "windows":
+            pattern = re.compile(r"ngspice-(\d+)-manual\.pdf")
 
-        # Extract version number from second line of output
+            docs_path = os.path.normpath(os.path.join(os.path.dirname(self._ngspice_path), "../docs/"))
+            for filename in os.listdir(docs_path):
+                match = pattern.match(filename)
+                if match:
+                    return int(match.group(1))  # Return the first matching version number
+            raise NgSpiceManualNotFoundError()
+        else:
+            cmd = [self._ngspice_path, "--version"]
+            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
-        # Example output:
-        # ******
-        # ** ngspice-44.2 : Circuit level simulation program
-        # ** Compiled with KLU Direct Linear Solver
-        # ** The U. C. Berkeley CAD Group
-        # ** Copyright 1985-1994, Regents of the University of California.
-        # ** Copyright 2001-2024, The ngspice team.
-        # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
-        # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
-        # ******
-        version = result.stdout.splitlines()[1].split()[1].split("-")[1]
-        return version
+            # Extract version number from second line of output
+
+            # Example output:
+            # ******
+            # ** ngspice-44.2 : Circuit level simulation program
+            # ** Compiled with KLU Direct Linear Solver
+            # ** The U. C. Berkeley CAD Group
+            # ** Copyright 1985-1994, Regents of the University of California.
+            # ** Copyright 2001-2024, The ngspice team.
+            # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
+            # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
+            # ******
+            version = result.stdout.splitlines()[1].split()[1].split("-")[1]
+            return version
+
+
+class NgSpiceManualNotFoundError(FileNotFoundError):
+    """Custom exception for missing ngspice manual file on Windows."""
+
+    def __init__(self):
+        """Initialize the exception with a custom message."""
+        super().__init__("ngspice-*-manual.pdf not found in the docs folder.")
+
+
+class UnsupportedNgSpiceVersionError(RuntimeError):
+    """Custom exception for unsupported ngspice versions."""
+
+    def __init__(self, version: str):
+        """Initialize the exception with a custom message."""
+        super().__init__(f"Unsupported ngspice version: {version}. We only support version 44.2.")
+
+
+if __name__ == "__main__":
+    ngspice = NgSpice()
+    print(ngspice.version)
