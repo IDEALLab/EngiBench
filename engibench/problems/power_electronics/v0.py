@@ -1,5 +1,4 @@
-# ruff: noqa: N806, N815 # Upper case
-# ruff: noqa: FIX002 # for TODO
+# ruff: noqa: N806, N815, FIX002
 
 
 """Power Electronics problem."""
@@ -7,7 +6,6 @@
 from __future__ import annotations
 
 import os
-import subprocess
 from typing import Any, NoReturn
 
 from gymnasium import spaces
@@ -18,9 +16,6 @@ import numpy.typing as npt
 
 from engibench.core import ObjectiveDirection
 from engibench.core import Problem
-from engibench.problems.power_electronics.utils import component as cmpt
-from engibench.problems.power_electronics.utils import data_sheet as ds
-from engibench.problems.power_electronics.utils import dc_dc_efficiency_ngspice as dc_lib_ng
 from engibench.problems.power_electronics.utils.config import Config
 from engibench.problems.power_electronics.utils.netlist_handler import parse_topology
 from engibench.problems.power_electronics.utils.netlist_handler import rewrite_netlist
@@ -128,70 +123,6 @@ class PowerElectronics(Problem[npt.NDArray]):
         # Initialize ngspice wrapper
         self.ngspice = NgSpice(ngspice_path)
 
-    def __calculate_efficiency(self, edge_map: dict[str, list[int]]) -> tuple[float, int, float, float]:
-        capacitor_model, inductor_model, switch_model, diode_model = [], [], [], []
-        max_comp_size = 12
-        Ts = 5e-6
-        Fs = 1 / Ts
-
-        switch_model.extend([cmpt.MOSFET(dict(zip(ds.MOSFET_properties, ds.APT40SM120B))) for _ in range(max_comp_size)])
-        diode_model.extend([cmpt.Diode(dict(zip(ds.diode_properties, ds.APT30SCD65B))) for _ in range(max_comp_size)])
-
-        try:
-            # Use the ngspice wrapper to run the simulation
-            self.ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
-
-            for i in range(self.config.n_C):
-                # Assuming dissipiation factor = 5 at 200Khz freq;  ESR = Disspiation_factor/ 2*pi*f*C
-                # Currently we are using Parallel resistance (component "RC") as 100Meg
-                # Using https://www.farnell.com/datasheets/2167237.pdf for ESR
-                cap_model_values = [self.config.capacitor_val[i], 1 / np.sqrt(10), 1e8]
-                capacitor_model.append(cmpt.Capacitor(dict(zip(ds.capacitor_properties, cap_model_values))))
-            for i in range(self.config.n_L):
-                # Using this inductor data sheet for now: https://www.eaton.com/content/dam/eaton/products/electronic-components/resources/data-sheet/eaton-fp1206-high-current-power-inductors-data-sheet.pdf
-                ind_model_values = [self.config.inductor_val[i], 0.43e-3]
-                inductor_model.append(cmpt.Inductor(dict(zip(ds.inductor_properties, ind_model_values))))
-
-            err, P_loss, P_src = dc_lib_ng.metric_compute_DC_DC_efficiency_ngspice(
-                self.config.raw_file_path,
-                0.001,
-                self.config.n_S,
-                self.config.n_C,
-                self.config.n_L,
-                self.config.n_D,
-                edge_map,
-                capacitor_model,
-                inductor_model,
-                switch_model,
-                diode_model,
-                10,
-                0,
-                self.config.switch_L1,
-                self.config.switch_L2,
-                [float(ind) * Ts for ind in self.config.switch_T1],
-                [float(ind) * Ts for ind in self.config.switch_T2],
-                Fs,
-            )
-            efficiency = (P_src - P_loss) / P_src
-
-            error_report = err
-            if efficiency < 0 or efficiency > 1:
-                error_report = 1  # report invalid efficiency calculation
-
-        except subprocess.CalledProcessError as err:
-            efficiency = np.nan
-            error_report = 2  # bit 1 will be 1 to report Process error such as invalid circuit
-            P_loss = np.nan
-            P_src = np.nan
-
-        except subprocess.TimeoutExpired:
-            efficiency = np.nan
-            error_report = 4  # bit 2 will be 1 to report Timeout
-            P_loss = np.nan
-            P_src = np.nan
-
-        return efficiency, error_report, P_loss, P_src
-
     def simulate(self, design_variable: list[float]) -> npt.NDArray:
         """Simulates the performance of a Power Electronics design.
 
@@ -211,10 +142,10 @@ class PowerElectronics(Problem[npt.NDArray]):
         self.config, rewrite_netlist_str, edge_map, _ = parse_topology(self.config)
         self.config = process_sweep_data(config=self.config, sweep_data=design_variable)
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
-        Efficiency, error_report, _, _ = self.__calculate_efficiency(edge_map)
-        print(f"Error report from _calculate_efficiency: {error_report}")
+        # Use the ngspice wrapper to run the simulation
+        self.ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
-        simulation_results = np.array([DcGain, VoltageRipple, Efficiency])
+        simulation_results = np.array([DcGain, VoltageRipple])
 
         return simulation_results
 
