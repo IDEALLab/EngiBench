@@ -22,8 +22,10 @@ from engibench.utils import container
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
+DesignType = dict[str, Any]
 
-class Airfoil(Problem[dict[str, Any]]):
+
+class Airfoil(Problem[DesignType]):
     r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
@@ -93,6 +95,7 @@ class Airfoil(Problem[dict[str, Any]]):
     dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     _dataset = None
+    __local_study_dir: str
 
     def __init__(self, base_directory: str | None = None) -> None:
         """Initializes the Airfoil problem.
@@ -136,7 +139,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
 
-    def __design_to_simulator_input(self, design: dict[str, Any], config: dict[str, Any], filename: str = "design") -> str:
+    def __design_to_simulator_input(self, design: DesignType, config: dict[str, Any], filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
@@ -151,10 +154,11 @@ class Airfoil(Problem[dict[str, Any]]):
         scaled_design = self._scale_coords(design["coords"])
         # Save the design to a temporary file
         np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
+        tmp = os.path.join(self.__docker_study_dir, "tmp")
 
         base_config = {
             "design_fname": f"'{self.__docker_study_dir}/{filename}.dat'",
-            "tmp_xyz_fname": "'" + self.__docker_study_dir + "/tmp'",
+            "tmp_xyz_fname": f"'{tmp}'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
             "marchDist": 100.0,  # Distance to march the grid from the airfoil surface
@@ -217,7 +221,7 @@ class Airfoil(Problem[dict[str, Any]]):
                 msg += f"Mesh file not generated: {mesh_file}."
             if not os.path.exists(ffd_file):
                 msg += f"FFD file not generated: {ffd_file}."
-            raise RuntimeError(f"Pre-processing failed: {e!s}. {msg} Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
+            raise RuntimeError(f"Pre-processing failed: {e!s}. {msg} Check logs in {self.__local_study_dir}") from e
 
         return filename
 
@@ -238,8 +242,8 @@ class Airfoil(Problem[dict[str, Any]]):
         )  # A list of [[1,2],[2,3],[3,4],...]
 
         # plot the x 'CoordinateX' and y 'CoordinateY' coordinates of the slice
-        coords_x = df_slice["CoordinateX"].values
-        coords_y = df_slice["CoordinateY"].values
+        coords_x = df_slice["CoordinateX"].as_numpy()
+        coords_y = df_slice["CoordinateY"].as_numpy()
 
         # We also have XoC YoC ZoC VelocityX VelocityY VelocityZ CoefPressure Mach
         # We would like to reorder these values in the same way as the coordinates, so we keep track of the indices
@@ -393,7 +397,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         return self.__reorder_coords(slice_df)
 
-    def simulate(self, design: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, Any]:
+    def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
         """Simulates the performance of an airfoil design.
 
         Args:
@@ -419,10 +423,11 @@ class Airfoil(Problem[dict[str, Any]]):
             "use_altitude": False,
             "output_dir": "'" + self.__docker_study_dir + "/output/'",
             "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
-            "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.  # noqa: FIX002
+            "task": "'analysis'",  # TODO(cashend): We can add the option to perform a polar analysis.
+            # https://github.com/IDEALLab/EngiBench/issues/15
         }
         base_config.update(self.conditions)
-        base_config.update(config)
+        base_config.update(config or {})
         self.__design_to_simulator_input(design, base_config)
 
         replace_template_values(
@@ -449,7 +454,7 @@ class Airfoil(Problem[dict[str, Any]]):
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
         except Exception as e:
-            raise RuntimeError(  # noqa: TRY003
+            raise RuntimeError(
                 f"Failed to run airfoil analysis: {e!s}. Please check logs in {self.__local_study_dir}."
             ) from e
 
@@ -459,8 +464,8 @@ class Airfoil(Problem[dict[str, Any]]):
         return np.array([drag, lift])
 
     def optimize(
-        self, starting_point: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4
-    ) -> tuple[dict[str, Any], list[OptiStep]]:
+        self, starting_point: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
+    ) -> tuple[DesignType, list[OptiStep]]:
         """Optimizes the design of an airfoil.
 
         Args:
@@ -496,7 +501,7 @@ class Airfoil(Problem[dict[str, Any]]):
             "area_input_design": self._calc_area(starting_point["coords"]),
         }
         base_config.update(self.conditions)
-        base_config.update(config)
+        base_config.update(config or {})
         self.__design_to_simulator_input(starting_point, base_config, filename)
         replace_template_values(
             self.__local_study_dir + "/airfoil_opt.py",
@@ -522,14 +527,15 @@ class Airfoil(Problem[dict[str, Any]]):
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
         except Exception as e:
-            raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
+            raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e
 
         # post process -- extract the shape and objective values
         optisteps_history = []
         history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
 
-        # TODO return the full history of the optimization instead of just the last step # noqa: FIX002
+        # TODO(cashend): return the full history of the optimization instead of just the last step
         # Also, this is inconsistent with the definition of the problem saying we optimize 2 objectives...
+        # https://github.com/IDEALLab/EngiBench/issues/15
         objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
             -1, -1
         ]
@@ -540,7 +546,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
-    def render(self, design: dict[str, Any], open_window: bool = False) -> Any:
+    def render(self, design: DesignType, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -571,14 +577,14 @@ class Airfoil(Problem[dict[str, Any]]):
         initial_design = self.dataset["train"]["initial_design"][rnd]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
-    def _calc_off_wall_distance(  # noqa
+    def _calc_off_wall_distance(  # noqa: PLR0913
         self,
         mach: float,
         reynolds: float,
-        freestreamTemp: float = 300.0,  # noqa
-        reynoldsLength: float = 1.0,  # noqa
+        freestreamTemp: float = 300.0,  # noqa: N803
+        reynoldsLength: float = 1.0,  # noqa: N803
         yplus: float = 1,
-        R: float = 287.0,  # noqa
+        R: float = 287.0,  # noqa: N803
         gamma: float = 1.4,
     ) -> float:
         """Estimation of the off-wall distance for a given design.
@@ -592,21 +598,20 @@ class Airfoil(Problem[dict[str, Any]]):
         # Viscosity from Sutherland's law
         ## Sutherland's law parameters
         mu0 = 1.716e-5
-        T0 = 273.15  # noqa
-        S = 110.4  # noqa
+        T0 = 273.15  # noqa: N806
+        S = 110.4  # noqa: N806
         mu = mu0 * ((freestreamTemp / T0) ** (3 / 2)) * (T0 + S) / (freestreamTemp + S)
         # ---------------------------
         # Density
         rho = reynolds * mu / (reynoldsLength * u)
         ## Skin friction coefficient
-        Cf = (2 * np.log10(reynolds) - 0.65) ** (-2.3)  # noqa
+        Cf = (2 * np.log10(reynolds) - 0.65) ** (-2.3)  # noqa: N806
         # Wall shear stress
         tau = Cf * 0.5 * rho * (u**2)
         # Friction velocity
-        uTau = np.sqrt(tau / rho)  # noqa
+        uTau = np.sqrt(tau / rho)  # noqa: N806
         # Off wall distance
-        delta = yplus * mu / (rho * uTau)
-        return delta
+        return yplus * mu / (rho * uTau)
 
     def _scale_coords(self, coords: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
         """Scales the coordinates to fit in the design space.

@@ -1,4 +1,4 @@
-# ruff: noqa: E741, N806, N815, N816
+# ruff: noqa: N806, N815, N816
 # Disabled variable name conventions
 
 """Beams 2D problem."""
@@ -109,13 +109,15 @@ class Beams2D(Problem[npt.NDArray]):
     _dataset = None
     container_id = None
 
-    def __init__(self, config: dict[str, Any] = {}):
+    def __init__(self, config: dict[str, Any] | None = None):
         """Initializes the Beams2D problem.
 
         Args:
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
         """
         super().__init__()
+
+        config = config or {}
 
         # Replace the conditions with any new configs passed in
         self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
@@ -127,7 +129,7 @@ class Beams2D(Problem[npt.NDArray]):
             self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
 
     def simulate(
-        self, design: npt.NDArray, config: dict[str, Any] = {}, *, ce: npt.NDArray | None = None, **_kwargs
+        self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
     ) -> npt.NDArray:
         """Simulates the performance of a beam design.
 
@@ -143,7 +145,7 @@ class Beams2D(Problem[npt.NDArray]):
         if len(design.shape) > 1:
             design = image_to_design(design)
 
-        base_config = {"nelx": self.nelx, "nely": self.nely, "penal": 3.0, **dict(self.conditions), **config}
+        base_config = {"nelx": self.nelx, "nely": self.nely, "penal": 3.0, **dict(self.conditions), **(config or {})}
 
         # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
         # If setup has run, skips the process for repeated simulations during optimization.
@@ -158,8 +160,8 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array([c])
 
     def optimize(
-        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}, **_kwargs
-    ) -> tuple[np.ndarray, list[OptiStep]]:
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None
+    ) -> tuple[np.ndarray, list[ExtendedOptiStep]]:
         """Optimizes the design of a beam.
 
         Args:
@@ -175,7 +177,7 @@ class Beams2D(Problem[npt.NDArray]):
             "max_iter": 100,
             "penal": 3.0,
             **dict(self.conditions),
-            **config,
+            **(config or {}),
         }
         check_field_constraints(Params(**base_config))
 
@@ -199,7 +201,7 @@ class Beams2D(Problem[npt.NDArray]):
             dv = np.ones(base_config["nely"] * base_config["nelx"])
 
         xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
-        loop, change = (0, 1)
+        loop, change = (0, 1.0)
 
         while change > self.__st.min_change and loop < base_config["max_iter"]:
             ce = calc_sensitivity(xPrint, st=self.__st, cfg=base_config)
@@ -223,7 +225,7 @@ class Beams2D(Problem[npt.NDArray]):
 
             xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, base_config)
             # Compute the change by the inf. norm
-            change = np.linalg.norm(
+            change = np.linalg.norm(  # type: ignore[assignment]
                 xnew.reshape(base_config["nelx"] * base_config["nely"], 1)
                 - x.reshape(base_config["nelx"] * base_config["nely"], 1),
                 np.inf,
@@ -241,7 +243,7 @@ class Beams2D(Problem[npt.NDArray]):
         """
         super().reset(seed, **kwargs)
 
-    def render(self, design: np.ndarray, open_window: bool = False, **_kwargs) -> Any:
+    def render(self, design: np.ndarray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -261,7 +263,7 @@ class Beams2D(Problem[npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> tuple[npt.NDArray, int]:  # type: ignore
+    def random_design(self) -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
 
         Returns:
@@ -269,8 +271,8 @@ class Beams2D(Problem[npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type: ignore
-        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
 
 IMPL = Category.Implementation
@@ -311,9 +313,9 @@ if __name__ == "__main__":
     dataset = problem.dataset
 
     # Example of getting the training set
-    optimal_train = dataset["train"]["optimal_design"]  # type: ignore
-    c_train = dataset["train"]["c"]  # type: ignore
-    params_train = dataset["train"].select_columns(problem.conditions_keys)  # type: ignore
+    optimal_train = dataset["train"]["optimal_design"]
+    c_train = dataset["train"]["c"]
+    params_train = dataset["train"].select_columns(problem.conditions_keys)
 
     # Get design and conditions from the dataset, render design
     # Note that here, we override any previous configs to re-optimize the same design as a test case.

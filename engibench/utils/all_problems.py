@@ -13,7 +13,7 @@ def list_problems(base_module: Any = engibench.problems) -> dict[str, type[Probl
     """Return a dict containing all available Problem instances defined in submodules of `base_module`."""
     module_path = os.path.dirname(base_module.__file__)
     modules = pkgutil.iter_modules(path=[module_path], prefix="")
-    return {m.name: extract_problem(importlib.import_module(".".join((base_module.__package__, m.name)))) for m in modules}
+    return {m.name: extract_problem(importlib.import_module(f"{base_module.__package__}.{m.name}")) for m in modules}
 
 
 def extract_problem(module: Any) -> type[Problem]:

@@ -1,6 +1,5 @@
 """Set up the configuration for the Power Electronics problem."""
 # ruff: noqa: N806, N815 # Upper case
-# ruff: noqa: FIX002  # for TODO
 
 from __future__ import annotations
 
@@ -34,7 +33,7 @@ class Config:
     """
 
     source_dir: str  # The absolute path of power_electronics/
-    # TODO: check if this works from another repo like EngiOpt
+    # TODO(liangXD523): check if this works from another repo like EngiOpt
 
     # These will be set from source_dir in __post_init__().
     netlist_dir: str = field(init=False)
