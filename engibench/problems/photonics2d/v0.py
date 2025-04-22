@@ -13,6 +13,7 @@ import os
 import pprint
 from typing import Any
 
+# Importing autograd since the ceviche library uses it for automatic differentiation of the FDFD solver
 import autograd.numpy as npa
 
 # Import ArrayBox type for checking
@@ -64,6 +65,8 @@ class Photonics2D(Problem[npt.NDArray]):
        Note that `optimize` internally works with a normalized version for
        stability (`penalty - normalized_overlap`) and reports history
        (`OptiStep`) corresponding to that normalized version.
+       Note: This means comparing the values returned by `simulate` and `optimize` directly
+       may not yield similar numbers.
 
     ## Conditions
     These are designed as user-configurable parameters that alter the problem definition.
@@ -108,6 +111,25 @@ class Photonics2D(Problem[npt.NDArray]):
     The simulation uses the `ceviche` library's Finite Difference Frequency Domain (FDFD)
     solver (`fdfd_ez`). Optimization uses `ceviche.optimizers.adam_optimize` with
     gradients computed via automatic differentiation (`autograd`).
+
+    ## Dataset
+    This problem currently provides one dataset corresponding to resolution of 120x120, are available on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0).
+
+    ### v0
+
+    #### Fields
+    Each dataset contains:
+    - `lambda1`: The first input wavelength in μm.
+    - `lambda2`: The second input wavelength in μm.
+    - `blur_radius`: Radius for the density blurring filter (pixels).
+    - `optimal_design`: The optimal design density array (shape num_elems_x, num_elems_y).
+    - `optimization_history`: A list of objective values from the optimization process (negative field overlap, where lower is better) -- This is for advanced use.
+
+    #### Creation Method
+    To generate a dataset for training, we generate (randomly, uniformly) swept over the following parameters:
+    - $\lambda_1 \in [0.5μm,1.25μm]$ = `lambda1` = `rng.uniform(low=0.5, high=1.25, size=20)` -- This corresponds roughly to a portion of the visible spectrum up to near-infrared.
+    - $\lambda_2 \in [0.75μm,1.5μm]$$ = `lambda2` = `rng.uniform(low=0.75, high=1.5, size=20)` -- This corresponds roughly to a portion of the visible spectrum up to near-infrared.
+    - $r_{blur}$ = `blur_radius` = `range(0, 5)`
 
     ## Citation
     This problem is directly refactored from the Ceviche Library:
@@ -161,32 +183,37 @@ class Photonics2D(Problem[npt.NDArray]):
         ("lambda1", 1.5),  # First input wavelength in μm
         ("lambda2", 1.3),  # Second input wavelength in μm
         ("blur_radius", 2),  # Radius for the density blurring filter (pixels)
-        ("num_elems_x", _num_elems_x_default),  # Number of grid cells in x (pixels)
-        ("num_elems_y", _num_elems_y_default),  # Number of grid cells in y (pixels)
     )
 
     design_space = spaces.Box(low=0.0, high=1.0, shape=(_num_elems_x_default, _num_elems_y_default), dtype=np.float64)
 
-    dataset_id = f"IDEALLab/photonicmultiplexer_2d_{_num_elems_x_default}_{_num_elems_y_default}_v0"
-    container_id = None  # type: ignore
-    _dataset = "IDEALLab/photonics_2d_120_120_v0"
+    dataset_id = f"IDEALLab/photonics_2d_{_num_elems_x_default}_{_num_elems_y_default}_v0"
+    container_id = None
 
-    def __init__(self, config: dict[str, Any], **kwargs) -> None:
+    def __init__(
+        self,
+        config: dict[str, Any],
+        num_elems_x: int = _num_elems_x_default,
+        num_elems_y: int = _num_elems_y_default,
+        **kwargs,
+    ) -> None:
         """Initializes the Photonics2D problem.
 
         Args:
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
+            num_elems_x (int): Number of grid cells in x (default: 120).
+            num_elems_y (int): Number of grid cells in y (default: 120).
             **kwargs: Additional keyword arguments.
         """
         super().__init__(**kwargs)
 
         # Replace the conditions with any new configs passed in
         self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
-        current_conditions = dict(self.conditions)
+        current_conditions = self.conditions_dict
         print("Initializing Photonics Problem with configuration:")
         pprint.pp(current_conditions)
-        num_elems_x = current_conditions.get("num_elems_x", self._num_elems_x_default)
-        num_elems_y = current_conditions.get("num_elems_y", self._num_elems_y_default)
+        self.num_elems_x = num_elems_x
+        self.num_elems_y = num_elems_y
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(num_elems_x, num_elems_y), dtype=np.float32)
         self.dataset_id = f"IDEALLab/photonics_2d_{num_elems_x}_{num_elems_y}_v{self.version}"
 
@@ -198,16 +225,13 @@ class Photonics2D(Problem[npt.NDArray]):
     def _setup_simulation(self, config: dict[str, Any]) -> dict[str, Any]:
         """Helper function to setup simulation parameters and domain."""
         # Merge config with default conditions
-        current_conditions = dict(self.conditions)
+        current_conditions = self.conditions_dict
         current_conditions.update(config)
-
-        num_elems_x = current_conditions["num_elems_x"]
-        num_elems_y = current_conditions["num_elems_y"]
 
         # Initialize domain geometry
         self._bg_rho, self._design_region, self._input_slice, self._output_slice1, self._output_slice2 = init_domain(
-            num_elems_x=num_elems_x,
-            num_elems_y=num_elems_y,
+            num_elems_x=self.num_elems_x,
+            num_elems_y=self.num_elems_y,
             num_elems_pml=self._num_elems_pml,
             space=self._pml_space,
             wg_width=self._wg_width,
@@ -249,6 +273,7 @@ class Photonics2D(Problem[npt.NDArray]):
         probe2 = insert_mode(omega2, self._dl, self._output_slice2.x, self._output_slice2.y, epsr, m=1)
 
         # 3. Setup FDFD Simulations
+        # We need to run two simulations, one for each wavelength, to see which paths the light takes in both
         self._simulation1 = fdfd_ez(omega1, self._dl, epsr, [self._num_elems_pml, self._num_elems_pml])
         self._simulation2 = fdfd_ez(omega2, self._dl, epsr, [self._num_elems_pml, self._num_elems_pml])
 
@@ -276,10 +301,6 @@ class Photonics2D(Problem[npt.NDArray]):
                          Note: This is non-normalized, unlike the value optimized internally.
         """
         conditions = self._setup_simulation(config)
-        num_elems_x = conditions["num_elems_x"]
-        num_elems_y = conditions["num_elems_y"]
-        if design.shape != (num_elems_x, num_elems_y):
-            raise ValueError(f"Input design shape {design.shape} does not match conditions ({num_elems_x}, {num_elems_y})")  # noqa: TRY003
 
         # --- Run Simulation ---
         # We don't need source returns here
@@ -334,8 +355,8 @@ class Photonics2D(Problem[npt.NDArray]):
         pprint.pp(conditions)
 
         # Pull out problem-specific parameters from conditions
-        num_elems_x = conditions["num_elems_x"]
-        num_elems_y = conditions["num_elems_y"]
+        num_elems_x = self.num_elems_x
+        num_elems_y = self.num_elems_y
         # Pull out optimization parameters from conditions
         # Parameters specific to optimization
         num_optimization_steps = conditions.get("num_optimization_steps", self._num_optimization_steps_default)
@@ -375,7 +396,10 @@ class Photonics2D(Problem[npt.NDArray]):
 
         # --- Define Objective Function for Ceviche Optimizer ---
         def objective_for_optimizer(rho_flat: npt.NDArray | ArrayBox) -> float | ArrayBox:
-            """Calculates (normalized_overlap - penalty) for maximization."""
+            """Calculates (normalized_overlap - penalty) for maximization.
+
+            Note: All functions or inputs here should be compatible with autograd (npa).
+            """
             rho = rho_flat.reshape((num_elems_x, num_elems_y))
             conditions["beta"] = self._current_beta  # Use scheduled beta
 
@@ -508,10 +532,6 @@ class Photonics2D(Problem[npt.NDArray]):
                         |Ez| at omega1, |Ez| at omega2, and Permittivity (eps_r).
         """
         conditions = self._setup_simulation(config)
-        num_elems_x = conditions["num_elems_x"]
-        num_elems_y = conditions["num_elems_y"]
-        if design.shape != (num_elems_x, num_elems_y):
-            raise ValueError(f"Input design shape {design.shape} != ({num_elems_x}, {num_elems_y})")  # noqa: TRY003
 
         print("Rendering design under the following conditions:")
         pprint.pp(conditions)
@@ -576,16 +596,13 @@ class Photonics2D(Problem[npt.NDArray]):
         Returns:
             tuple[npt.NDArray, int]: The starting design array (rho) and an integer (0).
         """
-        current_conditions = dict(self.conditions)
-        num_elems_x = current_conditions.get("num_elems_x", self._num_elems_x_default)
-        num_elems_y = current_conditions.get("num_elems_y", self._num_elems_y_default)
         space = self._pml_space
         num_elems_pml = self._num_elems_pml
 
-        design_region = np.zeros((num_elems_x, num_elems_y))
+        design_region = np.zeros((self.num_elems_x, self.num_elems_y))
         design_region[
-            num_elems_pml + space : num_elems_x - num_elems_pml - space,
-            num_elems_pml + space : num_elems_y - num_elems_pml - space,
+            num_elems_pml + space : self.num_elems_x - num_elems_pml - space,
+            num_elems_pml + space : self.num_elems_y - num_elems_pml - space,
         ] = 1
 
         # Ensure np_random is initialized
@@ -593,7 +610,7 @@ class Photonics2D(Problem[npt.NDArray]):
             self.reset()
         # Generate random numbers using the problem's RNG
         # Use randomized initialization -- for now keep
-        random_noise = noise * self.np_random.standard_normal((num_elems_x, num_elems_y))  # type: ignore
+        random_noise = noise * self.np_random.standard_normal((self.num_elems_x, self.num_elems_y))  # type: ignore
         rho_start = design_region * (0.5 + random_noise)
         if blur > 0.0:
             rho_start = operator_blur(rho_start, blur)
@@ -620,13 +637,9 @@ class Photonics2D(Problem[npt.NDArray]):
         if noise is not None:
             rho_start = self._randomized_noise_field_design(noise=noise, blur=blur)
             return rho_start, 0
-        elif self._dataset is not None:
+        else:
             rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type:ignore
             return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type:ignore
-        else:
-            # If noise is None, yet no dataset is available, raise an error.
-            # This can be removed once HF dataset is created and live.
-            raise NotImplementedError("Dataset not yet available. Please set noise to a float value.")
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         """Resets the problem, which in this case, is just the random seed."""
@@ -640,10 +653,8 @@ if __name__ == "__main__":
         "lambda1": 1.07,
         "lambda2": 0.84,
         "blur_radius": 1,
-        "num_elems_x": 120,
-        "num_elems_y": 120,
     }
-    problem = Photonics2D(config=problem_config)
+    problem = Photonics2D(config=problem_config, num_elems_x=120, num_elems_y=120)
     problem.reset(seed=42)  # Use a seed
 
     start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
@@ -653,7 +664,7 @@ if __name__ == "__main__":
     print("Simulating starting design...")
     # Simulate returns the raw objective = penalty - overlap1*overlap2
     obj_start_raw = problem.simulate(start_design)
-    print(f"Starting Raw Objective ({problem.objectives[0][0]}): {obj_start_raw[0]:.4f}")
+    print(f"Starting Raw Objective ({problem.objectives_keys[0]}): {obj_start_raw[0]:.4f}")
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
@@ -674,7 +685,7 @@ if __name__ == "__main__":
     print("Simulating the final optimized design...")
     # Simulate returns the raw objective = penalty - overlap1*overlap2
     obj_opt_raw = problem.simulate(optimized_design)
-    print(f"Optimized Raw Objective ({problem.objectives[0][0]}): {obj_opt_raw[0]:.4f}")
+    print(f"Optimized Raw Objective ({problem.objectives_keys[0]}): {obj_opt_raw[0]:.4f}")
 
     if plt.get_fignums():
         print("Close plot window(s) to exit.")

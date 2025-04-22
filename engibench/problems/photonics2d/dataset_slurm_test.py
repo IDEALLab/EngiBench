@@ -206,14 +206,14 @@ if __name__ == "__main__":
     combinations = list(product(lambda1, lambda2, blur_radius))
 
     # Generate full problem configurations, including static parameters
+    # Note that currently this doesn't allow you to change the resolution of the problem
+    # So in the re-write of the SLURM API we will need to add that functionality.
     def config_factory(lambda1: float, lambda2: float, blur_radius: int) -> dict:
         """Factory function to create configuration dictionaries."""
         return {
             "lambda1": lambda1,
             "lambda2": lambda2,
             "blur_radius": blur_radius,
-            "num_elems_x": num_elems_x,
-            "num_elems_y": num_elems_y,
         }
 
     # Generate starting design for each problem based on each configuration

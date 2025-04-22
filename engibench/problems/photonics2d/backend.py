@@ -118,9 +118,11 @@ def operator_proj(rho: npt.NDArray, eta: float = 0.5, beta: float = 100, num_pro
 
 
 # ---- Helper Functions from Skimage to prevent full dependency import ----
-def _ellipse_in_shape(shape, center, radii, rotation=0.0):  # noqa: ANN202, ANN001
+def _ellipse_in_shape(
+    shape: npt.NDArray, center: npt.NDArray, radii: npt.NDArray, rotation: float = 0.0
+) -> tuple[npt.NDArray, ...]:
     """Generate coordinates of points within ellipse bounded by shape."""
-    r_lim, c_lim = np.ogrid[0 : float(shape[0]), 0 : float(shape[1])]
+    r_lim, c_lim = np.ogrid[0 : int(shape[0]), 0 : int(shape[1])]
     r_org, c_org = center
     r_rad, c_rad = radii
     rotation %= np.pi
@@ -130,8 +132,9 @@ def _ellipse_in_shape(shape, center, radii, rotation=0.0):  # noqa: ANN202, ANN0
     return np.nonzero(distances < 1)
 
 
-def _pixels_in_circle(r: int, c: int, radius: int, shape=None, rotation: float = 0.0):  # noqa: ANN001, ANN202
+def _pixels_in_circle(r: int, c: int, radius: float) -> tuple[npt.NDArray[np.int_], npt.NDArray[np.int_]]:
     """Using Scikit-Image circle definition to prevent having to import entire dependency."""
+    rotation = 0.0  # No rotation for circle
     center = np.array([r, c])
     radii = np.array([radius, radius])
     # allow just rotation with in range +/- 180 degree
@@ -145,11 +148,6 @@ def _pixels_in_circle(r: int, c: int, radius: int, shape=None, rotation: float =
     radii_rot = np.array([r_radius_rot, c_radius_rot])
     upper_left = np.ceil(center - radii_rot).astype(int)
     lower_right = np.floor(center + radii_rot).astype(int)
-
-    if shape is not None:
-        # Constrain upper_left and lower_right by shape boundary.
-        upper_left = np.maximum(upper_left, np.array([0, 0]))
-        lower_right = np.minimum(lower_right, np.array(shape[:2]) - 1)
 
     shifted_center = center - upper_left
     bounding_shape = lower_right - upper_left + 1
