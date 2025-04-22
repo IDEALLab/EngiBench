@@ -110,7 +110,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         """Initializes the Power Electronics problem.
 
         Args:
-            target_dir: The target directory for the problem. Default to os.getcwd().
+            target_dir: The target directory for the rewritten netlist, log and raw files. Default to os.getcwd().
             original_netlist_path: The path to the original netlist file. Accepts both relative and absolute paths.
             bucket_id: The bucket ID for the netlist file. E.g. "5_4_3_6_10".
             mode: The mode for the simulation. Default to "control". mode = "batch" is for development.

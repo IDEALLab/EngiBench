@@ -18,7 +18,9 @@ class Config:
     """Configuration for the Power Electronics problem.
 
     Accepts:
-        - target_dir: Optional. Default to os.getcwd(). All the other files will be saved in this directory.
+        - target_dir: Optional. Default to os.getcwd(). The user can manually change this.
+                      All the files (except the original_netlist which already exists) will be saved in this directory,
+                        including the rewritten netlist, log and raw files.
         - original_netlist_path: Optional. Default to "./data/netlist/5_4_3_6_10-dcdc_converter_1.net".
 
     Do not assign:
