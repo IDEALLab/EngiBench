@@ -1,0 +1,49 @@
+* converter #2 netlist file automatically generated
+* USE Sweep 141
+
+V0 1 0 {V0_value}
+S0 2 0 GS0 0 Ideal_switch
+S1 3 4 GS1 0 Ideal_switch
+S2 5 6 GS2 0 Ideal_switch
+S3 6 3 GS3 0 Ideal_switch
+S4 7 4 GS4 0 Ideal_switch
+D0 3 8 Ideal_D
+D1 9 6 Ideal_D
+D2 10 9 Ideal_D
+D3 1 7 Ideal_D
+C0 6 10 {C0_value}
+C1 5 2 {C1_value}
+C2 7 5 {C2_value}
+C3 8 3 {C3_value}
+C4 4 10 {C4_value}
+C5 9 4 {C5_value}
+L0 8 2 {L0_value}
+L1 1 7 {L1_value}
+L2 9 1 {L2_value}
+R0 5 2 {R0_value}
+
+.PARAM V0_value = 10
+V_GS0 GS0 0 pulse (-1 1 0 0 0 5u 10u 10000)
+V_GS1 GS1 0 pulse (-1 1 0 0 0 5u 10u 10000)
+V_GS2 GS2 0 pulse (-1 1 0 0 0 5u 10u 10000)
+V_GS3 GS3 0 pulse (-1 1 0 0 0 5u 10u 10000)
+V_GS4 GS4 0 pulse (-1 1 0 0 0 5u 10u 10000)
+.PARAM C0_value = 10u
+.PARAM C1_value = 10u
+.PARAM C2_value = 10u
+.PARAM C3_value = 10u
+.PARAM C4_value = 10u
+.PARAM C5_value = 10u
+.PARAM L0_value = 1m
+.PARAM L1_value = 1m
+.PARAM L2_value = 1m
+.PARAM R0_value = 10
+
+.model Ideal_switch SW (Ron=1m Roff=10Meg Vt=0 Vh=0 Lser=0 Vser=0)
+.model Ideal_D D
+
+
+.tran 0 15m 0 100n
+.save V(*) I(*)
+.backanno
+.end
