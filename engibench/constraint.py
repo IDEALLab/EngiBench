@@ -189,9 +189,9 @@ def bounded(*, lower: T | None = None, upper: T | None = None) -> Check:
     """Create a constraint which checks that the specified parameter is contained in an interval `[lower, upper]`."""
 
     def check(value: T) -> None:
-        assert (lower is None or lower <= value) and (
-            upper is None or value <= upper
-        ), f"{value} ∉ [{lower if lower is not None else '-∞'}, {upper if upper is not None else '∞'}]"
+        msg = f"{value} ∉ [{lower if lower is not None else '-∞'}, {upper if upper is not None else '∞'}]"
+        assert lower is None or lower <= value, msg
+        assert upper is None or value <= upper, msg
 
     return check
 
@@ -242,7 +242,8 @@ def check_field_constraints(
     data: Any,
 ) -> Violations:
     """Check for violations of constraints for fields of a dataclass which declare constraints via :function:`field_constraints`."""
-    assert is_dataclass(data) and not isinstance(data, type)
+    assert is_dataclass(data)
+    assert not isinstance(data, type)
     violations = []
     for f_name, constraint in field_constraints(data):
         violation = (

@@ -23,7 +23,7 @@ class NgSpice:
         if self.version != "44.2":
             raise UnsupportedNgSpiceVersionError(self.version)
 
-    def _get_ngspice_path(self) -> str | None:
+    def _get_ngspice_path(self) -> str:
         """Get the path to the ngspice executable based on the operating system.
 
         Returns:
@@ -40,32 +40,31 @@ class NgSpice:
 
             for path in possible_paths:
                 if path and os.path.exists(path):
-                    ngspice_path = path
+                    ngspice_path: str | None = path
                     break
             else:
                 ngspice_path = possible_paths[0]  # Default to first path if none found
-            if not os.path.exists(ngspice_path):
-                raise FileNotFoundError(  # noqa: TRY003
+            if ngspice_path is None or not os.path.exists(ngspice_path):
+                raise FileNotFoundError(
                     f"ngspice.exe not found at {ngspice_path}. You can download it from https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/"
                 )
             return ngspice_path
-        elif self.system in ["darwin", "linux"]:
+        if self.system in ["darwin", "linux"]:
             # For MacOS and Linux, use system-installed ngspice
             try:
                 # Check if ngspice is installed
                 subprocess.run(["ngspice", "--version"], capture_output=True, check=True)
             except (subprocess.CalledProcessError, FileNotFoundError):
-                raise RuntimeError(  # noqa: B904, TRY003
+                raise RuntimeError(
                     "ngspice is not installed on your system. "
                     "Please install it using your package manager:\n"
                     "  - MacOS: brew install ngspice\n"
                     "  - Linux: sudo apt-get install ngspice"
-                )
+                ) from None
             return "ngspice"
-        else:
-            raise RuntimeError(  # noqa: TRY003
-                f"Unsupported operating system for ngspice: {self.system}, we only support Windows, MacOS and Linux."
-            )
+        raise RuntimeError(
+            f"Unsupported operating system for ngspice: {self.system}, we only support Windows, MacOS and Linux."
+        )
 
     def run(self, netlist_path: str, log_file_path: str, timeout: int = 30) -> None:
         """Run ngspice with the given netlist file.
@@ -105,26 +104,24 @@ class NgSpice:
             for filename in os.listdir(docs_path):
                 match = pattern.match(filename)
                 if match:
-                    return int(match.group(1))  # Return the first matching version number
-            raise NgSpiceManualNotFoundError()
-        else:
-            cmd = [self._ngspice_path, "--version"]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                    return match.group(1)  # Return the first matching version number
+            raise NgSpiceManualNotFoundError
+        cmd = [self._ngspice_path, "--version"]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
-            # Extract version number from second line of output
+        # Extract version number from second line of output
 
-            # Example output:
-            # ******
-            # ** ngspice-44.2 : Circuit level simulation program
-            # ** Compiled with KLU Direct Linear Solver
-            # ** The U. C. Berkeley CAD Group
-            # ** Copyright 1985-1994, Regents of the University of California.
-            # ** Copyright 2001-2024, The ngspice team.
-            # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
-            # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
-            # ******
-            version = result.stdout.splitlines()[1].split()[1].split("-")[1]
-            return version
+        # Example output:
+        # ******
+        # ** ngspice-44.2 : Circuit level simulation program
+        # ** Compiled with KLU Direct Linear Solver
+        # ** The U. C. Berkeley CAD Group
+        # ** Copyright 1985-1994, Regents of the University of California.
+        # ** Copyright 2001-2024, The ngspice team.
+        # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
+        # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
+        # ******
+        return result.stdout.splitlines()[1].split()[1].split("-")[1]
 
 
 class NgSpiceManualNotFoundError(FileNotFoundError):

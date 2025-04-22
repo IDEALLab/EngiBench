@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import field
@@ -15,13 +14,18 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Any, Generic, TypeVar
+from typing import Any, Generic, TYPE_CHECKING, TypeVar
 
 import matplotlib.pyplot as plt
 from numpy import typing as npt
 
 from engibench.core import OptiStep
 from engibench.core import Problem
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
+
+    import numpy.typing as npt
 
 
 @dataclass

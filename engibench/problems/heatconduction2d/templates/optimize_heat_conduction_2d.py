@@ -13,7 +13,7 @@ from fenics_adjoint import *
 
 # Ensure IPOPT is available
 try:
-    from pyadjoint import ipopt  # noqa: F401
+    from pyadjoint import ipopt
 except ImportError:
     print("""This example depends on IPOPT and Python ipopt bindings. \
     When compiling IPOPT, make sure to link against HSL, as it \
@@ -26,7 +26,7 @@ OPT_var_path = os.path.join(base_path, "templates", "OPT_var.txt")
 with open(OPT_var_path, "r") as file:
     data = file.read().split("\t")
 # Extract parameters
-NN = int(data[2])-1  # Grid size
+NN = int(data[2]) - 1  # Grid size
 vol_f = float(data[0])  # Volume fraction
 width = float(data[1])  # Adiabatic boundary width
 
@@ -218,7 +218,7 @@ for xs in x_values:
     for ys in y_values:
         RES_OPTults[ind, 0] = a_opt(xs, ys)
         ind = ind + 1
-RES_OPTults=RES_OPTults.reshape(NN+1, NN+1)
+RES_OPTults = RES_OPTults.reshape(NN + 1, NN + 1)
 output_npy = "/home/fenics/shared/templates/RES_OPT/hr_data_v_v={}_w={}.npy".format(vol_f, width)
 np.save(output_npy, RES_OPTults)
 xdmf_filename = XDMFFile(
