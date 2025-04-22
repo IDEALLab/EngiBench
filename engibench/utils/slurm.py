@@ -16,7 +16,6 @@ import sys
 import tempfile
 from typing import Any, Generic, TYPE_CHECKING, TypeVar
 
-import matplotlib.pyplot as plt
 from numpy import typing as npt
 
 from engibench.core import OptiStep
@@ -25,6 +24,7 @@ from engibench.core import Problem
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
+    import matplotlib.pyplot as plt
     import numpy.typing as npt
 
 
@@ -94,10 +94,8 @@ class Job(Generic[DesignType]):
             return problem.optimize(starting_point=design, config=self.args.optimize_args)
         if self.job_type == "render":
             return problem.render(design=design, config=self.args.simulate_args)
-        else:
-            msg = f"Unknown job type: {self.job_type}"
-            raise ValueError(msg)
-            return None
+        msg = f"Unknown job type: {self.job_type}"
+        raise ValueError(msg)
 
 
 def design_type(t: type[Problem] | Callable[..., Problem]) -> type[Any]:

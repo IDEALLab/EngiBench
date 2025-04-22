@@ -277,5 +277,9 @@ module = [
     "cvxopt.*",
     "datasets",
     "networkx",
+    "autograd",
+    "autograd.*",
+    "ceviche",
+    "ceviche.*",
 ]
 ignore_missing_imports = true

@@ -11,13 +11,12 @@ from __future__ import annotations
 # Need os import for makedirs for saving plots
 import os
 import pprint
-from typing import Any
+from typing import Any, TYPE_CHECKING
 
 # Importing autograd since the ceviche library uses it for automatic differentiation of the FDFD solver
 import autograd.numpy as npa
 
 # Import ArrayBox type for checking
-from autograd.numpy.numpy_boxes import ArrayBox
 import ceviche
 from ceviche import fdfd_ez
 from ceviche import jacobian
@@ -42,6 +41,9 @@ from engibench.problems.photonics2d.backend import operator_blur
 from engibench.problems.photonics2d.backend import operator_proj
 from engibench.problems.photonics2d.backend import poly_ramp
 from engibench.problems.photonics2d.backend import wavelength_to_frequency
+
+if TYPE_CHECKING:
+    from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class Photonics2D(Problem[npt.NDArray]):
@@ -222,11 +224,11 @@ class Photonics2D(Problem[npt.NDArray]):
         self.omega2 = wavelength_to_frequency(current_conditions["lambda2"])
         self._current_beta: float = 1.0  # Placeholder for beta scheduling
 
-    def _setup_simulation(self, config: dict[str, Any]) -> dict[str, Any]:
+    def _setup_simulation(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
         """Helper function to setup simulation parameters and domain."""
         # Merge config with default conditions
         current_conditions = self.conditions_dict
-        current_conditions.update(config)
+        current_conditions.update(config or {})
 
         # Initialize domain geometry
         self._bg_rho, self._design_region, self._input_slice, self._output_slice1, self._output_slice2 = init_domain(
@@ -284,7 +286,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         return epsr, ez1, ez2, source1, source2, probe1, probe2
 
-    def simulate(self, design: npt.NDArray, config: dict[str, Any] = {}, **kwargs) -> npt.NDArray:  # noqa: ARG002
+    def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None, **kwargs) -> npt.NDArray:  # noqa: ARG002
         """Simulates the performance of a design, returning the raw objective value.
 
            Stores simulation fields (`Ez1`, `Ez2`, `epsr`) internally in `_last_Ez1`,
@@ -327,7 +329,7 @@ class Photonics2D(Problem[npt.NDArray]):
     def optimize(  # noqa: PLR0915
         self,
         starting_point: npt.NDArray,
-        config: dict[str, Any] = {},
+        config: dict[str, Any] | None = None,
         **kwargs,  # noqa: ARG002
     ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes a topology (rho) starting from `starting_point` using Adam.
@@ -514,7 +516,7 @@ class Photonics2D(Problem[npt.NDArray]):
         return rho_optimum.astype(np.float32), opti_steps_history
 
     # --- render method remains the same as previous version ---
-    def render(self, design: npt.NDArray, open_window: bool = False, config: dict[str, Any] = {}, **kwargs) -> plt.Figure:  # noqa: ARG002
+    def render(self, design: npt.NDArray, config: dict[str, Any] | None = None, *, open_window: bool = False) -> Any:
         """Renders the design (rho) and the resulting E-field magnitudes.
 
            Runs a simulation for the provided design to get the fields for plotting.
@@ -610,7 +612,7 @@ class Photonics2D(Problem[npt.NDArray]):
             self.reset()
         # Generate random numbers using the problem's RNG
         # Use randomized initialization -- for now keep
-        random_noise = noise * self.np_random.standard_normal((self.num_elems_x, self.num_elems_y))  # type: ignore
+        random_noise = noise * self.np_random.standard_normal((self.num_elems_x, self.num_elems_y))
         rho_start = design_region * (0.5 + random_noise)
         if blur > 0.0:
             rho_start = operator_blur(rho_start, blur)
@@ -637,9 +639,8 @@ class Photonics2D(Problem[npt.NDArray]):
         if noise is not None:
             rho_start = self._randomized_noise_field_design(noise=noise, blur=blur)
             return rho_start, 0
-        else:
-            rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)  # type:ignore
-            return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type:ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         """Resets the problem, which in this case, is just the random seed."""

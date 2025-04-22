@@ -6,6 +6,7 @@ import inspect
 from typing import get_args, get_origin
 
 import gymnasium
+from gymnasium import spaces
 import numpy as np
 import pytest
 
@@ -109,18 +110,19 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     # Test optimization outputs
     print(f"Optimizing {problem_class.__name__}...")
     optimal_design, history = problem.optimize(starting_point=design)
-    assert np.all(optimal_design >= problem.design_space.low), (
-        f"Problem {problem_class.__name__}: The optimal design should be within the design space."
-    )
-    assert np.all(optimal_design <= problem.design_space.high), (
-        f"Problem {problem_class.__name__}: The optimal design should be within the design space."
-    )
-    assert optimal_design.shape == problem.design_space.shape, (
-        f"Problem {problem_class.__name__}: The optimal design should have the same shape as the design space."
-    )
-    assert np.can_cast(optimal_design.dtype, problem.design_space.dtype), (
-        f"Problem {problem_class.__name__}: The optimal design should have the same dtype as the design space."
-    )
+    if isinstance(problem.design_space, spaces.Box):
+        assert np.all(optimal_design >= problem.design_space.low), (
+            f"Problem {problem_class.__name__}: The optimal design should be within the design space."
+        )
+        assert np.all(optimal_design <= problem.design_space.high), (
+            f"Problem {problem_class.__name__}: The optimal design should be within the design space."
+        )
+        assert optimal_design.shape == problem.design_space.shape, (
+            f"Problem {problem_class.__name__}: The optimal design should have the same shape as the design space."
+        )
+        assert np.can_cast(optimal_design.dtype, problem.design_space.dtype), (
+            f"Problem {problem_class.__name__}: The optimal design should have the same dtype as the design space."
+        )
     assert problem.design_space.contains(optimal_design), (
         f"Problem {problem_class.__name__}: The optimal design should be within the design space."
     )
