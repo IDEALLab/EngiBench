@@ -1,6 +1,5 @@
 """Set up the configuration for the Power Electronics problem."""
 # ruff: noqa: N806, N815 # Upper case
-# ruff: noqa: FIX002  # for TODO
 
 from __future__ import annotations
 
@@ -19,7 +18,7 @@ class Config:
     """Configuration for the Power Electronics problem.
 
     Accepts:
-        - source_dir: Required. The absolute path of power_electronics/.
+        - target_dir: Optional. Default to os.getcwd(). All the other files will be saved in this directory.
         - original_netlist_path: Optional. Default to "./data/netlist/5_4_3_6_10-dcdc_converter_1.net".
 
     Do not assign:
@@ -33,10 +32,9 @@ class Config:
         - capacitor_val, inductor_val, switch_T1, switch_T2, switch_L1, switch_L2
     """
 
-    source_dir: str  # The absolute path of power_electronics/
-    # TODO: check if this works from another repo like EngiOpt
+    target_dir: str = field(default_factory=str)  # all the other files will be saved in this directory.
 
-    # These will be set from source_dir in __post_init__().
+    # These will be set from target_dir in __post_init__().
     netlist_dir: str = field(init=False)
     raw_file_dir: str = field(init=False)
     log_file_dir: str = field(init=False)
@@ -58,7 +56,7 @@ class Config:
     n_C: int = field(init=False)
 
     # components of the design variable
-    capacitor_val: list[float] = field(init=False)  # range: [1e-6, 2e-5]. This will be set in process_sweep_data. todo:
+    capacitor_val: list[float] = field(init=False)  # range: [1e-6, 2e-5]. This will be set in process_sweep_data.py.
     inductor_val: list[float] = field(init=False)  # range: [1e-6, 1e-3]
     switch_T1: list[float] = field(init=False)  # range: [0.1, 0.9]
     switch_T2: list[float] = field(init=False)  # Constant. All 1 for now
@@ -67,9 +65,10 @@ class Config:
 
     def __post_init__(self):
         """Post-initialization of the Config object."""
-        self.netlist_dir: str = os.path.normpath(os.path.join(self.source_dir, "./data/netlist"))
-        self.raw_file_dir: str = os.path.normpath(os.path.join(self.source_dir, "./data/raw_file"))
-        self.log_file_dir: str = os.path.normpath(os.path.join(self.source_dir, "./data/log_file"))
+        assert self.target_dir, "target_dir must be set before using the Config object."
+        self.netlist_dir: str = os.path.normpath(os.path.join(self.target_dir, "./data/netlist"))
+        self.raw_file_dir: str = os.path.normpath(os.path.join(self.target_dir, "./data/raw_file"))
+        self.log_file_dir: str = os.path.normpath(os.path.join(self.target_dir, "./data/log_file"))
         if not os.path.exists(self.netlist_dir):
             os.makedirs(self.netlist_dir)
         if not os.path.exists(self.raw_file_dir):
@@ -102,7 +101,7 @@ class Config:
     def __str__(self):
         """More readable print()."""
         return f"""Config:
-            - Source Directory: {self.source_dir}
+            - Target Directory: {self.target_dir}
             - Netlist Directory: {self.netlist_dir}
             - Raw File Directory: {self.raw_file_dir}
             - Log File Directory: {self.log_file_dir}
