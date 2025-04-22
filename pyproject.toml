@@ -275,5 +275,6 @@ module = [
     "cvxopt",
     "cvxopt.*",
     "datasets",
+    "networkx",
 ]
 ignore_missing_imports = true
