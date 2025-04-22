@@ -387,13 +387,14 @@ def metric_compute_DC_DC_efficiency_ngspice(
             P_coss[i] += 0.5 * mosfet_Coss * (Vds_max**2) * Fsw
 
             # GateDriver Loss
+            # Qg - Total gate charge from data sheet
             if duty_cycle_type == 0:
                 P_gate_driver[i] += (
-                    switch_model[i].Q_g_tot * Fsw * max(Vgs_mosfet[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][1]])
-                )  # Qg - Total gate charge from data sheet
+                    switch_model[i].Q_g_tot * Fsw * max(Vgs_mosfet[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][1]])  # pyright: ignore
+                )
             else:
                 P_gate_driver[i] += (
-                    switch_model[i].Q_g_tot * Fsw * max(Vgs_mosfet[i][cycle_edg_det_Dc[j][2] : cycle_edg_det_Dc[j][3]])
+                    switch_model[i].Q_g_tot * Fsw * max(Vgs_mosfet[i][cycle_edg_det_Dc[j][2] : cycle_edg_det_Dc[j][3]])  # pyright: ignore
                 )
 
             # Body Diode/ Dead-time losses
@@ -435,7 +436,8 @@ def metric_compute_DC_DC_efficiency_ngspice(
         j = 0
         while j < num_cycles:
             I_L_rms = calc_rms(I_L[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
-            P_L[i] += inductor_model[i].DCR * (I_L_rms**2)  # Resistive Loss
+            # Resistive Loss
+            P_L[i] += inductor_model[i].DCR * (I_L_rms**2)  # pyright: ignore
             j = j + 1
 
     # =============================Capacitor losses============================================================================#
@@ -447,8 +449,8 @@ def metric_compute_DC_DC_efficiency_ngspice(
         while j < num_cycles:
             Irms_Rcap = calc_rms(I_Rcap[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
             Irms_cap = calc_rms(I_cap[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
-            P_Rcap[i] += capacitor_model[i].Rp * (Irms_Rcap**2)
-            P_cap[i] += capacitor_model[i].ESR * (Irms_cap**2)
+            P_Rcap[i] += capacitor_model[i].Rp * (Irms_Rcap**2)  # pyright: ignore
+            P_cap[i] += capacitor_model[i].ESR * (Irms_cap**2)  # pyright: ignore
             j = j + 1
 
     # ==================== Diode Loss================================================#
@@ -461,7 +463,7 @@ def metric_compute_DC_DC_efficiency_ngspice(
             I_D_rms = calc_rms(I_D[i][cycle_edg_det_D[j][0] : cycle_edg_det_D[j][4]])
 
             # On state losses
-            P_D_con[i] += diode_model[i].Rd * (I_D_rms**2) + diode_model[i].Vt0 * I_D_avg
+            P_D_con[i] += diode_model[i].Rd * (I_D_rms**2) + diode_model[i].Vt0 * I_D_avg  # pyright: ignore
 
             j = j + 1
 

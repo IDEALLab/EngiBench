@@ -1,27 +1,84 @@
-"""Rewrite netlist for ngSpice simulation."""
-# ruff: noqa: N806, N815 # Upper case
-# ruff: noqa: PLR0912, PLR0915 # Too many branches. Too many statements
+"""Parse the topology from config.original_netlist_path. Rewrite netlist for ngSpice simulation."""
+
+# ruff: noqa: N806  # Upper case variables
+# ruff: noqa: PLR0912, PLR0915  # Too many branches. Too many statements
 
 from __future__ import annotations
 
+import networkx as nx
+
 from engibench.problems.power_electronics.utils.config import Config
+from engibench.problems.power_electronics.utils.constants import COLOR_DICT
+from engibench.problems.power_electronics.utils.constants import COMPONENTS
 
 
-def rewrite_netlist(config: Config) -> None:
+def parse_topology(config: Config) -> tuple[Config, str, dict[str, list[int]], nx.Graph]:
+    """Parse the topology from config.original_netlist_path. It does NOT change config.
+
+    1. Read from config.original_netlist_path to get the topology.
+        It only keeps component lines for topology. So the following lines are discarded in this process: .PARAM, .model, .tran, .save etc.
+    2. Return rewrite_netlist_str, edge_map for rewrite_netlist().
+    3. Return a nx.Graph object for the render() function.
+    """
+    rewrite_netlist_str: str = ""
+    edge_map: dict[str, list[int]] = {}
+    G: nx.Graph = nx.Graph()
+
+    calc_comp_count = {"V": 0, "R": 0, "C": 0, "S": 0, "L": 0, "D": 0}
+    ref_comp_count = {"V": 1, "R": 1, "C": config.n_C, "S": config.n_S, "L": config.n_L, "D": config.n_D}
+
+    with open(config.original_netlist_path) as file:
+        for line in file:
+            if line.strip() != "":
+                line_ = line.replace("=", " ")  # to deal with .PARAM problems. See the comments below.
+                # liang: Note that line still contains \n at the end of it.
+                line_spl = line_.split()
+                if line_spl[0] == ".PARAM":
+                    # e.g. .PARAM V0_value = 10
+                    # e.g. .PARAM C0_value = 10u
+                    # e.g. .PARAM L2_value=0.001. Note the whitespace! It appears in new files provided by RTRC.
+                    # e.g. .PARAM GS2_L2=0
+                    pass
+                elif line[0] in COMPONENTS:
+                    line_spl = line.split(" ")[:3]
+
+                    if "RC" in line_spl[0] or "_GS" in line_spl[0]:
+                        continue  # pass this line
+
+                    edge_map[line_spl[0]] = [int(line_spl[1]), int(line_spl[2])]
+                    # Liang: do not add another '\n' at the end of this line. See the comment above.
+                    rewrite_netlist_str = rewrite_netlist_str + line
+
+                    calc_comp_count[line[0]] = calc_comp_count[line[0]] + 1
+
+                    G.add_node(line_spl[0], bipartite=0, color=COLOR_DICT[line[0]])
+                    G.add_node(line_spl[1], bipartite=1, color="gray")
+                    G.add_node(line_spl[2], bipartite=1, color="gray")
+                    G.add_edge(line_spl[0], line_spl[1])
+                    G.add_edge(line_spl[0], line_spl[2])
+    assert ref_comp_count == calc_comp_count, "Error when parsing topology: component counts do not match!"
+
+    return config, rewrite_netlist_str, edge_map, G
+
+
+def rewrite_netlist(config: Config, rewrite_netlist_str: str, edge_map: dict[str, list[int]]) -> None:
     """Rewrite the netlist based on the topology and the sweep data.
 
     It creates the direct input file sent to ngSpice.
     The main difference between this rewrite.netlist and the original netlist is the control section that contains simulation parameters.
-    This function does not change config.
+    This function does NOT change config.
+
+    Parameters:
+        edge_map: A dictionary mapping component names to their corresponding nodes. E.g. {"V0": [0, 1], "R0": [9, 12], ...}.
     """
     print(f"rewriting netlist to: {config.rewrite_netlist_path}")
 
     with open(config.rewrite_netlist_path, "w") as file:
-        cmp_edg_str = "* rewrite netlist\n" + config.cmp_edg_str
+        cmp_edg_str = "* rewrite netlist\n" + rewrite_netlist_str
 
         RC_str = ""
         for i in range(config.n_C):
-            RC_str += f"RC{i} {config.edge_map[f'C{i}'][0]} {config.edge_map[f'C{i}'][1]} 100meg\n"
+            RC_str += f"RC{i} {edge_map[f'C{i}'][0]} {edge_map[f'C{i}'][1]} 100meg\n"
 
         cmp_edg_str += f"{RC_str}\n.PARAM V0_value=1000\n"
 
@@ -65,9 +122,13 @@ def rewrite_netlist(config: Config) -> None:
 
             cmp_edg_str += ".tran 5n 1.06m 1m 5n uic\n"
             # The following .meas(ure) can be replaced by .print, although the former is tested and preferred, while the latter has not been tested in all cases.
-            cmp_edg_str += f".meas TRAN Vo_mean avg par('V({config.edge_map['R0'][0]}) - V({config.edge_map['R0'][1]})') from = 1m to = 1.06m\n"
+            cmp_edg_str += (
+                f".meas TRAN Vo_mean avg par('V({edge_map['R0'][0]}) - V({edge_map['R0'][1]})') from = 1m to = 1.06m\n"
+            )
             cmp_edg_str = cmp_edg_str + ".meas TRAN gain param='Vo_mean/1000'\n"
-            cmp_edg_str += f".meas TRAN Vpp pp par('V({config.edge_map['R0'][0]}) - V({config.edge_map['R0'][1]})') from = 1m to = 1.06m\n"
+            cmp_edg_str += (
+                f".meas TRAN Vpp pp par('V({edge_map['R0'][0]}) - V({edge_map['R0'][1]})') from = 1m to = 1.06m\n"
+            )
             cmp_edg_str += ".meas TRAN Vpp_ratio param = 'Vpp / Vo_mean'\n"  # Ripple voltage
             cmp_edg_str += "\n.end"
 
@@ -85,7 +146,7 @@ def rewrite_netlist(config: Config) -> None:
             cmp_edg_str += "save all\n"
 
             cmp_edg_str += "tran 5n 1.06m 1m 5n uic\n"
-            cmp_edg_str += f"let Vdiff = V({config.edge_map['R0'][0]}) - V({config.edge_map['R0'][1]})\n"
+            cmp_edg_str += f"let Vdiff = V({edge_map['R0'][0]}) - V({edge_map['R0'][1]})\n"
             cmp_edg_str += "meas TRAN Vo_mean avg Vdiff from = 1m to = 1.06m\n"
             cmp_edg_str += "meas TRAN Vpp pp Vdiff from = 1m to = 1.06m\n"
             cmp_edg_str += "let Gain = Vo_mean / 1000\nlet Vpp_ratio = Vpp / Vo_mean\nprint Gain, Vpp_ratio\nrun\nset filetype = binary\n"

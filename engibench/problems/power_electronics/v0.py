@@ -22,11 +22,11 @@ from engibench.problems.power_electronics.utils import component as cmpt
 from engibench.problems.power_electronics.utils import data_sheet as ds
 from engibench.problems.power_electronics.utils import dc_dc_efficiency_ngspice as dc_lib_ng
 from engibench.problems.power_electronics.utils.config import Config
+from engibench.problems.power_electronics.utils.netlist_handler import parse_topology
+from engibench.problems.power_electronics.utils.netlist_handler import rewrite_netlist
 from engibench.problems.power_electronics.utils.ngspice import NgSpice
-from engibench.problems.power_electronics.utils.parse_topology import parse_topology
 from engibench.problems.power_electronics.utils.process_log_file import process_log_file
 from engibench.problems.power_electronics.utils.process_sweep_data import process_sweep_data
-from engibench.problems.power_electronics.utils.rewrite_netlist import rewrite_netlist
 
 
 class PowerElectronics(Problem[npt.NDArray]):
@@ -95,7 +95,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         ("DcGain", ObjectiveDirection.MINIMIZE),
         ("Voltage_Ripple", ObjectiveDirection.MAXIMIZE),
     )
-    conditions: frozenset[tuple[str, Any]] = frozenset()
+    conditions: tuple[tuple[str, Any], ...] = ()
     design_space = spaces.Box(low=0.0, high=1.0, shape=(20,), dtype=np.float32)
     dataset_id = "IDEALLab/power_electronics_v0"
     container_id = None
@@ -105,7 +105,6 @@ class PowerElectronics(Problem[npt.NDArray]):
         self,
         original_netlist_path: str = "./data/netlist/5_4_3_6_10-dcdc_converter_1.net",
         mode: str = "control",
-        bucket_id: str = "5_4_3_6_10",
         ngspice_path: str | None = None,
     ) -> None:
         """Initializes the Power Electronics problem.
@@ -118,23 +117,18 @@ class PowerElectronics(Problem[npt.NDArray]):
         """
         super().__init__()
 
+        source_dir: str = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../"))
+
         self.config = Config(
+            source_dir=source_dir,
             original_netlist_path=original_netlist_path,
             mode=mode,
-            bucket_id=bucket_id,
         )
-        print(self.config)
 
         # Initialize ngspice wrapper
         self.ngspice = NgSpice(ngspice_path)
 
-        # Each row contains DcGain and Voltage Ripple
-        self.simulation_results: np.ndarray = np.array([])
-
-        # For render()
-        self.G: nx.Graph | None = None
-
-    def __calculate_efficiency(self) -> tuple[float, int, float, float]:
+    def __calculate_efficiency(self, edge_map: dict[str, list[int]]) -> tuple[float, int, float, float]:
         capacitor_model, inductor_model, switch_model, diode_model = [], [], [], []
         max_comp_size = 12
         Ts = 5e-6
@@ -165,19 +159,17 @@ class PowerElectronics(Problem[npt.NDArray]):
                 self.config.n_C,
                 self.config.n_L,
                 self.config.n_D,
-                self.config.edge_map if self.config.edge_map is not None else {},
+                edge_map,
                 capacitor_model,
                 inductor_model,
                 switch_model,
                 diode_model,
                 10,
                 0,
-                self.config.switch_L1 if self.config.switch_L1 is not None else [],
-                self.config.switch_L2 if self.config.switch_L2 is not None else [],
-                [float(ind) * Ts for ind in self.config.switch_T1] if self.config.switch_T1 is not None else [],
-                [float(ind) * Ts for ind in self.config.switch_T2]
-                if self.config.switch_T2 is not None
-                else [],  # TODO: any fix for these if?
+                self.config.switch_L1,
+                self.config.switch_L2,
+                [float(ind) * Ts for ind in self.config.switch_T1],
+                [float(ind) * Ts for ind in self.config.switch_T2],
                 Fs,
             )
             efficiency = (P_src - P_loss) / P_src
@@ -216,15 +208,15 @@ class PowerElectronics(Problem[npt.NDArray]):
         Returns:
             simulation_results: a numpy array containing the simulation results [DcGain, VoltageRipple, Efficiency].
         """
-        self.config, self.G = parse_topology(self.config)
+        self.config, rewrite_netlist_str, edge_map, _ = parse_topology(self.config)
         self.config = process_sweep_data(config=self.config, sweep_data=design_variable)
-        rewrite_netlist(self.config)
-        Efficiency, error_report, _, _ = self.__calculate_efficiency()
+        rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
+        Efficiency, error_report, _, _ = self.__calculate_efficiency(edge_map)
         print(f"Error report from _calculate_efficiency: {error_report}")
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
-        self.simulation_results = np.array([DcGain, VoltageRipple, Efficiency])
+        simulation_results = np.array([DcGain, VoltageRipple, Efficiency])
 
-        return self.simulation_results
+        return simulation_results
 
     def optimize(self) -> NoReturn:
         """Optimize the design variable. Not applicable for this problem."""
@@ -236,19 +228,28 @@ class PowerElectronics(Problem[npt.NDArray]):
         It displays the Graph of the circuit topology rather than the circuit diagram.
         Each circuit element (V, L, C, etc.) is a node. Each wire/port is also a node.
         """
-        assert self.G is not None, "Graph is not initialized. Call parse_topology() from simulate() first."
+        _, _, _, G = parse_topology(self.config)
         plt.figure()
-        node_colors = [self.G.nodes[n]["color"] for n in self.G.nodes()]
-        pos = nx.spring_layout(self.G)
-        nx.draw(self.G, pos, with_labels=True, node_color=node_colors, node_size=200, font_size=10)
+        node_colors = [G.nodes[n]["color"] for n in G.nodes()]
+        pos = nx.spring_layout(G)
+        nx.draw(G, pos, with_labels=True, node_color=node_colors, node_size=200, font_size=10)
         plt.show()
+
+    def random_design(self) -> tuple[npt.NDArray, int]:
+        """Samples a valid random initial design.
+
+        Returns:
+            DesignType: The valid random design.
+        """
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # type: ignore[reportOptionalMemberAccess]
+
+        return np.array(self.dataset["train"]["initial_design"][rnd]), rnd
 
 
 if __name__ == "__main__":
     # Test with absolute path and a different bucket_id
-    original_netlist_path = os.path.abspath("./data/netlist/5_4_3_6_10-dcdc_converter_1.net")  # sweep 141
-    bucket_id = "1_1_1_1_1"
-    problem = PowerElectronics(original_netlist_path=original_netlist_path, bucket_id=bucket_id, mode="batch")
+    original_netlist_path = os.path.abspath("./data/netlist/2_2_2_2_3-dcdc_converter_1.net")  # sweep 141
+    problem = PowerElectronics(original_netlist_path=original_netlist_path, mode="batch")
 
     # Initialize the problem with default values
     problem = PowerElectronics()
@@ -278,8 +279,8 @@ if __name__ == "__main__":
     ]
 
     # Simulate the problem with the provided design variable
-    problem.simulate(design_variable=sweep_data)
-    print(problem.simulation_results)  # [0.01244983 0.9094711  0.74045004]
+    simulation_results = problem.simulate(design_variable=sweep_data)
+    print(simulation_results)  # [0.01244983 0.9094711  0.74045004]
 
     # Another set of sweep data. C0 value and GS_L1, GS_L2 values are changed.
     sweep_data = [
@@ -306,11 +307,7 @@ if __name__ == "__main__":
     ]
 
     # Simulate the problem with the provided design variable
-    problem.simulate(design_variable=sweep_data)
-    print(problem.simulation_results)  # [-1.27858   -0.025081   0.7827396]
-
-    problem.render()
-    problem.simulate(design_variable=sweep_data)
-    print(problem.simulation_results)  # [-1.27858   -0.025081   0.7827396]
+    simulation_results = problem.simulate(design_variable=sweep_data)
+    print(simulation_results)  # [-1.27858   -0.025081   0.7827396]
 
     problem.render()

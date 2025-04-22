@@ -1,61 +1,103 @@
 """Set up the configuration for the Power Electronics problem."""
 # ruff: noqa: N806, N815 # Upper case
 # ruff: noqa: FIX002  # for TODO
-# ruff: noqa: RUF009  # TODO: normpath
 
 from __future__ import annotations
 
 from dataclasses import dataclass
+from dataclasses import field
 import os
+
+
+def norm_join(dir1: str, dir2: str) -> str:
+    """Join two paths and then normalize the result."""
+    return os.path.normpath(os.path.join(dir1, dir2))
 
 
 @dataclass
 class Config:
-    """Configuration for the Power Electronics problem."""
+    """Configuration for the Power Electronics problem.
 
-    source_dir: str = os.path.normpath(
-        os.path.join(os.path.dirname(os.path.abspath(__file__)), "../")
-    )  # The absolute path of power_electronics/
+    Accepts:
+        - source_dir: Required. The absolute path of power_electronics/.
+        - original_netlist_path: Optional. Default to "./data/netlist/5_4_3_6_10-dcdc_converter_1.net".
+
+    Do not assign:
+        - mode: Default to "control". That's the only mode supported in this version.
+
+    Does not receive due to init=False:
+        - netlist_dir, raw_file_dir, log_file_dir
+        - netlist_name
+        - log_file_path, raw_file_path, rewrite_netlist_path
+        - bucket_id, n_S, n_D, n_L, n_C
+        - capacitor_val, inductor_val, switch_T1, switch_T2, switch_L1, switch_L2
+    """
+
+    source_dir: str  # The absolute path of power_electronics/
     # TODO: check if this works from another repo like EngiOpt
 
-    netlist_dir: str = os.path.normpath(os.path.join(source_dir, "./data/netlist"))
-    raw_file_dir: str = os.path.normpath(os.path.join(source_dir, "./data/raw_file"))
-    log_file_dir: str = os.path.normpath(os.path.join(source_dir, "./data/log_file"))
+    # These will be set from source_dir in __post_init__().
+    netlist_dir: str = field(init=False)
+    raw_file_dir: str = field(init=False)
+    log_file_dir: str = field(init=False)
 
-    original_netlist_path: str = (
-        "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"  # Accepts both absolute and relative paths.
-    )
+    # Accepts both absolute and relative paths.
+    original_netlist_path: str = "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
 
-    netlist_name: str = original_netlist_path.replace("\\", "/").split("/")[-1].removesuffix(".net")  # python 3.9 and newer
-    log_file_path: str = os.path.normpath(os.path.join(log_file_dir, f"{netlist_name}.log"))
-    raw_file_path: str = os.path.normpath(os.path.join(raw_file_dir, f"{netlist_name}.raw"))
-    mode: str = "control"
-    rewrite_netlist_path: str = os.path.join(netlist_dir, f"rewrite_{mode}_{netlist_name}.net")
+    netlist_name: str = field(init=False)  # This will be set from original_netlist_path in __post_init__().
+    mode: str = "control"  # Manually assign "mode=batch" when initializing the Config object will change log_file_path etc.
 
-    bucket_id: str = "5_4_3_6_10"  # Alternatively, we can get this from self.original_netlist_path.
+    log_file_path: str = field(init=False)  # depends on log_file_dir and netlist_name
+    raw_file_path: str = field(init=False)  # depends on raw_file_dir and netlist_name
+    rewrite_netlist_path: str = field(init=False)  # depends on netlist_dir, mode and netlist_name
 
-    edge_map: dict[str, list[int]] | None = (
-        None  # This will be turned into an empty dictionary in __posit_init__(). It will finally look like {"V0": [0, 1], "R0": [9, 12]}  # TODO: is this the correct way?
-    )
-    cmp_edg_str: str = ""  # The string that is used to rewrite the netlist.
+    bucket_id: str = field(init=False)  # This will be retrevied from netlist_name. E.g. "5_4_3_6_10".
+    n_S: int = field(init=False)
+    n_D: int = field(init=False)
+    n_L: int = field(init=False)
+    n_C: int = field(init=False)
 
     # components of the design variable
-    capacitor_val: list[float] | None = None  # range: [1e-6, 2e-5]
-    inductor_val: list[float] | None = None  # range: [1e-6, 1e-3]
-    switch_T1: list[float] | None = None  # range: [0.1, 0.9]
-    switch_T2: list[float] | None = None  # Constant. All 1 for now
-    switch_L1: list[float] | None = None  # Binary.
-    switch_L2: list[float] | None = None  # Binary.
+    capacitor_val: list[float] = field(init=False)  # range: [1e-6, 2e-5]. This will be set in process_sweep_data. todo:
+    inductor_val: list[float] = field(init=False)  # range: [1e-6, 1e-3]
+    switch_T1: list[float] = field(init=False)  # range: [0.1, 0.9]
+    switch_T2: list[float] = field(init=False)  # Constant. All 1 for now
+    switch_L1: list[float] = field(init=False)  # Binary.
+    switch_L2: list[float] = field(init=False)  # Binary.
 
     def __post_init__(self):
-        """Component counts from buck_id. Set up config.edge_map."""
-        # TODO: correct?
-        self.n_S: int = int(self.bucket_id.split("_")[0])
-        self.n_D: int = int(self.bucket_id.split("_")[1])
-        self.n_L: int = int(self.bucket_id.split("_")[2])
-        self.n_C: int = int(self.bucket_id.split("_")[3])
+        """Post-initialization of the Config object."""
+        self.netlist_dir: str = os.path.normpath(os.path.join(self.source_dir, "./data/netlist"))
+        self.raw_file_dir: str = os.path.normpath(os.path.join(self.source_dir, "./data/raw_file"))
+        self.log_file_dir: str = os.path.normpath(os.path.join(self.source_dir, "./data/log_file"))
+        if not os.path.exists(self.netlist_dir):
+            os.makedirs(self.netlist_dir)
+        if not os.path.exists(self.raw_file_dir):
+            os.makedirs(self.raw_file_dir)
+        if not os.path.exists(self.log_file_dir):
+            os.makedirs(self.log_file_dir)
 
-        self.edge_map = {}  # TODO: use field(default_factory=dict) instead of this?
+        # python 3.9 and newer
+        self.netlist_name = (
+            self.original_netlist_path.replace("\\", "/").split("/")[-1].removesuffix(".net")
+        )  # E.g. 5_4_3_6_10-dcdc_converter_1
+
+        self.log_file_path = os.path.normpath(os.path.join(self.log_file_dir, f"{self.netlist_name}.log"))
+        self.raw_file_path = os.path.normpath(os.path.join(self.raw_file_dir, f"{self.netlist_name}.raw"))
+        self.rewrite_netlist_path = os.path.join(self.netlist_dir, f"rewrite_{self.mode}_{self.netlist_name}.net")
+
+        self.bucket_id = self.netlist_name.split("-")[0]  # E.g. "5_4_3_6_10"
+        self.n_S = int(self.bucket_id.split("_")[0])
+        self.n_D = int(self.bucket_id.split("_")[1])
+        self.n_L = int(self.bucket_id.split("_")[2])
+        self.n_C = int(self.bucket_id.split("_")[3])
+
+        self.capacitor_val = []
+        self.inductor_val = []
+        self.switch_T1 = []
+        self.switch_T2 = []
+        self.switch_L1 = []
+        self.switch_L2 = []
 
     def __str__(self):
         """More readable print()."""
@@ -75,9 +117,6 @@ class Config:
 
             - Bucket ID: {self.bucket_id}
             - Component Counts: S={self.n_S}, D={self.n_D}, L={self.n_L}, C={self.n_C}
-
-            - Edge Map: {self.edge_map}
-            - Netlist String: {self.cmp_edg_str}
 
             - Capacitor Value: {self.capacitor_val}
             - Inductor Value: {self.inductor_val}
