@@ -23,10 +23,10 @@ EngiBench offers a collection of engineering design problems, datasets, and benc
 pip install -e .
 ```
 
-If you want to install with additional dependencies for a specific envs, e.g., airfoil2d, run:
+If you want to install with additional dependencies for a specific envs, e.g., airfoil, run:
 
 ```bash
-pip install -e ".[airfoil2d]"
+pip install -e ".[airfoil]"
 ```
 <!-- end install -->
 
@@ -34,26 +34,27 @@ pip install -e ".[airfoil2d]"
 
 <!-- start api -->
 ```python
-from engibench.problems.airfoil2d.v0 import Airfoil2D
+from engibench.problems.beams2d.v0 import Beams2D
 
 # Create a problem
-problem = Airfoil2D()
+problem = Beams2D()
 
 # Inspect problem
-problem.design_space  # Box(0.0, 1.0, (2, 192), float32)
-problem.possible_objectives  # (('cd', 'minimize'), ('cl', 'maximize'))
-problem.boundary_conditions  # frozenset({('marchDist', 100.0), ('s0', 3e-06)})
+problem.design_space  # Box(0.0, 1.0, (50, 100), float64)
+problem.objectives  # (("compliance", "MINIMIZE"),)
+problem.conditions  # (("volfrac", 0.35), ("forcedist", 0.0),...)
 problem.dataset # A HuggingFace Dataset object
 
-# Train your inverse design or surrogate model and use it to predict/optimize designs!
-for i in range(100):
-    desired_objs = ...
-    my_design = model.predict(desired_objs) # replace with your model
-    # Evaluate a design using a simulator
-    objs = problem.simulate(design=my_design, config={"mach": 0.2, "reynolds": 1e6})
+# Train your models, e.g. inverse design
+# inverse_model = train_inverse(problem.dataset)
+desired_conds = {"volfrac": 0.7, "forcedist": 0.3}
+# generated_design = inverse_model.predict(desired_conds)
 
-# or optimize a design using an integrated optimizer if available!
-opt_design, opt_history = problem.optimize(starting_point=my_design, config={"mach": 0.2, "reynolds": 1e6})
+random_design, _ = problem.random_design()
+# Only simulate to get objective values
+objs = problem.simulate(design=random_design, config=desired_conds)
+# Or run a gradient-based optimizer to polish the design
+opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
 ```
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
@@ -62,12 +63,13 @@ You can also play with the API here: [![Open In Colab](https://colab.research.go
 
 ## Development
 
-Clone the repo and install the pre-commit hooks:
+Clone the repo, install the pre-commit hooks and install all dev dependencies:
 
 ```bash
 git clone git@github.com:IDEALLab/EngiBench.git
 cd EngiBench
 pre-commit install
+pip install -e ".[dev]"
 ```
 
 ### Adding a new problem
@@ -129,8 +131,9 @@ In general, follow the `airfoil2d/` example.
    Here, `new_problem/__init__.py` is crucial as it makes the problem class discoverable to the `problem` directive by
    the reexport `from engibench.problems.new_problem.v0 import NewProblem`.
 4. Add an image (result of `problem.render(design)`) in `docs/_static/img/problems`. The file's name should be `<new_problem>.png`, with your problem module as in the point above.
-5. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
-6. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
+5. `cd docs/`
+6. Run `sphinx-autobuild -b dirhtml --watch ../engibench --re-ignore "pickle$" . _build`
+7. Go to [http://127.0.0.1:8000/](http://127.0.0.1:8000/) and check if everything is fine.
 
 Congrats! You can commit your changes and open a PR.
 <!-- end new_problem -->

@@ -13,6 +13,8 @@ from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
+from engibench import constraint
+
 DesignType = TypeVar("DesignType")
 
 
@@ -75,7 +77,7 @@ class Problem(Generic[DesignType]):
     """Version of the problem"""
     objectives: tuple[tuple[str, ObjectiveDirection], ...]
     """Objective names and types (minimize or maximize)"""
-    conditions: frozenset[tuple[str, Any]]
+    conditions: tuple[tuple[str, Any], ...]
     """Conditions for the design problem"""
     design_space: spaces.Space[DesignType]
     """Design space (algorithm output)"""
@@ -85,6 +87,8 @@ class Problem(Generic[DesignType]):
     """Dataset with designs and performances"""
     container_id: str | None
     """String identifier for the singularity container"""
+    Config: type | None = None
+    """Dataclass declaring types, defaults (optional) and constraints"""
 
     # This handles the RNG properly
     np_random: np.random.Generator | None = None
@@ -103,6 +107,21 @@ class Problem(Generic[DesignType]):
         if self._dataset is None:
             self._dataset = load_dataset(self.dataset_id)
         return self._dataset
+
+    @property
+    def conditions_dict(self) -> dict[str, Any]:
+        """Returns the conditions as a dictionary."""
+        return dict(self.conditions)
+
+    @property
+    def conditions_keys(self) -> list[str]:
+        """Returns the condition names as a list."""
+        return [name for name, _ in self.conditions]
+
+    @property
+    def objectives_keys(self) -> list[str]:
+        """Returns the objective names as a list."""
+        return [name for name, _ in self.objectives]
 
     def simulate(self, design: DesignType, config: dict[str, Any], **kwargs) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
@@ -165,3 +184,33 @@ class Problem(Generic[DesignType]):
             idx: The index of the design in the dataset.
         """
         raise NotImplementedError
+
+    def check_constraints(self, design: DesignType, config: dict[str, Any]) -> constraint.Violations:
+        """Check if config and design violate any constraints declared in `Config` and `design_space`.
+
+        Return a :class:`constraint.Violations` object containing all violations.
+        """
+        if self.Config is not None:
+            try:
+                checked_config = self.Config(**config)
+            except TypeError as e:
+                cause = str(e)
+                # The following is needed for Python 3.9:
+                if not cause.startswith(type(self).__name__):
+                    cause = self.Config.__name__ + "." + cause
+                if not cause.startswith(type(self).__name__):
+                    cause = type(self).__name__ + "." + cause
+                return constraint.Violations([constraint.Violation(constraint.Constraint(self.Config), cause=cause)])
+            violations = constraint.check_field_constraints(checked_config)
+        else:
+            violations = constraint.Violations([])
+
+        @constraint.constraint
+        def design_constraint(design: DesignType) -> None:
+            assert self.design_space.contains(design), "design ∉ design_space"
+
+        design_violation = design_constraint.check_value(design)
+        if design_violation is not None:
+            violations.violations.append(design_violation)
+
+        return violations

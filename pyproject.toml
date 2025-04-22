@@ -32,13 +32,13 @@ dependencies = [
 
 [project.optional-dependencies]
 # Update dependencies in `all` if any are added or removed
-airfoil2d = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
+airfoil = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49bbc8bde2b49dee686cce68c8d2ab9f0"]
 electronics = ["networkx == 3.2.1"]
 beams2d = ["cvxopt == 1.3.2", "seaborn"]
 thermoelastic2d = ["cvxopt == 1.3.2", "mmapy == 0.3.0"]
 all = [
     # All dependencies above
-    "engibench[airfoil2d,beams2d,thermoelastic2d,electronics]"
+    "engibench[airfoil,beams2d,thermoelastic2d,electronics]"
 ]
 
 doc = [
@@ -152,6 +152,8 @@ ignore = [
     "ANN003", # Kwargs type hinting is not necessary
     "ANN204", # Missing return type annotation for special method init
     "B006", # Do not use mutable default arguments
+    "D105", # undocumented-magic-method
+    "D107", # undocumented-public-init
     "FBT001", # Boolean position arguments in function definition
     "FBT002", # Boolean default arguments in function definition
 ]

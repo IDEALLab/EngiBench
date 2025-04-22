@@ -29,7 +29,6 @@ author = "ETH Zurich's IDEAL Lab"
 # The full version, including alpha/beta/rc tags
 release = engibench.__version__
 
-
 # -- General configuration ---------------------------------------------------
 
 # Add any Sphinx extension module names here, as strings. They can be
@@ -43,6 +42,7 @@ extensions = [
     "sphinx.ext.viewcode",  # Add links to the source code
     "myst_parser",  # Markdown support
     "sphinx_github_changelog",  # Generate changelog
+    "sphinx.ext.mathjax",  # Math support
     "problem_doc",
 ]
 
@@ -64,25 +64,18 @@ napoleon_custom_sections = [("Returns", "params_style")]
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-#
-
 html_theme = "sphinx_book_theme"
 html_title = "EngiBench Documentation"
 html_baseurl = ""
 html_logo = "_static/img/logo_2.png"
 html_copy_source = False
 html_favicon = "_static/img/logo_2.png"
+
+# Theme options
 html_theme_options = {
-    "light_logo": "_static/img/logo_2.png",
-    "dark_logo": "_static/img/logo_2.png",
-    "description": "EngiBench: A Benchmark Suite for Engineering Design Optimization",
-    "image": "_static/img/logo_2.png",
-    "versioning": True,
     "source_repository": "https://github.com/IDEALLab/EngiBench",
     "source_branch": "main",
     "source_directory": "docs/",
-    "pygment_light_style": "default",
-    "pygment_dark_style": "native",
 }
 
 html_static_path = ["_static"]

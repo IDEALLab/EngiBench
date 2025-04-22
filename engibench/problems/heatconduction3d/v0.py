@@ -62,11 +62,9 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    conditions: frozenset[tuple[str, Any]] = frozenset(
-        {
-            ("volume", 0.3),
-            ("area", 0.5),
-        }
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("volume", 0.3),
+        ("area", 0.5),
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(51, 51, 51), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_3d_v0"
@@ -85,11 +83,9 @@ class HeatConduction3D(Problem[npt.NDArray]):
         self.volume = volume
         self.area = area
         self.resolution = resolution
-        self.conditions = frozenset(
-            {
-                ("volume", self.volume),
-                ("area", self.area),
-            }
+        self.conditions = (
+            ("volume", self.volume),
+            ("area", self.area),
         )
         self.design_space = spaces.Box(
             low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float64
@@ -128,7 +124,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
         with open(r"templates/RES_SIM/Performance.txt") as fp:
             perf = fp.read()
-        return np.array(perf)
+        return np.array([float(perf)])
 
     def optimize(
         self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
@@ -212,9 +208,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
             error_msg = f"Design file {design_file} not found."
             raise FileNotFoundError(error_msg)  # ruff: noqa: TRY003
 
-        file_npy = np.load(design_file)
-
-        return file_npy
+        return np.load(design_file)
 
     def random_design(self) -> tuple[npt.NDArray, int]:
         """Samples a valid random design.

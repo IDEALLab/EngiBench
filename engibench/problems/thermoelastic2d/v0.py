@@ -16,6 +16,7 @@ from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.thermoelastic2d.model.fea_model import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
+from engibench.problems.thermoelastic2d.utils import indices_to_binary_matrix
 
 
 class ThermoElastic2D(Problem[npt.NDArray]):
@@ -35,10 +36,10 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
     ## Boundary Conditions
     Creating a problem formulation requires defining a python dict with the following info:
-    - `fixed_elements`: Encodes the indices of the structurally fixed elements in the domain.
-    - `force_elements_x`: Encodes which elements have a structural load in the x-direction.
-    - `force_elements_y`: Encodes which elements have a structural load in the y-direction.
-    - `heatsink_elements`: Encodes which elements have a heat sink.
+    - `fixed_elements`: Encodes a binary NxN matrix of the structurally fixed elements in the domain.
+    - `force_elements_x`: Encodes a binary NxN matrix specifying elements that have a structural load in the x-direction.
+    - `force_elements_y`: Encodes a binary NxN matrix specifying elements that have a structural load in the y-direction.
+    - `heatsink_elements`: Encodes a binary NxN matrix specifying elements that have a heat sink.
     - `volfrac`: Encodes the target volume fraction for the volume fraction constraint.
     - `rmin`: Encodes the filter size used in the optimization routine.
     - `weight`: Allows one to control which objective is optimized for. 1.0 Is pure structural optimization, while 0.0 is pure thermal optimization.
@@ -49,10 +50,10 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     - `optimal_design`: An optimized design for the set of boundary conditions
     - `strain`: The strain field for the initial uniform design
     - `vm_stress`: The von Mises stress field for the initial uniform design
-    - `fixed_elements`: Denotes which indices in a flattened NxN grid are fixed
-    - `force_elements_x`: Denotes which indices in a flattened NxN grid have a force in the x-direction
-    - `force_elements_y`: Denotes which indices in a flattened NxN grid have a force in the y-direction
-    - `heatsink_elements`: Denotes which indices in a flattened NxN grid have a heat sink
+    - `fixed_elements`: Encodes a binary NxN matrix of the structurally fixed elements in the domain.
+    - `force_elements_x`: Encodes a binary NxN matrix specifying elements that have a structural load in the x-direction.
+    - `force_elements_y`: Encodes a binary NxN matrix specifying elements that have a structural load in the y-direction.
+    - `heatsink_elements`: Encodes a binary NxN matrix specifying elements that have a heat sink.
     - `volume_fraction`: The volume fraction value of the optimized design
     - `structural_compliance`: The structural compliance of the optimized design
     - `thermal_compliance`: The thermal compliance of the optimized design
@@ -86,18 +87,14 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     nelx = 64
     nely = 64
     lci, tri, rci, bri = get_res_bounds(nelx + 1, nely + 1)
-    conditions: frozenset[tuple[str, Any]] = frozenset(
-        {
-            ("nelx", nelx),
-            ("nely", nely),
-            ("fixed_elements", (lci[21], lci[32], lci[43])),
-            ("force_elements_x", (bri[31])),
-            ("force_elements_y", (bri[31])),
-            ("heatsink_elements", (lci[31], lci[32], lci[33])),
-            ("volfrac", 0.3),
-            ("rmin", 1.1),
-            ("weight", 0.5),  # 1.0 for pure structural, 0.0 for pure thermal
-        }
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("fixed_elements", indices_to_binary_matrix([lci[21], lci[32], lci[43]], nelx + 1, nely + 1)),
+        ("force_elements_x", indices_to_binary_matrix([bri[31]], nelx + 1, nely + 1)),
+        ("force_elements_y", indices_to_binary_matrix([bri[31]], nelx + 1, nely + 1)),
+        ("heatsink_elements", indices_to_binary_matrix([lci[31], lci[32], lci[33]], nelx + 1, nely + 1)),
+        ("volfrac", 0.3),
+        ("rmin", 1.1),
+        ("weight", 0.5),  # 1.0 for pure structural, 0.0 for pure thermal
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nelx, nely), dtype=np.float32)
     dataset_id = "IDEALLab/thermoelastic_2d_v0"
@@ -150,9 +147,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
         boundary_dict = dict(self.conditions)
-        for key, value in config.items():
-            if key in boundary_dict:
-                boundary_dict[key] = value
+        boundary_dict.update({k: v for k, v in config.items() if k in dict(self.conditions)})
         results = FeaModel(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)
         design = np.array(results["design"]).astype(np.float32)
         opti_steps = results["opti_steps"]

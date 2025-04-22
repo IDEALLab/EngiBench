@@ -8,6 +8,8 @@ from scipy.sparse import coo_matrix
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import spsolve
 
+from engibench.problems.thermoelastic2d.utils import binary_matrix_to_indices
+
 
 @dataclass
 class FEMthmBCResult:
@@ -94,7 +96,7 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
 
     # Thermal BCs
     alldofsth = np.arange(nn)  # All thermal degrees of freedom
-    fixeddofsth = np.array(bcs["heatsink_elements"])
+    fixeddofsth = np.array(binary_matrix_to_indices(bcs["heatsink_elements"]))
     freedofsth = np.setdiff1d(alldofsth, fixeddofsth)
 
     # ---------------------------
@@ -110,7 +112,7 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
             n2 = (nely + 1) * (elx + 1) + ely
             edof = np.array([n1 + 1, n2 + 1, n2, n1], dtype=int)
             dof_pairs = np.array(np.meshgrid(edof, edof)).T.reshape(-1, 2)
-            local_data = (x[ely, elx] ** penal * k_eth).flatten()
+            local_data = ((2e-2 + x[ely, elx]) ** penal * k_eth).flatten()
             row.extend(dof_pairs[:, 0])
             col.extend(dof_pairs[:, 1])
             data.extend(local_data)
@@ -138,8 +140,8 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
     ndofsm = dof_per_node * (nelx + 1) * (nely + 1)
 
     # Fixed degrees of freedom (dofs)
-    fixeddofsm_x = np.array(bcs["fixed_elements"]) * 2
-    fixeddofsm_y = np.array(bcs["fixed_elements"]) * 2 + 1
+    fixeddofsm_x = np.array(binary_matrix_to_indices(bcs["fixed_elements"])) * 2
+    fixeddofsm_y = np.array(binary_matrix_to_indices(bcs["fixed_elements"])) * 2 + 1
     fixeddofsm = np.concatenate((fixeddofsm_x, fixeddofsm_y))
     alldofsm = np.arange(ndofsm)
     freedofsm = np.setdiff1d(alldofsm, fixeddofsm)
@@ -200,10 +202,10 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
     # ---------------------------
     fp = np.zeros(ndofsm)
     if "force_elements_x" in bcs:
-        load_elements_x = np.array(bcs["force_elements_x"]) * 2
+        load_elements_x = np.array(binary_matrix_to_indices(bcs["force_elements_x"])) * 2
         fp[load_elements_x] = 0.5
     if "force_elements_y" in bcs:
-        load_elements_y = np.array(bcs["force_elements_y"]) * 2 + 1
+        load_elements_y = np.array(binary_matrix_to_indices(bcs["force_elements_y"])) * 2 + 1
         fp[load_elements_y] = 0.5
 
     # Total force vector includes thermal contributions

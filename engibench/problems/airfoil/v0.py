@@ -15,7 +15,6 @@ import numpy.typing as npt
 import pandas as pd
 import pyoptsparse
 
-from engibench.core import DesignType
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -24,53 +23,49 @@ from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
 
-class Airfoil2D(Problem[npt.NDArray]):
+class Airfoil(Problem[dict[str, Any]]):
     r"""Airfoil 2D shape optimization problem.
 
     ## Problem Description
     This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the [MACH-Aero](https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/) simulator that computes the lift and drag coefficients of the airfoil.
 
     ## Design space
-    The design space is represented by a 3D numpy array (vector of 192 x,y coordinates in `[0., 1.)` per design) that define the airfoil shape.
+    The design space is represented by a dictionary where one element (`coords`) is a numpy array (vector of 192 x,y coordinates in `[0., 1.)` per design) that define the airfoil shape, and the other element (`angle_of_attack`) is a scalar.
 
     ## Objectives
     The objectives are defined and indexed as follows:
 
-    0. `cd_val`: Drag coefficient to minimize.
-    1. `cl_val`: Lift coefficient to maximize.
+    0. `cd`: Drag coefficient to minimize.
+    1. `cl`: Lift coefficient to maximize.
 
     ## Conditions
     The conditions are defined by the following parameters:
-    - `alpha`: Angle of attack in degrees.
     - `mach`: Mach number.
     - `reynolds`: Reynolds number.
-    - `altitude`: Altitude in meters. # TODO this is not in the dataset
-    - `temperature`: Temperature in Kelvin. # TODO this is not in the dataset
-    - `cl_target`: Target lift coefficient (constraint).
+    - `area_ratio_min`: Minimum area ratio (ratio relative to initial area) constraint.
+    - `area_initial`: Initial area.
+    - `cl_target`: Target lift coefficient to satisfy equality constraint.
 
     ## Simulator
     The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
 
     ## Dataset
-    The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_2d).
+    The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_v0).
 
     ### v0
 
     #### Fields
     The dataset contains optimal design, conditions, objectives and these additional fields:
-    - `initial`: Design before the adjoint optimization.
-    - `cl_target`: Target lift coefficient. # TODO IDK what this is
-    - `area_target`: Target area. # TODO this too
-    - `area_initial`: Initial area. # TODO this too
-    - `cl_con`: # TODO this too
-    - `area_con`: # TODO this too
+    - `initial_design`: Design before the adjoint optimization.
+    - `cl_con_violation`: # Constraint violation for coefficient of lift.
+    - `area_ratio`: # Area ratio for given design.
 
     #### Creation Method
-    We created this dataset by sampling using...... # TODO: Fill in the dataset creation method.
+    Refer to paper in references for details on how the dataset was created.
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    C. Diniz and M. Fuge, “Optimizing Diffusion to Diffuse Optimal Designs,” in AIAA SCITECH 2024 Forum, 2024. doi: 10.2514/6.2024-2013.
+    C. Diniz and M. Fuge, "Optimizing Diffusion to Diffuse Optimal Designs," in AIAA SCITECH 2024 Forum, 2024. doi: 10.2514/6.2024-2013.
 
     ## Lead
     Cashen Diniz @cashend
@@ -78,27 +73,29 @@ class Airfoil2D(Problem[npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
-        ("cd_val", ObjectiveDirection.MINIMIZE),
-        ("cl_val", ObjectiveDirection.MAXIMIZE),
+        ("cd", ObjectiveDirection.MINIMIZE),
+        ("cl", ObjectiveDirection.MAXIMIZE),
     )
-    conditions: frozenset[tuple[str, Any]] = frozenset(
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("mach", 0.8),
+        ("reynolds", 1e6),
+        ("area_initial", None),
+        ("area_ratio_min", 0.7),
+        ("cl_target", 0.5),
+    )
+
+    design_space = spaces.Dict(
         {
-            ("alpha", 1.5),
-            ("mach", 0.8),
-            ("reynolds", 1e6),
-            # ("altitude", 10000), # noqa: ERA001
-            # ("temperature", 223.150),  # noqa: ERA001
-            # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
-            ("cl_target", 0.5),
+            "coords": spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32),
+            "angle_of_attack": spaces.Box(low=0.0, high=10.0, shape=(1,), dtype=np.float32),
         }
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 192), dtype=np.float32)
-    dataset_id = "IDEALLab/airfoil_2d_v0"
+    dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     _dataset = None
 
     def __init__(self, base_directory: str | None = None) -> None:
-        """Initializes the Airfoil2D problem.
+        """Initializes the Airfoil problem.
 
         Args:
             base_directory (str, optional): The base directory for the problem. If None, the current directory is selected.
@@ -109,7 +106,7 @@ class Airfoil2D(Problem[npt.NDArray]):
             self.__local_base_directory = base_directory
         else:
             self.__local_base_directory = os.getcwd()
-        self.__local_target_dir = self.__local_base_directory + "/engibench_studies/problems/airfoil2d"
+        self.__local_target_dir = self.__local_base_directory + "/engibench_studies/problems/airfoil"
         self.__local_template_dir = (
             os.path.dirname(os.path.abspath(__file__)) + "/templates"
         )  # These templates are shipped with the lib
@@ -118,7 +115,7 @@ class Airfoil2D(Problem[npt.NDArray]):
         # Docker target directory
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
-        self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil2d"
+        self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil"
 
         super().__init__()
 
@@ -138,36 +135,50 @@ class Airfoil2D(Problem[npt.NDArray]):
         self.__docker_study_dir = self.__docker_target_dir + "/" + self.current_study
 
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
-        clone_dir(source_dir=self.__local_scripts_dir, target_dir=self.__local_target_dir)
 
-    def __design_to_simulator_input(self, design: npt.NDArray, filename: str = "design") -> str:
+    def __design_to_simulator_input(self, design: dict[str, Any], config: dict[str, Any], filename: str = "design") -> str:
         """Converts a design to a simulator input.
 
         The simulator inputs are two files: a mesh file (.cgns) and a FFD file (.xyz). This function generates these files from the design.
         The files are saved in the current directory with the name "$filename.cgns" and "$filename_ffd.xyz".
 
         Args:
-            design (np.ndarray): The design to convert.
+            design (dict): The design to convert.
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
             filename (str): The filename to save the design to.
         """
+        # Scale the design to fit in the design space
+        scaled_design = self._scale_coords(design["coords"])
         # Save the design to a temporary file
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", design.transpose())
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
 
         base_config = {
             "design_fname": f"'{self.__docker_study_dir}/{filename}.dat'",
             "tmp_xyz_fname": "'" + self.__docker_study_dir + "/tmp'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd'",
-            "s0": 3e-6,  # Off-the-wall spacing for the purpose of modeling the boundary layer.
-            "marchDist": 100.0,  # Distance to march the grid from the airfoil surface.
+            "marchDist": 100.0,  # Distance to march the grid from the airfoil surface
             "N_sample": 180,
             "nTEPts": 4,
             "xCut": 0.99,
-            "ffd_ymarginu": 0.02,
-            "ffd_ymarginl": 0.02,
+            "ffd_ymarginu": 0.05,
+            "ffd_ymarginl": 0.05,
             "ffd_pts": 10,
             "N_grid": 100,
+            "estimate_s0": True,
+            "make_input_design_blunt": True,
         }
+
+        # Calculate the off-the-wall distance
+        if base_config["estimate_s0"]:
+            s0 = self._calc_off_wall_distance(
+                mach=config["mach"], reynolds=config["reynolds"], freestreamTemp=config["temperature"]
+            )
+        else:
+            s0 = 1e-5
+
+        base_config["s0"] = s0
+
         # Adds the boundary conditions to the configuration
         base_config.update(self.conditions)
 
@@ -179,16 +190,38 @@ class Airfoil2D(Problem[npt.NDArray]):
 
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
-        # Bash command:
-        container.run(
-            command=["/bin/bash", self.__docker_target_dir + "/pre_process.sh", self.__docker_study_dir],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-        )
+        try:
+            bash_command = (
+                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
+                + self.__docker_study_dir
+                + "/pre_process.py"
+                + " > "
+                + self.__docker_study_dir
+                + "/output_preprocess.log"
+            )
+
+            container.run(
+                command=["/bin/bash", "-c", bash_command],
+                image=self.container_id,
+                name="machaero",
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            )
+
+        except Exception as e:
+            # Verify output files exist
+            mesh_file = self.__local_study_dir + "/" + filename + ".cgns"
+            ffd_file = self.__local_study_dir + "/" + filename + "_ffd.xyz"
+            msg = ""
+
+            if not os.path.exists(mesh_file):
+                msg += f"Mesh file not generated: {mesh_file}."
+            if not os.path.exists(ffd_file):
+                msg += f"FFD file not generated: {ffd_file}."
+            raise RuntimeError(f"Pre-processing failed: {e!s}. {msg} Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
+
         return filename
 
-    def __reorder_coords(self, df_slice: pd.DataFrame) -> npt.NDArray:  # noqa: PLR0915
+    def __reorder_coords(self, df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:  # noqa: PLR0915
         """Reorder the coordinates of a slice such that the segments are ordered correctly. WIP temporary code.
 
         Args:
@@ -313,7 +346,7 @@ class Airfoil2D(Problem[npt.NDArray]):
 
         return np.array([coords_x_reordered, coords_y_reordered])
 
-    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray:
+    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
         """Converts a simulator output to a design.
 
         Args:
@@ -358,14 +391,13 @@ class Airfoil2D(Problem[npt.NDArray]):
         # Concatenate node connections to the main data
         slice_df = pd.concat([slice_df, nodes_arr], axis=1)
 
-        design = self.__reorder_coords(slice_df)
-        return design
+        return self.__reorder_coords(slice_df)
 
-    def simulate(self, design: npt.NDArray, config: dict[str, Any] = {}, mpicores: int = 4) -> npt.NDArray:
+    def simulate(self, design: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, Any]:
         """Simulates the performance of an airfoil design.
 
         Args:
-            design (np.ndarray): The design to simulate.
+            design (dict): The design to simulate.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
             mpicores (int): The number of MPI cores to use in the simulation.
 
@@ -376,22 +408,22 @@ class Airfoil2D(Problem[npt.NDArray]):
         if container.RUNTIME is not None:
             container.pull(self.container_id)
         # pre-process the design and run the simulation
-        self.__design_to_simulator_input(design)
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
         base_config = {
-            "alpha": 1.5,
+            "alpha": design["angle_of_attack"],
             "mach": 0.8,
             "reynolds": 1e6,
             "altitude": 10000,
-            "temperature": 223.150,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            "temperature": 300,
+            "use_altitude": False,
             "output_dir": "'" + self.__docker_study_dir + "/output/'",
             "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
             "task": "'analysis'",  # TODO: We can add the option to perform a polar analysis.  # noqa: FIX002
         }
-
         base_config.update(self.conditions)
         base_config.update(config)
+        self.__design_to_simulator_input(design, base_config)
 
         replace_template_values(
             self.__local_study_dir + "/airfoil_analysis.py",
@@ -400,13 +432,26 @@ class Airfoil2D(Problem[npt.NDArray]):
 
         # Launches a docker container with the airfoil_analysis.py script
         # The script takes a mesh and ffd and performs an optimization
-        # Bash command:
-        container.run(
-            command=[self.__docker_target_dir + "/analyze.sh", str(mpicores), self.__docker_study_dir],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-        )
+        try:
+            bash_command = (
+                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                + str(mpicores)
+                + " python "
+                + self.__docker_study_dir
+                + "/airfoil_analysis.py > "
+                + self.__docker_study_dir
+                + "/output.log"
+            )
+            container.run(
+                command=["/bin/bash", "-c", bash_command],
+                image=self.container_id,
+                name="machaero",
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            )
+        except Exception as e:
+            raise RuntimeError(  # noqa: TRY003
+                f"Failed to run airfoil analysis: {e!s}. Please check logs in {self.__local_study_dir}."
+            ) from e
 
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
@@ -414,61 +459,76 @@ class Airfoil2D(Problem[npt.NDArray]):
         return np.array([drag, lift])
 
     def optimize(
-        self, starting_point: npt.NDArray, config: dict[str, Any] = {}, mpicores: int = 4
-    ) -> tuple[np.ndarray, list[OptiStep]]:
+        self, starting_point: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4
+    ) -> tuple[dict[str, Any], list[OptiStep]]:
         """Optimizes the design of an airfoil.
 
         Args:
-            starting_point (np.ndarray): The starting point for the optimization.
+            starting_point (dict): The starting point for the optimization.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
             mpicores (int): The number of MPI cores to use in the optimization.
 
         Returns:
-            Tuple[np.ndarray, dict]: The optimized design and its performance.
+            tuple[dict[str, Any], list[OptiStep]]: The optimized design and its performance.
         """
         # docker pull image if not already pulled
         if container.RUNTIME is not None:
             container.pull(self.container_id)
         # pre-process the design and run the simulation
         filename = "candidate_design"
-        self.__design_to_simulator_input(starting_point, filename)
 
         # Prepares the optimize_airfoil.py script with the optimization configuration
         base_config = {
-            "cl": 0.5,
-            "alpha": 1.5,
+            "cl_target": 0.5,
+            "alpha": starting_point["angle_of_attack"],
             "mach": 0.75,
-            "altitude": 10000,  # add temperature (default 223.150) + reynolds (default 6.31E6) + reynoldsLength (default 1) option
+            "reynolds": 1e6,
+            "altitude": 10000,
+            "temperature": 300,  # should specify either mach + altitude or mach + reynolds + reynoldsLength (default to 1) + temperature
+            "use_altitude": False,
+            "area_initial": None,  # actual initial airfoil area
+            "area_ratio_min": 0.7,  # Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target
             "opt": "'SLSQP'",
             "opt_options": {},
             "output_dir": "'" + self.__docker_study_dir + "/output/'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
+            "area_input_design": self._calc_area(starting_point["coords"]),
         }
-
         base_config.update(self.conditions)
         base_config.update(config)
-
+        self.__design_to_simulator_input(starting_point, base_config, filename)
         replace_template_values(
             self.__local_study_dir + "/airfoil_opt.py",
             base_config,
         )
 
-        # Launches a docker container with the optimize_airfoil.py script
-        # The script takes a mesh and ffd and performs an optimization
-        # Bash command:
-        container.run(
-            command=[self.__docker_target_dir + "/optimize.sh", str(mpicores), self.__docker_study_dir],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-        )
+        try:
+            # Launches a docker container with the optimize_airfoil.py script
+            # The script takes a mesh and ffd and performs an optimization
+            bash_command = (
+                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                + str(mpicores)
+                + " python "
+                + self.__docker_study_dir
+                + "/airfoil_opt.py > "
+                + self.__docker_study_dir
+                + "/airfoil_opt.log"
+            )
+            container.run(
+                command=["/bin/bash", "-c", bash_command],
+                image=self.container_id,
+                name="machaero",
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            )
+        except Exception as e:
+            raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e  # noqa: TRY003
 
         # post process -- extract the shape and objective values
         optisteps_history = []
         history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
 
-        # TODO return the full history of the optimization instead of just the last step  # noqa: FIX002
+        # TODO return the full history of the optimization instead of just the last step # noqa: FIX002
         # Also, this is inconsistent with the definition of the problem saying we optimize 2 objectives...
         objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
             -1, -1
@@ -476,15 +536,15 @@ class Airfoil2D(Problem[npt.NDArray]):
         optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=0))
         history.close()
 
-        optimized_design = self.__simulator_output_to_design()
+        opt_coords = self.__simulator_output_to_design()
 
-        return optimized_design, optisteps_history
+        return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
-    def render(self, design: np.ndarray, open_window: bool = False) -> Any:
+    def render(self, design: dict[str, Any], open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
-            design (np.ndarray): The design to render.
+            design (dict): The design to render.
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
@@ -493,35 +553,108 @@ class Airfoil2D(Problem[npt.NDArray]):
         import matplotlib.pyplot as plt
 
         fig, ax = plt.subplots()
+        coords = design["coords"]
 
-        ax.scatter(design[0], design[1], s=10, alpha=0.7)
+        ax.scatter(coords[0], coords[1], s=10, alpha=0.7)
         plt.ylim(-0.15, 0.15)
         if open_window:
             plt.show()
         return fig, ax
 
-    def random_design(self) -> tuple[DesignType, int]:
-        """Samples a valid random design.
+    def random_design(self) -> tuple[dict[str, Any], int]:
+        """Samples a valid random initial design.
 
         Returns:
-            DesignType: The valid random design.
+            tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))  # pyright: ignore[reportOptionalMemberAccess]
-        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # pyright: ignore[reportOptionalMemberAccess]
+        initial_design = self.dataset["train"]["initial_design"][rnd]
+        return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
+
+    def _calc_off_wall_distance(  # noqa
+        self,
+        mach: float,
+        reynolds: float,
+        freestreamTemp: float = 300.0,  # noqa
+        reynoldsLength: float = 1.0,  # noqa
+        yplus: float = 1,
+        R: float = 287.0,  # noqa
+        gamma: float = 1.4,
+    ) -> float:
+        """Estimation of the off-wall distance for a given design.
+
+        The off-wall distance is calculated using the Reynolds number and the freestream temperature.
+        """
+        # ---------------------------
+        a = np.sqrt(gamma * R * freestreamTemp)
+        u = mach * a
+        # ---------------------------
+        # Viscosity from Sutherland's law
+        ## Sutherland's law parameters
+        mu0 = 1.716e-5
+        T0 = 273.15  # noqa
+        S = 110.4  # noqa
+        mu = mu0 * ((freestreamTemp / T0) ** (3 / 2)) * (T0 + S) / (freestreamTemp + S)
+        # ---------------------------
+        # Density
+        rho = reynolds * mu / (reynoldsLength * u)
+        ## Skin friction coefficient
+        Cf = (2 * np.log10(reynolds) - 0.65) ** (-2.3)  # noqa
+        # Wall shear stress
+        tau = Cf * 0.5 * rho * (u**2)
+        # Friction velocity
+        uTau = np.sqrt(tau / rho)  # noqa
+        # Off wall distance
+        delta = yplus * mu / (rho * uTau)
+        return delta
+
+    def _scale_coords(self, coords: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
+        """Scales the coordinates to fit in the design space.
+
+        Args:
+            coords (np.ndarray): The coordinates to scale.
+
+        Returns:
+            np.ndarray: The scaled coordinates.
+        """
+        # Align coordinates to [0,1]
+        y_dist = coords[1, 0]
+        x_dist = 1 - coords[0, 0]
+        coords[0, :] += x_dist
+        coords[1, :] += -y_dist
+
+        coords[0, :] = coords[0, :] - coords[0, 0] + 1
+        coords[1, :] = coords[1, :] - coords[1, 0]
+
+        coords[0, 0] = 1
+        coords[1, 0] = 0
+        coords[0, -1] = 1
+        coords[1, -1] = 0
+        return coords
+
+    def _calc_area(self, coords: npt.NDArray[np.float32]) -> float:
+        """Calculates the area of the airfoil.
+
+        Args:
+            coords (np.ndarray): The coordinates of the airfoil.
+
+        Returns:
+            float: The area of the airfoil.
+        """
+        return 0.5 * np.absolute(
+            np.sum(coords[0, :] * np.roll(coords[1, :], -1)) - np.sum(coords[1, :] * np.roll(coords[0, :], -1))
+        )
 
 
 if __name__ == "__main__":
-    problem = Airfoil2D()
+    problem = Airfoil()
     problem.reset(seed=0, cleanup=False)
 
     dataset = problem.dataset
-
     # Get design and conditions from the dataset
-    design, _ = problem.random_design()
-    objs = problem.simulate(design=design)
-    print(objs)
-    fig, ax = problem.render(design, open_window=True)
-    fig.savefig(
-        "airfoil.png",
-        dpi=300,
-    )
+    # Print Dataset object keys
+    design, idx = problem.random_design()
+    config = dataset["train"].select_columns(problem.conditions_keys)[idx]
+
+    # Get design and conditions from the dataset, render design
+    print(problem.optimize(design, config=config, mpicores=8))

@@ -54,7 +54,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inverse Design?” in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678
+    Milad Habibi, Jun Wang, and Mark Fuge, "When Is it Actually Worth Learning Inverse Design?" in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678
 
     ## Lead
     Milad Habibi @MIladHB
@@ -62,11 +62,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    conditions: frozenset[tuple[str, Any]] = frozenset(
-        {
-            ("volume", 0.5),
-            ("length", 0.5),
-        }
+    conditions: tuple[tuple[str, Any], ...] = (
+        ("volume", 0.5),
+        ("length", 0.5),
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
@@ -85,11 +83,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
         self.volume = volume
         self.length = length
         self.resolution = resolution
-        self.conditions = frozenset(
-            {
-                ("volume", self.volume),
-                ("length", self.length),
-            }
+        self.conditions = (
+            ("volume", self.volume),
+            ("length", self.length),
         )
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float64)
 
@@ -126,7 +122,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
         with open(r"templates/RES_SIM/Performance.txt") as fp:
             perf = fp.read()
-        return np.array(perf)
+        return np.array([float(perf)])
 
     def optimize(
         self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
@@ -208,7 +204,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
         if not os.path.exists(design_file):
             error_msg = f"Design file {design_file} not found."
-            raise FileNotFoundError(error_msg)  # ruff: noqa: TRY003
+            raise FileNotFoundError(error_msg)
 
         file_npy = np.load(design_file)
 

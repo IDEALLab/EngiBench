@@ -11,14 +11,16 @@ pip install engibench
 You can also specify additional dependencies for specific problems:
 
 ```bash
-pip install "engibench[airfoil2d]"
+pip install "engibench[airfoil]"
 ```
 
 
 ## From source
 
+Typically, developers will install the package from source, with all extras.
+
 ```bash
 git clone git@github.com:IDEALLab/EngiBench.git
 cd engibench
-pip install -e .
+pip install -e ".[dev]"
 ```

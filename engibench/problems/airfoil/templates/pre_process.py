@@ -28,7 +28,8 @@ if __name__ == "__main__":
 
     coords = prefoil.utils.readCoordFile($design_fname)
     airfoil = prefoil.Airfoil(coords)
-    # TODO Cashen airfoil.makeBluntTE(xCut=$xCut)
+    print("Running pre-process.py")
+    airfoil.makeBluntTE(xCut=$xCut)
     N_sample = $N_sample
     nTEPts = $nTEPts
 
@@ -68,7 +69,7 @@ if __name__ == "__main__":
         "s0": $s0,
         "marchDist": $marchDist,
         # Smoothing parameters
-        "volSmoothIter": 200,
+        "volSmoothIter": 150,
         "volCoef": 0.25,
         "volBlend": 0.001
         # "volSmoothSchedule": [[0, 0], [0.2, 2], [0.5, 200], [1.0, 1000]],
