@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from argparse import ArgumentParser
-from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import field
@@ -15,11 +14,14 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Any, Generic, TypeVar
-
-import numpy.typing as npt
+from typing import Any, Generic, TYPE_CHECKING, TypeVar
 
 from engibench.core import Problem
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Iterable, Sequence
+
+    import numpy.typing as npt
 
 
 @dataclass
@@ -275,7 +277,6 @@ def slurm_job_entrypoint() -> None:
             with open(result_file, "rb") as stream:
                 result = pickle.load(stream)
             results.append({"results": result, **result_args})
-        print(os.getcwd())
         with open("results.pkl", "wb") as stream:
             pickle.dump(results, stream)
         shutil.rmtree(work_dir)

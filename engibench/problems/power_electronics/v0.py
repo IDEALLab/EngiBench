@@ -1,4 +1,4 @@
-# ruff: noqa: N806, N815, FIX002
+# ruff: noqa: N806, N815
 
 
 """Power Electronics problem."""
@@ -127,11 +127,11 @@ class PowerElectronics(Problem[npt.NDArray]):
         # Initialize ngspice wrapper
         self.ngspice = NgSpice(ngspice_path)
 
-    def simulate(self, design_variable: list[float]) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:  # noqa: ARG002
         """Simulates the performance of a Power Electronics design.
 
         Args:
-            design_variable: sweep data. It is a list of floats representing the design parameters for the simulation.
+            design: sweep data. It is a list of floats representing the design parameters for the simulation.
                     In general, they are:
                     - Capacitor values (C0, C1, C2, ...) in Farads.
                     - Inductor values (L0, L1, L2, ...) in Henries.
@@ -139,25 +139,24 @@ class PowerElectronics(Problem[npt.NDArray]):
                     - Switch parameter T2 is not included. Set to constant 1.0 for all switches.
                     - Switch parameter (L1_1, L1_2, L1_3, ...). Binary (0 or 1).
                     - Switch parameter (L2_1, L2_2, L2_3, ...). Binary (0 or 1).
+            config: ignored
 
         Returns:
             simulation_results: a numpy array containing the simulation results [DcGain, VoltageRipple, Efficiency].
         """
         self.config, rewrite_netlist_str, edge_map, _ = parse_topology(self.config)
-        self.config = process_sweep_data(config=self.config, sweep_data=design_variable)
+        self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
         # Use the ngspice wrapper to run the simulation
         self.ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
-        simulation_results = np.array([DcGain, VoltageRipple])
+        return np.array([DcGain, VoltageRipple])
 
-        return simulation_results
-
-    def optimize(self) -> NoReturn:
+    def optimize(self, _starting_point: npt.NDArray, _config: dict[str, Any] | None = None) -> NoReturn:
         """Optimize the design variable. Not applicable for this problem."""
-        return NotImplementedError
+        raise NotImplementedError("Not yet implemented")
 
-    def render(self) -> None:
+    def render(self, design: npt.NDArray, *, open_window: bool = False) -> None:  # noqa: ARG002
         """Render the circuit topology using NetworkX.
 
         It displays the Graph of the circuit topology rather than the circuit diagram.
@@ -176,7 +175,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # type: ignore[reportOptionalMemberAccess]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)
 
         return np.array(self.dataset["train"]["initial_design"][rnd]), rnd
 
@@ -215,7 +214,7 @@ if __name__ == "__main__":
     ]
 
     # Simulate the problem with the provided design variable
-    simulation_results = problem.simulate(design_variable=sweep_data)
+    simulation_results = problem.simulate(design=np.array(sweep_data))
     print(simulation_results)  # [0.01244983 0.9094711  0.74045004]
 
     # Another set of sweep data. C0 value and GS_L1, GS_L2 values are changed.
@@ -243,7 +242,7 @@ if __name__ == "__main__":
     ]
 
     # Simulate the problem with the provided design variable
-    simulation_results = problem.simulate(design_variable=sweep_data)
+    simulation_results = problem.simulate(design=np.array(sweep_data))
     print(simulation_results)  # [-1.27858   -0.025081   0.7827396]
 
-    problem.render()
+    problem.render(np.array([]))

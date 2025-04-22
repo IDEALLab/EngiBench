@@ -102,8 +102,8 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
     # ---------------------------
     # Conductivity Matrix (Kth)
     # ---------------------------
-    row = []
-    col = []
+    row: list[float] = []
+    col: list[float] = []
     data = []
 
     for elx in range(nelx):
@@ -210,7 +210,7 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
 
     # Total force vector includes thermal contributions
     if weight == 0.0:  # pure thermal
-        fm = feps
+        fm = feps.astype(np.float64)
     elif weight == 1.0:  # pure structural
         fm = fp
     else:

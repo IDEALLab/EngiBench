@@ -33,7 +33,6 @@ class Config:
         - bucket_id, n_S, n_D, n_L, n_C
         - capacitor_val, inductor_val, switch_T1, switch_T2, switch_L1, switch_L2
     """
-
     target_dir: str = field(default_factory=str)  # all the other files will be saved in this directory.
 
     # These will be set from target_dir in __post_init__().
