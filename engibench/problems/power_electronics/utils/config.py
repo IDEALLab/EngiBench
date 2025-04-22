@@ -23,7 +23,7 @@ class Config:
         - original_netlist_path: Optional. Default to "./data/netlist/5_4_3_6_10-dcdc_converter_1.net".
 
     Do not assign:
-        - mode: Default to "control". That's the only mode supported in this version.
+        - mode: Default to "control". That's the only mode supported in this version now.
 
     Does not receive due to init=False:
         - netlist_dir, raw_file_dir, log_file_dir
