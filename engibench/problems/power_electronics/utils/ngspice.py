@@ -99,13 +99,17 @@ class NgSpice:
             subprocess.CalledProcessError: If ngspice fails to run
         """
         if self.system == "windows":
-            pattern = re.compile(r"ngspice-(\d+)-manual\.pdf")
+            pattern_int = re.compile(r"ngspice-(\d+)-manual\.pdf")
+            pattern_dec = re.compile(r"ngspice-(\d+\.\d+)-manual\.pdf")
 
             docs_path = os.path.normpath(os.path.join(os.path.dirname(self._ngspice_path), "../docs/"))
             for filename in os.listdir(docs_path):
-                match = pattern.match(filename)
-                if match:
-                    return int(match.group(1))  # Return the first matching version number
+                match_int = pattern_int.match(filename)
+                match_dec = pattern_dec.match(filename)
+                if match_int:
+                    return match_int.group(1)  # Return the first matching integer version number such as 36 (str)
+                if match_dec:
+                    return match_dec.group(1)  # Return the first matching decimal version number such as 44.2 (str)
             raise NgSpiceManualNotFoundError()
         else:
             cmd = [self._ngspice_path, "--version"]
