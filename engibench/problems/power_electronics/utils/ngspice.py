@@ -85,7 +85,16 @@ class NgSpice:
             netlist_path,
         ]
         print(f"Running command: {cmd}")
-        subprocess.run(cmd, check=True, timeout=timeout)
+        try:
+            subprocess.run(cmd, capture_output=True, text=True, timeout=timeout, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"ngspice execution failed with return code {e.returncode}")
+            print(f"Error output: {e.stderr}")
+            raise
+        except subprocess.TimeoutExpired:
+            print(f"ngspice simulation timed out after {timeout} seconds")
+            raise
+
 
     @property
     def version(self) -> str:
@@ -109,25 +118,24 @@ class NgSpice:
                     return match_int.group(1)  # Return the first matching integer version number such as 36 (str)
                 if match_dec:
                     return match_dec.group(1)  # Return the first matching decimal version number such as 44.2 (str)
-            raise NgSpiceManualNotFoundError()
-        else:
-            cmd = [self._ngspice_path, "--version"]
-            result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+            raise NgSpiceManualNotFoundError
 
-            # Extract version number from second line of output
+        cmd = [self._ngspice_path, "--version"]
+        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
-            # Example output:
-            # ******
-            # ** ngspice-44.2 : Circuit level simulation program
-            # ** Compiled with KLU Direct Linear Solver
-            # ** The U. C. Berkeley CAD Group
-            # ** Copyright 1985-1994, Regents of the University of California.
-            # ** Copyright 2001-2024, The ngspice team.
-            # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
-            # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
-            # ******
-            version = result.stdout.splitlines()[1].split()[1].split("-")[1]
-            return version
+        # Extract version number from second line of output
+
+        # Example output:
+        # ******
+        # ** ngspice-44.2 : Circuit level simulation program
+        # ** Compiled with KLU Direct Linear Solver
+        # ** The U. C. Berkeley CAD Group
+        # ** Copyright 1985-1994, Regents of the University of California.
+        # ** Copyright 2001-2024, The ngspice team.
+        # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
+        # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
+        # ******
+        return result.stdout.splitlines()[1].split()[1].split("-")[1]
 
 
 class NgSpiceManualNotFoundError(FileNotFoundError):

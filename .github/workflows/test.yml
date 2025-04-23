@@ -24,7 +24,7 @@ jobs:
         pipx install uv
         uv pip install --system pytest
         sudo apt-get update
-        sudo apt-get install ngspice=44.2
+        sudo apt-get install ngspice
         uv pip install --system -e .[all]
     - name: Full Python tests
       run: |
