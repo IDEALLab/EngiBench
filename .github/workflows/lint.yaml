@@ -4,6 +4,7 @@ name: Python lints
 on:
   pull_request:
   push:
+    branches: [main]
 
 jobs:
   ruff:

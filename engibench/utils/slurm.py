@@ -16,6 +16,9 @@ import sys
 import tempfile
 from typing import Any, Generic, TYPE_CHECKING, TypeVar
 
+from numpy import typing as npt
+
+from engibench.core import OptiStep
 from engibench.core import Problem
 
 if TYPE_CHECKING:
@@ -32,6 +35,8 @@ class Args:
     """Keyword arguments to be passed to :class:`engibench.core.Problem()`."""
     simulate_args: dict[str, Any] = field(default_factory=dict)
     """Keyword arguments to be passed to :meth:`engibench.core.Problem.simulate()`."""
+    optimize_args: dict[str, Any] = field(default_factory=dict)
+    """Keyword arguments to be passed to :meth:`engibench.core.Problem.optimize()`."""
     design_args: dict[str, Any] = field(default_factory=dict)
     """Keyword arguments to be passed to `DesignType()` or
     the `design_factory` argument of :func:`submit`."""
@@ -53,6 +58,7 @@ DesignType = TypeVar("DesignType")
 class Job(Generic[DesignType]):
     """Representation of a single slurm job."""
 
+    job_type: str
     problem: Callable[..., Problem[DesignType]]
     design_factory: Callable[..., DesignType] | None
     args: Args
@@ -60,6 +66,7 @@ class Job(Generic[DesignType]):
     def serialize(self) -> dict[str, Any]:
         """Serialize a job object for an other python process."""
         return {
+            "job_type": self.job_type,
             "problem": serialize_callable(self.problem),
             "args": asdict(self.args),
             "design_factory": serialize_callable(self.design_factory) if self.design_factory is not None else None,
@@ -70,17 +77,24 @@ class Job(Generic[DesignType]):
         """Deserialize a job object from an other python process."""
         design_factory = serialized_job["design_factory"]
         return cls(
+            job_type=serialized_job["job_type"],
             problem=deserialize_callable(serialized_job["problem"]),
             args=Args(**serialized_job["args"]),
             design_factory=deserialize_callable(design_factory) if design_factory is not None else None,
         )
 
-    def run(self) -> npt.NDArray:
-        """Run the simulation defined by the job."""
-        problem = self.problem(**self.args.problem_args)
-        design_factory = self.design_factory if self.design_factory is not None else design_type(self.problem)
-        design = design_factory(**self.args.design_args)
-        return problem.simulate(design=design, **self.args.simulate_args)
+    def run(self) -> tuple[DesignType, list[OptiStep]] | npt.NDArray[Any] | Any:
+        """Run the optimization defined by the job."""
+        problem = self.problem(config=self.args.problem_args)
+        design = self.args.design_args.get("design", None)
+        if self.job_type == "simulate":
+            return problem.simulate(design=design, config=self.args.simulate_args)
+        if self.job_type == "optimize":
+            return problem.optimize(starting_point=design, config=self.args.optimize_args)
+        if self.job_type == "render":
+            return problem.render(design=design, config=self.args.simulate_args)  # type: ignore  # noqa: PGH003
+        msg = f"Unknown job type: {self.job_type}"
+        raise ValueError(msg)
 
 
 def design_type(t: type[Problem] | Callable[..., Problem]) -> type[Any]:
@@ -151,17 +165,17 @@ class SlurmConfig:
 
 
 def submit(
+    job_type: str,
     problem: type[Problem],
-    static_args: Args,
     parameter_space: list[Args],
     design_factory: Callable[..., DesignType] | None = None,
     config: SlurmConfig | None = None,
 ) -> None:
     """Submit a job array for a parameter discovery to slurm.
 
+    - :attr:`job_type` - The type of the job to be submitted: 'simulate', 'optimize', or 'render'.
     - :attr:`problem` - The problem type for which the simulation should be run.
-    - :attr:`static_args` - Arguments common to all simulation runs in form of an :class:`Args` instance.
-    - :attr:`parameter_space` - One :class:`Args` instance per simulation run to be submitted. Every item will be merged into `static_args`.
+    - :attr:`parameter_space` - One :class:`Args` instance per simulation run to be submitted.
     - :attr:`design_factory` - If not None, pass `Args.design_args` to `design_factory` instead of `DesignType()`.
     -  :attr:`design_factory` - Custom arguments passed to `sbatch`.
     """
@@ -175,7 +189,7 @@ def submit(
     # Dump parameter space:
     param_dir = tempfile.mkdtemp(dir=os.environ.get("SCRATCH"))
     for job_no, args in enumerate(parameter_space, start=1):
-        job = Job(problem=problem, design_factory=design_factory, args=merge_args(static_args, args))
+        job = Job(job_type, problem=problem, design_factory=design_factory, args=args)
         dump_job(job, param_dir, job_no)
 
     optional_args = (
@@ -193,7 +207,7 @@ def submit(
         config.sbatch_executable,
         "--parsable",
         "--export=ALL",
-        f"--array=1-{len(parameter_space)}",
+        f"--array=1-{len(parameter_space)}%1000",
         *(f"{arg}={value}" for arg, value in optional_args if value is not None),
         *config.extra_args,
         "--wrap",
@@ -274,9 +288,18 @@ def slurm_job_entrypoint() -> None:
         results = []
         for index, result_args in load_job_args(work_dir):
             result_file = os.path.join(work_dir, f"{index}.pkl")
-            with open(result_file, "rb") as stream:
-                result = pickle.load(stream)
-            results.append({"results": result, **result_args})
+            if not os.path.exists(result_file):
+                print(f"Warning: Result file {result_file} does not exist. Skipping.")
+                continue
+            try:
+                with open(result_file, "rb") as stream:
+                    result = pickle.load(stream)
+                results.append({"results": result, **result_args})
+            except Exception as e:  # noqa: BLE001
+                print(f"Error loading {result_file}: {e}. Skipping.")
+                continue
+
+        print(os.getcwd())
         with open("results.pkl", "wb") as stream:
             pickle.dump(results, stream)
         shutil.rmtree(work_dir)

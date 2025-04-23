@@ -51,6 +51,7 @@ problems/airfoil
 problems/beams2d
 problems/thermoelastic2d
 problems/heatconduction
+problems/photonics2d
 ```
 
 ```{toctree}

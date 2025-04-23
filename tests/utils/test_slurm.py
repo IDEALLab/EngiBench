@@ -64,7 +64,7 @@ def test_run_slurm(sbatch_exec: str) -> None:
     ]
     slurm.submit(
         problem=FakeProblem,
-        static_args=static_args,
+        static_args=static_args,  # type: ignore  # noqa: PGH003
         parameter_space=parameter_space,
         config=slurm.SlurmConfig(sbatch_executable=sbatch_exec),
     )

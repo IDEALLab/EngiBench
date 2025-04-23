@@ -36,9 +36,10 @@ airfoil = ["pyoptsparse@git+https://github.com/mdolab/pyoptsparse#egg=7e862db49b
 electronics = ["networkx == 3.2.1"]
 beams2d = ["cvxopt == 1.3.2", "seaborn"]
 thermoelastic2d = ["cvxopt == 1.3.2", "mmapy == 0.3.0"]
+photonics2d = ["ceviche == 0.1.3"]
 all = [
     # All dependencies above
-    "engibench[airfoil,beams2d,thermoelastic2d,electronics]"
+    "engibench[airfoil,beams2d,thermoelastic2d,photonics2d,electronics]"
 ]
 
 doc = [
@@ -256,8 +257,10 @@ warn_unused_ignores = true
 files = ["engibench/", "tests/"]
 exclude = [
   "^build/",
-  "/templates/",
-  "^engibench_studies/problems/airfoil2d/study_[^/]*/",
+  "^templates/.*",
+  "templates/.*",
+  ".*/templates/.*",
+  "^engibench_studies/problems/airfoil/study_[^/]*/",
   "^docs/",
 ]
 [[tool.mypy.overrides]]
@@ -276,5 +279,9 @@ module = [
     "cvxopt.*",
     "datasets",
     "networkx",
+    "autograd",
+    "autograd.*",
+    "ceviche",
+    "ceviche.*",
 ]
 ignore_missing_imports = true
