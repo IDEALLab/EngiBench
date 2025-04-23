@@ -55,7 +55,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    Habibi, Milad, Shai Bernard, Jun Wang, and Mark Fuge, “Mean squared error may lead you astray when optimizing your inverse design methods” in JMD 2025. doi: https://doi.org/10.1115/1.4066102
+    Habibi, Milad, Shai Bernard, Jun Wang, and Mark Fuge, "Mean squared error may lead you astray when optimizing your inverse design methods" in JMD 2025. doi: https://doi.org/10.1115/1.4066102
 
     ## Lead
     Milad Habibi @MIladHB
@@ -248,7 +248,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         threshold = 0.7
         filled = design > threshold
         # Adjust voxel positions by shifting their centers
-        ax.voxels(x[:-1, :-1, :-1], y[:-1, :-1, :-1], z[:-1, :-1, :-1], filled, edgecolor="k", alpha=0.7)
+        ax.voxels(x[:-1, :-1, :-1], y[:-1, :-1, :-1], z[:-1, :-1, :-1], filled, edgecolor="k", alpha=0.7)  # type: ignore[attr-defined]
         cube_vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]])
 
         cube_edges = [

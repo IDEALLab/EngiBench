@@ -257,8 +257,10 @@ warn_unused_ignores = true
 files = ["engibench/", "tests/"]
 exclude = [
   "^build/",
-  "/templates/",
-  "^engibench_studies/problems/airfoil2d/study_[^/]*/",
+  "^templates/.*",
+  "templates/.*",
+  ".*/templates/.*",
+  "^engibench_studies/problems/airfoil/study_[^/]*/",
   "^docs/",
 ]
 [[tool.mypy.overrides]]
