@@ -24,7 +24,6 @@ from engibench.core import Problem
 if TYPE_CHECKING:
     from collections.abc import Callable, Iterable, Sequence
 
-    import matplotlib.pyplot as plt
     import numpy.typing as npt
 
 
@@ -93,7 +92,7 @@ class Job(Generic[DesignType]):
         if self.job_type == "optimize":
             return problem.optimize(starting_point=design, config=self.args.optimize_args)
         if self.job_type == "render":
-            return problem.render(design=design, config=self.args.simulate_args)  # type: ignore
+            return problem.render(design=design, config=self.args.simulate_args)  # type: ignore  # noqa: PGH003
         msg = f"Unknown job type: {self.job_type}"
         raise ValueError(msg)
 
