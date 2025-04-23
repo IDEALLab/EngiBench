@@ -94,7 +94,6 @@ class PowerElectronics(Problem[npt.NDArray]):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(20,), dtype=np.float32)
     dataset_id = "IDEALLab/power_electronics_v0"
     container_id = None
-    _dataset = None
 
     def __init__(
         self,
@@ -178,8 +177,7 @@ class PowerElectronics(Problem[npt.NDArray]):
 
 if __name__ == "__main__":
     # Test with absolute path and a different bucket_id
-    original_netlist_path = os.path.abspath("./data/netlist/2_2_2_2_3-dcdc_converter_1.net")  # sweep 141
-    problem = PowerElectronics(original_netlist_path=original_netlist_path, mode="batch")
+    problem = PowerElectronics(mode="batch")
 
     # Initialize the problem with default values
     problem = PowerElectronics()
