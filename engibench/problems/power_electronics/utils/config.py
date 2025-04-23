@@ -33,6 +33,7 @@ class Config:
         - bucket_id, n_S, n_D, n_L, n_C
         - capacitor_val, inductor_val, switch_T1, switch_T2, switch_L1, switch_L2
     """
+
     target_dir: str = field(default_factory=str)  # all the other files will be saved in this directory.
 
     # These will be set from target_dir in __post_init__().
@@ -41,7 +42,9 @@ class Config:
     log_file_dir: str = field(init=False)
 
     # Accepts both absolute and relative paths.
-    original_netlist_path: str = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../", "./data/netlist/5_4_3_6_10-dcdc_converter_1.net")
+    original_netlist_path: str = os.path.join(
+        os.path.dirname(os.path.abspath(__file__)), "../", "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+    )
 
     netlist_name: str = field(init=False)  # This will be set from original_netlist_path in __post_init__().
     mode: str = "control"  # Manually assign "mode=batch" when initializing the Config object will change log_file_path etc.

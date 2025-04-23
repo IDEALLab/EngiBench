@@ -95,7 +95,6 @@ class NgSpice:
             print(f"ngspice simulation timed out after {timeout} seconds")
             raise
 
-
     @property
     def version(self) -> str:
         """Get the version of ngspice.
