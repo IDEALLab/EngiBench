@@ -91,20 +91,28 @@ class PowerElectronics(Problem[npt.NDArray]):
         ("Voltage_Ripple", ObjectiveDirection.MAXIMIZE),
     )
     conditions: tuple[tuple[str, Any], ...] = ()
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(20,), dtype=np.float32)
+    design_space = spaces.Box(
+        low=np.array([1e-6] * 6 + [1e-6] * 3 + [0.1] + [0] * 10),
+        high=np.array([2e-5] * 6 + [1e-3] * 3 + [0.9] + [1] * 10),
+        shape=(20,),
+        dtype=np.float32,
+    )
     dataset_id = "IDEALLab/power_electronics_v0"
     container_id = None
-    _dataset = None
 
     def __init__(
         self,
-        original_netlist_path: str = "./data/netlist/5_4_3_6_10-dcdc_converter_1.net",
+        target_dir: str = os.getcwd(),
+        original_netlist_path: str = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+        ),
         mode: str = "control",
         ngspice_path: str | None = None,
     ) -> None:
         """Initializes the Power Electronics problem.
 
         Args:
+            target_dir: The target directory for the rewritten netlist, log and raw files. Default to os.getcwd().
             original_netlist_path: The path to the original netlist file. Accepts both relative and absolute paths.
             bucket_id: The bucket ID for the netlist file. E.g. "5_4_3_6_10".
             mode: The mode for the simulation. Default to "control". mode = "batch" is for development.
@@ -112,10 +120,8 @@ class PowerElectronics(Problem[npt.NDArray]):
         """
         super().__init__()
 
-        source_dir: str = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../"))
-
         self.config = Config(
-            source_dir=source_dir,
+            target_dir=target_dir,
             original_netlist_path=original_netlist_path,
             mode=mode,
         )
@@ -175,11 +181,20 @@ class PowerElectronics(Problem[npt.NDArray]):
 
         return np.array(self.dataset["train"]["initial_design"][rnd]), rnd
 
+    def reset(self, seed: int | None = None) -> None:
+        """Reset the problem.
+
+        Args:
+            seed: The seed for the random number generator.
+        """
+        return super().reset(seed)
+
 
 if __name__ == "__main__":
     # Test with absolute path and a different bucket_id
     original_netlist_path = os.path.abspath("./data/netlist/2_2_2_2_3-dcdc_converter_1.net")  # sweep 141
-    problem = PowerElectronics(original_netlist_path=original_netlist_path, mode="batch")
+    target_dir = os.path.normpath(r"C:\Users\84551\Desktop\engibenchdata")
+    problem = PowerElectronics(original_netlist_path=original_netlist_path, target_dir=target_dir, mode="batch")
 
     # Initialize the problem with default values
     problem = PowerElectronics()

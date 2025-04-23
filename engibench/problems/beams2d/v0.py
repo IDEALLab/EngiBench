@@ -106,7 +106,6 @@ class Beams2D(Problem[npt.NDArray]):
     )
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
     dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v{version}"
-    _dataset = None
     container_id = None
 
     def __init__(self, config: dict[str, Any] | None = None):
