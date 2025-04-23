@@ -192,9 +192,7 @@ class PowerElectronics(Problem[npt.NDArray]):
 
 if __name__ == "__main__":
     # Test with absolute path and a different bucket_id
-    original_netlist_path = os.path.abspath("./data/netlist/2_2_2_2_3-dcdc_converter_1.net")  # sweep 141
-    target_dir = os.path.normpath(r"C:\Users\84551\Desktop\engibenchdata")
-    problem = PowerElectronics(original_netlist_path=original_netlist_path, target_dir=target_dir, mode="batch")
+    problem = PowerElectronics(mode="batch")
 
     # Initialize the problem with default values
     problem = PowerElectronics()

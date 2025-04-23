@@ -9,7 +9,7 @@ https://nbviewer.org/github/fancompute/workshop-invdesign/blob/master/04_Invdes_
 Author: Mark Fuge @markfuge
 """  # noqa: D205
 
-import collections
+import typing
 
 import autograd.numpy as npa
 from autograd.scipy.signal import convolve as conv_npa  # Use autograd's convolve
@@ -17,9 +17,13 @@ import ceviche.modes
 import numpy as np
 import numpy.typing as npt
 
+
 # --- Data Structures ---
-# Container for slice coordinates used for sources and probes
-Slice = collections.namedtuple("Slice", "x y")
+class Slice(typing.NamedTuple):
+    """Container for slice coordinates used for sources and probes."""
+
+    x: npt.NDArray
+    y: npt.NDArray
 
 
 # --- Domain Initialization ---
@@ -187,11 +191,10 @@ def _create_blur_kernel(radius: int) -> npt.NDArray:
     kernel_sum = kernel.sum()
     if kernel_sum > 0:
         return kernel / kernel_sum
-    else:
-        # Handle case where radius is so small kernel is empty (shouldn't happen with max(1, radius))
-        # Return an identity kernel (1 in the middle)
-        kernel[radius, radius] = 1.0
-        return kernel
+    # Handle case where radius is so small kernel is empty (shouldn't happen with max(1, radius))
+    # Return an identity kernel (1 in the middle)
+    kernel[radius, radius] = 1.0
+    return kernel
 
 
 def operator_blur(rho: npt.NDArray, radius: int = 2, num_blurs: int = 1) -> npt.NDArray:
@@ -322,7 +325,7 @@ def mode_overlap(elec_field1: npt.NDArray, elec_field2: npt.NDArray) -> npt.NDAr
     return npa.abs(overlap) * 1e6  # Scaling factor from source
 
 
-def insert_mode(*args, **kwargs) -> npt.NDArray:  # noqa: ANN002
+def insert_mode(*args, **kwargs) -> npt.NDArray:
     """Wrapper for ceviche.modes.insert_mode.
 
     Passes arguments directly to the ceviche function. This allows using
@@ -348,9 +351,9 @@ def poly_ramp(current_iter: int, max_iter: int, b0: float = 2.0, bmax: float = 3
         float: Interpolated value at the current iteration.
     """
     if max_iter <= 0:
-        raise ValueError("max_iter must be a positive integer.")  # noqa: TRY003
+        raise ValueError("max_iter must be a positive integer.")
     if not (0 <= current_iter <= max_iter):
-        raise ValueError("current_iter must be in the range [0, max_iter].")  # noqa: TRY003
+        raise ValueError("current_iter must be in the range [0, max_iter].")
 
     t = current_iter / max_iter
     scale = t**degree

@@ -16,7 +16,6 @@ import sys
 import tempfile
 from typing import Any, Generic, TYPE_CHECKING, TypeVar
 
-import matplotlib.pyplot as plt
 from numpy import typing as npt
 
 from engibench.core import OptiStep
@@ -84,7 +83,7 @@ class Job(Generic[DesignType]):
             design_factory=deserialize_callable(design_factory) if design_factory is not None else None,
         )
 
-    def run(self) -> tuple[DesignType, list[OptiStep]] | npt.NDArray[Any] | plt.Figure:
+    def run(self) -> tuple[DesignType, list[OptiStep]] | npt.NDArray[Any] | Any:
         """Run the optimization defined by the job."""
         problem = self.problem(config=self.args.problem_args)
         design = self.args.design_args.get("design", None)
@@ -93,11 +92,9 @@ class Job(Generic[DesignType]):
         if self.job_type == "optimize":
             return problem.optimize(starting_point=design, config=self.args.optimize_args)
         if self.job_type == "render":
-            return problem.render(design=design, config=self.args.simulate_args)
-        else:
-            msg = f"Unknown job type: {self.job_type}"
-            raise ValueError(msg)
-            return None
+            return problem.render(design=design, config=self.args.simulate_args)  # type: ignore  # noqa: PGH003
+        msg = f"Unknown job type: {self.job_type}"
+        raise ValueError(msg)
 
 
 def design_type(t: type[Problem] | Callable[..., Problem]) -> type[Any]:

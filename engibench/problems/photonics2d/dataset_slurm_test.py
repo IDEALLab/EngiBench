@@ -47,8 +47,7 @@ def optimize_slurm(target_problem: Any, configs: list[dict], design_factory: Cal
     # when we call simulate
     os.rename("results.pkl", "results_opt.pkl")
     with open("results_opt.pkl", "rb") as stream:
-        opt_results = pickle.load(stream)
-    return opt_results
+        return pickle.load(stream)
 
 
 # At this point, we have the results of the optimization in `opt_results`.
@@ -64,7 +63,7 @@ def make_sim_args_from_opt_results(opt_results: list[dict]) -> list[slurm.Args]:
         final_designs.append(final_design)
         problem_args.append(result["problem_args"])
     # Now assemble the slurm Args for the simulation or rendering
-    slurm_simulate_args = [
+    return [
         slurm.Args(
             problem_args=problem_args[i],
             design_args={"design": final_designs[i]},
@@ -72,7 +71,6 @@ def make_sim_args_from_opt_results(opt_results: list[dict]) -> list[slurm.Args]:
         )
         for i in range(len(problem_args))
     ]
-    return slurm_simulate_args
 
 
 # If we just want to render the designs locally, we can do that here. If rendering takes a while
@@ -116,8 +114,7 @@ def simulate_slurm(target_problem: Any, slurm_simulate_args: list[slurm.Args], r
     # when we call simulate
     os.rename("results.pkl", "results_sim.pkl")
     with open("results_sim.pkl", "rb") as stream:
-        sim_results = pickle.load(stream)
-    return sim_results
+        return pickle.load(stream)
 
 
 # ---------- Testing `render` via SLURM ---------
@@ -198,7 +195,7 @@ if __name__ == "__main__":
     rng = np.random.default_rng()
     lambda1 = rng.uniform(low=0.5, high=1.25, size=20)
     lambda2 = rng.uniform(low=0.75, high=1.5, size=20)
-    blur_radius = range(0, 5)
+    blur_radius = range(5)
     num_elems_x = 120
     num_elems_y = 120
 

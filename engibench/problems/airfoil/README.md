@@ -10,11 +10,10 @@ We rely on MACH-Aero for the simulations.
 Here is the script I've used to upload the data to HF using the pickle files here: https://github.com/IDEALLab/OptimizingDiffusionSciTech2024/tree/main/data/optimized_data
 
 ```python
-import pandas as pd
+from datasets import Dataset
+from datasets import DatasetDict
 import numpy as np
-import datasets
-from datasets import Dataset, DatasetDict
-
+import pandas as pd
 
 opt_train_airfoils, opt_test_airfoils, opt_val_airfoils = pd.read_pickle("train_test_val_opt_airfoils.pkl")
 init_train_airfoils, init_test_airfoils, init_val_airfoils = pd.read_pickle("train_test_val_init_airfoils.pkl")
@@ -27,8 +26,8 @@ dataset_train = []
 for o, i, p in zip(opt_train_airfoils, init_train_airfoils, train_params):
     dataset_train.append(
         {
-            "initial_design": {"coords": i, "angle_of_attack": np.cast[np.float32](p[4])},
-            "optimal_design": {"coords": o, "angle_of_attack": np.cast[np.float32](p[4])},
+            "initial_design": {"coords": i, "angle_of_attack": np.asarray(p[4], dtype=np.float32)},
+            "optimal_design": {"coords": o, "angle_of_attack": np.asarray(p[4], dtype=np.float32)},
             "mach": p[0],
             "reynolds": p[1],
             "cl_target": p[2],
@@ -46,8 +45,8 @@ dataset_val = []
 for o, i, p in zip(opt_test_airfoils, init_test_airfoils, test_params):
     dataset_val.append(
         {
-            "initial_design": {"coords": i, "angle_of_attack": np.cast[np.float32](p[4])},
-            "optimal_design": {"coords": o, "angle_of_attack": np.cast[np.float32](p[4])},
+            "initial_design": {"coords": i, "angle_of_attack": np.asarray(p[4], dtype=np.float32)},
+            "optimal_design": {"coords": o, "angle_of_attack": np.asarray(p[4], dtype=np.float32)},
             "mach": p[0],
             "reynolds": p[1],
             "cl_target": p[2],
@@ -65,8 +64,8 @@ dataset_testt = []
 for o, i, p in zip(opt_val_airfoils, init_val_airfoils, val_params):
     dataset_testt.append(
         {
-            "initial_design": {"coords": i, "angle_of_attack": np.cast[np.float32](p[4])},
-            "optimal_design": {"coords": o, "angle_of_attack": np.cast[np.float32](p[4])},
+            "initial_design": {"coords": i, "angle_of_attack": np.asarray(p[4], dtype=np.float32)},
+            "optimal_design": {"coords": o, "angle_of_attack": np.asarray(p[4], dtype=np.float32)},
             "mach": p[0],
             "reynolds": p[1],
             "cl_target": p[2],

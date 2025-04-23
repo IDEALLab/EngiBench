@@ -55,7 +55,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    Habibi, Milad, Shai Bernard, Jun Wang, and Mark Fuge, “Mean squared error may lead you astray when optimizing your inverse design methods” in JMD 2025. doi: https://doi.org/10.1115/1.4066102
+    Habibi, Milad, Shai Bernard, Jun Wang, and Mark Fuge, "Mean squared error may lead you astray when optimizing your inverse design methods" in JMD 2025. doi: https://doi.org/10.1115/1.4066102
 
     ## Lead
     Milad Habibi @MIladHB
