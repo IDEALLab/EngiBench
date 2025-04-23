@@ -87,7 +87,7 @@ class Problem(Generic[DesignType]):
     """Design space (algorithm output)"""
     dataset_id: str
     """String identifier for the problem (useful to pull datasets)"""
-    _dataset: Dataset | None
+    _dataset: Dataset | None = None
     """Dataset with designs and performances"""
     container_id: str | None
     """String identifier for the singularity container"""

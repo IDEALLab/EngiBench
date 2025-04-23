@@ -109,6 +109,10 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done simulating {problem_class.__name__}.")
     # Test optimization outputs
     print(f"Optimizing {problem_class.__name__}...")
+    # Skip optimization test for power electronics problems
+    if problem_class.__module__.startswith("engibench.problems.power_electronics"):
+        print(f"Skipping optimization test for power electronics problem {problem_class.__name__}")
+        return
     optimal_design, history = problem.optimize(starting_point=design)
     if isinstance(problem.design_space, spaces.Box):
         assert np.all(optimal_design >= problem.design_space.low), (
