@@ -42,9 +42,7 @@ class Config:
     log_file_dir: str = field(init=False)
 
     # Accepts both absolute and relative paths.
-    original_netlist_path: str = os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), "../", "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
-    )
+    original_netlist_path: str = "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
 
     netlist_name: str = field(init=False)  # This will be set from original_netlist_path in __post_init__().
     mode: str = "control"  # Manually assign "mode=batch" when initializing the Config object will change log_file_path etc.

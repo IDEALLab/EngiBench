@@ -103,7 +103,9 @@ class PowerElectronics(Problem[npt.NDArray]):
     def __init__(
         self,
         target_dir: str = os.getcwd(),
-        original_netlist_path: str = "./data/netlist/5_4_3_6_10-dcdc_converter_1.net",
+        original_netlist_path: str = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+        ),
         mode: str = "control",
         ngspice_path: str | None = None,
     ) -> None:
@@ -178,6 +180,14 @@ class PowerElectronics(Problem[npt.NDArray]):
         rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)
 
         return np.array(self.dataset["train"]["initial_design"][rnd]), rnd
+
+    def reset(self, seed: int | None = None) -> None:
+        """Reset the problem.
+
+        Args:
+            seed: The seed for the random number generator.
+        """
+        return super().reset(seed)
 
 
 if __name__ == "__main__":
