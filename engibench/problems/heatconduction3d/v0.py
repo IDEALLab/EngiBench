@@ -248,7 +248,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         threshold = 0.7
         filled = design > threshold
         # Adjust voxel positions by shifting their centers
-        ax.voxels(x[:-1, :-1, :-1], y[:-1, :-1, :-1], z[:-1, :-1, :-1], filled, edgecolor="k", alpha=0.7)  # type: ignore  # noqa: PGH003
+        ax.voxels(x[:-1, :-1, :-1], y[:-1, :-1, :-1], z[:-1, :-1, :-1], filled, edgecolor="k", alpha=0.7)
         cube_vertices = np.array([[0, 0, 0], [1, 0, 0], [1, 1, 0], [0, 1, 0], [0, 0, 1], [1, 0, 1], [1, 1, 1], [0, 1, 1]])
 
         cube_edges = [
