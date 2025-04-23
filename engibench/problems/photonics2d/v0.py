@@ -194,7 +194,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
     def __init__(
         self,
-        config: dict[str, Any],
+        config: dict[str, Any] | None = None,
         num_elems_x: int = _num_elems_x_default,
         num_elems_y: int = _num_elems_y_default,
         **kwargs,
@@ -210,6 +210,7 @@ class Photonics2D(Problem[npt.NDArray]):
         super().__init__(**kwargs)
 
         # Replace the conditions with any new configs passed in
+        config = config or {}
         self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
         current_conditions = self.conditions_dict
         print("Initializing Photonics Problem with configuration:")
