@@ -70,7 +70,6 @@ class HeatConduction3D(Problem[npt.NDArray]):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(51, 51, 51), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_3d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
-    _dataset = None
 
     def __init__(self, volume: float = 0.3, area: float = 0.5, resolution: int = 51) -> None:
         """Initialize the HeatConduction3D problem.

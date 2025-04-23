@@ -152,10 +152,10 @@ class NgSpiceManualNotFoundError(FileNotFoundError):
 class UnsupportedNgSpiceVersionError(RuntimeError):
     """Custom exception for unsupported ngspice versions."""
 
-    def __init__(self, version: str):
+    def __init__(self, version: int):
         """Initialize the exception with a custom message."""
         super().__init__(
-            f"Unsupported ngspice version: {version}. We only support version {MIN_SUPPORTED_VERSION} to {MAX_SUPPORTED_VERSION}."
+            f"Unsupported ngspice version: {version!s}. We only support version {MIN_SUPPORTED_VERSION} to {MAX_SUPPORTED_VERSION}."
         )
 
 

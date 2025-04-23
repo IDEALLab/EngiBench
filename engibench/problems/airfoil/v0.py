@@ -94,7 +94,6 @@ class Airfoil(Problem[DesignType]):
     )
     dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
-    _dataset = None
     __local_study_dir: str
 
     def __init__(self, base_directory: str | None = None) -> None:

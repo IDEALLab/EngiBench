@@ -15,7 +15,6 @@ class FakeProblem(Problem[NDArray[np.float64]]):
     objectives = ()
     conditions = ()
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 3), dtype=np.float64)
-    _dataset = None
     container_id = None
 
     @dataclass

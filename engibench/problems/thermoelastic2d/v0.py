@@ -98,7 +98,6 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nelx, nely), dtype=np.float32)
     dataset_id = "IDEALLab/thermoelastic_2d_v0"
     container_id = None
-    _dataset = None
 
     def __init__(self) -> None:
         """Initializes the thermoelastic2D problem.
