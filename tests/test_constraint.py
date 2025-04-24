@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import Annotated
+from typing import Annotated, ClassVar
 
 import numpy as np
 from numpy.typing import NDArray
@@ -157,4 +157,22 @@ def test_field_constraints() -> None:
             constraint.Criticality.Error,
             constraint.UNCATEGORIZED,
         ),
+    ]
+
+
+def test_field_constraints_with_class_vars() -> None:
+    @dataclass
+    class Params:
+        static_x: ClassVar[Annotated[float, bounded(lower=1.0).category(THEORY)]] = 0.0
+        x: Annotated[float, bounded(lower=1.0).category(IMPL)] = 0.0
+
+    params = Params()
+
+    violations = [
+        (v.cause, v.constraint.criticality, v.constraint.categories)
+        for v in constraint.check_field_constraints(params).violations
+    ]
+    assert violations == [
+        ("Params.static_x: 0.0 ∉ [1.0, ∞]", constraint.Criticality.Error, THEORY),
+        ("Params.x: 0.0 ∉ [1.0, ∞]", constraint.Criticality.Error, IMPL),
     ]

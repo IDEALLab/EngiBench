@@ -10,7 +10,8 @@ from enum import auto
 from enum import Enum
 from enum import Flag
 import inspect
-from typing import Any, overload, TypeVar
+import typing
+from typing import Any, ClassVar, overload, TypeVar
 
 import numpy as np
 
@@ -253,10 +254,18 @@ def check_field_constraints(
 def field_constraints(data: Any) -> Iterable[tuple[str | None, Constraint]]:
     """Iterate over all constraints declared on the dataclass instance `data`."""
     assert is_dataclass(data)
+    # Check for annotated ClassVar:
+    for f_name, f in data.__annotations__.items():
+        if typing.get_origin(f) is not ClassVar:
+            continue
+        try:
+            (annotation,) = typing.get_args(f)
+        except TypeError:
+            continue
+        yield from ((f_name, c) for c in getattr(annotation, "__metadata__", ()) if isinstance(c, Constraint))
     for f in dataclasses.fields(data):
         # Check for typing.Annotated:
-        if hasattr(f.type, "__metadata__"):
-            yield from ((f.name, c) for c in f.type.__metadata__ if isinstance(c, Constraint))
+        yield from ((f.name, c) for c in getattr(f.type, "__metadata__", ()) if isinstance(c, Constraint))
     yield from ((None, c) for c in vars(type(data)).values() if isinstance(c, Constraint))
 
 
