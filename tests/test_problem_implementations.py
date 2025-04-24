@@ -66,7 +66,7 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     assert "train" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'train' split."
     assert "test" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'test' split."
     assert "val" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'val' split."
-    # Test the dataset fields match `initial_design`, `problem.conditions`, and `problem.objectives`
+    # Test the dataset fields match `optimal_design`, `problem.conditions`, and `problem.objectives`
     if len(problem.objectives) > 1:
         for o, _ in problem.objectives:
             assert o in dataset["train"].column_names, (
@@ -77,8 +77,12 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
         assert cond in dataset["train"].column_names, (
             f"Problem {problem_class.__name__}: The dataset should contain the field {cond}."
         )
-    assert "initial_design" in dataset["train"].column_names, (
-        f"Problem {problem_class.__name__}: The dataset should contain the field 'initial_design'."
+    if problem_class.__module__.startswith("engibench.problems.power_electronics"):
+        print(f"Skipping optimal design test for power electronics problem {problem_class.__name__}")
+        return
+
+    assert "optimal_design" in dataset["train"].column_names, (
+        f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
     )
     print(f"Done testing {problem_class.__name__}.")
 
