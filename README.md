@@ -67,8 +67,9 @@ You can also play with the API here: [![Open In Colab](https://colab.research.go
 
 Both EngiBench and EngiOpt are open source projects and we welcome contributions! If you want to add a new problem, please reach out to us first to see if it is a good fit for EngiBench.
 
+### Installation
 <!-- start dev-install -->
-Clone the repo, install the pre-commit hooks, and install all dev dependencies:
+To install EngiBench for development, clone the repo, install the pre-commit hooks, and install all dev dependencies:
 
 ```bash
 git clone git@github.com:IDEALLab/EngiBench.git
