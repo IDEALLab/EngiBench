@@ -1,4 +1,4 @@
-# ruff: noqa
+# ruff: noqa: ERA001
 # TODO(https://github.com/IDEALLab/EngiBench/issues/107): Rework slurm utils
 
 # from __future__ import annotations
