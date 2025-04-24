@@ -8,10 +8,12 @@ Author: Mark Fuge @markfuge
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 # Need os import for makedirs for saving plots
 import os
 import pprint
-from typing import Any, TYPE_CHECKING
+from typing import Annotated, Any, ClassVar, TYPE_CHECKING
 
 # Importing autograd since the ceviche library uses it for automatic differentiation of the FDFD solver
 import autograd.numpy as npa
@@ -28,6 +30,9 @@ import numpy.typing as npt
 
 # --- EngiBench Core Imports ---
 # Import necessary base classes and types directly from the library's core
+from engibench.constraint import bounded
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -224,6 +229,46 @@ class Photonics2D(Problem[npt.NDArray]):
         self.omega1 = wavelength_to_frequency(current_conditions["lambda1"])
         self.omega2 = wavelength_to_frequency(current_conditions["lambda2"])
         self._current_beta: float = 1.0  # Placeholder for beta scheduling
+
+        # Config depends on num_elems_x, num_elems_y -> define it in __init__
+        @dataclass
+        class Config:
+            """Structured representation of configuration parameters for a numerical computation."""
+
+            num_elems_x: ClassVar[
+                Annotated[
+                    int,
+                    bounded(lower=0).category(THEORY),
+                    bounded(lower=60).category(IMPL),
+                    bounded(lower=90, upper=200).warning().category(IMPL),
+                ]
+            ] = self.num_elems_x
+            num_elems_y: ClassVar[
+                Annotated[
+                    int,
+                    bounded(lower=0).category(THEORY),
+                    bounded(lower=105).category(IMPL),
+                    bounded(lower=110, upper=300).warning().category(IMPL),
+                ]
+            ] = self.num_elems_y
+
+            lambda1: Annotated[
+                float,
+                bounded(lower=0.0).category(THEORY),
+                bounded(lower=0.5).category(IMPL),
+                bounded(lower=0.5, upper=1.5).warning().category(IMPL),
+            ] = 1.5
+            lambda2: Annotated[
+                float,
+                bounded(lower=0.0).category(THEORY),
+                bounded(lower=0.5).category(IMPL),
+                bounded(lower=0.5, upper=1.5).warning().category(IMPL),
+            ] = 1.3
+            blur_radius: Annotated[
+                int, bounded(lower=0).category(THEORY | IMPL), bounded(lower=0, upper=5).warning().category(IMPL)
+            ] = 2
+
+        self.Config = Config
 
     def _setup_simulation(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
         """Helper function to setup simulation parameters and domain."""
