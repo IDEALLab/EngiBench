@@ -56,7 +56,6 @@ def find_real_sbatch() -> list[str]:
 # @pytest.mark.parametrize("sbatch_exec", [FAKE_SBATCH, *find_real_sbatch()])
 # def test_run_slurm(sbatch_exec: str) -> None:
 #     """Test if a fake slurm can process FakeProblem."""
-
 #     static_args = slurm.Args(simulate_args={"config": {"offset": 10}}, problem_args={"some_arg": True})
 #     parameter_space = [
 #         slurm.Args(problem_args={"problem_id": 1}, design_args={"design_id": -1}),
