@@ -144,16 +144,6 @@ class Var:
         return dataclasses.replace(constraint, check=extracting_check)
 
 
-def constraint_factory(f: Callable[..., Check]) -> Callable[..., Constraint]:
-    """Convert a check factory to a constraint factory."""
-
-    def _factory(*args: Any, **kwargs: Any) -> Constraint:
-        original_check = f(*args, **kwargs)
-        return Constraint(original_check)
-
-    return _factory
-
-
 @dataclass
 class Violation:
     """Representation of a violation of a constraint."""
@@ -186,8 +176,7 @@ class Violations:
 T = TypeVar("T", int, float)
 
 
-@constraint_factory
-def bounded(*, lower: T | None = None, upper: T | None = None) -> Check:
+def bounded(*, lower: T | None = None, upper: T | None = None) -> Constraint:
     """Create a constraint which checks that the specified parameter is contained in an interval `[lower, upper]`."""
 
     def check(value: T) -> None:
@@ -195,27 +184,25 @@ def bounded(*, lower: T | None = None, upper: T | None = None) -> Check:
         assert lower is None or lower <= value, msg
         assert upper is None or value <= upper, msg
 
-    return check
+    return Constraint(check)
 
 
-@constraint_factory
-def greater_than(lower: T, /) -> Check:
+def greater_than(lower: T, /) -> Constraint:
     """Create a constraint which checks that the specified parameter is greater than `lower`."""
 
     def check(value: T) -> None:
         assert value > lower, f"{value} ∉ ({lower}, ∞)"
 
-    return check
+    return Constraint(check)
 
 
-@constraint_factory
-def less_than(upper: T, /) -> Check:
+def less_than(upper: T, /) -> Constraint:
     """Create a constraint which checks that the specified parameter is less than `upper`."""
 
     def check(value: T) -> None:
         assert value < upper, f"{value} ∉ (-∞, {upper})"
 
-    return check
+    return Constraint(check)
 
 
 def check_optimize_constraints(
