@@ -21,6 +21,7 @@ import unittest.mock
 
 from docutils import nodes
 from sphinx.application import Sphinx
+from gymnasium import spaces # noqa: F401 this is used to import spaces before mock_imports in BUILTIN_PROBLEMS
 from sphinx.util.docutils import SphinxDirective
 
 
@@ -52,7 +53,7 @@ class ProblemDirective(SphinxDirective):
             ("Objectives", make_multiline(objectives)),
             ("Conditions", make_multiline(conditions)),
             ("Dataset", make_link(problem.dataset_id, f"https://huggingface.co/datasets/{problem.dataset_id}")),
-            ("Container", make_code(problem.container_id)),
+            ("Container", make_code(problem.container_id) if problem.container_id is not None else ""),
             ("Import", make_code(f"from {problem.__module__} import {problem.__name__}")),
         ]
 
