@@ -45,6 +45,6 @@ jobs:
       - name: Upload to GitHub Pages
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: docs/_build
+          folder: _build
           target-folder: ${{steps.tag.outputs.tag}}
           clean: false
