@@ -42,7 +42,7 @@ extensions = [
     "sphinx.ext.viewcode",  # Add links to the source code
     "myst_parser",  # Markdown support
     "sphinx_github_changelog",  # Generate changelog
-    "sphinx.ext.mathjax",  # Math support
+    "sphinx.ext.mathjax", # Math support
     "problem_doc",
 ]
 
@@ -73,9 +73,42 @@ html_favicon = "_static/img/logo_2.png"
 
 # Theme options
 html_theme_options = {
-    "source_repository": "https://github.com/IDEALLab/EngiBench",
-    "source_branch": "main",
-    "source_directory": "docs/",
+    "repository_url": "https://github.com/IDEALLab/EngiBench",
+    "repository_branch": "main",
+    "path_to_docs": "docs/",
+    "use_repository_button": True,
+    "use_edit_page_button": True,
+    "use_issues_button": True,
+}
+
+# Add version information to the context
+html_context = {
+    "version_info": {
+        "current": release,
+        "versions": {
+            "main": "/main/",
+        }
+    }
+}
+
+# Add any tags to the versions dictionary
+import subprocess
+try:
+    tags = subprocess.check_output(['git', 'tag', '-l', 'v*.*.*']).decode().strip().split('\n')
+    for tag in tags:
+        if tag:
+            html_context["version_info"]["versions"][tag] = f"/{tag}/"
+except subprocess.CalledProcessError:
+    pass
+
+# Add version switcher to the left sidebar
+html_sidebars = {
+    "**": [
+        "navbar-logo.html",
+        "search-field.html",
+        "sbt-sidebar-nav.html",
+        "versions.html",
+    ]
 }
 
 html_static_path = ["_static"]
