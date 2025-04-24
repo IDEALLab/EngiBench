@@ -31,6 +31,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
     ## Objectives
     The objective is defined and indexed as follows:
+
     0. `c`: Thermal compliance coefficient to minimize.
 
     ## Conditions

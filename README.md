@@ -20,7 +20,6 @@ EngiBench offers a collection of engineering design problems, datasets, and benc
 ⚠️ Some problems run under Docker or Singularity. Others require native installation of dependencies, please consult the documentation of the specific problem.
 
 <!-- start install -->
-
 ```bash
 pip install engibench
 ```
@@ -29,6 +28,12 @@ You can also specify additional dependencies for specific problems:
 
 ```bash
 pip install "engibench[airfoil]"
+```
+
+Or you can install all dependencies for all problems:
+
+```bash
+pip install "engibench[all]"
 ```
 <!-- end install -->
 

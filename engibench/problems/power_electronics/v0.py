@@ -27,6 +27,10 @@ from engibench.problems.power_electronics.utils.process_sweep_data import proces
 class PowerElectronics(Problem[npt.NDArray]):
     r"""Power Electronics parameter optimization problem.
 
+    ```{note}
+    This problem requires `ngspice` to be installed. See the simulator section for more details.
+    ```
+
     ## Problem Description
     This problem simulates a power converter circuit which has a fixed circuit topology. There are 5 switches, 4 diodes, 3 inductors and 6 capacitors.
     The circuit topology is fixed. It is defined in the netlist file `5_4_3_6_10-dcdc_converter_1.net`.
@@ -56,7 +60,7 @@ class PowerElectronics(Problem[npt.NDArray]):
 
     ## Simulator
     The simulator is ngSpice circuit simulator. You can download it based on your operating system:
-    - Windows: https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/
+    - Windows: [https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/](https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/)
     - MacOS: `brew install ngspice`
     - Linux: `sudo apt-get install ngspice`
 

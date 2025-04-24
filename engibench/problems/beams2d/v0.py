@@ -63,8 +63,9 @@ class Beams2D(Problem[npt.NDArray]):
 
     ## Simulator
     Compliance `c` is calculated using:
-
-        c = ((Emin + xPrint**penal * (Emax - Emin)) * ce).sum()
+    ```python
+    c = ((Emin + xPrint**penal * (Emax - Emin)) * ce).sum()
+    ```
 
     where `xPrint` is the current true density field, `penal` is the penalization factor (e.g., 3.0), and `ce` is the element-wise strain energy density.
 
@@ -85,6 +86,8 @@ class Beams2D(Problem[npt.NDArray]):
     - `(50, 25)`
     - `(100, 50)`
     - `(200, 100)`
+
+    A more comprehensive description of the creation method can be found in the [README](https://github.com/IDEALLab/EngiBench/tree/main/engibench/problems/beams2d).
 
     ## References
     If you use this problem in your research, please cite the following paper:

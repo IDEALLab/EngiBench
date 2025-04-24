@@ -28,6 +28,10 @@ DesignType = dict[str, Any]
 class Airfoil(Problem[DesignType]):
     r"""Airfoil 2D shape optimization problem.
 
+    ```{note}
+    This problem requires `gcc` and `gfortran` to be installed. See the simulator section for more details.
+    ```
+
     ## Problem Description
     This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the [MACH-Aero](https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/) simulator that computes the lift and drag coefficients of the airfoil.
 
@@ -49,7 +53,10 @@ class Airfoil(Problem[DesignType]):
     - `cl_target`: Target lift coefficient to satisfy equality constraint.
 
     ## Simulator
-    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.
+    The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil. You can install gcc and gfortran on your system with your package manager.
+    - On Ubuntu: `sudo apt-get install gcc gfortran`
+    - On MacOS: `brew install gcc gfortran`
+    - On Windows (WSL): `sudo apt install build-essential`
 
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_v0).
