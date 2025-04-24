@@ -6,14 +6,18 @@ The problem is solved using the dolfin-adjoint software within a Docker containe
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 import os
 import subprocess
-from typing import Any
+from typing import Annotated, Any
 
 from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
+from engibench.constraint import bounded
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -91,6 +95,22 @@ class HeatConduction3D(Problem[npt.NDArray]):
         self.design_space = spaces.Box(
             low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float64
         )
+
+        @dataclass
+        class Config:
+            """Structured representation of configuration parameters for a numerical computation."""
+
+            resolution: Annotated[
+                int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
+            ] = self.resolution
+            volume: Annotated[
+                float,
+                bounded(lower=0.0, upper=1.0).category(THEORY),
+                bounded(lower=0.3, upper=0.6).warning().category(IMPL),
+            ] = self.volume
+            area: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = self.area
+
+        self.Config = Config
 
     def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulate the design.
