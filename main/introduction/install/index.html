@@ -485,25 +485,12 @@ document.write(`
                   
   <section id="installation">
 <h1>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h1>
-<p>⚠️ Some problems run under Docker or Singularity. Make sure you have one of them installed.</p>
+<p>⚠️ Some problems run under Docker or Singularity. Others require native installation of dependencies, please consult the documentation of the specific problem.</p>
 <section id="from-pypi">
 <h2>From PyPI<a class="headerlink" href="#from-pypi" title="Link to this heading">#</a></h2>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>engibench
-</pre></div>
-</div>
-<p>You can also specify additional dependencies for specific problems:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;engibench[airfoil]&quot;</span>
-</pre></div>
-</div>
 </section>
 <section id="from-source">
 <h2>From source<a class="headerlink" href="#from-source" title="Link to this heading">#</a></h2>
-<p>Typically, developers will install the package from source, with all extras.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:IDEALLab/EngiBench.git
-<span class="nb">cd</span><span class="w"> </span>engibench
-pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
-</pre></div>
-</div>
 </section>
 </section>
 

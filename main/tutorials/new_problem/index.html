@@ -484,11 +484,11 @@ document.write(`
                   
   <section id="adding-a-new-problem">
 <h1>Adding a new problem<a class="headerlink" href="#adding-a-new-problem" title="Link to this heading">#</a></h1>
-<p>In general, follow the <code class="docutils literal notranslate"><span class="pre">airfoil2d/</span></code> example.</p>
+<p>In general, follow the <code class="docutils literal notranslate"><span class="pre">beams2d/</span></code> example.</p>
 <section id="code">
 <h2>Code<a class="headerlink" href="#code" title="Link to this heading">#</a></h2>
 <ol class="arabic">
-<li><p>Create a new problem module in <a class="reference internal" href="#engibench/problems/"><span class="xref myst">engibench/problems/</span></a> following the following layout (e.g. <a class="reference internal" href="#engibench/problems/airfoil2d/"><span class="xref myst">engibench/problems/airfoil2d/</span></a>), where you later also can add other versions / variant of the problem:</p>
+<li><p>Create a new problem module in <a class="reference internal" href="#engibench/problems/"><span class="xref myst">engibench/problems/</span></a> following the following layout (e.g. <a class="reference internal" href="#engibench/problems/beams2d/"><span class="xref myst">engibench/problems/beams2d/</span></a>), where you later also can add other versions / variant of the problem:</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span>📦 engibench
 └─ 📂 problems
    └─ 📂 new_problem
@@ -508,7 +508,7 @@ document.write(`
 <p>Ideally, all non-breaking changes should not create a new versioned module.
 Also in many cases, code duplication can be avoided, by introducing a new parameter to the problem class.</p>
 </li>
-<li><p>Define your problem class that implements the <code class="docutils literal notranslate"><span class="pre">Problem</span></code> interface with its functions and attributes in <code class="docutils literal notranslate"><span class="pre">problems/new_problem/v0.py</span></code> (e.g. <a class="reference internal" href="#engibench/problems/airfoil2d/v0.py"><span class="xref myst">airfoil2d/v0.py</span></a>).</p>
+<li><p>Define your problem class that implements the <code class="docutils literal notranslate"><span class="pre">Problem</span></code> interface with its functions and attributes in <code class="docutils literal notranslate"><span class="pre">problems/new_problem/v0.py</span></code> (e.g. <a class="reference internal" href="#engibench/problems/beams2d/v0.py"><span class="xref myst">beams2d/v0.py</span></a>).</p>
 <p><code class="docutils literal notranslate"><span class="pre">problems/new_problem/v0.py</span></code></p>
 <div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Problem</span>
 

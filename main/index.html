@@ -503,7 +503,7 @@ document.write(`
 <span class="n">problem</span><span class="o">.</span><span class="n">conditions</span>  <span class="c1"># ((&quot;volfrac&quot;, 0.35), (&quot;forcedist&quot;, 0.0),...)</span>
 <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span> <span class="c1"># A HuggingFace Dataset object</span>
 
-<span class="c1"># Train your models, e.g. inverse design</span>
+<span class="c1"># Train your models, e.g., inverse design</span>
 <span class="c1"># inverse_model = train_inverse(problem.dataset)</span>
 <span class="n">desired_conds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">}</span>
 <span class="c1"># generated_design = inverse_model.predict(desired_conds)</span>
@@ -519,12 +519,11 @@ document.write(`
 </section>
 <section id="installation">
 <h2>Installation<a class="headerlink" href="#installation" title="Link to this heading">#</a></h2>
-<p>⚠️ You might need Docker or Singularity to run some of the benchmarks.</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span>.
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>engibench
 </pre></div>
 </div>
-<p>If you want to install with additional dependencies for a specific envs, e.g., airfoil, run:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[airfoil]&quot;</span>
+<p>You can also specify additional dependencies for specific problems:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;engibench[airfoil]&quot;</span>
 </pre></div>
 </div>
 </section>
