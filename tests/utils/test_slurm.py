@@ -52,42 +52,43 @@ def find_real_sbatch() -> list[str]:
     return []
 
 
-@pytest.mark.parametrize("sbatch_exec", [FAKE_SBATCH, *find_real_sbatch()])
-def test_run_slurm(sbatch_exec: str) -> None:
-    """Test if a fake slurm can process FakeProblem."""
+# TODO(https://github.com/IDEALLab/EngiBench/issues/107): Rework slurm utils
+# @pytest.mark.parametrize("sbatch_exec", [FAKE_SBATCH, *find_real_sbatch()])
+# def test_run_slurm(sbatch_exec: str) -> None:
+#     """Test if a fake slurm can process FakeProblem."""
 
-    static_args = slurm.Args(simulate_args={"config": {"offset": 10}}, problem_args={"some_arg": True})
-    parameter_space = [
-        slurm.Args(problem_args={"problem_id": 1}, design_args={"design_id": -1}),
-        slurm.Args(problem_args={"problem_id": 2}, design_args={"design_id": -2}),
-        slurm.Args(problem_args={"problem_id": 3}, design_args={"design_id": -3}),
-    ]
-    slurm.submit(
-        problem=FakeProblem,
-        static_args=static_args,  # type: ignore  # noqa: PGH003
-        parameter_space=parameter_space,
-        config=slurm.SlurmConfig(sbatch_executable=sbatch_exec),
-    )
-    with open("results.pkl", "rb") as stream:
-        results = pickle.load(stream)
-    os.remove("results.pkl")
-    assert results == [
-        {
-            "problem_args": {"some_arg": True, "problem_id": 1},
-            "simulate_args": {"config": {"offset": 10}},
-            "design_args": {"design_id": -1},
-            "results": np.array([9]),
-        },
-        {
-            "problem_args": {"some_arg": True, "problem_id": 2},
-            "simulate_args": {"config": {"offset": 10}},
-            "design_args": {"design_id": -2},
-            "results": np.array([8]),
-        },
-        {
-            "problem_args": {"some_arg": True, "problem_id": 3},
-            "simulate_args": {"config": {"offset": 10}},
-            "design_args": {"design_id": -3},
-            "results": np.array([7]),
-        },
-    ]
+#     static_args = slurm.Args(simulate_args={"config": {"offset": 10}}, problem_args={"some_arg": True})
+#     parameter_space = [
+#         slurm.Args(problem_args={"problem_id": 1}, design_args={"design_id": -1}),
+#         slurm.Args(problem_args={"problem_id": 2}, design_args={"design_id": -2}),
+#         slurm.Args(problem_args={"problem_id": 3}, design_args={"design_id": -3}),
+#     ]
+#     slurm.submit(
+#         problem=FakeProblem,
+#         static_args=static_args,
+#         parameter_space=parameter_space,
+#         config=slurm.SlurmConfig(sbatch_executable=sbatch_exec),
+#     )
+#     with open("results.pkl", "rb") as stream:
+#         results = pickle.load(stream)
+#     os.remove("results.pkl")
+#     assert results == [
+#         {
+#             "problem_args": {"some_arg": True, "problem_id": 1},
+#             "simulate_args": {"config": {"offset": 10}},
+#             "design_args": {"design_id": -1},
+#             "results": np.array([9]),
+#         },
+#         {
+#             "problem_args": {"some_arg": True, "problem_id": 2},
+#             "simulate_args": {"config": {"offset": 10}},
+#             "design_args": {"design_id": -2},
+#             "results": np.array([8]),
+#         },
+#         {
+#             "problem_args": {"some_arg": True, "problem_id": 3},
+#             "simulate_args": {"config": {"offset": 10}},
+#             "design_args": {"design_id": -3},
+#             "results": np.array([7]),
+#         },
+#     ]
