@@ -15,10 +15,10 @@ import numpy as np
 import numpy.typing as npt
 
 from engibench.constraint import bounded
-from engibench.constraint import Category
-from engibench.constraint import check_field_constraints
 from engibench.constraint import constraint
 from engibench.constraint import greater_than
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -181,7 +181,6 @@ class Beams2D(Problem[npt.NDArray]):
             **dict(self.conditions),
             **(config or {}),
         }
-        check_field_constraints(Params(**base_config))
 
         self.__st = setup(base_config)
 
@@ -275,10 +274,6 @@ class Beams2D(Problem[npt.NDArray]):
         """
         rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)
         return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
-
-
-IMPL = Category.Implementation
-THEORY = Category.Theory
 
 
 @dataclass

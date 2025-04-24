@@ -6,6 +6,8 @@ import pytest
 from engibench import constraint
 from engibench.constraint import bounded
 from engibench.constraint import greater_than
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.constraint import Var
 
 RR_MAX = 9.0
@@ -115,14 +117,11 @@ def test_is_bounded() -> None:
 
 
 def test_field_constraints() -> None:
-    impl = constraint.Category.Implementation
-    theory = constraint.Category.Theory
-
     @dataclass
     class Params:
-        nelx: Annotated[int, bounded(lower=1).category(theory), bounded(lower=10, upper=1000).warning().category(impl)] = 0
+        nelx: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)] = 0
         nely: int = 0
-        volfrac: Annotated[float, bounded(lower=0.1, upper=0.9).warning().category(impl)] = 0.0
+        volfrac: Annotated[float, bounded(lower=0.1, upper=0.9).warning().category(IMPL)] = 0.0
         penal: float = 0.0
         rmin: float = 0.0
 
@@ -137,12 +136,12 @@ def test_field_constraints() -> None:
         for v in constraint.check_field_constraints(params).violations
     ]
     assert violations == [
-        ("Params.nelx: 0 ∉ [1, ∞]", constraint.Criticality.Error, constraint.Category.Theory),
-        ("Params.nelx: 0 ∉ [10, 1000]", constraint.Criticality.Warning, constraint.Category.Implementation),
-        ("Params.volfrac: 0.0 ∉ [0.1, 0.9]", constraint.Criticality.Warning, constraint.Category.Implementation),
+        ("Params.nelx: 0 ∉ [1, ∞]", constraint.Criticality.Error, THEORY),
+        ("Params.nelx: 0 ∉ [10, 1000]", constraint.Criticality.Warning, IMPL),
+        ("Params.volfrac: 0.0 ∉ [0.1, 0.9]", constraint.Criticality.Warning, IMPL),
         (
             "Params.rmin: 0.0 ∉ (0, max(nelx, nely)]\nassert 0 < 0.0",
             constraint.Criticality.Error,
-            constraint.EMPTY_CATEGORY,
+            constraint.UNCATEGORIZED,
         ),
     ]

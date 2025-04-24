@@ -22,7 +22,9 @@ class Category(Flag):
     Implementation = auto()
 
 
-EMPTY_CATEGORY = Category(0)
+IMPL = Category.Implementation
+THEORY = Category.Theory
+UNCATEGORIZED = Category(0)
 
 
 class Criticality(Enum):
@@ -38,7 +40,7 @@ class Constraint:
 
     check: Check
     """Check callback raising an AssertError if the constraint is violated."""
-    categories: Category = EMPTY_CATEGORY
+    categories: Category = UNCATEGORIZED
     """Categories of the constraint."""
     criticality: Criticality = Criticality.Error
     """Criticality of a violation of the constraint."""
@@ -92,7 +94,7 @@ def constraint(check: Check, /) -> Constraint: ...
 
 @overload
 def constraint(
-    *, categories: Category = EMPTY_CATEGORY, criticality: Criticality = Criticality.Error
+    *, categories: Category = UNCATEGORIZED, criticality: Criticality = Criticality.Error
 ) -> Callable[[Check], Constraint]: ...
 
 
@@ -100,7 +102,7 @@ def constraint(
     check: Check | None = None,
     /,
     *,
-    categories: Category = EMPTY_CATEGORY,
+    categories: Category = UNCATEGORIZED,
     criticality: Criticality = Criticality.Error,
 ) -> Callable[[Check], Constraint] | Constraint:
     """Decorator for check callbacks to convert the callback to a :class:`Constraint`."""
