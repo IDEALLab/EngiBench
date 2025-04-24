@@ -12,6 +12,8 @@ from enum import Flag
 import inspect
 from typing import Any, overload, TypeVar
 
+import numpy as np
+
 Check = Callable[..., None]
 
 
@@ -181,8 +183,8 @@ def bounded(*, lower: T | None = None, upper: T | None = None) -> Constraint:
 
     def check(value: T) -> None:
         msg = f"{value} ∉ [{lower if lower is not None else '-∞'}, {upper if upper is not None else '∞'}]"
-        assert lower is None or lower <= value, msg
-        assert upper is None or value <= upper, msg
+        assert lower is None or np.all(lower <= value), msg
+        assert upper is None or np.all(value <= upper), msg
 
     return Constraint(check)
 
@@ -191,7 +193,7 @@ def greater_than(lower: T, /) -> Constraint:
     """Create a constraint which checks that the specified parameter is greater than `lower`."""
 
     def check(value: T) -> None:
-        assert value > lower, f"{value} ∉ ({lower}, ∞)"
+        assert np.all(value > lower), f"{value} ∉ ({lower}, ∞)"
 
     return Constraint(check)
 
@@ -200,7 +202,7 @@ def less_than(upper: T, /) -> Constraint:
     """Create a constraint which checks that the specified parameter is less than `upper`."""
 
     def check(value: T) -> None:
-        assert value < upper, f"{value} ∉ (-∞, {upper})"
+        assert np.all(value < upper), f"{value} ∉ (-∞, {upper})"
 
     return Constraint(check)
 

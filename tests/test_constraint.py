@@ -1,6 +1,8 @@
 from dataclasses import dataclass
 from typing import Annotated
 
+import numpy as np
+from numpy.typing import NDArray
 import pytest
 
 from engibench import constraint
@@ -114,6 +116,17 @@ def test_is_bounded() -> None:
     assert all((not v.violations) for v in violations[2:7])
     assert violations[7].violations == [violation(1.5)]
     assert violations[8].violations == [violation(2.0)]
+
+
+def test_is_bounded_works_for_arrays() -> None:
+    c = Var("z").check(bounded(lower=-1.0, upper=1.0))
+    violations = [constraint.check_constraints([c], {"z": z}) for z in [np.array([0.0, 0.0]), np.array([2.0, 0.0])]]
+
+    def violation(z: NDArray[np.float64]) -> constraint.Violation:
+        return constraint.Violation(c, f"{z} ∉ [-1.0, 1.0]")
+
+    assert not violations[0].violations
+    assert violations[1].violations == [violation(np.array([2.0, 0.0]))]
 
 
 def test_field_constraints() -> None:
