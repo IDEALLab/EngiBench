@@ -81,6 +81,13 @@ html_theme_options = {
     "use_issues_button": True,
 }
 
+# -- MyST Parser Options ---------------------------------------------------
+myst_enable_extensions = [
+    "dollarmath",
+    "amsmath",
+]
+
+
 # Add version information to the context
 html_context = {
     "version_info": {

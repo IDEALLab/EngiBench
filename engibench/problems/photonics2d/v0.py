@@ -129,8 +129,8 @@ class Photonics2D(Problem[npt.NDArray]):
 
     #### Creation Method
     To generate a dataset for training, we generate (randomly, uniformly) swept over the following parameters:
-    - $\lambda_1 \in [0.5μm,1.25μm]$ = `lambda1` = `rng.uniform(low=0.5, high=1.25, size=20)` -- This corresponds roughly to a portion of the visible spectrum up to near-infrared.
-    - $\lambda_2 \in [0.75μm,1.5μm]$$ = `lambda2` = `rng.uniform(low=0.75, high=1.5, size=20)` -- This corresponds roughly to a portion of the visible spectrum up to near-infrared.
+    - $\lambda_1 \in [0.5\mu m, 1.25\mu m]$ = `lambda1` = `rng.uniform(low=0.5, high=1.25, size=20)` -- This corresponds roughly to a portion of the visible spectrum up to near-infrared.
+    - $\lambda_2 \in [0.75\mu m, 1.5\mu m]$ = `lambda2` = `rng.uniform(low=0.75, high=1.5, size=20)` -- This corresponds roughly to a portion of the visible spectrum up to near-infrared.
     - $r_{blur}$ = `blur_radius` = `range(0, 5)`
 
     ## Citation

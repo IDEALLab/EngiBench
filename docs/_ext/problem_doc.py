@@ -14,6 +14,7 @@ from collections.abc import Iterator, Sequence
 import contextlib
 import importlib.abc
 import importlib.machinery
+import inspect
 import sys
 from types import ModuleType
 from typing import Any
@@ -40,7 +41,8 @@ class ProblemDirective(SphinxDirective):
 
         problem_id = self.arguments[0].strip()
         problem = BUILTIN_PROBLEMS[problem_id]
-        docstring = unindent(problem.__doc__) if problem.__doc__ is not None else None
+        docstring = unindent(problem.__doc__) if problem.__doc__ is not None else ""
+        docstring = inspect.cleandoc(docstring)
 
         image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="450px", align="center")
 
@@ -53,7 +55,7 @@ class ProblemDirective(SphinxDirective):
             ("Objectives", make_multiline(objectives)),
             ("Conditions", make_multiline(conditions)),
             ("Dataset", make_link(problem.dataset_id, f"https://huggingface.co/datasets/{problem.dataset_id}")),
-            ("Container", make_code(problem.container_id) if problem.container_id is not None else ""),
+            ("Container", make_code(problem.container_id) if problem.container_id is not None else None),
             ("Import", make_code(f"from {problem.__module__} import {problem.__name__}")),
         ]
 
@@ -99,6 +101,8 @@ def make_table(tab_data: list[tuple[str, Any]]) -> nodes.table:
     tgroup += nodes.colspec()
     tbody = nodes.tbody()
     for key, val in tab_data:
+        if val is None:
+            continue
         row = nodes.row()
         row += nodes.entry("", nodes.paragraph(text=key))
         p = [nodes.paragraph(text=val)] if isinstance(val, str) else val
