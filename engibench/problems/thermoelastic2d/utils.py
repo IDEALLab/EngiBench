@@ -48,7 +48,7 @@ def binary_matrix_to_indices(matrix: npt.NDArray) -> npt.NDArray:
     return np.where(matrix_flat == 1)[0]
 
 
-def indices_to_binary_matrix(indices: list[int], nelx: int, nely: int) -> npt.NDArray:
+def indices_to_binary_matrix(indices: list[int], nelx: int, nely: int) -> npt.NDArray[np.int64]:
     """Converts a list of indices to a binary matrix of a specific size.
 
     Args:
