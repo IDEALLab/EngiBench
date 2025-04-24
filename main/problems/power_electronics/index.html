@@ -44,6 +44,8 @@
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
     <link rel="search" title="Search" href="../../search/" />
+    <link rel="next" title="Heat Conduction" href="../heatconduction/" />
+    <link rel="prev" title="Photonics2D" href="../photonics2d/" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -106,8 +108,6 @@
       
       
       
-        
-      
       <div class="bd-sidebar-primary bd-sidebar">
         
 
@@ -168,16 +168,17 @@
 <li class="toctree-l1"><a class="reference internal" href="../../introduction/api/">API</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Problems</span></p>
-<ul class="nav bd-sidenav">
+<ul class="current nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">PowerElectronics</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">Heat Conduction 2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">Heat Conduction 3D</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
@@ -496,7 +497,7 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="powerelectronics">
+  <section class="tex2jax_ignore mathjax_ignore" id="powerelectronics">
 <h1>PowerElectronics<a class="headerlink" href="#powerelectronics" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="../../_images/power_electronics.png"><img alt="../../_images/power_electronics.png" class="align-center" src="../../_images/power_electronics.png" style="width: 450px;" />
 </a>
@@ -521,16 +522,17 @@ document.write(`
 <tr class="row-odd"><td><p>Dataset</p></td>
 <td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/power_electronics_v0">IDEALLab/power_electronics_v0</a></p></td>
 </tr>
-<tr class="row-even"><td><p>Container</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-odd"><td><p>Import</p></td>
+<tr class="row-even"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.power_electronics.v0</span> <span class="pre">import</span> <span class="pre">PowerElectronics</span></code></p></td>
 </tr>
 </tbody>
 </table>
 </div>
 <p>Power Electronics parameter optimization problem.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This problem requires <code class="docutils literal notranslate"><span class="pre">ngspice</span></code> to be installed. See the simulator section for more details.</p>
+</div>
 <section id="problem-description">
 <h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
 <p>This problem simulates a power converter circuit which has a fixed circuit topology. There are 5 switches, 4 diodes, 3 inductors and 6 capacitors.
@@ -570,7 +572,7 @@ As a result, each switch can be on -&gt; off, on -&gt; on, off -&gt; on, or off 
 <h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
 <p>The simulator is ngSpice circuit simulator. You can download it based on your operating system:</p>
 <ul class="simple">
-<li><p>Windows: https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/</p></li>
+<li><p>Windows: <a class="reference external" href="https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/">https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/</a></p></li>
 <li><p>MacOS: <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">ngspice</span></code></p></li>
 <li><p>Linux: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">ngspice</span></code></p></li>
 </ul>
@@ -622,6 +624,24 @@ Here are the 3 parts:</p>
                 <footer class="prev-next-footer d-print-none">
                   
 <div class="prev-next-area">
+    <a class="left-prev"
+       href="../photonics2d/"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Photonics2D</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../heatconduction/"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Heat Conduction</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
 </div>
                 </footer>
               

@@ -40,12 +40,14 @@
     <script src="../../_static/doctools.js?v=9bcbadda"></script>
     <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'problems/photonics2d';</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
     <link rel="search" title="Search" href="../../search/" />
-    <link rel="next" title="Running in containers" href="../../utils/container/" />
-    <link rel="prev" title="Heat Conduction 3D" href="../heatconduction3d/" />
+    <link rel="next" title="PowerElectronics" href="../power_electronics/" />
+    <link rel="prev" title="Thermoelastic2D" href="../thermoelastic2d/" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -172,12 +174,13 @@
 <li class="toctree-l1"><a class="reference internal" href="../airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../power_electronics/">PowerElectronics</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">Heat Conduction 2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">Heat Conduction 3D</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">Photonics2D</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
@@ -498,7 +501,7 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="photonics2d">
+  <section class="tex2jax_ignore mathjax_ignore" id="photonics2d">
 <h1>Photonics2D<a class="headerlink" href="#photonics2d" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="../../_images/photonics2d.png"><img alt="../../_images/photonics2d.png" class="align-center" src="../../_images/photonics2d.png" style="width: 450px;" />
 </a>
@@ -522,10 +525,7 @@ document.write(`
 <tr class="row-odd"><td><p>Dataset</p></td>
 <td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0">IDEALLab/photonics_2d_120_120_v0</a></p></td>
 </tr>
-<tr class="row-even"><td><p>Container</p></td>
-<td><p></p></td>
-</tr>
-<tr class="row-odd"><td><p>Import</p></td>
+<tr class="row-even"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.photonics2d.v0</span> <span class="pre">import</span> <span class="pre">Photonics2D</span></code></p></td>
 </tr>
 </tbody>
@@ -631,9 +631,9 @@ gradients computed via automatic differentiation (<code class="docutils literal 
 <h4>Creation Method<a class="headerlink" href="#creation-method" title="Link to this heading">#</a></h4>
 <p>To generate a dataset for training, we generate (randomly, uniformly) swept over the following parameters:</p>
 <ul class="simple">
-<li><p>$\lambda_1 \in [0.5μm,1.25μm]$ = <code class="docutils literal notranslate"><span class="pre">lambda1</span></code> = <code class="docutils literal notranslate"><span class="pre">rng.uniform(low=0.5,</span> <span class="pre">high=1.25,</span> <span class="pre">size=20)</span></code> – This corresponds roughly to a portion of the visible spectrum up to near-infrared.</p></li>
-<li><p>$\lambda_2 \in [0.75μm,1.5μm]$$ = <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> = <code class="docutils literal notranslate"><span class="pre">rng.uniform(low=0.75,</span> <span class="pre">high=1.5,</span> <span class="pre">size=20)</span></code> – This corresponds roughly to a portion of the visible spectrum up to near-infrared.</p></li>
-<li><p>$r_{blur}$ = <code class="docutils literal notranslate"><span class="pre">blur_radius</span></code> = <code class="docutils literal notranslate"><span class="pre">range(0,</span> <span class="pre">5)</span></code></p></li>
+<li><p><span class="math notranslate nohighlight">\(\lambda_1 \in [0.5\mu m, 1.25\mu m]\)</span> = <code class="docutils literal notranslate"><span class="pre">lambda1</span></code> = <code class="docutils literal notranslate"><span class="pre">rng.uniform(low=0.5,</span> <span class="pre">high=1.25,</span> <span class="pre">size=20)</span></code> – This corresponds roughly to a portion of the visible spectrum up to near-infrared.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\lambda_2 \in [0.75\mu m, 1.5\mu m]\)</span> = <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> = <code class="docutils literal notranslate"><span class="pre">rng.uniform(low=0.75,</span> <span class="pre">high=1.5,</span> <span class="pre">size=20)</span></code> – This corresponds roughly to a portion of the visible spectrum up to near-infrared.</p></li>
+<li><p><span class="math notranslate nohighlight">\(r_{blur}\)</span> = <code class="docutils literal notranslate"><span class="pre">blur_radius</span></code> = <code class="docutils literal notranslate"><span class="pre">range(0,</span> <span class="pre">5)</span></code></p></li>
 </ul>
 </section>
 </section>
@@ -675,20 +675,20 @@ provided by the original library authors:</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../heatconduction3d/"
+       href="../thermoelastic2d/"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Heat Conduction 3D</p>
+        <p class="prev-next-title">Thermoelastic2D</p>
       </div>
     </a>
     <a class="right-next"
-       href="../../utils/container/"
+       href="../power_electronics/"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Running in containers</p>
+        <p class="prev-next-title">PowerElectronics</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>

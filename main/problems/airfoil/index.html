@@ -172,12 +172,13 @@
 <li class="toctree-l1 current active"><a class="current reference internal" href="#">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../power_electronics/">PowerElectronics</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">Heat Conduction 2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">Heat Conduction 3D</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
@@ -496,7 +497,7 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="airfoil">
+  <section class="tex2jax_ignore mathjax_ignore" id="airfoil">
 <h1>Airfoil<a class="headerlink" href="#airfoil" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="_static/img/problems/airfoil.png"><img alt="_static/img/problems/airfoil.png" class="align-center" src="_static/img/problems/airfoil.png" style="width: 450px;" />
 </a>
@@ -534,6 +535,10 @@ document.write(`
 </table>
 </div>
 <p>Airfoil 2D shape optimization problem.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This problem requires <code class="docutils literal notranslate"><span class="pre">gcc</span></code> and <code class="docutils literal notranslate"><span class="pre">gfortran</span></code> to be installed. See the simulator section for more details.</p>
+</div>
 <section id="problem-description">
 <h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
 <p>This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the <a class="reference external" href="https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/">MACH-Aero</a> simulator that computes the lift and drag coefficients of the airfoil.</p>
@@ -563,7 +568,12 @@ document.write(`
 </section>
 <section id="simulator">
 <h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
-<p>The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil.</p>
+<p>The simulator is a docker container with the MACH-Aero software that computes the lift and drag coefficients of the airfoil. You can install gcc and gfortran on your system with your package manager.</p>
+<ul class="simple">
+<li><p>On Ubuntu: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">gcc</span> <span class="pre">gfortran</span></code></p></li>
+<li><p>On MacOS: <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">gcc</span> <span class="pre">gfortran</span></code></p></li>
+<li><p>On Windows (WSL): <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt</span> <span class="pre">install</span> <span class="pre">build-essential</span></code></p></li>
+</ul>
 </section>
 <section id="dataset">
 <h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>

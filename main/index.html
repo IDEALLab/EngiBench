@@ -173,12 +173,13 @@
 <li class="toctree-l1"><a class="reference internal" href="problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="problems/thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="problems/photonics2d/">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="problems/power_electronics/">PowerElectronics</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="problems/heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="problems/heatconduction2d/">Heat Conduction 2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="problems/heatconduction3d/">Heat Conduction 3D</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="problems/photonics2d/">Photonics2D</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
@@ -487,7 +488,7 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section id="engibench-a-standard-api-open-source-datasets-and-benchmarks-for-engineering-design">
+  <section class="tex2jax_ignore mathjax_ignore" id="engibench-a-standard-api-open-source-datasets-and-benchmarks-for-engineering-design">
 <h1>EngiBench: A standard API, Open-Source Datasets and Benchmarks for Engineering Design<a class="headerlink" href="#engibench-a-standard-api-open-source-datasets-and-benchmarks-for-engineering-design" title="Link to this heading">#</a></h1>
 <p>EngiBench offers a collection of engineering design problems, datasets, and benchmarks to facilitate the development and evaluation of optimization and machine learning algorithms for engineering design. Our goal is to provide a standard API to enable researchers to easily compare and evaluate their algorithms on a wide range of engineering design problems.</p>
 <section id="api">
@@ -524,6 +525,10 @@ document.write(`
 </div>
 <p>You can also specify additional dependencies for specific problems:</p>
 <div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;engibench[airfoil]&quot;</span>
+</pre></div>
+</div>
+<p>Or you can install all dependencies for all problems:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;engibench[all]&quot;</span>
 </pre></div>
 </div>
 </section>
