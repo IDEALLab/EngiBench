@@ -29,7 +29,11 @@ if __name__ == "__main__":
     coords = prefoil.utils.readCoordFile($design_fname)
     airfoil = prefoil.Airfoil(coords)
     print("Running pre-process.py")
-    airfoil.makeBluntTE(xCut=$xCut)
+    input_blunted = $input_blunted
+    if not input_blunted:
+        airfoil.normalizeAirfoil()
+        airfoil.makeBluntTE(xCut=$xCut)
+
     N_sample = $N_sample
     nTEPts = $nTEPts
 
@@ -49,6 +53,7 @@ if __name__ == "__main__":
 
     # write out plot3d
     airfoil.writeCoords($tmp_xyz_fname, file_format="plot3d")
+    airfoil.writeCoords($tmp_xyz_fname, file_format="dat")
 
     # GenOptions
     options = {
