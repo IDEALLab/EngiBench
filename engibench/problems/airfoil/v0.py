@@ -192,8 +192,8 @@ class Airfoil(Problem[DesignType]):
         # Scale the design to fit in the design space
         scaled_design, input_blunted = scale_coords(
             design["coords"],
-            blunted=base_config["input_blunted"],
-            xcut=base_config["xCut"],
+            blunted=bool(base_config["input_blunted"]),
+            xcut=   float(base_config["xCut"]),
         )
         base_config["input_blunted"] = input_blunted
 

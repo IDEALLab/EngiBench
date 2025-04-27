@@ -187,7 +187,9 @@ def _align_coordinates(
     """
     max_x = np.amax(coords_x_reordered) * err_x
     max_x_ids = np.argwhere(np.abs(coords_x_reordered - np.amax(coords_x_reordered)) < err).reshape(-1, 1)
-    max_x_ids = max_x_ids[coords_x_reordered[max_x_ids] >= max_x]
+    # Maintain (N,1) shape by using boolean indexing and reshaping
+    mask = coords_x_reordered[max_x_ids.ravel()] >= max_x
+    max_x_ids = max_x_ids[mask].reshape(-1, 1)
 
     # Get the y values at the maximum x values
     max_x_y_values = coords_y_reordered[max_x_ids]
