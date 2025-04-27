@@ -218,7 +218,7 @@ class Airfoil(Problem[DesignType]):
 
             container.run(
                 command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,  # type: ignore
+                image=self.container_id,  # type: ignore[attr-defined]
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
@@ -463,7 +463,7 @@ class Airfoil(Problem[DesignType]):
         """
         # docker pull image if not already pulled
         if container.RUNTIME is not None:
-            container.pull(self.container_id)  # type: ignore
+            container.pull(self.container_id)  # type: ignore[attr-defined]
         # pre-process the design and run the simulation
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
@@ -502,7 +502,7 @@ class Airfoil(Problem[DesignType]):
             )
             container.run(
                 command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,  # type: ignore
+                image=self.container_id,  # type: ignore[attr-defined]
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
@@ -531,7 +531,7 @@ class Airfoil(Problem[DesignType]):
         """
         # docker pull image if not already pulled
         if container.RUNTIME is not None:
-            container.pull(self.container_id)  # type: ignore
+            container.pull(self.container_id)  # type: ignore[attr-defined]
         # pre-process the design and run the simulation
         filename = "candidate_design"
 
@@ -575,7 +575,7 @@ class Airfoil(Problem[DesignType]):
             )
             container.run(
                 command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,  # type: ignore
+                image=self.container_id,  # type: ignore[attr-defined]
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
@@ -628,8 +628,8 @@ class Airfoil(Problem[DesignType]):
         Returns:
             tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # type: ignore
-        initial_design = self.dataset["train"]["initial_design"][rnd]  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # type: ignore[attr-defined]
+        initial_design = self.dataset["train"]["initial_design"][rnd]  # type: ignore[attr-defined]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
     def _calc_off_wall_distance(  # noqa: PLR0913
@@ -707,7 +707,7 @@ class Airfoil(Problem[DesignType]):
     def _scale_coords(
         self,
         coords: npt.NDArray[np.float64],
-        blunted: bool = False,
+        blunted: bool = False,  # noqa: FBT001, FBT002
         xcut: float = 0.99,
         min_trailing_edge_indices: float = 6,
     ) -> tuple[npt.NDArray[np.float64], bool]:
@@ -786,7 +786,7 @@ if __name__ == "__main__":
     # Get design and conditions from the dataset
     # Print Dataset object keys
     design, idx = problem.random_design()
-    config = dataset["train"].select_columns(problem.conditions_keys)[idx]  # type: ignore
+    config = dataset["train"].select_columns(problem.conditions_keys)[idx]  # type: ignore[attr-defined]
 
     print(problem.simulate(design, config=config, mpicores=8))
 
