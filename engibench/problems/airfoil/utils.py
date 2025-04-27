@@ -199,7 +199,7 @@ def _align_coordinates(
 
     # Get the id of the value closest to the mean y value at the x value of the maximum y value
     mean_y_value_sub_id = np.argmin(np.abs(max_x_y_values - mean_y_value))
-    mean_y_value_id = max_x_ids[mean_y_value_sub_id]
+    mean_y_value_id = max_x_ids[mean_y_value_sub_id].item()
 
     # Now reorder the coordinates such that the mean y value is first
     coords_x_reordered = np.concatenate((coords_x_reordered[mean_y_value_id:], coords_x_reordered[:mean_y_value_id]))
@@ -252,8 +252,8 @@ def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
     connectivities = np.concatenate((node_c1.reshape(-1, 1), node_c2.reshape(-1, 1)), axis=1)
 
     # Get coordinates
-    coords_x = df_slice["CoordinateX"].as_numpy()
-    coords_y = df_slice["CoordinateY"].as_numpy()
+    coords_x = df_slice["CoordinateX"].to_numpy()
+    coords_y = df_slice["CoordinateY"].to_numpy()
     indices = np.arange(len(df_slice))
 
     # Identify segments

@@ -239,11 +239,11 @@ class Airfoil(Problem[DesignType]):
 
         return filename
 
-    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
+    def simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
         """Converts a simulator output to a design.
 
         Args:
-            simulator_output (str): The simulator output to convert.
+            simulator_output (str): The simulator output to convert. If None, the latest slice file is used.
 
         Returns:
             np.ndarray: The corresponding design.
@@ -435,7 +435,7 @@ class Airfoil(Problem[DesignType]):
 
         history.close()
 
-        opt_coords = self.__simulator_output_to_design()
+        opt_coords = self.simulator_output_to_design()
 
         return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
@@ -484,4 +484,5 @@ if __name__ == "__main__":
     print(problem.simulate(design, config=config, mpicores=8))
 
     # Get design and conditions from the dataset, render design
-    design_tuple, optisteps_history = problem.optimize(design, config=config, mpicores=8)
+    opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
+    problem.render(opt_design, open_window=True)
