@@ -42,7 +42,6 @@ class Airfoil(Problem[DesignType]):
     The objectives are defined and indexed as follows:
 
     0. `cd`: Drag coefficient to minimize.
-    1. `cl`: Lift coefficient to maximize.
 
     ## Conditions
     The conditions are defined by the following parameters:
@@ -81,10 +80,7 @@ class Airfoil(Problem[DesignType]):
     """
 
     version = 0
-    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
-        ("cd", ObjectiveDirection.MINIMIZE),
-        ("cl", ObjectiveDirection.MAXIMIZE),
-    )
+    objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("cd", ObjectiveDirection.MINIMIZE),)
     conditions: tuple[tuple[str, Any], ...] = (
         ("mach", 0.8),
         ("reynolds", 1e6),
@@ -159,7 +155,7 @@ class Airfoil(Problem[DesignType]):
         # Scale the design to fit in the design space
         scaled_design = self._scale_coords(design["coords"])
         # Save the design to a temporary file
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())  # type: ignore  # noqa: PGH003
         tmp = os.path.join(self.__docker_study_dir, "tmp")
 
         base_config = {
@@ -177,6 +173,7 @@ class Airfoil(Problem[DesignType]):
             "N_grid": 100,
             "estimate_s0": True,
             "make_input_design_blunt": True,
+            "input_blunted": False,
         }
 
         # Calculate the off-the-wall distance
@@ -191,6 +188,17 @@ class Airfoil(Problem[DesignType]):
 
         # Adds the boundary conditions to the configuration
         base_config.update(self.conditions)
+
+        # Scale the design to fit in the design space
+        scaled_design, input_blunted = self._scale_coords(  # type: ignore  # noqa: PGH003
+            design["coords"],
+            blunted=base_config["input_blunted"],
+            xcut=base_config["xCut"],  # type: ignore  # noqa: PGH003
+        )
+        base_config["input_blunted"] = input_blunted
+
+        # Save the design to a temporary file. Format to 1e-6 rounding
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())  # type: ignore  # noqa: PGH003
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
@@ -232,15 +240,6 @@ class Airfoil(Problem[DesignType]):
         return filename
 
     def __reorder_coords(self, df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:  # noqa: PLR0915
-        """Reorder the coordinates of a slice such that the segments are ordered correctly. WIP temporary code.
-
-        Args:
-            df_slice (pd.DataFrame): The raw dataframe slice.
-
-        Returns:
-            coords_reordered (np.ndarray): The reordered x and y coordinates of the slice.
-        """
-        # Now get connectivities
         node_c1 = np.array(df_slice["NodeC1"].dropna().values).astype(int)  # A list of [1,2,3,4,...]
         node_c2 = np.array(df_slice["NodeC2"].dropna().values).astype(int)  # A list of [2,3,4,5,...]
         connectivities = np.concatenate(
@@ -254,105 +253,155 @@ class Airfoil(Problem[DesignType]):
         # We also have XoC YoC ZoC VelocityX VelocityY VelocityZ CoefPressure Mach
         # We would like to reorder these values in the same way as the coordinates, so we keep track of the indices
         indices = np.arange(len(df_slice))
-        id_breaks_start_id = [0]
-        id_breaks_end_id = []
+        id_breaks_start = [0]
+        id_breaks_end = []
         prev_id = 0
         segment_ids = np.zeros(len(connectivities))
         seg_id = 0
-
         for j in range(len(connectivities)):
             if connectivities[j][0] - 1 != prev_id:
                 # This means that we have a new set of points
-                id_breaks_start_id.append(connectivities[j][0] - 1)
-                id_breaks_end_id.append(prev_id)
+                id_breaks_start.append(connectivities[j][0] - 1)
+                id_breaks_end.append(prev_id)
                 seg_id += 1
             segment_ids[j] = seg_id
 
             prev_id = connectivities[j][1] - 1
 
-        id_breaks_end_id.append(j)
-
+        id_breaks_end.append(j)
         unique_segment_ids = np.arange(seg_id + 1)
+
         new_seg_order = unique_segment_ids.copy()
 
         # Loop over and sort the segments such that the end of each x and y coordinate for each segment is the start of the next segment
         # Loop through the segment ids
-        seg_coords_start_x = coords_x[id_breaks_start_id]
-        seg_coords_start_y = coords_y[id_breaks_start_id]
-        seg_coords_end_x = coords_x[id_breaks_end_id]
-        seg_coords_end_y = coords_y[id_breaks_end_id]
+        seg_coords_start_x = coords_x[id_breaks_start]
+        seg_coords_start_y = coords_y[id_breaks_start]
+        seg_coords_end_x = coords_x[id_breaks_end]
+        seg_coords_end_y = coords_y[id_breaks_end]
 
-        err = 1e-8
-        for j in range(len(unique_segment_ids)):
-            seg_coords_start_x_j = seg_coords_start_x[j]
-            seg_coords_start_y_j = seg_coords_start_y[j]
-            seg_coords_end_x_j = seg_coords_end_x[j]
-            seg_coords_end_y_j = seg_coords_end_y[j]
-            # Loop through the segment ids
-            seg_x_diff_start = np.abs(seg_coords_start_x_j - seg_coords_end_x)
-            seg_y_diff_start = np.abs(seg_coords_start_y_j - seg_coords_end_y)
-            seg_tot_diff_start = seg_x_diff_start + seg_y_diff_start
-            seg_tot_diff_min_id_start = np.argmin(seg_tot_diff_start)
-            seg_tot_diff_min_start = seg_tot_diff_start[seg_tot_diff_min_id_start]
+        seg_coords_end_x_idx = seg_coords_end_x[0]
+        seg_coords_end_y_idx = seg_coords_end_y[0]
+        seg_coords_start_x_idx = seg_coords_start_x[0]
+        seg_coords_start_y_idx = seg_coords_start_y[0]
 
-            seg_x_diff_end = np.abs(seg_coords_end_x_j - seg_coords_start_x)
-            seg_y_diff_end = np.abs(seg_coords_end_y_j - seg_coords_start_y)
-            seg_tot_diff_end = seg_x_diff_end + seg_y_diff_end
-            seg_tot_diff_min_id_end = np.argmin(seg_tot_diff_end)
+        ordered_ids = [unique_segment_ids[0]]
 
-            new_seg_order_temp = unique_segment_ids.copy()
+        # Loop through and find the end or start of a segment that matches the start of the current segment
+        while len(ordered_ids) < len(unique_segment_ids):
+            # Calculate the distance between the end of the current segment and the start of all other segments
+            diff_end_idx_start_tot = np.sqrt(
+                np.square(seg_coords_end_x_idx - seg_coords_start_x) + np.square(seg_coords_end_y_idx - seg_coords_start_y)
+            )
+            diff_start_idx_start_tot = np.sqrt(
+                np.square(seg_coords_start_x_idx - seg_coords_start_x)
+                + np.square(seg_coords_start_y_idx - seg_coords_start_y)
+            )
+            # Get the minimum distance excluding the current ordered segments)
+            diff_end_idx_start_tot[np.abs(ordered_ids)] = np.inf
+            diff_start_idx_start_tot[np.abs(ordered_ids)] = np.inf
+            diff_end_idx_start_tot_id = np.argmin(diff_end_idx_start_tot)
+            diff_end_idx_start_tot_min = diff_end_idx_start_tot[diff_end_idx_start_tot_id]
 
-            if seg_tot_diff_min_start > err:
-                # No segment matches, so we have found the starting segment
-                # Now we need to reorder the segments
-                # Put the first segment in the first position
-                new_seg_order_temp[0] = unique_segment_ids[j]
-                new_seg_order_temp[j] = unique_segment_ids[0]
-                # Now choose the id that is minimum; i.e we match the end of the first segment to the start of the next most likely segment
-                new_seg_order_temp[1] = unique_segment_ids[seg_tot_diff_min_id_end]
-                new_seg_order_temp[seg_tot_diff_min_id_end] = unique_segment_ids[1]
-                # Now loop through the remaining segments and match the end of the previous segment to the start of the next most likely segment, breaking if we reach the end
-                for k in range(2, len(unique_segment_ids)):
-                    # Get the previous segment id
-                    prev_seg_id = new_seg_order_temp[k - 1]
-                    # Get the previous segment end coordinates
-                    prev_seg_end_x = seg_coords_end_x[prev_seg_id]
-                    prev_seg_end_y = seg_coords_end_y[prev_seg_id]
-                    # Get the remaining segment ids
-                    remaining_seg_ids = np.setdiff1d(unique_segment_ids, new_seg_order_temp[:k])
-                    # Get the remaining segment start coordinates
-                    remaining_seg_start_x = seg_coords_start_x[remaining_seg_ids]
-                    remaining_seg_start_y = seg_coords_start_y[remaining_seg_ids]
-                    # Get the remaining segment end coordinates
-                    # Get the difference between the previous segment end coordinates and the remaining segment start coordinates
-                    remaining_seg_x_diff = np.abs(prev_seg_end_x - remaining_seg_start_x)
-                    remaining_seg_y_diff = np.abs(prev_seg_end_y - remaining_seg_start_y)
-                    remaining_seg_tot_diff = remaining_seg_x_diff + remaining_seg_y_diff
-                    # Get the minimum difference
-                    remaining_seg_tot_diff_min_id = np.argmin(remaining_seg_tot_diff)
-                    # Now get the id of the remaining segment that matches the previous segment end coordinates
-                    remaining_seg_id = remaining_seg_ids[remaining_seg_tot_diff_min_id]
-                    # Now put the remaining segment id in the next position
-                    new_seg_order_temp[k] = remaining_seg_id
+            # Calculate the distance between the end of the current segment and the end of all other segments
+            diff_end_idx_end_tot = np.sqrt(
+                np.square(seg_coords_end_x_idx - seg_coords_end_x) + np.square(seg_coords_end_y_idx - seg_coords_end_y)
+            )
+            # Get the minimum distance excluding the current segment
+            diff_end_idx_end_tot[np.abs(ordered_ids)] = np.inf
+            diff_end_idx_end_tot_id = np.argmin(diff_end_idx_end_tot)
+            diff_end_idx_end_tot_min = diff_end_idx_end_tot[diff_end_idx_end_tot_id]
+            # If the end of the current segment matches the start of another segment,
+            # we have found the correct order
+            if diff_end_idx_start_tot_min < diff_end_idx_end_tot_min:
+                # Append the matching segment id to the ordered ids
+                ordered_ids.append(diff_end_idx_start_tot_id)
+                # Update the current segment end coordinates
+                seg_coords_end_x_idx = seg_coords_end_x[diff_end_idx_start_tot_id]
+                seg_coords_end_y_idx = seg_coords_end_y[diff_end_idx_start_tot_id]
+            else:
+                # If the end of the current segment matches the end of another segment,
+                # the segment we append must be in reverse order
+                # We make the sign of the segment id negative to indicate reverse order
+                ordered_ids.append(-diff_end_idx_end_tot_id)
+                # Update the current segment end coordinates;
+                # Because of reversal, we use the start of the segment we are appending as the new end coordinates
+                seg_coords_end_x_idx = seg_coords_start_x[diff_end_idx_end_tot_id]
+                seg_coords_end_y_idx = seg_coords_start_y[diff_end_idx_end_tot_id]
 
-                # Now we have a new segment order
-                new_seg_order = new_seg_order_temp
-                break
+        # Now we have the new order of the segments
+        new_seg_order = np.array(ordered_ids)
 
-        # We can use the new order to plot all segments at once
         # Concatenate the segments in the new order
         coords_x_reordered = np.array([])
         coords_y_reordered = np.array([])
         indices_reordered = np.array([])
 
         for j in range(len(new_seg_order)):
-            segment = np.nonzero(segment_ids == new_seg_order[j])[0]
-            coords_x_segment = coords_x[connectivities[segment] - 1][:, 0]
-            coords_y_segment = coords_y[connectivities[segment] - 1][:, 0]
-            indices_segment = indices[connectivities[segment] - 1][:, 0]
+            if new_seg_order[j] < 0:
+                segment = np.nonzero(segment_ids == -new_seg_order[j])[0]
+                coords_x_segment = coords_x[connectivities[segment] - 1][:, 0][::-1]
+                coords_y_segment = coords_y[connectivities[segment] - 1][:, 0][::-1]
+                indices_segment = indices[connectivities[segment] - 1][:, 0][::-1]
+            else:
+                segment = np.nonzero(segment_ids == new_seg_order[j])[0]
+                coords_x_segment = coords_x[connectivities[segment] - 1][:, 0]
+                coords_y_segment = coords_y[connectivities[segment] - 1][:, 0]
+                indices_segment = indices[connectivities[segment] - 1][:, 0]
             coords_x_reordered = np.concatenate((coords_x_reordered, coords_x_segment))
             coords_y_reordered = np.concatenate((coords_y_reordered, coords_y_segment))
             indices_reordered = np.concatenate((indices_reordered, indices_segment))
+
+        err = 1e-4
+        err_x = 0.90
+        max_x = np.amax(coords_x_reordered) * err_x
+        max_x_ids = np.argwhere(np.abs(coords_x_reordered - np.amax(coords_x_reordered)) < err).reshape(-1, 1)
+        max_x_ids = max_x_ids[coords_x_reordered[max_x_ids] >= max_x]
+        # Get the y values at the maximum x values
+        max_x_y_values = coords_y_reordered[max_x_ids]
+        # Get the maximum y value
+        max_y_value_id = np.argmax(max_x_y_values)
+        max_y_value = max_x_y_values[max_y_value_id]
+        # Get the minimum y value
+        min_y_value_id = np.argmin(max_x_y_values)
+        min_y_value = max_x_y_values[min_y_value_id]
+
+        # Get the id of the value closest to the mean of the maximum and minimum y values
+        mean_y_value = (max_y_value + min_y_value) / 2
+        # Get the id of the value closest to the mean y value at the x value of the maximum y value
+        mean_y_value_sub_id = np.argmin(np.abs(max_x_y_values - mean_y_value))
+        mean_y_value_id = max_x_ids[mean_y_value_sub_id]
+        # Now reorder the coordinates such that the mean y value is first
+        coords_x_reordered = np.concatenate((coords_x_reordered[mean_y_value_id:], coords_x_reordered[:mean_y_value_id]))
+        coords_y_reordered = np.concatenate((coords_y_reordered[mean_y_value_id:], coords_y_reordered[:mean_y_value_id]))
+        indices_reordered = np.concatenate((indices_reordered[mean_y_value_id:], indices_reordered[:mean_y_value_id]))
+        # Finally, check the direction of the coordinates and reverse if necessary
+        # Randomly get the 20th coordinate and check if the x value is
+        # greater than the x value of the first coordinate, and the y value is greater than the y value on the lower surface
+        # Get the y value on the lower surface that is approximately at the same x value as the 20th coordinate
+        x_lower_surf_values = coords_x_reordered[-20:]
+        y_lower_surf_values = coords_y_reordered[-20:]
+        y_lower_surf_value_id = np.argmin(np.abs(x_lower_surf_values - coords_x_reordered[20]))
+        y_lower_surf_value = y_lower_surf_values[y_lower_surf_value_id]
+
+        # if the upper surface is going right to left, reverse the coordinates.
+        # We can also tell whether our assumption about the upper surface is correct by checking if the y value of the 20th coordinate is greater than the y value of the lower surface
+        if coords_y_reordered[20] < y_lower_surf_value:
+            coords_x_reordered = coords_x_reordered[::-1]
+            coords_y_reordered = coords_y_reordered[::-1]
+            indices_reordered = indices_reordered[::-1]
+
+        # Lastly, remove any successive duplicate coordinates
+        err_remove = 1e-6
+        removal_ids = np.where(np.abs(np.diff(coords_x_reordered) + np.diff(coords_y_reordered)) < err_remove)[0]
+        indices_reordered = np.delete(indices_reordered, removal_ids)
+        coords_x_reordered = np.delete(coords_x_reordered, removal_ids)
+        coords_y_reordered = np.delete(coords_y_reordered, removal_ids)
+
+        # Concatenate the the first coordinate to the end of the array
+        coords_x_reordered = np.concatenate((coords_x_reordered, np.expand_dims(coords_x_reordered[0], axis=0)))
+        coords_y_reordered = np.concatenate((coords_y_reordered, np.expand_dims(coords_y_reordered[0], axis=0)))
+        indices_reordered = np.concatenate((indices_reordered, np.expand_dims(indices_reordered[0], axis=0)))
 
         return np.array([coords_x_reordered, coords_y_reordered])
 
@@ -538,14 +587,16 @@ class Airfoil(Problem[DesignType]):
         # post process -- extract the shape and objective values
         optisteps_history = []
         history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
+        iters = list(map(int, history.getCallCounters()[:]))
 
-        # TODO(cashend): return the full history of the optimization instead of just the last step
-        # Also, this is inconsistent with the definition of the problem saying we optimize 2 objectives...
-        # https://github.com/IDEALLab/EngiBench/issues/15
-        objective = history.getValues(names=["obj"], callCounters=None, allowSens=False, major=False, scale=True)["obj"][
-            -1, -1
-        ]
-        optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=0))
+        for i in range(len(iters)):
+            vals = history.read(int(iters[i]))
+            if vals is not None and "funcs" in vals and "obj" in vals["funcs"] and not vals["fail"]:
+                objective = history.getValues(names=["obj"], callCounters=[i], allowSens=False, major=False, scale=True)[
+                    "obj"
+                ]
+                optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=vals["iter"]))
+
         history.close()
 
         opt_coords = self.__simulator_output_to_design()
@@ -579,7 +630,7 @@ class Airfoil(Problem[DesignType]):
         Returns:
             tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # pyright: ignore[reportOptionalMemberAccess]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)
         initial_design = self.dataset["train"]["initial_design"][rnd]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
@@ -619,29 +670,28 @@ class Airfoil(Problem[DesignType]):
         # Off wall distance
         return yplus * mu / (rho * uTau)
 
-    def _scale_coords(self, coords: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
-        """Scales the coordinates to fit in the design space.
+    def _is_blunted(self, coords: npt.NDArray[np.float64], delta_x_tol: float = 1e-5) -> bool:
+        """Checks if the coordinates are blunted or not.
 
         Args:
-            coords (np.ndarray): The coordinates to scale.
+            coords (np.ndarray): The coordinates to check.
+            delta_x_tol (float): The tolerance for the x coordinate difference.
 
         Returns:
-            np.ndarray: The scaled coordinates.
+            bool: True if the coordinates are blunted, False otherwise.
         """
-        # Align coordinates to [0,1]
-        y_dist = coords[1, 0]
-        x_dist = 1 - coords[0, 0]
-        coords[0, :] += x_dist
-        coords[1, :] += -y_dist
+        # Check if the coordinates going away from the tip have a small delta y
+        coords_x = coords[0, :]
+        # Get all of the trailing edge indices, i.e where consecutive x coordinates are the same
+        x_gt = np.max(coords_x) * 0.99
+        trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < delta_x_tol)[0]
+        trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < delta_x_tol)[0]
+        # Include any indices that are in either list
+        trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
+        trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
 
-        coords[0, :] = coords[0, :] - coords[0, 0] + 1
-        coords[1, :] = coords[1, :] - coords[1, 0]
-
-        coords[0, 0] = 1
-        coords[1, 0] = 0
-        coords[0, -1] = 1
-        coords[1, -1] = 0
-        return coords
+        # check if we have no trailing edge indices
+        return not len(trailing_edge_indices) <= 1
 
     def _calc_area(self, coords: npt.NDArray[np.float32]) -> float:
         """Calculates the area of the airfoil.
@@ -656,6 +706,79 @@ class Airfoil(Problem[DesignType]):
             np.sum(coords[0, :] * np.roll(coords[1, :], -1)) - np.sum(coords[1, :] * np.roll(coords[0, :], -1))
         )
 
+    def _scale_coords(
+        self,
+        coords: npt.NDArray[np.float64],
+        blunted: bool = False,  # noqa: FBT001, FBT002
+        xcut: float = 0.99,
+        min_trailing_edge_indices: float = 6,
+    ) -> tuple[npt.NDArray[np.float64], bool]:
+        """Scales the coordinates to fit in the design space.
+
+        Args:
+            coords (np.ndarray): The coordinates to scale.
+            blunted (bool): If True, the coordinates are assumed to be blunted.
+            xcut (float): The x coordinate of the cut, if the coordinates are blunted.
+            min_trailing_edge_indices (int): The minimum number of trailing edge indices to remove.
+
+        Returns:
+            np.ndarray: The scaled coordinates.
+        """
+        # Test if the coordinates are blunted or not
+        if not (blunted) and self._is_blunted(coords):
+            blunted = True
+            print(
+                "The coordinates may be blunted. However, blunted was not set to True. Will set blunted to True and continue, but please check the coordinates."
+            )
+
+        if not (blunted):
+            xcut = 1.0
+
+        # Scale x coordinates to be xcut in length
+        airfoil_length = np.abs(np.max(coords[0, :]) - np.min(coords[0, :]))
+
+        # Center the coordinates around the leading edge and scale them
+        coords[0, :] = xcut * (coords[0, :] - np.min(coords[0, :])) / airfoil_length
+        airfoil_length = np.abs(np.max(coords[0, :]) - np.min(coords[0, :]))
+
+        # Shift the coordinates to be centered at 0 at the leading edge
+        leading_id = np.argmin(coords[0, :])
+        y_dist = coords[1, leading_id]
+        coords[1, :] += -y_dist
+        # Ensure the first and last points are the same
+        coords[0, 0] = xcut
+        coords[0, -1] = xcut
+        coords[1, -1] = coords[1, 0]
+        # Set the leading edge location
+
+        if blunted:
+            coords_x = coords[0, :]
+            # Get all of the trailing edge indices, i.e where consecutive x coordinates are the same
+            err = 1e-5
+            x_gt = np.max(coords_x) * 0.99
+            trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < err)[0]
+            trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < err)[0]
+            # Include any indices that are in either list
+            trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
+            trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
+
+            err = 1e-4
+            err_stop = 1e-3
+            while len(trailing_edge_indices) < min_trailing_edge_indices:
+                trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < err)[0]
+                trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < err)[0]
+                # Include any indices that are in either list
+                trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
+                trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
+                err *= 1.5
+                if err > err_stop:
+                    break
+
+            # Remove the trailing edge indices from the coordinates
+            coords = np.delete(coords, trailing_edge_indices[1:-1], axis=1)
+
+        return coords, blunted
+
 
 if __name__ == "__main__":
     problem = Airfoil()
@@ -667,5 +790,7 @@ if __name__ == "__main__":
     design, idx = problem.random_design()
     config = dataset["train"].select_columns(problem.conditions_keys)[idx]
 
+    print(problem.simulate(design, config=config, mpicores=8))
+
     # Get design and conditions from the dataset, render design
-    print(problem.optimize(design, config=config, mpicores=8))
+    design_tuple, optisteps_history = problem.optimize(design, config=config, mpicores=8)

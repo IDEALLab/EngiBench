@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """This file is based on the MACHAero tutorials.
 
 https://github.com/mdolab/MACH-Aero/blob/main/tutorial/
