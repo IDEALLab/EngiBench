@@ -155,7 +155,7 @@ class Airfoil(Problem[DesignType]):
         # Scale the design to fit in the design space
         scaled_design = self._scale_coords(design["coords"])
         # Save the design to a temporary file
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose()) # type: ignore  # noqa: PGH003
         tmp = os.path.join(self.__docker_study_dir, "tmp")
 
         base_config = {
@@ -190,13 +190,13 @@ class Airfoil(Problem[DesignType]):
         base_config.update(self.conditions)
 
         # Scale the design to fit in the design space
-        scaled_design, input_blunted = self._scale_coords(
-            design["coords"], blunted=base_config["input_blunted"], xcut=base_config["xCut"]
+        scaled_design, input_blunted = self._scale_coords( # type: ignore  # noqa: PGH003
+            design["coords"], blunted=base_config["input_blunted"], xcut=base_config["xCut"] # type: ignore  # noqa: PGH003
         )
         base_config["input_blunted"] = input_blunted
 
         # Save the design to a temporary file. Format to 1e-6 rounding
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose()) # type: ignore  # noqa: PGH003
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
@@ -218,7 +218,7 @@ class Airfoil(Problem[DesignType]):
 
             container.run(
                 command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,  # type: ignore[attr-defined]
+                image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
@@ -463,7 +463,7 @@ class Airfoil(Problem[DesignType]):
         """
         # docker pull image if not already pulled
         if container.RUNTIME is not None:
-            container.pull(self.container_id)  # type: ignore[attr-defined]
+            container.pull(self.container_id)
         # pre-process the design and run the simulation
 
         # Prepares the airfoil_analysis.py script with the simulation configuration
@@ -502,7 +502,7 @@ class Airfoil(Problem[DesignType]):
             )
             container.run(
                 command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,  # type: ignore[attr-defined]
+                image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
@@ -531,7 +531,7 @@ class Airfoil(Problem[DesignType]):
         """
         # docker pull image if not already pulled
         if container.RUNTIME is not None:
-            container.pull(self.container_id)  # type: ignore[attr-defined]
+            container.pull(self.container_id)
         # pre-process the design and run the simulation
         filename = "candidate_design"
 
@@ -575,7 +575,7 @@ class Airfoil(Problem[DesignType]):
             )
             container.run(
                 command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,  # type: ignore[attr-defined]
+                image=self.container_id,
                 name="machaero",
                 mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
@@ -628,8 +628,8 @@ class Airfoil(Problem[DesignType]):
         Returns:
             tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # type: ignore[attr-defined]
-        initial_design = self.dataset["train"]["initial_design"][rnd]  # type: ignore[attr-defined]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)
+        initial_design = self.dataset["train"]["initial_design"][rnd]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
     def _calc_off_wall_distance(  # noqa: PLR0913
@@ -786,7 +786,7 @@ if __name__ == "__main__":
     # Get design and conditions from the dataset
     # Print Dataset object keys
     design, idx = problem.random_design()
-    config = dataset["train"].select_columns(problem.conditions_keys)[idx]  # type: ignore[attr-defined]
+    config = dataset["train"].select_columns(problem.conditions_keys)[idx]
 
     print(problem.simulate(design, config=config, mpicores=8))
 

@@ -1,3 +1,4 @@
+# mypy: ignore-errors
 """This file is largely based on the MACHAero tutorials.
 
 https://github.com/mdolab/MACH-Aero/blob/main/tutorial/
@@ -25,7 +26,7 @@ import prefoil
 
 if __name__ == "__main__":
 
-    coords = prefoil.utils.readCoordFile($design_fname)
+    coords = prefoil.utils.readCoordFile($design_fname) # type: ignore
     airfoil = prefoil.Airfoil(coords)
     print("Running pre-process.py")
     input_blunted = $input_blunted
