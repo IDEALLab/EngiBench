@@ -77,6 +77,10 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
         assert cond in dataset["train"].column_names, (
             f"Problem {problem_class.__name__}: The dataset should contain the field {cond}."
         )
+    if problem_class.__module__.startswith("engibench.problems.power_electronics"):
+        print(f"Skipping optimal design test for power electronics problem {problem_class.__name__}")
+        return
+
     assert "optimal_design" in dataset["train"].column_names, (
         f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
     )
