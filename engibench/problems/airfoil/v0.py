@@ -193,7 +193,7 @@ class Airfoil(Problem[DesignType]):
         scaled_design, input_blunted = scale_coords(
             design["coords"],
             blunted=bool(base_config["input_blunted"]),
-            xcut=   float(base_config["xCut"]),
+            xcut=base_config["xCut"],  # type: ignore[arg-type]
         )
         base_config["input_blunted"] = input_blunted
 
