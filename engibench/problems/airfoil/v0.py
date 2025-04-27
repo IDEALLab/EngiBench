@@ -223,10 +223,10 @@ class Airfoil(Problem[dict[str, Any]]):
         return filename
 
     def __reorder_coords(self, df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:  # noqa: PLR0915
-        Node_C1 = np.array(df_slice["NodeC1"].dropna().values).astype(int)  # A list of [1,2,3,4,...]  # noqa: N806
-        Node_C2 = np.array(df_slice["NodeC2"].dropna().values).astype(int)  # A list of [2,3,4,5,...]  # noqa: N806
-        Connectivities = np.concatenate(  # noqa: N806
-            (Node_C1.reshape(-1, 1), Node_C2.reshape(-1, 1)), axis=1
+        node_c1 = np.array(df_slice["NodeC1"].dropna().values).astype(int)  # A list of [1,2,3,4,...]
+        node_c2 = np.array(df_slice["NodeC2"].dropna().values).astype(int)  # A list of [2,3,4,5,...]
+        connectivities = np.concatenate(
+            (node_c1.reshape(-1, 1), node_c2.reshape(-1, 1)), axis=1
         )  # A list of [[1,2],[2,3],[3,4],...]
 
         # plot the x 'CoordinateX' and y 'CoordinateY' coordinates of the slice
@@ -239,17 +239,17 @@ class Airfoil(Problem[dict[str, Any]]):
         id_breaks_start = [0]
         id_breaks_end = []
         prev_id = 0
-        segment_ids = np.zeros(len(Connectivities))
+        segment_ids = np.zeros(len(connectivities))
         seg_id = 0
-        for j in range(len(Connectivities)):
-            if Connectivities[j][0] - 1 != prev_id:
+        for j in range(len(connectivities)):
+            if connectivities[j][0] - 1 != prev_id:
                 # This means that we have a new set of points
-                id_breaks_start.append(Connectivities[j][0] - 1)
+                id_breaks_start.append(connectivities[j][0] - 1)
                 id_breaks_end.append(prev_id)
                 seg_id += 1
             segment_ids[j] = seg_id
 
-            prev_id = Connectivities[j][1] - 1
+            prev_id = connectivities[j][1] - 1
 
         id_breaks_end.append(j)
         unique_segment_ids = np.arange(seg_id + 1)
@@ -323,14 +323,14 @@ class Airfoil(Problem[dict[str, Any]]):
         for j in range(len(new_seg_order)):
             if new_seg_order[j] < 0:
                 segment = np.nonzero(segment_ids == -new_seg_order[j])[0]
-                coords_x_segment = coords_x[Connectivities[segment] - 1][:, 0][::-1]
-                coords_y_segment = coords_y[Connectivities[segment] - 1][:, 0][::-1]
-                indices_segment = indices[Connectivities[segment] - 1][:, 0][::-1]
+                coords_x_segment = coords_x[connectivities[segment] - 1][:, 0][::-1]
+                coords_y_segment = coords_y[connectivities[segment] - 1][:, 0][::-1]
+                indices_segment = indices[connectivities[segment] - 1][:, 0][::-1]
             else:
                 segment = np.nonzero(segment_ids == new_seg_order[j])[0]
-                coords_x_segment = coords_x[Connectivities[segment] - 1][:, 0]
-                coords_y_segment = coords_y[Connectivities[segment] - 1][:, 0]
-                indices_segment = indices[Connectivities[segment] - 1][:, 0]
+                coords_x_segment = coords_x[connectivities[segment] - 1][:, 0]
+                coords_y_segment = coords_y[connectivities[segment] - 1][:, 0]
+                indices_segment = indices[connectivities[segment] - 1][:, 0]
             coords_x_reordered = np.concatenate((coords_x_reordered, coords_x_segment))
             coords_y_reordered = np.concatenate((coords_y_reordered, coords_y_segment))
             indices_reordered = np.concatenate((indices_reordered, indices_segment))
@@ -435,7 +435,7 @@ class Airfoil(Problem[dict[str, Any]]):
 
         return self.__reorder_coords(slice_df)
 
-    def simulate(self, design: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4) -> dict[str, Any]:
+    def simulate(self, design: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4) -> npt.NDArray[np.float32]:
         """Simulates the performance of an airfoil design.
 
         Args:
@@ -498,7 +498,7 @@ class Airfoil(Problem[dict[str, Any]]):
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
         drag = float(outputs[4])
-        return np.array([drag, lift])  # type: ignore
+        return np.array([drag, lift])
 
     def optimize(
         self, starting_point: dict[str, Any], config: dict[str, Any] = {}, mpicores: int = 4
@@ -573,13 +573,12 @@ class Airfoil(Problem[dict[str, Any]]):
 
         for i in range(len(iters)):
             vals = history.read(int(iters[i]))
-            if "funcs" in vals and "obj" in vals["funcs"] and not vals["fail"]:  # type: ignore
+            if vals is not None and "funcs" in vals and "obj" in vals["funcs"] and not vals["fail"]:
                 objective = history.getValues(names=["obj"], callCounters=[i], allowSens=False, major=False, scale=True)[
                     "obj"
                 ]
                 optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=vals["iter"]))
 
-        optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=0))
         history.close()
 
         opt_coords = self.__simulator_output_to_design()
@@ -613,7 +612,7 @@ class Airfoil(Problem[dict[str, Any]]):
         Returns:
             tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # pyright: ignore[reportArgumentType, reportCallIssue, reportOptionalMemberAccess]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # type: ignore
         initial_design = self.dataset["train"]["initial_design"][rnd]  # type: ignore
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 

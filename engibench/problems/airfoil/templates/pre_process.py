@@ -53,7 +53,6 @@ if __name__ == "__main__":
 
     # write out plot3d
     airfoil.writeCoords($tmp_xyz_fname, file_format="plot3d")
-    airfoil.writeCoords($tmp_xyz_fname, file_format="dat")
 
     # GenOptions
     options = {
