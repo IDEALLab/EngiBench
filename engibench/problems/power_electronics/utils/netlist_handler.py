@@ -1,15 +1,18 @@
 """Parse the topology from config.original_netlist_path. Rewrite netlist for ngSpice simulation."""
 
 # ruff: noqa: N806  # Upper case variables
-# ruff: noqa: PLR0912, PLR0915  # Too many branches. Too many statements
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import networkx as nx
 
-from engibench.problems.power_electronics.utils.config import Config
 from engibench.problems.power_electronics.utils.constants import COLOR_DICT
 from engibench.problems.power_electronics.utils.constants import COMPONENTS
+
+if TYPE_CHECKING:
+    from engibench.problems.power_electronics.utils.config import Config
 
 
 def parse_topology(config: Config) -> tuple[Config, str, dict[str, list[int]], nx.Graph]:
@@ -61,7 +64,7 @@ def parse_topology(config: Config) -> tuple[Config, str, dict[str, list[int]], n
     return config, rewrite_netlist_str, edge_map, G
 
 
-def rewrite_netlist(config: Config, rewrite_netlist_str: str, edge_map: dict[str, list[int]]) -> None:
+def rewrite_netlist(config: Config, rewrite_netlist_str: str, edge_map: dict[str, list[int]]) -> None:  # noqa: C901, PLR0912
     """Rewrite the netlist based on the topology and the sweep data.
 
     It creates the direct input file sent to ngSpice.

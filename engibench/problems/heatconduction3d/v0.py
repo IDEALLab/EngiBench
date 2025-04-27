@@ -7,6 +7,7 @@ The problem is solved using the dolfin-adjoint software within a Docker containe
 from __future__ import annotations
 
 import os
+import subprocess
 from typing import Any
 
 from gymnasium import spaces
@@ -30,6 +31,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
     ## Objectives
     The objective is defined and indexed as follows:
+
     0. `c`: Thermal compliance coefficient to minimize.
 
     ## Conditions
@@ -54,7 +56,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
     ## References
     If you use this problem in your research, please cite the following paper:
-    Habibi, Milad, Shai Bernard, Jun Wang, and Mark Fuge, “Mean squared error may lead you astray when optimizing your inverse design methods” in JMD 2025. doi: https://doi.org/10.1115/1.4066102
+    Habibi, Milad, Shai Bernard, Jun Wang, and Mark Fuge, "Mean squared error may lead you astray when optimizing your inverse design methods" in JMD 2025. doi: https://doi.org/10.1115/1.4066102
 
     ## Lead
     Milad Habibi @MIladHB
@@ -69,7 +71,6 @@ class HeatConduction3D(Problem[npt.NDArray]):
     design_space = spaces.Box(low=0.0, high=1.0, shape=(51, 51, 51), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_3d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
-    _dataset = None
 
     def __init__(self, volume: float = 0.3, area: float = 0.5, resolution: int = 51) -> None:
         """Initialize the HeatConduction3D problem.
@@ -91,7 +92,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
             low=0.0, high=1.0, shape=(self.resolution, self.resolution, self.resolution), dtype=np.float64
         )
 
-    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] = {}) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulate the design.
 
         Args:
@@ -101,6 +102,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         Returns:
             float: The thermal compliance of the design.
         """
+        config = config or {}
         volume = config.get("volume", self.volume)
         area = config.get("area", self.area)
         resolution = config.get("resolution", self.resolution)
@@ -127,7 +129,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         return np.array([float(perf)])
 
     def optimize(
-        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] = {}
+        self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None
     ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes the design.
 
@@ -138,6 +140,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         Returns:
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
+        config = config or {}
         volume = config.get("volume", self.volume)
         area = config.get("area", self.area)
         resolution = config.get("resolution", self.resolution)
@@ -174,7 +177,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         if not os.path.exists("templates"):
             os.mkdir("templates")
         templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
-        os.system(f"cp -r {templates_location}/* templates/")
+        subprocess.run(["cp", "-r", f"{templates_location}/*", "templates/"], check=True)
 
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
@@ -206,7 +209,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
         if not os.path.exists(design_file):
             error_msg = f"Design file {design_file} not found."
-            raise FileNotFoundError(error_msg)  # ruff: noqa: TRY003
+            raise FileNotFoundError(error_msg)
 
         return np.load(design_file)
 
@@ -218,10 +221,10 @@ class HeatConduction3D(Problem[npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = np.random.randint(low=0, high=len(self.dataset["train"]["optimal_design"]), dtype=int)  # type: ignore
-        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd  # type: ignore
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))
+        return np.array(self.dataset["train"]["optimal_design"][rnd]), int(rnd)
 
-    def render(self, design: npt.NDArray, open_window: bool = False) -> Any:
+    def render(self, design: npt.NDArray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:

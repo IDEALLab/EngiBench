@@ -8,6 +8,7 @@
 [![code style: Ruff](
     https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](
     https://github.com/astral-sh/ruff)
+[![Checked with mypy](http://www.mypy-lang.org/static/mypy_badge.svg)](http://mypy-lang.org/)
 [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
 
 
@@ -16,17 +17,23 @@ EngiBench offers a collection of engineering design problems, datasets, and benc
 <!-- end elevator-pitch -->
 
 ## Installation
-<!-- start install -->
-⚠️ You might need Docker or Singularity to run some of the benchmarks.
+⚠️ Some problems run under Docker or Singularity. Others require native installation of dependencies, please consult the documentation of the specific problem.
 
+<!-- start install -->
 ```bash
-pip install -e .
+pip install engibench
 ```
 
-If you want to install with additional dependencies for a specific envs, e.g., airfoil, run:
+You can also specify additional dependencies for specific problems:
 
 ```bash
-pip install -e ".[airfoil]"
+pip install "engibench[airfoil]"
+```
+
+Or you can install all dependencies for all problems:
+
+```bash
+pip install "engibench[all]"
 ```
 <!-- end install -->
 
@@ -45,7 +52,7 @@ problem.objectives  # (("compliance", "MINIMIZE"),)
 problem.conditions  # (("volfrac", 0.35), ("forcedist", 0.0),...)
 problem.dataset # A HuggingFace Dataset object
 
-# Train your models, e.g. inverse design
+# Train your models, e.g., inverse design
 # inverse_model = train_inverse(problem.dataset)
 desired_conds = {"volfrac": 0.7, "forcedist": 0.3}
 # generated_design = inverse_model.predict(desired_conds)
@@ -63,7 +70,11 @@ You can also play with the API here: [![Open In Colab](https://colab.research.go
 
 ## Development
 
-Clone the repo, install the pre-commit hooks and install all dev dependencies:
+Both EngiBench and EngiOpt are open source projects and we welcome contributions! If you want to add a new problem, please reach out to us first to see if it is a good fit for EngiBench.
+
+### Installation
+<!-- start dev-install -->
+To install EngiBench for development, clone the repo, install the pre-commit hooks, and install all dev dependencies:
 
 ```bash
 git clone git@github.com:IDEALLab/EngiBench.git
@@ -71,13 +82,15 @@ cd EngiBench
 pre-commit install
 pip install -e ".[dev]"
 ```
+Also worth installing [`ruff`](https://docs.astral.sh/ruff/) and [`mypy`](https://www.mypy-lang.org/) in your editor as we are checking the code style and type safety on our CI.
+<!-- end dev-install -->
 
 ### Adding a new problem
 <!-- start new_problem -->
-In general, follow the `airfoil2d/` example.
+In general, follow the `beams2d/` example.
 
 #### Code
-1. Create a new problem module in [engibench/problems/](engibench/problems/) following the following layout (e.g. [engibench/problems/airfoil2d/](engibench/problems/airfoil2d/)), where you later also can add other versions / variant of the problem:
+1. Create a new problem module in [engibench/problems/](engibench/problems/) following the following layout (e.g. [engibench/problems/beams2d/](engibench/problems/beams2d/)), where you later also can add other versions / variant of the problem:
    ```
    📦 engibench
    └─ 📂 problems
@@ -100,7 +113,7 @@ In general, follow the `airfoil2d/` example.
    Ideally, all non-breaking changes should not create a new versioned module.
    Also in many cases, code duplication can be avoided, by introducing a new parameter to the problem class.
 
-2. Define your problem class that implements the `Problem` interface with its functions and attributes in `problems/new_problem/v0.py` (e.g. [airfoil2d/v0.py](engibench/problems/airfoil2d/v0.py)).
+2. Define your problem class that implements the `Problem` interface with its functions and attributes in `problems/new_problem/v0.py` (e.g. [beams2d/v0.py](engibench/problems/beams2d/v0.py)).
 
    `problems/new_problem/v0.py`
    ```py
@@ -137,6 +150,11 @@ In general, follow the `airfoil2d/` example.
 
 Congrats! You can commit your changes and open a PR.
 <!-- end new_problem -->
+
+## License
+
+The code of EngiBench and EngiOpt is licensed under the GPLv3 license. See the [LICENSE](LICENSE) file for details.
+All the associated datasets are licensed under the CC-BY-NC-SA 4.0 license.
 
 ## Citing
 

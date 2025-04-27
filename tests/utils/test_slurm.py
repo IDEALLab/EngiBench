@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import os
 import pickle
 import subprocess
@@ -19,12 +21,12 @@ class FakeDesign:
 
 
 class FakeProblem(Problem[FakeDesign]):
-    def __init__(self, problem_id: int, some_arg: bool) -> None:
+    def __init__(self, problem_id: int, *, some_arg: bool) -> None:
         self.problem_id = problem_id
         self.some_arg = some_arg
 
-    def simulate(self, design: FakeDesign, config: dict[str, Any], **kwargs) -> npt.NDArray:
-        offset = config["offset"]
+    def simulate(self, design: FakeDesign, config: dict[str, Any] | None = None, **kwargs) -> npt.NDArray:
+        offset = (config or {})["offset"]
         return np.array([design.design_id + offset])
 
 
@@ -62,7 +64,7 @@ def test_run_slurm(sbatch_exec: str) -> None:
     ]
     slurm.submit(
         problem=FakeProblem,
-        static_args=static_args,
+        static_args=static_args,  # type: ignore  # noqa: PGH003
         parameter_space=parameter_space,
         config=slurm.SlurmConfig(sbatch_executable=sbatch_exec),
     )

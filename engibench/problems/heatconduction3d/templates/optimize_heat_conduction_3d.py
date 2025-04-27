@@ -14,7 +14,7 @@ from fenics_adjoint import *
 
 # Ensure IPOPT is available
 try:
-    from pyadjoint import ipopt  # noqa: F401
+    from pyadjoint import ipopt
 except ImportError:
     print("""This example depends on IPOPT and Python ipopt bindings. \
     When compiling IPOPT, make sure to link against HSL, as it \
@@ -27,7 +27,7 @@ OPT_var_path = os.path.join(base_path, "templates", "OPT_var.txt")
 with open(OPT_var_path, "r") as file:
     data = file.read().split("\t")
 # Extract parameters
-NN = int(data[2])-1  # Grid size
+NN = int(data[2]) - 1  # Grid size
 vol_f = float(data[0])  # Volume fraction
 width = float(data[1])  # Adiabatic boundary width
 
@@ -83,20 +83,35 @@ init_guess.vector()[:] = image_values[d2v].reshape(
 p = Constant(5)  # Power in material model
 eps = Constant(1e-3)  # Regularization parameter
 alpha = Constant(1e-8)  # Functional regularization coefficient
+
+
 def k(a):
     """Material property function based on design variable 'a'."""
     return eps + (1 - eps) * a**p
+
+
 # Define function spaces for control and solution
 A = FunctionSpace(mesh, "CG", 1)  # Control variable space
 P = FunctionSpace(mesh, "CG", 1)  # Temperature solution space
 
 # Define adiabatic boundary region
 lb_2, ub_2 = 0.5 - width / 2, 0.5 + width / 2
+
+
 class BoundaryConditions(SubDomain):
     """Defines Dirichlet boundary conditions on specific edges."""
 
     def inside(self, x, on_boundary):
-        return (x[2]>0 and x[0]==0) or (x[2]>0 and x[0]==1) or (x[2]>0 and x[1]==0) or (x[2]>0 and x[1]==1) or (x[2]==1) or (x[2]==0 and (x[0] < lb_2 or x[0] > ub_2) and (x[1] < lb_2 or x[1] > ub_2))
+        return (
+            (x[2] > 0 and x[0] == 0)
+            or (x[2] > 0 and x[0] == 1)
+            or (x[2] > 0 and x[1] == 0)
+            or (x[2] > 0 and x[1] == 1)
+            or (x[2] == 1)
+            or (x[2] == 0 and (x[0] < lb_2 or x[0] > ub_2) and (x[1] < lb_2 or x[1] > ub_2))
+        )
+
+
 # Apply boundary condition: Temperature = 0
 T_bc = 0.0
 bc = [DirichletBC(P, T_bc, BoundaryConditions())]
@@ -110,6 +125,8 @@ f = interpolate(Constant(1.0e-2), P)  # Default source term
 parameters["form_compiler"]["optimize"] = True
 parameters["form_compiler"]["cpp_optimize"] = True
 parameters["form_compiler"]["cpp_optimize_flags"] = "-O3 -ffast-math -march=native"
+
+
 def forward(a):
     """Solve the heat conduction PDE given a material distribution 'a'."""
     T = Function(P, name="Temperature")
@@ -119,9 +136,23 @@ def forward(a):
     F = inner(grad(v), k(a) * grad(T)) * dx - f * v * dx
 
     # Solve PDE
-    solve(F == 0, T, bc, solver_parameters={"newton_solver": {"absolute_tolerance": 1.0e-7,"maximum_iterations": 20,"linear_solver": "cg","preconditioner": "petsc_amg"}})
+    solve(
+        F == 0,
+        T,
+        bc,
+        solver_parameters={
+            "newton_solver": {
+                "absolute_tolerance": 1.0e-7,
+                "maximum_iterations": 20,
+                "linear_solver": "cg",
+                "preconditioner": "petsc_amg",
+            }
+        },
+    )
 
     return T
+
+
 # -------------------------------
 # Optimization Process
 # -------------------------------
@@ -142,6 +173,8 @@ Jhat = ReducedFunctional(J, m)
 J_CONTROL = Control(J)
 # Define optimization bounds
 lb, ub = 0.0, 1.0
+
+
 class VolumeConstraint(InequalityConstraint):
     """Constraint to maintain volume fraction."""
 
@@ -168,12 +201,14 @@ class VolumeConstraint(InequalityConstraint):
     def length(self):
         """Return number of constraint components (1)."""
         return 1
+
+
 # Define optimization problem
 problem = MinimizationProblem(Jhat, bounds=(lb, ub), constraints=VolumeConstraint(vol_f))
 # Define filename for IPOPT log
 log_filename = f"/home/fenics/shared/templates/RES_OPT/solution_V={vol_f}_w={width}.txt"
 # Set optimization solver parameters
-solver_params = {"acceptable_tol": 1.0e-100, "maximum_iterations": 100, "file_print_level": 5,    "output_file": log_filename}
+solver_params = {"acceptable_tol": 1.0e-100, "maximum_iterations": 100, "file_print_level": 5, "output_file": log_filename}
 solver = IPOPTSolver(problem, parameters=solver_params)
 # -------------------------------
 # Store and Save Results
@@ -209,7 +244,7 @@ for xs in x_values:
         for zs in z_values:
             RES_OPTults[ind, 0] = a_opt(xs, ys, zs)
             ind = ind + 1
-RES_OPTults=RES_OPTults.reshape(NN+1, NN+1, NN+1)
+RES_OPTults = RES_OPTults.reshape(NN + 1, NN + 1, NN + 1)
 output_npy = "/home/fenics/shared/templates/RES_OPT/hr_data_v_v={}_w={}.npy".format(vol_f, width)
 np.save(output_npy, RES_OPTults)
 xdmf_filename = XDMFFile(

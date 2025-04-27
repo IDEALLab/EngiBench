@@ -1,4 +1,4 @@
-# ruff: noqa: N806, N815, FIX002
+# ruff: noqa: N806, N815
 
 
 """Power Electronics problem."""
@@ -26,6 +26,10 @@ from engibench.problems.power_electronics.utils.process_sweep_data import proces
 
 class PowerElectronics(Problem[npt.NDArray]):
     r"""Power Electronics parameter optimization problem.
+
+    ```{note}
+    This problem requires `ngspice` to be installed. See the simulator section for more details.
+    ```
 
     ## Problem Description
     This problem simulates a power converter circuit which has a fixed circuit topology. There are 5 switches, 4 diodes, 3 inductors and 6 capacitors.
@@ -56,7 +60,7 @@ class PowerElectronics(Problem[npt.NDArray]):
 
     ## Simulator
     The simulator is ngSpice circuit simulator. You can download it based on your operating system:
-    - Windows: https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/
+    - Windows: [https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/](https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/)
     - MacOS: `brew install ngspice`
     - Linux: `sudo apt-get install ngspice`
 
@@ -91,20 +95,28 @@ class PowerElectronics(Problem[npt.NDArray]):
         ("Voltage_Ripple", ObjectiveDirection.MAXIMIZE),
     )
     conditions: tuple[tuple[str, Any], ...] = ()
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(20,), dtype=np.float32)
+    design_space = spaces.Box(
+        low=np.array([1e-6] * 6 + [1e-6] * 3 + [0.1] + [0] * 10),
+        high=np.array([2e-5] * 6 + [1e-3] * 3 + [0.9] + [1] * 10),
+        shape=(20,),
+        dtype=np.float32,
+    )
     dataset_id = "IDEALLab/power_electronics_v0"
     container_id = None
-    _dataset = None
 
     def __init__(
         self,
-        original_netlist_path: str = "./data/netlist/5_4_3_6_10-dcdc_converter_1.net",
+        target_dir: str = os.getcwd(),
+        original_netlist_path: str = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)), "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+        ),
         mode: str = "control",
         ngspice_path: str | None = None,
     ) -> None:
         """Initializes the Power Electronics problem.
 
         Args:
+            target_dir: The target directory for the rewritten netlist, log and raw files. Default to os.getcwd().
             original_netlist_path: The path to the original netlist file. Accepts both relative and absolute paths.
             bucket_id: The bucket ID for the netlist file. E.g. "5_4_3_6_10".
             mode: The mode for the simulation. Default to "control". mode = "batch" is for development.
@@ -112,10 +124,8 @@ class PowerElectronics(Problem[npt.NDArray]):
         """
         super().__init__()
 
-        source_dir: str = os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(__file__)), "../"))
-
         self.config = Config(
-            source_dir=source_dir,
+            target_dir=target_dir,
             original_netlist_path=original_netlist_path,
             mode=mode,
         )
@@ -123,11 +133,11 @@ class PowerElectronics(Problem[npt.NDArray]):
         # Initialize ngspice wrapper
         self.ngspice = NgSpice(ngspice_path)
 
-    def simulate(self, design_variable: list[float]) -> npt.NDArray:
+    def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:  # noqa: ARG002
         """Simulates the performance of a Power Electronics design.
 
         Args:
-            design_variable: sweep data. It is a list of floats representing the design parameters for the simulation.
+            design: sweep data. It is a list of floats representing the design parameters for the simulation.
                     In general, they are:
                     - Capacitor values (C0, C1, C2, ...) in Farads.
                     - Inductor values (L0, L1, L2, ...) in Henries.
@@ -135,25 +145,24 @@ class PowerElectronics(Problem[npt.NDArray]):
                     - Switch parameter T2 is not included. Set to constant 1.0 for all switches.
                     - Switch parameter (L1_1, L1_2, L1_3, ...). Binary (0 or 1).
                     - Switch parameter (L2_1, L2_2, L2_3, ...). Binary (0 or 1).
+            config: ignored
 
         Returns:
             simulation_results: a numpy array containing the simulation results [DcGain, VoltageRipple, Efficiency].
         """
         self.config, rewrite_netlist_str, edge_map, _ = parse_topology(self.config)
-        self.config = process_sweep_data(config=self.config, sweep_data=design_variable)
+        self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
         # Use the ngspice wrapper to run the simulation
         self.ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
-        simulation_results = np.array([DcGain, VoltageRipple])
+        return np.array([DcGain, VoltageRipple])
 
-        return simulation_results
-
-    def optimize(self) -> NoReturn:
+    def optimize(self, _starting_point: npt.NDArray, _config: dict[str, Any] | None = None) -> NoReturn:
         """Optimize the design variable. Not applicable for this problem."""
-        return NotImplementedError
+        raise NotImplementedError("Not yet implemented")
 
-    def render(self) -> None:
+    def render(self, design: npt.NDArray, *, open_window: bool = False) -> None:  # noqa: ARG002
         """Render the circuit topology using NetworkX.
 
         It displays the Graph of the circuit topology rather than the circuit diagram.
@@ -172,15 +181,22 @@ class PowerElectronics(Problem[npt.NDArray]):
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)  # type: ignore[reportOptionalMemberAccess]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)
 
         return np.array(self.dataset["train"]["initial_design"][rnd]), rnd
+
+    def reset(self, seed: int | None = None) -> None:
+        """Reset the problem.
+
+        Args:
+            seed: The seed for the random number generator.
+        """
+        return super().reset(seed)
 
 
 if __name__ == "__main__":
     # Test with absolute path and a different bucket_id
-    original_netlist_path = os.path.abspath("./data/netlist/2_2_2_2_3-dcdc_converter_1.net")  # sweep 141
-    problem = PowerElectronics(original_netlist_path=original_netlist_path, mode="batch")
+    problem = PowerElectronics(mode="batch")
 
     # Initialize the problem with default values
     problem = PowerElectronics()
@@ -210,7 +226,7 @@ if __name__ == "__main__":
     ]
 
     # Simulate the problem with the provided design variable
-    simulation_results = problem.simulate(design_variable=sweep_data)
+    simulation_results = problem.simulate(design=np.array(sweep_data))
     print(simulation_results)  # [0.01244983 0.9094711  0.74045004]
 
     # Another set of sweep data. C0 value and GS_L1, GS_L2 values are changed.
@@ -238,7 +254,7 @@ if __name__ == "__main__":
     ]
 
     # Simulate the problem with the provided design variable
-    simulation_results = problem.simulate(design_variable=sweep_data)
+    simulation_results = problem.simulate(design=np.array(sweep_data))
     print(simulation_results)  # [-1.27858   -0.025081   0.7827396]
 
-    problem.render()
+    problem.render(np.array([]))

@@ -5,6 +5,7 @@ from __future__ import annotations
 from math import ceil
 from math import hypot
 import time
+from typing import Any
 
 import numpy as np
 from scipy.sparse import coo_matrix
@@ -28,7 +29,7 @@ UPDATE_THRESHOLD = 0.01
 class FeaModel:
     """Finite Element Analysis (FEA) model for coupled 2D thermoelastic topology optimization."""
 
-    def __init__(self, plot: bool = False, eval_only: bool | None = False) -> None:
+    def __init__(self, *, plot: bool = False, eval_only: bool | None = False) -> None:
         """Instantiates a new model for the thermoelastic 2D problem.
 
         Args:
@@ -107,7 +108,7 @@ class FeaModel:
 
         return h, hs
 
-    def run(self, bcs: dict[str, any], x_init: np.ndarray | None = None) -> dict[str, any]:  # noqa: PLR0915
+    def run(self, bcs: dict[str, Any], x_init: np.ndarray | None = None) -> dict[str, Any]:  # noqa: PLR0915
         """Run the optimization algorithm for the coupled structural-thermal problem.
 
         This method performs an iterative optimization procedure that adjusts the design
@@ -283,11 +284,10 @@ class FeaModel:
                     "thermal_compliance": f0valt,
                     "volume_fraction": vf_error,
                 }
-            else:
-                vf_error = np.abs(np.mean(x) - volfrac)
-                obj_values = [f0valm, f0valt, vf_error]
-                opti_step = OptiStep(obj_values=obj_values, step=iterr)
-                opti_steps.append(opti_step)
+            vf_error = np.abs(np.mean(x) - volfrac)
+            obj_values = np.array([f0valm, f0valt, vf_error])
+            opti_step = OptiStep(obj_values=obj_values, step=iterr)
+            opti_steps.append(opti_step)
 
             df0dx = df0dx_mat.reshape(nely * nelx, 1)
             df0dx = (h @ (xval * df0dx)) / hs[:, None] / np.maximum(1e-3, xval)  # Filtered sensitivity

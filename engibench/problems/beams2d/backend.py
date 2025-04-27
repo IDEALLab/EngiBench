@@ -1,4 +1,4 @@
-# ruff: noqa: E741, N806, N815, N816
+# ruff: noqa: N806, N815, N816
 # Disabled variable name conventions
 
 """Beams 2D problem.
@@ -9,7 +9,7 @@ This code has been adapted from the Python implementation by Niels Aage and Vill
 from __future__ import annotations
 
 import dataclasses
-from typing import Any
+from typing import Any, overload
 
 import cvxopt
 import cvxopt.cholmod
@@ -42,7 +42,7 @@ class State:
         KE (np.ndarray): Stiffness matrix.
     """
 
-    # Constants (non-editable)  # noqa: ERA001
+    # Non-editable Constants
     Emin: float = 1e-9
     Emax: float = 1.0
     min_change: float = 0.025
@@ -92,7 +92,7 @@ class State:
         return dataclasses.asdict(self)
 
 
-def image_to_design(im: npt.NDArray) -> npt.NDArray:  # type: ignore
+def image_to_design(im: npt.NDArray) -> npt.NDArray:
     r"""Flatten the 2D image(s) to 1D vector(s).
 
     Args:
@@ -104,7 +104,7 @@ def image_to_design(im: npt.NDArray) -> npt.NDArray:  # type: ignore
     return np.swapaxes(im, -2, -1).reshape(*im.shape[:-2], -1)
 
 
-def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:  # type: ignore
+def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDArray:
     r"""Reshape the 1D vector(s) into 2D image(s).
 
     Args:
@@ -118,7 +118,7 @@ def design_to_image(x: npt.NDArray, nelx: int = 100, nely: int = 50) -> npt.NDAr
     return np.swapaxes(x.reshape(*x.shape[:-1], nelx, nely), -2, -1)
 
 
-def lk() -> npt.NDArray:  # type: ignore
+def lk() -> npt.NDArray:
     r"""Set up the stiffness matrix.
 
     Returns:
@@ -138,7 +138,7 @@ def lk() -> npt.NDArray:  # type: ignore
             1 / 8 - 3 * nu / 8,
         ]
     )
-    KE = (
+    return (
         E
         / (1 - nu**2)
         * np.array(
@@ -154,10 +154,9 @@ def lk() -> npt.NDArray:  # type: ignore
             ]
         )
     )
-    return KE
 
 
-def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -> npt.NDArray:  # type: ignore
+def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] | None = None) -> npt.NDArray:
     """Simulates the performance of a beam design. Assumes the State object is already set up.
 
     Args:
@@ -168,6 +167,7 @@ def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -
     Returns:
         npt.NDArray: The sensitivity of the current design.
     """
+    cfg = cfg or {}
     sK = ((st.KE.flatten()[np.newaxis]).T * (st.Emin + design ** cfg["penal"] * (st.Emax - st.Emin))).flatten(order="F")
     K = coo_matrix((sK, (st.iK, st.jK)), shape=(st.ndof, st.ndof)).tocsc()
     m = K.shape[0]
@@ -190,7 +190,7 @@ def calc_sensitivity(design: npt.NDArray, st: State, cfg: dict[str, Any] = {}) -
     return np.array(ce)
 
 
-def setup(cfg: dict[str, Any] = {}) -> State:
+def setup(cfg: dict[str, Any] | None = None) -> State:
     r"""Set up the scalars and matrices for optimization or simulation.
 
     Args:
@@ -200,6 +200,7 @@ def setup(cfg: dict[str, Any] = {}) -> State:
         State object with the relevant scalars and matrices used in optimization and simulation.
     """
     st = State()
+    cfg = cfg or {}
 
     ndof = 2 * (cfg["nelx"] + 1) * (cfg["nely"] + 1)
     edofMat = np.zeros((cfg["nelx"] * cfg["nely"], 8), dtype=int)
@@ -270,12 +271,12 @@ def setup(cfg: dict[str, Any] = {}) -> State:
 
 
 def inner_opt(
-    x: npt.NDArray,  # type: ignore
+    x: npt.NDArray,
     st: State,
-    dc: npt.NDArray,  # type: ignore
-    dv: npt.NDArray,  # type: ignore
-    cfg: dict[str, Any] = {},
-) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:  # type: ignore
+    dc: npt.NDArray,
+    dv: npt.NDArray,
+    cfg: dict[str, Any] | None = None,
+) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray]:
     """Inner optimization loop: Lagrange Multiplier Optimization.
 
     Args:
@@ -291,8 +292,9 @@ def inner_opt(
             npt.NDArray: The processed density field (without overhang constraint)
             npt.NDArray: The processed density field (with overhang constraint if applicable)
     """
+    cfg = cfg or {}
     # Optimality criteria
-    l1, l2, move = (0, 1e9, 0.2)
+    l1, l2, move = (0.0, 1e9, 0.2)
     # reshape to perform vector operations
     xnew = np.zeros(cfg["nelx"] * cfg["nely"])
 
@@ -321,12 +323,24 @@ def inner_opt(
     return (xnew, xPhys, xPrint)
 
 
+@overload
 def overhang_filter(
-    x: npt.NDArray,  # type: ignore
-    cfg: dict[str, Any] = {},
-    dc: npt.NDArray | None = None,  # type: ignore
-    dv: npt.NDArray | None = None,  # type: ignore
-) -> tuple[npt.NDArray, npt.NDArray | None, npt.NDArray | None]:  # type: ignore
+    x: npt.NDArray[np.float64], cfg: dict[str, Any] | None = None
+) -> tuple[npt.NDArray[np.float64], None, None]: ...
+
+
+@overload
+def overhang_filter(
+    x: npt.NDArray[np.float64], cfg: dict[str, Any] | None, dc: npt.NDArray[np.float64], dv: npt.NDArray[np.float64]
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64], npt.NDArray[np.float64]]: ...
+
+
+def overhang_filter(
+    x: npt.NDArray[np.float64],
+    cfg: dict[str, Any] | None = None,
+    dc: npt.NDArray[np.float64] | None = None,
+    dv: npt.NDArray[np.float64] | None = None,
+) -> tuple[npt.NDArray[np.float64], npt.NDArray[np.float64] | None, npt.NDArray[np.float64] | None]:
     """Topology Optimization (TO) filter.
 
     Args:
@@ -338,6 +352,7 @@ def overhang_filter(
     Returns:
         Tuple[npt.NDArray, npt.NDArray, npt.NDArray]: The updated design, sensitivity dc, and sensitivity dv, respectively.
     """
+    cfg = cfg or {}
     if cfg["overhang_constraint"]:
         P = 40
         ep = 1e-4
@@ -394,10 +409,8 @@ def overhang_filter(
             for k in range(nSens):
                 dfx[k][i, :] = dfx[k][i, :] + lamb[k, :]
 
-            dc = dfx[0]
-            dv = dfx[1]
-            dc = image_to_design(dc)
-            dv = image_to_design(dv)
+            dc, dv = dfx
+            dc, dv = image_to_design(dc), image_to_design(dv)
 
         xi = image_to_design(xi)
 
