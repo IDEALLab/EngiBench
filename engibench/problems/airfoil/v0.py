@@ -473,7 +473,7 @@ class Airfoil(Problem[DesignType]):
 
 if __name__ == "__main__":
     problem = Airfoil()
-    problem.reset(seed=0, cleanup=False)
+    problem.reset(seed=0, cleanup=True)
 
     dataset = problem.dataset
     # Get design and conditions from the dataset
