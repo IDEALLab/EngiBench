@@ -18,6 +18,10 @@ import pyoptsparse
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.problems.airfoil.utils import calc_area
+from engibench.problems.airfoil.utils import calc_off_wall_distance
+from engibench.problems.airfoil.utils import reorder_coords
+from engibench.problems.airfoil.utils import scale_coords
 from engibench.utils import container
 from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
@@ -152,10 +156,6 @@ class Airfoil(Problem[DesignType]):
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
             filename (str): The filename to save the design to.
         """
-        # Scale the design to fit in the design space
-        scaled_design = self._scale_coords(design["coords"])
-        # Save the design to a temporary file
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())  # type: ignore  # noqa: PGH003
         tmp = os.path.join(self.__docker_study_dir, "tmp")
 
         base_config = {
@@ -178,7 +178,7 @@ class Airfoil(Problem[DesignType]):
 
         # Calculate the off-the-wall distance
         if base_config["estimate_s0"]:
-            s0 = self._calc_off_wall_distance(
+            s0 = calc_off_wall_distance(
                 mach=config["mach"], reynolds=config["reynolds"], freestreamTemp=config["temperature"]
             )
         else:
@@ -190,15 +190,15 @@ class Airfoil(Problem[DesignType]):
         base_config.update(self.conditions)
 
         # Scale the design to fit in the design space
-        scaled_design, input_blunted = self._scale_coords(  # type: ignore  # noqa: PGH003
+        scaled_design, input_blunted = scale_coords(
             design["coords"],
-            blunted=base_config["input_blunted"],
-            xcut=base_config["xCut"],  # type: ignore  # noqa: PGH003
+            blunted=bool(base_config["input_blunted"]),
+            xcut=base_config["xCut"],  # type: ignore[arg-type]
         )
         base_config["input_blunted"] = input_blunted
 
         # Save the design to a temporary file. Format to 1e-6 rounding
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())  # type: ignore  # noqa: PGH003
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
@@ -217,7 +217,7 @@ class Airfoil(Problem[DesignType]):
                 + self.__docker_study_dir
                 + "/output_preprocess.log"
             )
-
+            assert self.container_id is not None, "Container ID is not set"
             container.run(
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
@@ -239,177 +239,11 @@ class Airfoil(Problem[DesignType]):
 
         return filename
 
-    def __reorder_coords(self, df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:  # noqa: PLR0915
-        node_c1 = np.array(df_slice["NodeC1"].dropna().values).astype(int)  # A list of [1,2,3,4,...]
-        node_c2 = np.array(df_slice["NodeC2"].dropna().values).astype(int)  # A list of [2,3,4,5,...]
-        connectivities = np.concatenate(
-            (node_c1.reshape(-1, 1), node_c2.reshape(-1, 1)), axis=1
-        )  # A list of [[1,2],[2,3],[3,4],...]
-
-        # plot the x 'CoordinateX' and y 'CoordinateY' coordinates of the slice
-        coords_x = df_slice["CoordinateX"].as_numpy()
-        coords_y = df_slice["CoordinateY"].as_numpy()
-
-        # We also have XoC YoC ZoC VelocityX VelocityY VelocityZ CoefPressure Mach
-        # We would like to reorder these values in the same way as the coordinates, so we keep track of the indices
-        indices = np.arange(len(df_slice))
-        id_breaks_start = [0]
-        id_breaks_end = []
-        prev_id = 0
-        segment_ids = np.zeros(len(connectivities))
-        seg_id = 0
-        for j in range(len(connectivities)):
-            if connectivities[j][0] - 1 != prev_id:
-                # This means that we have a new set of points
-                id_breaks_start.append(connectivities[j][0] - 1)
-                id_breaks_end.append(prev_id)
-                seg_id += 1
-            segment_ids[j] = seg_id
-
-            prev_id = connectivities[j][1] - 1
-
-        id_breaks_end.append(j)
-        unique_segment_ids = np.arange(seg_id + 1)
-
-        new_seg_order = unique_segment_ids.copy()
-
-        # Loop over and sort the segments such that the end of each x and y coordinate for each segment is the start of the next segment
-        # Loop through the segment ids
-        seg_coords_start_x = coords_x[id_breaks_start]
-        seg_coords_start_y = coords_y[id_breaks_start]
-        seg_coords_end_x = coords_x[id_breaks_end]
-        seg_coords_end_y = coords_y[id_breaks_end]
-
-        seg_coords_end_x_idx = seg_coords_end_x[0]
-        seg_coords_end_y_idx = seg_coords_end_y[0]
-        seg_coords_start_x_idx = seg_coords_start_x[0]
-        seg_coords_start_y_idx = seg_coords_start_y[0]
-
-        ordered_ids = [unique_segment_ids[0]]
-
-        # Loop through and find the end or start of a segment that matches the start of the current segment
-        while len(ordered_ids) < len(unique_segment_ids):
-            # Calculate the distance between the end of the current segment and the start of all other segments
-            diff_end_idx_start_tot = np.sqrt(
-                np.square(seg_coords_end_x_idx - seg_coords_start_x) + np.square(seg_coords_end_y_idx - seg_coords_start_y)
-            )
-            diff_start_idx_start_tot = np.sqrt(
-                np.square(seg_coords_start_x_idx - seg_coords_start_x)
-                + np.square(seg_coords_start_y_idx - seg_coords_start_y)
-            )
-            # Get the minimum distance excluding the current ordered segments)
-            diff_end_idx_start_tot[np.abs(ordered_ids)] = np.inf
-            diff_start_idx_start_tot[np.abs(ordered_ids)] = np.inf
-            diff_end_idx_start_tot_id = np.argmin(diff_end_idx_start_tot)
-            diff_end_idx_start_tot_min = diff_end_idx_start_tot[diff_end_idx_start_tot_id]
-
-            # Calculate the distance between the end of the current segment and the end of all other segments
-            diff_end_idx_end_tot = np.sqrt(
-                np.square(seg_coords_end_x_idx - seg_coords_end_x) + np.square(seg_coords_end_y_idx - seg_coords_end_y)
-            )
-            # Get the minimum distance excluding the current segment
-            diff_end_idx_end_tot[np.abs(ordered_ids)] = np.inf
-            diff_end_idx_end_tot_id = np.argmin(diff_end_idx_end_tot)
-            diff_end_idx_end_tot_min = diff_end_idx_end_tot[diff_end_idx_end_tot_id]
-            # If the end of the current segment matches the start of another segment,
-            # we have found the correct order
-            if diff_end_idx_start_tot_min < diff_end_idx_end_tot_min:
-                # Append the matching segment id to the ordered ids
-                ordered_ids.append(diff_end_idx_start_tot_id)
-                # Update the current segment end coordinates
-                seg_coords_end_x_idx = seg_coords_end_x[diff_end_idx_start_tot_id]
-                seg_coords_end_y_idx = seg_coords_end_y[diff_end_idx_start_tot_id]
-            else:
-                # If the end of the current segment matches the end of another segment,
-                # the segment we append must be in reverse order
-                # We make the sign of the segment id negative to indicate reverse order
-                ordered_ids.append(-diff_end_idx_end_tot_id)
-                # Update the current segment end coordinates;
-                # Because of reversal, we use the start of the segment we are appending as the new end coordinates
-                seg_coords_end_x_idx = seg_coords_start_x[diff_end_idx_end_tot_id]
-                seg_coords_end_y_idx = seg_coords_start_y[diff_end_idx_end_tot_id]
-
-        # Now we have the new order of the segments
-        new_seg_order = np.array(ordered_ids)
-
-        # Concatenate the segments in the new order
-        coords_x_reordered = np.array([])
-        coords_y_reordered = np.array([])
-        indices_reordered = np.array([])
-
-        for j in range(len(new_seg_order)):
-            if new_seg_order[j] < 0:
-                segment = np.nonzero(segment_ids == -new_seg_order[j])[0]
-                coords_x_segment = coords_x[connectivities[segment] - 1][:, 0][::-1]
-                coords_y_segment = coords_y[connectivities[segment] - 1][:, 0][::-1]
-                indices_segment = indices[connectivities[segment] - 1][:, 0][::-1]
-            else:
-                segment = np.nonzero(segment_ids == new_seg_order[j])[0]
-                coords_x_segment = coords_x[connectivities[segment] - 1][:, 0]
-                coords_y_segment = coords_y[connectivities[segment] - 1][:, 0]
-                indices_segment = indices[connectivities[segment] - 1][:, 0]
-            coords_x_reordered = np.concatenate((coords_x_reordered, coords_x_segment))
-            coords_y_reordered = np.concatenate((coords_y_reordered, coords_y_segment))
-            indices_reordered = np.concatenate((indices_reordered, indices_segment))
-
-        err = 1e-4
-        err_x = 0.90
-        max_x = np.amax(coords_x_reordered) * err_x
-        max_x_ids = np.argwhere(np.abs(coords_x_reordered - np.amax(coords_x_reordered)) < err).reshape(-1, 1)
-        max_x_ids = max_x_ids[coords_x_reordered[max_x_ids] >= max_x]
-        # Get the y values at the maximum x values
-        max_x_y_values = coords_y_reordered[max_x_ids]
-        # Get the maximum y value
-        max_y_value_id = np.argmax(max_x_y_values)
-        max_y_value = max_x_y_values[max_y_value_id]
-        # Get the minimum y value
-        min_y_value_id = np.argmin(max_x_y_values)
-        min_y_value = max_x_y_values[min_y_value_id]
-
-        # Get the id of the value closest to the mean of the maximum and minimum y values
-        mean_y_value = (max_y_value + min_y_value) / 2
-        # Get the id of the value closest to the mean y value at the x value of the maximum y value
-        mean_y_value_sub_id = np.argmin(np.abs(max_x_y_values - mean_y_value))
-        mean_y_value_id = max_x_ids[mean_y_value_sub_id]
-        # Now reorder the coordinates such that the mean y value is first
-        coords_x_reordered = np.concatenate((coords_x_reordered[mean_y_value_id:], coords_x_reordered[:mean_y_value_id]))
-        coords_y_reordered = np.concatenate((coords_y_reordered[mean_y_value_id:], coords_y_reordered[:mean_y_value_id]))
-        indices_reordered = np.concatenate((indices_reordered[mean_y_value_id:], indices_reordered[:mean_y_value_id]))
-        # Finally, check the direction of the coordinates and reverse if necessary
-        # Randomly get the 20th coordinate and check if the x value is
-        # greater than the x value of the first coordinate, and the y value is greater than the y value on the lower surface
-        # Get the y value on the lower surface that is approximately at the same x value as the 20th coordinate
-        x_lower_surf_values = coords_x_reordered[-20:]
-        y_lower_surf_values = coords_y_reordered[-20:]
-        y_lower_surf_value_id = np.argmin(np.abs(x_lower_surf_values - coords_x_reordered[20]))
-        y_lower_surf_value = y_lower_surf_values[y_lower_surf_value_id]
-
-        # if the upper surface is going right to left, reverse the coordinates.
-        # We can also tell whether our assumption about the upper surface is correct by checking if the y value of the 20th coordinate is greater than the y value of the lower surface
-        if coords_y_reordered[20] < y_lower_surf_value:
-            coords_x_reordered = coords_x_reordered[::-1]
-            coords_y_reordered = coords_y_reordered[::-1]
-            indices_reordered = indices_reordered[::-1]
-
-        # Lastly, remove any successive duplicate coordinates
-        err_remove = 1e-6
-        removal_ids = np.where(np.abs(np.diff(coords_x_reordered) + np.diff(coords_y_reordered)) < err_remove)[0]
-        indices_reordered = np.delete(indices_reordered, removal_ids)
-        coords_x_reordered = np.delete(coords_x_reordered, removal_ids)
-        coords_y_reordered = np.delete(coords_y_reordered, removal_ids)
-
-        # Concatenate the the first coordinate to the end of the array
-        coords_x_reordered = np.concatenate((coords_x_reordered, np.expand_dims(coords_x_reordered[0], axis=0)))
-        coords_y_reordered = np.concatenate((coords_y_reordered, np.expand_dims(coords_y_reordered[0], axis=0)))
-        indices_reordered = np.concatenate((indices_reordered, np.expand_dims(indices_reordered[0], axis=0)))
-
-        return np.array([coords_x_reordered, coords_y_reordered])
-
-    def __simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
+    def simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
         """Converts a simulator output to a design.
 
         Args:
-            simulator_output (str): The simulator output to convert.
+            simulator_output (str): The simulator output to convert. If None, the latest slice file is used.
 
         Returns:
             np.ndarray: The corresponding design.
@@ -450,7 +284,7 @@ class Airfoil(Problem[DesignType]):
         # Concatenate node connections to the main data
         slice_df = pd.concat([slice_df, nodes_arr], axis=1)
 
-        return self.__reorder_coords(slice_df)
+        return reorder_coords(slice_df)
 
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
         """Simulates the performance of an airfoil design.
@@ -464,7 +298,7 @@ class Airfoil(Problem[DesignType]):
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
         # docker pull image if not already pulled
-        if container.RUNTIME is not None:
+        if container.RUNTIME is not None and self.container_id is not None:
             container.pull(self.container_id)
         # pre-process the design and run the simulation
 
@@ -502,6 +336,7 @@ class Airfoil(Problem[DesignType]):
                 + self.__docker_study_dir
                 + "/output.log"
             )
+            assert self.container_id is not None, "Container ID is not set"
             container.run(
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
@@ -532,7 +367,7 @@ class Airfoil(Problem[DesignType]):
             tuple[dict[str, Any], list[OptiStep]]: The optimized design and its performance.
         """
         # docker pull image if not already pulled
-        if container.RUNTIME is not None:
+        if container.RUNTIME is not None and self.container_id is not None:
             container.pull(self.container_id)
         # pre-process the design and run the simulation
         filename = "candidate_design"
@@ -553,7 +388,7 @@ class Airfoil(Problem[DesignType]):
             "output_dir": "'" + self.__docker_study_dir + "/output/'",
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
-            "area_input_design": self._calc_area(starting_point["coords"]),
+            "area_input_design": calc_area(starting_point["coords"]),
         }
         base_config.update(self.conditions)
         base_config.update(config or {})
@@ -575,6 +410,7 @@ class Airfoil(Problem[DesignType]):
                 + self.__docker_study_dir
                 + "/airfoil_opt.log"
             )
+            assert self.container_id is not None, "Container ID is not set"
             container.run(
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
@@ -599,7 +435,7 @@ class Airfoil(Problem[DesignType]):
 
         history.close()
 
-        opt_coords = self.__simulator_output_to_design()
+        opt_coords = self.simulator_output_to_design()
 
         return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
@@ -634,155 +470,10 @@ class Airfoil(Problem[DesignType]):
         initial_design = self.dataset["train"]["initial_design"][rnd]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
-    def _calc_off_wall_distance(  # noqa: PLR0913
-        self,
-        mach: float,
-        reynolds: float,
-        freestreamTemp: float = 300.0,  # noqa: N803
-        reynoldsLength: float = 1.0,  # noqa: N803
-        yplus: float = 1,
-        R: float = 287.0,  # noqa: N803
-        gamma: float = 1.4,
-    ) -> float:
-        """Estimation of the off-wall distance for a given design.
-
-        The off-wall distance is calculated using the Reynolds number and the freestream temperature.
-        """
-        # ---------------------------
-        a = np.sqrt(gamma * R * freestreamTemp)
-        u = mach * a
-        # ---------------------------
-        # Viscosity from Sutherland's law
-        ## Sutherland's law parameters
-        mu0 = 1.716e-5
-        T0 = 273.15  # noqa: N806
-        S = 110.4  # noqa: N806
-        mu = mu0 * ((freestreamTemp / T0) ** (3 / 2)) * (T0 + S) / (freestreamTemp + S)
-        # ---------------------------
-        # Density
-        rho = reynolds * mu / (reynoldsLength * u)
-        ## Skin friction coefficient
-        Cf = (2 * np.log10(reynolds) - 0.65) ** (-2.3)  # noqa: N806
-        # Wall shear stress
-        tau = Cf * 0.5 * rho * (u**2)
-        # Friction velocity
-        uTau = np.sqrt(tau / rho)  # noqa: N806
-        # Off wall distance
-        return yplus * mu / (rho * uTau)
-
-    def _is_blunted(self, coords: npt.NDArray[np.float64], delta_x_tol: float = 1e-5) -> bool:
-        """Checks if the coordinates are blunted or not.
-
-        Args:
-            coords (np.ndarray): The coordinates to check.
-            delta_x_tol (float): The tolerance for the x coordinate difference.
-
-        Returns:
-            bool: True if the coordinates are blunted, False otherwise.
-        """
-        # Check if the coordinates going away from the tip have a small delta y
-        coords_x = coords[0, :]
-        # Get all of the trailing edge indices, i.e where consecutive x coordinates are the same
-        x_gt = np.max(coords_x) * 0.99
-        trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < delta_x_tol)[0]
-        trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < delta_x_tol)[0]
-        # Include any indices that are in either list
-        trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
-        trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
-
-        # check if we have no trailing edge indices
-        return not len(trailing_edge_indices) <= 1
-
-    def _calc_area(self, coords: npt.NDArray[np.float32]) -> float:
-        """Calculates the area of the airfoil.
-
-        Args:
-            coords (np.ndarray): The coordinates of the airfoil.
-
-        Returns:
-            float: The area of the airfoil.
-        """
-        return 0.5 * np.absolute(
-            np.sum(coords[0, :] * np.roll(coords[1, :], -1)) - np.sum(coords[1, :] * np.roll(coords[0, :], -1))
-        )
-
-    def _scale_coords(
-        self,
-        coords: npt.NDArray[np.float64],
-        blunted: bool = False,  # noqa: FBT001, FBT002
-        xcut: float = 0.99,
-        min_trailing_edge_indices: float = 6,
-    ) -> tuple[npt.NDArray[np.float64], bool]:
-        """Scales the coordinates to fit in the design space.
-
-        Args:
-            coords (np.ndarray): The coordinates to scale.
-            blunted (bool): If True, the coordinates are assumed to be blunted.
-            xcut (float): The x coordinate of the cut, if the coordinates are blunted.
-            min_trailing_edge_indices (int): The minimum number of trailing edge indices to remove.
-
-        Returns:
-            np.ndarray: The scaled coordinates.
-        """
-        # Test if the coordinates are blunted or not
-        if not (blunted) and self._is_blunted(coords):
-            blunted = True
-            print(
-                "The coordinates may be blunted. However, blunted was not set to True. Will set blunted to True and continue, but please check the coordinates."
-            )
-
-        if not (blunted):
-            xcut = 1.0
-
-        # Scale x coordinates to be xcut in length
-        airfoil_length = np.abs(np.max(coords[0, :]) - np.min(coords[0, :]))
-
-        # Center the coordinates around the leading edge and scale them
-        coords[0, :] = xcut * (coords[0, :] - np.min(coords[0, :])) / airfoil_length
-        airfoil_length = np.abs(np.max(coords[0, :]) - np.min(coords[0, :]))
-
-        # Shift the coordinates to be centered at 0 at the leading edge
-        leading_id = np.argmin(coords[0, :])
-        y_dist = coords[1, leading_id]
-        coords[1, :] += -y_dist
-        # Ensure the first and last points are the same
-        coords[0, 0] = xcut
-        coords[0, -1] = xcut
-        coords[1, -1] = coords[1, 0]
-        # Set the leading edge location
-
-        if blunted:
-            coords_x = coords[0, :]
-            # Get all of the trailing edge indices, i.e where consecutive x coordinates are the same
-            err = 1e-5
-            x_gt = np.max(coords_x) * 0.99
-            trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < err)[0]
-            trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < err)[0]
-            # Include any indices that are in either list
-            trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
-            trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
-
-            err = 1e-4
-            err_stop = 1e-3
-            while len(trailing_edge_indices) < min_trailing_edge_indices:
-                trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < err)[0]
-                trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < err)[0]
-                # Include any indices that are in either list
-                trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
-                trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
-                err *= 1.5
-                if err > err_stop:
-                    break
-
-            # Remove the trailing edge indices from the coordinates
-            coords = np.delete(coords, trailing_edge_indices[1:-1], axis=1)
-
-        return coords, blunted
-
 
 if __name__ == "__main__":
     problem = Airfoil()
-    problem.reset(seed=0, cleanup=False)
+    problem.reset(seed=0, cleanup=True)
 
     dataset = problem.dataset
     # Get design and conditions from the dataset
@@ -793,4 +484,5 @@ if __name__ == "__main__":
     print(problem.simulate(design, config=config, mpicores=8))
 
     # Get design and conditions from the dataset, render design
-    design_tuple, optisteps_history = problem.optimize(design, config=config, mpicores=8)
+    opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
+    problem.render(opt_design, open_window=True)
