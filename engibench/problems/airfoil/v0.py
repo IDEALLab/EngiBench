@@ -155,7 +155,7 @@ class Airfoil(Problem[DesignType]):
         # Scale the design to fit in the design space
         scaled_design = self._scale_coords(design["coords"])
         # Save the design to a temporary file
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose()) # type: ignore  # noqa: PGH003
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())  # type: ignore  # noqa: PGH003
         tmp = os.path.join(self.__docker_study_dir, "tmp")
 
         base_config = {
@@ -190,13 +190,15 @@ class Airfoil(Problem[DesignType]):
         base_config.update(self.conditions)
 
         # Scale the design to fit in the design space
-        scaled_design, input_blunted = self._scale_coords( # type: ignore  # noqa: PGH003
-            design["coords"], blunted=base_config["input_blunted"], xcut=base_config["xCut"] # type: ignore  # noqa: PGH003
+        scaled_design, input_blunted = self._scale_coords(  # type: ignore  # noqa: PGH003
+            design["coords"],
+            blunted=base_config["input_blunted"],
+            xcut=base_config["xCut"],  # type: ignore  # noqa: PGH003
         )
         base_config["input_blunted"] = input_blunted
 
         # Save the design to a temporary file. Format to 1e-6 rounding
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose()) # type: ignore  # noqa: PGH003
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())  # type: ignore  # noqa: PGH003
 
         # Prepares the preprocess.py script with the design
         replace_template_values(
