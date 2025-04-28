@@ -174,7 +174,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         if not os.path.exists("templates"):
             os.mkdir("templates")
         templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
-        subprocess.run(["cp", "-r", f"{templates_location}/*", "templates/"], check=True)
+        subprocess.run(["cp", "-r", f"{templates_location}/.", "templates/"], check=True)
 
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
