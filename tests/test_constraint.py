@@ -68,7 +68,8 @@ def test_violation_error_is_filterable_by_criticality() -> None:
         [
             z_violation,
             constraint.Violation(y_positive, "y < 0"),
-        ]
+        ],
+        2,
     )
     errors = violations.by_criticality(constraint.Criticality.Error)
     assert errors.violations == [z_violation]
@@ -82,7 +83,8 @@ def test_violation_error_is_filterable_by_category() -> None:
         [
             z_violation,
             constraint.Violation(y_positive, "y < 0"),
-        ]
+        ],
+        2,
     )
     theory_violations = violations.by_category(constraint.Category.Theory)
     assert theory_violations.violations == [z_violation]
@@ -98,7 +100,8 @@ def test_violation_error_is_filterable_by_category_and_criticality() -> None:
             z_violation,
             constraint.Violation(y_positive, "y < 0"),
             constraint.Violation(x_positive, "x < 0"),
-        ]
+        ],
+        3,
     )
     errors = violations.by_category(constraint.Category.Theory).by_criticality(constraint.Criticality.Error)
     assert errors.violations == [z_violation]

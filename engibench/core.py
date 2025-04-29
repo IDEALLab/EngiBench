@@ -197,12 +197,13 @@ class Problem(Generic[DesignType]):
             checked_config = self.Config(**config)
             violations = constraint.check_field_constraints(checked_config)
         else:
-            violations = constraint.Violations([])
+            violations = constraint.Violations([], 0)
 
         @constraint.constraint
         def design_constraint(design: DesignType) -> None:
             assert self.design_space.contains(design), "design ∉ design_space"
 
+        violations.n_constraints += 1 + len(self.design_constraints)
         for c in (design_constraint, *self.design_constraints):
             design_violation = c.check_value(design)
             if design_violation is not None:

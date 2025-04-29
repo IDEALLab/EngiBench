@@ -161,16 +161,22 @@ class Violation:
 class Violations:
     """Filterable collection of :class:`Violation` instances returned by :function:`check_constraints`."""
 
-    def __init__(self, violations: list[Violation]) -> None:
+    def __init__(self, violations: list[Violation], n_constraints: int) -> None:
         self.violations = violations
+        self.n_constraints = n_constraints
 
     def by_category(self, category: Category) -> Violations:
         """Filter the violations by the category of the constraint causing the violation."""
-        return Violations([violation for violation in self.violations if category in violation.constraint.categories])
+        return Violations(
+            [violation for violation in self.violations if category in violation.constraint.categories], self.n_constraints
+        )
 
     def by_criticality(self, criticality: Criticality) -> Violations:
         """Filter the violations by criticality."""
-        return Violations([violation for violation in self.violations if violation.constraint.criticality == criticality])
+        return Violations(
+            [violation for violation in self.violations if violation.constraint.criticality == criticality],
+            self.n_constraints,
+        )
 
     def __bool__(self) -> bool:
         return bool(self.violations)
@@ -222,12 +228,13 @@ def check_constraints(
     parameter_args: dict[str, Any],
 ) -> Violations:
     """Check for violations of the given constraints for the given parameters."""
+    constraints = list(constraints)
     violations = [
         violation
         for violation in (constraint.check_dict(parameter_args) for constraint in constraints)
         if violation is not None
     ]
-    return Violations(violations)
+    return Violations(violations, len(constraints))
 
 
 def check_field_constraints(
@@ -237,7 +244,9 @@ def check_field_constraints(
     assert is_dataclass(data)
     assert not isinstance(data, type)
     violations = []
+    n_constraints = 0
     for f_name, constraint in field_constraints(data):
+        n_constraints += 1
         violation = (
             constraint.check_value(getattr(data, f_name))
             if f_name is not None
@@ -248,7 +257,7 @@ def check_field_constraints(
                 violation = Violation(violation.constraint, f"{type(data).__name__}.{f_name}: {violation.cause}")
             violations.append(violation)
 
-    return Violations(violations)
+    return Violations(violations, n_constraints)
 
 
 def field_constraints(data: Any) -> Iterable[tuple[str | None, Constraint]]:

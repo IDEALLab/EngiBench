@@ -33,6 +33,8 @@ def test_check_constraints_detects_violations() -> None:
     config = {"x": 1, "y": 0.0}
     violations = FakeProblem().check_constraints(design, config)
     assert causes(violations) == ["Config.x: 1 ∉ [10, ∞]", "Config.y: 0.0 ∉ [-∞, -1.0]", "design ∉ design_space"]
+    expected_n_constraints = 3
+    assert violations.n_constraints == expected_n_constraints
 
 
 def test_check_constraints_detects_invalid_parameters() -> None:
