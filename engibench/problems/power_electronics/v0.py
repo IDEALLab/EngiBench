@@ -152,7 +152,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
         # Use the ngspice wrapper to run the simulation
-        ngspice = NgSpice(ngspice_path=self.ngspice_path)
+        ngspice = NgSpice(ngspice_windows_path=self.ngspice_path)
         ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
         return np.array([DcGain, VoltageRipple])
