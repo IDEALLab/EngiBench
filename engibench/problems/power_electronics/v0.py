@@ -129,9 +129,7 @@ class PowerElectronics(Problem[npt.NDArray]):
             original_netlist_path=original_netlist_path,
             mode=mode,
         )
-
-        # Initialize ngspice wrapper
-        self.ngspice = NgSpice(ngspice_path)
+        self.ngspice_path = ngspice_path
 
     def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:  # noqa: ARG002
         """Simulates the performance of a Power Electronics design.
@@ -154,7 +152,8 @@ class PowerElectronics(Problem[npt.NDArray]):
         self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
         # Use the ngspice wrapper to run the simulation
-        self.ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
+        ngspice = NgSpice(ngspice_path=self.ngspice_path)
+        ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
         return np.array([DcGain, VoltageRipple])
 
