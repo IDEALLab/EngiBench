@@ -194,16 +194,7 @@ class Problem(Generic[DesignType]):
         Return a :class:`constraint.Violations` object containing all violations.
         """
         if self.Config is not None:
-            try:
-                checked_config = self.Config(**config)
-            except TypeError as e:
-                cause = str(e)
-                # The following is needed for Python 3.9:
-                if not cause.startswith(type(self).__name__):
-                    cause = self.Config.__name__ + "." + cause
-                if not cause.startswith(type(self).__name__):
-                    cause = type(self).__name__ + "." + cause
-                return constraint.Violations([constraint.Violation(constraint.Constraint(self.Config), cause=cause)])
+            checked_config = self.Config(**config)
             violations = constraint.check_field_constraints(checked_config)
         else:
             violations = constraint.Violations([])
