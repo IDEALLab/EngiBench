@@ -447,9 +447,7 @@ document.write(`
   </button>
 `);
 </script>
-<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
-    <span class="fa-solid fa-list"></span>
-</button>
+
 </div></div>
       
     </div>
@@ -465,15 +463,6 @@ document.write(`
     <div id="print-main-content">
         <div id="jb-print-toc">
             
-            <div>
-                <h2> Contents </h2>
-            </div>
-            <nav aria-label="Page">
-                <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#code">Code</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation">Documentation</a></li>
-</ul>
-            </nav>
         </div>
     </div>
 </div>
@@ -485,69 +474,6 @@ document.write(`
                   
   <section class="tex2jax_ignore mathjax_ignore" id="adding-a-new-problem">
 <h1>Adding a new problem<a class="headerlink" href="#adding-a-new-problem" title="Link to this heading">#</a></h1>
-<p>In general, follow the <code class="docutils literal notranslate"><span class="pre">beams2d/</span></code> example.</p>
-<section id="code">
-<h2>Code<a class="headerlink" href="#code" title="Link to this heading">#</a></h2>
-<ol class="arabic">
-<li><p>Create a new problem module in <a class="reference internal" href="#engibench/problems/"><span class="xref myst">engibench/problems/</span></a> following the following layout (e.g. <a class="reference internal" href="#engibench/problems/beams2d/"><span class="xref myst">engibench/problems/beams2d/</span></a>), where you later also can add other versions / variant of the problem:</p>
-<div class="highlight-default notranslate"><div class="highlight"><pre><span></span>📦 engibench
-└─ 📂 problems
-   └─ 📂 new_problem
-      ├── 📄 __init__.py
-      └── 📄 v0.py
-</pre></div>
-</div>
-<p><code class="docutils literal notranslate"><span class="pre">__init__.py</span></code></p>
-<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;NewProblem problem module.&quot;&quot;&quot;</span>
-
- <span class="kn">from</span><span class="w"> </span><span class="nn">engibench.problems.new_problem.v0</span><span class="w"> </span><span class="kn">import</span> <span class="n">NewProblem</span>
-
- <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;NewProblem&quot;</span><span class="p">]</span>
-</pre></div>
-</div>
-<p>The <code class="docutils literal notranslate"><span class="pre">v0</span></code> module already proactively introduces versioning.</p>
-<p>Ideally, all non-breaking changes should not create a new versioned module.
-Also in many cases, code duplication can be avoided, by introducing a new parameter to the problem class.</p>
-</li>
-<li><p>Define your problem class that implements the <code class="docutils literal notranslate"><span class="pre">Problem</span></code> interface with its functions and attributes in <code class="docutils literal notranslate"><span class="pre">problems/new_problem/v0.py</span></code> (e.g. <a class="reference internal" href="#engibench/problems/beams2d/v0.py"><span class="xref myst">beams2d/v0.py</span></a>).</p>
-<p><code class="docutils literal notranslate"><span class="pre">problems/new_problem/v0.py</span></code></p>
-<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.core</span><span class="w"> </span><span class="kn">import</span> <span class="n">Problem</span>
-
-<span class="k">class</span><span class="w"> </span><span class="nc">NewProblem</span><span class="p">(</span><span class="n">Problem</span><span class="p">[</span><span class="o">...</span><span class="p">])</span> <span class="c1"># &lt;- insert type for DesignType here</span>
-    <span class="o">...</span> <span class="c1"># define your problem here</span>
-</pre></div>
-</div>
-<p>You can consult the documentation for info about the API; see below for how to build the website locally.</p>
-</li>
-<li><p>Run <code class="docutils literal notranslate"><span class="pre">pytest</span> <span class="pre">tests/test_problem_implementations.py</span></code> (requires <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;.[test]&quot;</span></code>)
-to verify that the new <code class="docutils literal notranslate"><span class="pre">Problem</span></code> class defines all required metadata attributes.</p></li>
-<li><p>Complete your docstring (Python documentation) thoroughly, LLMs + coding IDE will greatly help.</p></li>
-</ol>
-</section>
-<section id="documentation">
-<h2>Documentation<a class="headerlink" href="#documentation" title="Link to this heading">#</a></h2>
-<ol class="arabic">
-<li><p>Install necessary documentation tools: <code class="docutils literal notranslate"><span class="pre">pip</span> <span class="pre">install</span> <span class="pre">&quot;.[doc]&quot;</span></code>.</p></li>
-<li><p>If it is a new problem family, add a new <code class="docutils literal notranslate"><span class="pre">.md</span></code> file in <a class="reference internal" href="#docs/problems/"><span class="xref myst">docs/problems/</span></a> following
-the existing structure and add your problem family in the <code class="docutils literal notranslate"><span class="pre">toctree</span></code> of <a class="reference internal" href="#docs/problems/index.md"><span class="xref myst">docs/problems/index.md</span></a>.</p></li>
-<li><p>Add a problem markdown file to the <code class="docutils literal notranslate"><span class="pre">toctree</span></code> in <code class="docutils literal notranslate"><span class="pre">docs/problems/new_problem.md</span></code>. In the md file, use EngiBench’s own <code class="docutils literal notranslate"><span class="pre">problem</span></code> directive:</p>
-<div class="highlight-md notranslate"><div class="highlight"><pre><span></span><span class="gh"># Your Problem</span>
-
-``` {problem} new_problem
-```
-</pre></div>
-</div>
-<p>Here, <code class="docutils literal notranslate"><span class="pre">new_problem</span></code> must match the name of the top level module where your problem class is defined.
-Here, <code class="docutils literal notranslate"><span class="pre">new_problem/__init__.py</span></code> is crucial as it makes the problem class discoverable to the <code class="docutils literal notranslate"><span class="pre">problem</span></code> directive by
-the reexport <code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.new_problem.v0</span> <span class="pre">import</span> <span class="pre">NewProblem</span></code>.</p>
-</li>
-<li><p>Add an image (result of <code class="docutils literal notranslate"><span class="pre">problem.render(design)</span></code>) in <code class="docutils literal notranslate"><span class="pre">docs/_static/img/problems</span></code>. The file’s name should be <code class="docutils literal notranslate"><span class="pre">&lt;new_problem&gt;.png</span></code>, with your problem module as in the point above.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cd</span> <span class="pre">docs/</span></code></p></li>
-<li><p>Run <code class="docutils literal notranslate"><span class="pre">sphinx-autobuild</span> <span class="pre">-b</span> <span class="pre">dirhtml</span> <span class="pre">--watch</span> <span class="pre">../engibench</span> <span class="pre">--re-ignore</span> <span class="pre">&quot;pickle$&quot;</span> <span class="pre">.</span> <span class="pre">_build</span></code></p></li>
-<li><p>Go to <a class="reference external" href="http://127.0.0.1:8000/">http://127.0.0.1:8000/</a> and check if everything is fine.</p></li>
-</ol>
-<p>Congrats! You can commit your changes and open a PR.</p>
-</section>
 </section>
 
 
@@ -576,22 +502,6 @@ the reexport <code class="docutils literal notranslate"><span class="pre">from</
             </div>
             
             
-              
-                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
-
-
-  <div class="sidebar-secondary-item">
-  <div class="page-toc tocsection onthispage">
-    <i class="fa-solid fa-list"></i> Contents
-  </div>
-  <nav class="bd-toc-nav page-toc">
-    <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#code">Code</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#documentation">Documentation</a></li>
-</ul>
-  </nav></div>
-
-</div></div>
               
             
           </div>
