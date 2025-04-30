@@ -1,6 +1,18 @@
-"""Airfoil 2D problem.
+r"""Airfoil problem.
 
 Filename convention is that folder paths do not end with /. For example, /path/to/folder is correct, but /path/to/folder/ is not.
+
+             .:-===+=+==-:
+     .==.                        .:-++=:....
+ .-:                                           .:--:::.
+-            Airfoil v.0                        :====--:-===
+:-                                    .:==:.
+   .-::.                     ::::-:.
+          ..::::----::::..
+
++-+-+-+-+-+-+-+-+-+
+|E|n|g|i|B|e|n|c|h|
++-+-+-+-+-+-+-+-+-+
 """
 
 from __future__ import annotations
@@ -142,7 +154,7 @@ class Airfoil(Problem[DesignType]):
             "angle_of_attack": spaces.Box(low=0.0, high=10.0, shape=(1,), dtype=np.float32),
         }
     )
-    design_constraints = (is_closed, does_not_self_intersect)
+    design_constraints = (does_not_self_intersect)
     dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     __local_study_dir: str
@@ -390,13 +402,11 @@ class Airfoil(Problem[DesignType]):
             "use_altitude": False,
             "output_dir": "'" + self.__docker_study_dir + "/output/'",
             "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
-            "task": "'analysis'",  # TODO(cashend): We can add the option to perform a polar analysis.
-            # https://github.com/IDEALLab/EngiBench/issues/15
+            "task": "'analysis'",
             **dict(self.conditions),
             **(config or {}),
         }
         self.__design_to_simulator_input(design, base_config)
-
         replace_template_values(
             self.__local_study_dir + "/airfoil_analysis.py",
             base_config,
@@ -560,6 +570,8 @@ if __name__ == "__main__":
     config = dataset["train"].select_columns(problem.conditions_keys)[idx]
 
     print(problem.simulate(design, config=config, mpicores=8))
+
+    problem.reset(seed=1, cleanup=True)
 
     # Get design and conditions from the dataset, render design
     opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
