@@ -15,10 +15,10 @@ import numpy as np
 import numpy.typing as npt
 
 from engibench.constraint import bounded
-from engibench.constraint import Category
-from engibench.constraint import check_field_constraints
 from engibench.constraint import constraint
 from engibench.constraint import greater_than
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -130,6 +130,42 @@ class Beams2D(Problem[npt.NDArray]):
             self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
             self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
 
+        # Default values of Config depend on nelx, nely => define it in __init__
+        @dataclass
+        class Config:
+            """Structured representation of configuration parameters for a numerical computation."""
+
+            nelx: Annotated[
+                int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
+            ] = self.nelx
+            nely: Annotated[
+                int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
+            ] = self.nely
+            penal: Annotated[
+                float, bounded(lower=1.0).category(IMPL), bounded(lower=2.0, upper=5.0).category(IMPL).warning()
+            ] = 3.0
+            max_iter: Annotated[
+                int, bounded(lower=0).category(THEORY), bounded(lower=1, upper=1000).category(IMPL).warning()
+            ] = 100
+            volfrac: Annotated[
+                float,
+                bounded(lower=0.0, upper=1.0).category(THEORY),
+                bounded(lower=0.1, upper=0.9).warning().category(IMPL),
+            ] = 0.35
+            rmin: Annotated[
+                float, greater_than(0.0).category(THEORY), bounded(lower=1.0, upper=10.0).category(IMPL).warning()
+            ] = 2.0
+            forcedist: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.0
+            overhang_constraint: bool = False
+
+            @constraint
+            @staticmethod
+            def rmin_bound(rmin: float, nelx: int, nely: int) -> None:
+                """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
+                assert 0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
+
+        self.Config = Config
+
     def simulate(
         self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
     ) -> npt.NDArray:
@@ -181,7 +217,6 @@ class Beams2D(Problem[npt.NDArray]):
             **dict(self.conditions),
             **(config or {}),
         }
-        check_field_constraints(Params(**base_config))
 
         self.__st = setup(base_config)
 
@@ -275,32 +310,6 @@ class Beams2D(Problem[npt.NDArray]):
         """
         rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)
         return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
-
-
-IMPL = Category.Implementation
-THEORY = Category.Theory
-
-
-@dataclass
-class Params:
-    """Structured representation of configuration parameters for a numerical computation."""
-
-    nelx: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)]
-    nely: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)]
-    volfrac: Annotated[
-        float, bounded(lower=0.0, upper=1.0).category(THEORY), bounded(lower=0.1, upper=0.9).warning().category(IMPL)
-    ]
-    penal: Annotated[float, bounded(lower=1.0).category(IMPL), bounded(lower=2.0, wupper=5.0).category(IMPL).warning()]
-    rmin: Annotated[float, greater_than(0.0).category(THEORY), bounded(lower=1.0, upper=10.0).category(IMPL).warning()]
-    forcedist: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)]
-    max_iter: Annotated[int, bounded(lower=0).category(THEORY), bounded(lower=1, upper=1000).category(IMPL).warning()]
-    overhang_constraint: bool = False
-
-    @constraint
-    @staticmethod
-    def rmin_bound(rmin: float, nelx: int, nely: int) -> None:
-        """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
-        assert 0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
 
 
 if __name__ == "__main__":

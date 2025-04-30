@@ -58,10 +58,14 @@ desired_conds = {"volfrac": 0.7, "forcedist": 0.3}
 # generated_design = inverse_model.predict(desired_conds)
 
 random_design, _ = problem.random_design()
-# Only simulate to get objective values
-objs = problem.simulate(design=random_design, config=desired_conds)
-# Or run a gradient-based optimizer to polish the design
-opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
+# check constraints on the design, config pair
+violated_constraints = problem.check_constraints(design=random_design, config=desired_conds)
+
+if not violated_constraints:
+   # Only simulate to get objective values
+   objs = problem.simulate(design=random_design, config=desired_conds)
+   # Or run a gradient-based optimizer to polish the design
+   opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
 ```
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)

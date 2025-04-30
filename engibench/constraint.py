@@ -10,7 +10,10 @@ from enum import auto
 from enum import Enum
 from enum import Flag
 import inspect
-from typing import Any, overload, TypeVar
+import typing
+from typing import Any, ClassVar, overload, TypeVar
+
+import numpy as np
 
 Check = Callable[..., None]
 
@@ -22,7 +25,9 @@ class Category(Flag):
     Implementation = auto()
 
 
-EMPTY_CATEGORY = Category(0)
+IMPL = Category.Implementation
+THEORY = Category.Theory
+UNCATEGORIZED = Category(0)
 
 
 class Criticality(Enum):
@@ -38,7 +43,7 @@ class Constraint:
 
     check: Check
     """Check callback raising an AssertError if the constraint is violated."""
-    categories: Category = EMPTY_CATEGORY
+    categories: Category = UNCATEGORIZED
     """Categories of the constraint."""
     criticality: Criticality = Criticality.Error
     """Criticality of a violation of the constraint."""
@@ -92,7 +97,7 @@ def constraint(check: Check, /) -> Constraint: ...
 
 @overload
 def constraint(
-    *, categories: Category = EMPTY_CATEGORY, criticality: Criticality = Criticality.Error
+    *, categories: Category = UNCATEGORIZED, criticality: Criticality = Criticality.Error
 ) -> Callable[[Check], Constraint]: ...
 
 
@@ -100,7 +105,7 @@ def constraint(
     check: Check | None = None,
     /,
     *,
-    categories: Category = EMPTY_CATEGORY,
+    categories: Category = UNCATEGORIZED,
     criticality: Criticality = Criticality.Error,
 ) -> Callable[[Check], Constraint] | Constraint:
     """Decorator for check callbacks to convert the callback to a :class:`Constraint`."""
@@ -142,16 +147,6 @@ class Var:
         return dataclasses.replace(constraint, check=extracting_check)
 
 
-def constraint_factory(f: Callable[..., Check]) -> Callable[..., Constraint]:
-    """Convert a check factory to a constraint factory."""
-
-    def _factory(*args: Any, **kwargs: Any) -> Constraint:
-        original_check = f(*args, **kwargs)
-        return Constraint(original_check)
-
-    return _factory
-
-
 @dataclass
 class Violation:
     """Representation of a violation of a constraint."""
@@ -166,16 +161,22 @@ class Violation:
 class Violations:
     """Filterable collection of :class:`Violation` instances returned by :function:`check_constraints`."""
 
-    def __init__(self, violations: list[Violation]) -> None:
+    def __init__(self, violations: list[Violation], n_constraints: int) -> None:
         self.violations = violations
+        self.n_constraints = n_constraints
 
     def by_category(self, category: Category) -> Violations:
         """Filter the violations by the category of the constraint causing the violation."""
-        return Violations([violation for violation in self.violations if category in violation.constraint.categories])
+        return Violations(
+            [violation for violation in self.violations if category in violation.constraint.categories], self.n_constraints
+        )
 
     def by_criticality(self, criticality: Criticality) -> Violations:
         """Filter the violations by criticality."""
-        return Violations([violation for violation in self.violations if violation.constraint.criticality == criticality])
+        return Violations(
+            [violation for violation in self.violations if violation.constraint.criticality == criticality],
+            self.n_constraints,
+        )
 
     def __bool__(self) -> bool:
         return bool(self.violations)
@@ -184,36 +185,33 @@ class Violations:
 T = TypeVar("T", int, float)
 
 
-@constraint_factory
-def bounded(*, lower: T | None = None, upper: T | None = None) -> Check:
+def bounded(*, lower: T | None = None, upper: T | None = None) -> Constraint:
     """Create a constraint which checks that the specified parameter is contained in an interval `[lower, upper]`."""
 
     def check(value: T) -> None:
         msg = f"{value} ∉ [{lower if lower is not None else '-∞'}, {upper if upper is not None else '∞'}]"
-        assert lower is None or lower <= value, msg
-        assert upper is None or value <= upper, msg
+        assert lower is None or np.all(lower <= value), msg
+        assert upper is None or np.all(value <= upper), msg
 
-    return check
+    return Constraint(check)
 
 
-@constraint_factory
-def greater_than(lower: T, /) -> Check:
+def greater_than(lower: T, /) -> Constraint:
     """Create a constraint which checks that the specified parameter is greater than `lower`."""
 
     def check(value: T) -> None:
-        assert value > lower, f"{value} ∉ ({lower}, ∞)"
+        assert np.all(value > lower), f"{value} ∉ ({lower}, ∞)"
 
-    return check
+    return Constraint(check)
 
 
-@constraint_factory
-def less_than(upper: T, /) -> Check:
+def less_than(upper: T, /) -> Constraint:
     """Create a constraint which checks that the specified parameter is less than `upper`."""
 
     def check(value: T) -> None:
-        assert value < upper, f"{value} ∉ (-∞, {upper})"
+        assert np.all(value < upper), f"{value} ∉ (-∞, {upper})"
 
-    return check
+    return Constraint(check)
 
 
 def check_optimize_constraints(
@@ -230,12 +228,13 @@ def check_constraints(
     parameter_args: dict[str, Any],
 ) -> Violations:
     """Check for violations of the given constraints for the given parameters."""
+    constraints = list(constraints)
     violations = [
         violation
         for violation in (constraint.check_dict(parameter_args) for constraint in constraints)
         if violation is not None
     ]
-    return Violations(violations)
+    return Violations(violations, len(constraints))
 
 
 def check_field_constraints(
@@ -245,7 +244,9 @@ def check_field_constraints(
     assert is_dataclass(data)
     assert not isinstance(data, type)
     violations = []
+    n_constraints = 0
     for f_name, constraint in field_constraints(data):
+        n_constraints += 1
         violation = (
             constraint.check_value(getattr(data, f_name))
             if f_name is not None
@@ -256,16 +257,24 @@ def check_field_constraints(
                 violation = Violation(violation.constraint, f"{type(data).__name__}.{f_name}: {violation.cause}")
             violations.append(violation)
 
-    return Violations(violations)
+    return Violations(violations, n_constraints)
 
 
 def field_constraints(data: Any) -> Iterable[tuple[str | None, Constraint]]:
     """Iterate over all constraints declared on the dataclass instance `data`."""
     assert is_dataclass(data)
+    # Check for annotated ClassVar:
+    for f_name, f in data.__annotations__.items():
+        if typing.get_origin(f) is not ClassVar:
+            continue
+        try:
+            (annotation,) = typing.get_args(f)
+        except TypeError:
+            continue
+        yield from ((f_name, c) for c in getattr(annotation, "__metadata__", ()) if isinstance(c, Constraint))
     for f in dataclasses.fields(data):
         # Check for typing.Annotated:
-        if hasattr(f.type, "__metadata__"):
-            yield from ((f.name, c) for c in f.type.__metadata__ if isinstance(c, Constraint))
+        yield from ((f.name, c) for c in getattr(f.type, "__metadata__", ()) if isinstance(c, Constraint))
     yield from ((None, c) for c in vars(type(data)).values() if isinstance(c, Constraint))
 
 

@@ -5,9 +5,11 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+from dataclasses import field
 import os
 import shutil
-from typing import Any
+from typing import Annotated, Any
 
 from gymnasium import spaces
 import numpy as np
@@ -15,6 +17,10 @@ import numpy.typing as npt
 import pandas as pd
 import pyoptsparse
 
+from engibench.constraint import bounded
+from engibench.constraint import constraint
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
@@ -27,6 +33,48 @@ from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
 DesignType = dict[str, Any]
+
+
+@constraint(categories=IMPL)
+def is_closed(design: DesignType) -> None:
+    """Check if a curve is closed."""
+    curve = design["coords"]
+    assert curve[0] == curve[-1], "design: Curve is not closed"
+
+
+def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
+    """Determines if two segments a and b intersect."""
+    # intersection: find t such that (p + t dp - q) x dq = 0 with 0 <= t <= 1
+    # and (q + s dq - p) x dp = 0, 0 <= s <= 1
+    # dp x dq = 0 => parallel => no intersection
+    #
+    # t = (q-p) x dq / dp x dq
+    # s = (q-p) x dp / dp x dq
+    #
+    # Also use the fact that 2 consecutive segments always intersect (at their common point)
+    # => never check consecutive segments
+    segments = curve[1:] - curve[:-1]
+    n = segments.shape[0]
+    for i in range(n - 1):
+        p, dp = curve[i], segments[i]
+        end = n - 1 if i == 0 else n
+        q, dq = curve[i + 2 : end], segments[i + 2 : end]
+        x = np.cross(dp, dq)
+        parallel = x == 0.0
+        t = np.cross(q[~parallel] - p, dq[~parallel]) / x[~parallel]
+        s = np.cross(q[~parallel] - p, dp) / x[~parallel]
+        if np.any((t >= 0.0) & (t <= 1.0) & (s >= 0.0) & (s <= 1.0)):
+            return i, p, curve[i + 1]
+    return None
+
+
+@constraint(categories=IMPL)
+def does_not_self_intersect(design: DesignType) -> None:
+    """Check if a curve has no self intersections."""
+    intersection = self_intersect(design["coords"])
+    assert intersection is None, (
+        f"design: Curve does self intersect at segment {intersection[0]}: {intersection[1]} -- {intersection[2]}"
+    )
 
 
 class Airfoil(Problem[DesignType]):
@@ -99,9 +147,46 @@ class Airfoil(Problem[DesignType]):
             "angle_of_attack": spaces.Box(low=0.0, high=10.0, shape=(1,), dtype=np.float32),
         }
     )
+    design_constraints = (is_closed, does_not_self_intersect)
     dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     __local_study_dir: str
+
+    @dataclass
+    class Config:
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        alpha: Annotated[float, bounded(lower=0.0, upper=10.0).category(THEORY)] = 0.0
+        area_ratio_min: Annotated[float, bounded(upper=1.2).category(THEORY)] = 0.7
+        area_initial: None | float = None
+        mach: Annotated[
+            float, bounded(lower=0.0).category(IMPL), bounded(lower=0.1, upper=1.0).warning().category(IMPL)
+        ] = 0.8
+        reynolds: Annotated[float, bounded(lower=0.0).category(IMPL)] = 1e6
+        cl_target: float = 0.5
+        altitude: float = 10000.0
+        temperature: float = 300.0
+        use_altitude: bool = False
+        output_dir: str | None = None
+        mesh_fname: str | None = None
+        task: str = "'analysis'"
+        opt: str = "'SLSQP'"
+        opt_options: dict = field(default_factory=dict)
+        ffd_fname: str | None = None
+        area_input_design: float | None = None
+
+        @constraint(categories=THEORY)
+        @staticmethod
+        def area_ratio_bound(area_ratio_min: float, area_initial: float | None, area_input_design: float | None) -> None:
+            """Constraint for area_ratio_min <= area_ratio <= 1.2."""
+            area_ratio_max = 1.2
+            if area_input_design is None:
+                return
+            assert area_initial is not None
+            area_ratio = area_input_design / area_initial
+            assert area_ratio_min <= area_ratio <= area_ratio_max, (
+                f"Config.area_ratio: {area_ratio} ∉ [area_ratio_min={area_ratio_min}, 1.2]"
+            )
 
     def __init__(self, base_directory: str | None = None) -> None:
         """Initializes the Airfoil problem.
@@ -305,8 +390,6 @@ class Airfoil(Problem[DesignType]):
         # Prepares the airfoil_analysis.py script with the simulation configuration
         base_config = {
             "alpha": design["angle_of_attack"],
-            "mach": 0.8,
-            "reynolds": 1e6,
             "altitude": 10000,
             "temperature": 300,
             "use_altitude": False,
@@ -314,9 +397,9 @@ class Airfoil(Problem[DesignType]):
             "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
             "task": "'analysis'",  # TODO(cashend): We can add the option to perform a polar analysis.
             # https://github.com/IDEALLab/EngiBench/issues/15
+            **dict(self.conditions),
+            **(config or {}),
         }
-        base_config.update(self.conditions)
-        base_config.update(config or {})
         self.__design_to_simulator_input(design, base_config)
 
         replace_template_values(
@@ -389,9 +472,9 @@ class Airfoil(Problem[DesignType]):
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
             "area_input_design": calc_area(starting_point["coords"]),
+            **dict(self.conditions),
+            **(config or {}),
         }
-        base_config.update(self.conditions)
-        base_config.update(config or {})
         self.__design_to_simulator_input(starting_point, base_config, filename)
         replace_template_values(
             self.__local_study_dir + "/airfoil_opt.py",

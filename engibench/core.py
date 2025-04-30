@@ -87,6 +87,8 @@ class Problem(Generic[DesignType]):
     """Design space (algorithm output)"""
     dataset_id: str
     """String identifier for the problem (useful to pull datasets)"""
+    design_constraints: tuple[constraint.Constraint, ...] = ()
+    """Additional constraints for designs"""
     _dataset: Dataset | None = None
     """Dataset with designs and performances"""
     container_id: str | None
@@ -192,26 +194,19 @@ class Problem(Generic[DesignType]):
         Return a :class:`constraint.Violations` object containing all violations.
         """
         if self.Config is not None:
-            try:
-                checked_config = self.Config(**config)
-            except TypeError as e:
-                cause = str(e)
-                # The following is needed for Python 3.9:
-                if not cause.startswith(type(self).__name__):
-                    cause = self.Config.__name__ + "." + cause
-                if not cause.startswith(type(self).__name__):
-                    cause = type(self).__name__ + "." + cause
-                return constraint.Violations([constraint.Violation(constraint.Constraint(self.Config), cause=cause)])
+            checked_config = self.Config(**config)
             violations = constraint.check_field_constraints(checked_config)
         else:
-            violations = constraint.Violations([])
+            violations = constraint.Violations([], 0)
 
         @constraint.constraint
         def design_constraint(design: DesignType) -> None:
             assert self.design_space.contains(design), "design ∉ design_space"
 
-        design_violation = design_constraint.check_value(design)
-        if design_violation is not None:
-            violations.violations.append(design_violation)
+        violations.n_constraints += 1 + len(self.design_constraints)
+        for c in (design_constraint, *self.design_constraints):
+            design_violation = c.check_value(design)
+            if design_violation is not None:
+                violations.violations.append(design_violation)
 
         return violations

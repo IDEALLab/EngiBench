@@ -2,7 +2,9 @@
 
 from __future__ import annotations
 
-from typing import Any
+from dataclasses import dataclass
+from dataclasses import field
+from typing import Annotated, Any, ClassVar
 
 from gymnasium import spaces
 from matplotlib import colors
@@ -10,12 +12,23 @@ import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
+from engibench.constraint import bounded
+from engibench.constraint import constraint
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.problems.thermoelastic2d.model.fea_model import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 from engibench.problems.thermoelastic2d.utils import indices_to_binary_matrix
+
+NELY = NELX = 64
+LCI, TRI, RCI, BRI = get_res_bounds(NELX + 1, NELY + 1)
+FIXED_ELEMENTS = indices_to_binary_matrix([LCI[21], LCI[32], LCI[43]], NELX + 1, NELY + 1)
+FORCE_ELEMENTS_X = indices_to_binary_matrix([BRI[31]], NELX + 1, NELY + 1)
+FORCE_ELEMENTS_Y = indices_to_binary_matrix([BRI[31]], NELX + 1, NELY + 1)
+HEATSINK_ELEMENTS = indices_to_binary_matrix([LCI[31], LCI[32], LCI[33]], NELX + 1, NELY + 1)
 
 
 class ThermoElastic2D(Problem[npt.NDArray]):
@@ -83,21 +96,48 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
         ("volume_fraction", ObjectiveDirection.MINIMIZE),
     )
-    nelx = 64
-    nely = 64
-    lci, tri, rci, bri = get_res_bounds(nelx + 1, nely + 1)
     conditions: tuple[tuple[str, Any], ...] = (
-        ("fixed_elements", indices_to_binary_matrix([lci[21], lci[32], lci[43]], nelx + 1, nely + 1)),
-        ("force_elements_x", indices_to_binary_matrix([bri[31]], nelx + 1, nely + 1)),
-        ("force_elements_y", indices_to_binary_matrix([bri[31]], nelx + 1, nely + 1)),
-        ("heatsink_elements", indices_to_binary_matrix([lci[31], lci[32], lci[33]], nelx + 1, nely + 1)),
+        ("fixed_elements", FIXED_ELEMENTS),
+        ("force_elements_x", FORCE_ELEMENTS_X),
+        ("force_elements_y", FORCE_ELEMENTS_Y),
+        ("heatsink_elements", HEATSINK_ELEMENTS),
         ("volfrac", 0.3),
         ("rmin", 1.1),
         ("weight", 0.5),  # 1.0 for pure structural, 0.0 for pure thermal
     )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(nelx, nely), dtype=np.float32)
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY), dtype=np.float32)
     dataset_id = "IDEALLab/thermoelastic_2d_v0"
     container_id = None
+
+    @dataclass
+    class Config:
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        nelx: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
+        nely: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
+        volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
+        rmin: Annotated[
+            float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
+        ] = 1.1
+        weight: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
+        fixed_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
+            default_factory=lambda: FIXED_ELEMENTS
+        )
+        force_elements_x: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
+            default_factory=lambda: FORCE_ELEMENTS_X
+        )
+        force_elements_y: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
+            default_factory=lambda: FORCE_ELEMENTS_Y
+        )
+        heatsink_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
+            default_factory=lambda: HEATSINK_ELEMENTS
+        )
+
+        @constraint
+        @staticmethod
+        def rmin_bound(rmin: float, nelx: int, nely: int) -> None:
+            """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
+            assert 0.0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
 
     def __init__(self) -> None:
         """Initializes the thermoelastic2D problem.
@@ -179,7 +219,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         """
         boundary_dict = dict(self.conditions)
         volfrac = boundary_dict["volfrac"]
-        design = volfrac * np.ones((self.nelx, self.nely))
+        design = volfrac * np.ones((NELX, NELY))
         return design, 0
 
 
