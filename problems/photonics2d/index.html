@@ -1,0 +1,775 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Photonics2D &#8212; EngiBench Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=81f56412"></script>
+    <script src="../../_static/doctools.js?v=9bcbadda"></script>
+    <script src="../../_static/sphinx_highlight.js?v=dc90522c"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/photonics2d';</script>
+    <link rel="icon" href="../../_static/logo_2.png"/>
+    <link rel="index" title="Index" href="../../genindex/" />
+    <link rel="search" title="Search" href="../../search/" />
+    <link rel="next" title="PowerElectronics" href="../power_electronics/" />
+    <link rel="prev" title="Thermoelastic2D" href="../thermoelastic2d/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/logo_2.png" class="logo__image only-light" alt="EngiBench Documentation - Home"/>
+    <script>document.write(`<img src="../../_static/logo_2.png" class="logo__image only-dark" alt="EngiBench Documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/install/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/basic_usage/">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/api/">API</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Problems</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../airfoil/">Airfoil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../beams2d/">Beams2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../power_electronics/">PowerElectronics</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">Heat Conduction 2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">Heat Conduction 3D</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/new_problem/">Adding a new problem</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench">Github</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md">Contribute to the Docs</a></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item">
+<div class="sidebar-versions">
+  <div class="sidebar-group">
+    <div class="sidebar-heading">
+      <span>Versions</span>
+    </div>
+    <ul class="version-list">
+      
+      <li class="version-item">
+        <a href="/main/" class="version-link">
+          main
+          
+        </a>
+      </li>
+      
+    </ul>
+  </div>
+</div>
+
+<style>
+.sidebar-versions {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background: var(--color-sidebar-background);
+  border-radius: 4px;
+}
+
+.sidebar-heading {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-sidebar-caption-text);
+}
+
+.version-list {
+  list-style: none;
+  padding-left: 0.5rem;
+  margin: 0;
+}
+
+.version-item {
+  margin: 0.25rem 0;
+}
+
+.version-link {
+  color: var(--color-sidebar-link-text);
+  text-decoration: none;
+  display: block;
+  padding: 0.25rem 0;
+}
+
+.version-link:hover {
+  color: var(--color-sidebar-link-text--hover);
+}
+
+.version-current {
+  font-size: 0.875em;
+  opacity: 0.7;
+  margin-left: 0.3em;
+}
+
+.current .version-link {
+  font-weight: 600;
+  color: var(--color-sidebar-link-text--active);
+}
+</style>
+</div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/photonics2d.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/photonics2d.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Photonics2D</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimization-parameters">Optimization Parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#internal-constants">Internal Constants</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="photonics2d">
+<h1>Photonics2D<a class="headerlink" href="#photonics2d" title="Link to this heading">#</a></h1>
+<a class="reference internal image-reference" href="../../_images/photonics2d.png"><img alt="../../_images/photonics2d.png" class="align-center" src="../../_images/photonics2d.png" style="width: 450px;" />
+</a>
+<div class="pst-scrollable-table-container"><table class="table">
+<tbody>
+<tr class="row-odd"><td><p>Version</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>Design space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Box(0.0,</span> <span class="pre">1.0,</span> <span class="pre">(120,</span> <span class="pre">120),</span> <span class="pre">float64)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Objectives</p></td>
+<td><p>neg_field_overlap: ↓</p></td>
+</tr>
+<tr class="row-even"><td><p>Conditions</p></td>
+<td><p>lambda1: 1.5</p>
+<p>lambda2: 1.3</p>
+<p>blur_radius: 2</p>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Dataset</p></td>
+<td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0">IDEALLab/photonics_2d_120_120_v0</a></p></td>
+</tr>
+<tr class="row-even"><td><p>Import</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.photonics2d.v0</span> <span class="pre">import</span> <span class="pre">Photonics2D</span></code></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<p>Photonic Inverse Design 2D Problem (Wavelength Demultiplexer).</p>
+<section id="problem-description">
+<h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
+<p>Optimize a 2D material distribution (<code class="docutils literal notranslate"><span class="pre">rho</span></code>) to function as a wavelength
+demultiplexer, routing wave with <code class="docutils literal notranslate"><span class="pre">lambda1</span></code> to output 1 and <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> to output 2. The
+design variables represent material density which is converted to permittivity
+using filtering and projection.</p>
+</section>
+<section id="design-space">
+<h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
+<p>2D tensor <code class="docutils literal notranslate"><span class="pre">rho</span></code> (num_elems_x, num_elems_y) with values in [0, 1], representing material density.
+Stored as <code class="docutils literal notranslate"><span class="pre">design_space</span></code> (gymnasium.spaces.Box).</p>
+</section>
+<section id="objectives">
+<h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
+<ol class="arabic simple" start="0">
+<li><p><code class="docutils literal notranslate"><span class="pre">neg_field_overlap</span></code>: Combined objective to minimize, defined as
+<code class="docutils literal notranslate"><span class="pre">penalty</span> <span class="pre">-</span> <span class="pre">overlap1</span> <span class="pre">*</span> <span class="pre">overlap2</span></code>. Lower is better. This is the value
+returned by <code class="docutils literal notranslate"><span class="pre">simulate</span></code> and corresponds to the overlap in the target
+electrical fields with the desired demultiplexing locations.
+Note that <code class="docutils literal notranslate"><span class="pre">optimize</span></code> internally works with a normalized version for
+stability (<code class="docutils literal notranslate"><span class="pre">penalty</span> <span class="pre">-</span> <span class="pre">normalized_overlap</span></code>) and reports history
+(<code class="docutils literal notranslate"><span class="pre">OptiStep</span></code>) corresponding to that normalized version.
+Note: This means comparing the values returned by <code class="docutils literal notranslate"><span class="pre">simulate</span></code> and <code class="docutils literal notranslate"><span class="pre">optimize</span></code> directly
+may not yield similar numbers.</p></li>
+</ol>
+</section>
+<section id="conditions">
+<h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
+<p>These are designed as user-configurable parameters that alter the problem definition.
+Default problem parameters that can be overridden via the <code class="docutils literal notranslate"><span class="pre">config</span></code> dict:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda1</span></code>: The first input wavelength in μm (default: 1.5 μm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda2</span></code>: The first input wavelength in μm (default: 1.3 μm).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">blur_radius</span></code>: Radius for the density blurring filter (default: 2).
+Higher values correspond to larger elements, which could
+possibly be more manufacturable.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_elems_x</span></code>: Number of grid cells in x (default: 120).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">num_elems_y</span></code>: Number of grid cells in y (default: 120).</p></li>
+</ul>
+<p>In practice, for the dataset loading, we will keep <code class="docutils literal notranslate"><span class="pre">num_elems_x</span></code> and <code class="docutils literal notranslate"><span class="pre">num_elems_y</span></code>to set
+values for each dataset, such that different resolutions correspond to different
+independent datasets.</p>
+</section>
+<section id="optimization-parameters">
+<h2>Optimization Parameters<a class="headerlink" href="#optimization-parameters" title="Link to this heading">#</a></h2>
+<p>Note: These are advanced parameters that alter the optimization process –
+we do not recommend changing these if you are only using the library for benchmarking,
+as it could make results less reproducible across papers using this problem.)</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">num_optimization_steps</span></code>: Total number of optimization steps (default: 300).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">step_size</span></code>: Adam optimizer step size (default: 1e-1).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">penalty_weight</span></code>: Weight for the L2 penalty term (default: 1e-2). Larger values reduce
+unnecessary material, but may lead to worse performance if too large.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">eta</span></code>: Projection center parameter (default: 0.5). There is little reason to change this.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">N_proj</span></code>: Number of projection applications (default: 1). Increasing this can help make
+the design more binary.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">N_blur</span></code>: Number of blur applications (default: 1). Increasing this smooths the design more.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">save_frame_interval</span></code>: Interval for saving intermediate design frames during optimization.
+If &gt; 0, saves a frame every <code class="docutils literal notranslate"><span class="pre">save_frame_interval</span></code> iterations
+to the <code class="docutils literal notranslate"><span class="pre">opt_frames/</span></code> directory. Default is 0 (disabled).</p></li>
+</ul>
+</section>
+<section id="internal-constants">
+<h2>Internal Constants<a class="headerlink" href="#internal-constants" title="Link to this heading">#</a></h2>
+<p>Note: These are not typically changed by users, but provided here for technical reference</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">dl</span></code>: Spatial resolution (meters) (default: 40e-9).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">Npml</span></code>: Number of PML cells (default: 20).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">epsr_min</span></code>: Minimum relative permittivity (default: 1.0).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">epsr_max</span></code>: Maximum relative permittivity (default: 12.0).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">space_slice</span></code>: Extra space for source/probe slices (pixels) (default: 8).</p></li>
+</ul>
+</section>
+<section id="simulator">
+<h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
+<p>The simulation uses the <code class="docutils literal notranslate"><span class="pre">ceviche</span></code> library’s Finite Difference Frequency Domain (FDFD)
+solver (<code class="docutils literal notranslate"><span class="pre">fdfd_ez</span></code>). Optimization uses <code class="docutils literal notranslate"><span class="pre">ceviche.optimizers.adam_optimize</span></code> with
+gradients computed via automatic differentiation (<code class="docutils literal notranslate"><span class="pre">autograd</span></code>).</p>
+</section>
+<section id="dataset">
+<h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
+<p>This problem currently provides one dataset corresponding to resolution of 120x120, are available on the <a class="reference external" href="https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0">Hugging Face Datasets Hub</a>.</p>
+<section id="v0">
+<h3>v0<a class="headerlink" href="#v0" title="Link to this heading">#</a></h3>
+<section id="fields">
+<h4>Fields<a class="headerlink" href="#fields" title="Link to this heading">#</a></h4>
+<p>Each dataset contains:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda1</span></code>: The first input wavelength in μm.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda2</span></code>: The second input wavelength in μm.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">blur_radius</span></code>: Radius for the density blurring filter (pixels).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">optimal_design</span></code>: The optimal design density array (shape num_elems_x, num_elems_y).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">optimization_history</span></code>: A list of objective values from the optimization process (negative field overlap, where lower is better) – This is for advanced use.</p></li>
+</ul>
+</section>
+<section id="creation-method">
+<h4>Creation Method<a class="headerlink" href="#creation-method" title="Link to this heading">#</a></h4>
+<p>To generate a dataset for training, we generate (randomly, uniformly) swept over the following parameters:</p>
+<ul class="simple">
+<li><p><span class="math notranslate nohighlight">\(\lambda_1 \in [0.5\mu m, 1.25\mu m]\)</span> = <code class="docutils literal notranslate"><span class="pre">lambda1</span></code> = <code class="docutils literal notranslate"><span class="pre">rng.uniform(low=0.5,</span> <span class="pre">high=1.25,</span> <span class="pre">size=20)</span></code> – This corresponds roughly to a portion of the visible spectrum up to near-infrared.</p></li>
+<li><p><span class="math notranslate nohighlight">\(\lambda_2 \in [0.75\mu m, 1.5\mu m]\)</span> = <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> = <code class="docutils literal notranslate"><span class="pre">rng.uniform(low=0.75,</span> <span class="pre">high=1.5,</span> <span class="pre">size=20)</span></code> – This corresponds roughly to a portion of the visible spectrum up to near-infrared.</p></li>
+<li><p><span class="math notranslate nohighlight">\(r_{blur}\)</span> = <code class="docutils literal notranslate"><span class="pre">blur_radius</span></code> = <code class="docutils literal notranslate"><span class="pre">range(0,</span> <span class="pre">5)</span></code></p></li>
+</ul>
+</section>
+</section>
+</section>
+<section id="citation">
+<h2>Citation<a class="headerlink" href="#citation" title="Link to this heading">#</a></h2>
+<p>This problem is directly refactored from the Ceviche Library:
+https://github.com/fancompute/ceviche
+and if you use this problem your experiments, you can use the citation below
+provided by the original library authors:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">hughes2019forward</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="p">{</span><span class="n">Forward</span><span class="o">-</span><span class="n">Mode</span> <span class="n">Differentiation</span> <span class="n">of</span> <span class="n">Maxwell</span><span class="s1">&#39;s Equations},</span>
+    <span class="n">author</span><span class="o">=</span><span class="p">{</span><span class="n">Hughes</span><span class="p">,</span> <span class="n">Tyler</span> <span class="n">W</span> <span class="ow">and</span> <span class="n">Williamson</span><span class="p">,</span> <span class="n">Ian</span> <span class="n">AD</span> <span class="ow">and</span> <span class="n">Minkov</span><span class="p">,</span> <span class="n">Momchil</span> <span class="ow">and</span> <span class="n">Fan</span><span class="p">,</span> <span class="n">Shanhui</span><span class="p">},</span>
+    <span class="n">journal</span><span class="o">=</span><span class="p">{</span><span class="n">ACS</span> <span class="n">Photonics</span><span class="p">},</span>
+    <span class="n">volume</span><span class="o">=</span><span class="p">{</span><span class="mi">6</span><span class="p">},</span>
+    <span class="n">number</span><span class="o">=</span><span class="p">{</span><span class="mi">11</span><span class="p">},</span>
+    <span class="n">pages</span><span class="o">=</span><span class="p">{</span><span class="mi">3010</span><span class="o">--</span><span class="mi">3016</span><span class="p">},</span>
+    <span class="n">year</span><span class="o">=</span><span class="p">{</span><span class="mi">2019</span><span class="p">},</span>
+    <span class="n">publisher</span><span class="o">=</span><span class="p">{</span><span class="n">ACS</span> <span class="n">Publications</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+<section id="lead">
+<h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
+<p>Mark Fuge &#64;markfuge</p>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../thermoelastic2d/"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Thermoelastic2D</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../power_electronics/"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">PowerElectronics</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#optimization-parameters">Optimization Parameters</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#internal-constants">Internal Constants</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By ETH Zurich's IDEAL Lab
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
