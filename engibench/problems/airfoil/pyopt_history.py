@@ -1,4 +1,4 @@
-# ruff: noqa: D101,N999,D205,N803,N802,N806,FBT002,D416,SIM118,RET503,RET502,RET505,D212,ISC003,SLF001,C901,PLR0913,PLR0912,PLR0915,S110,BLE001,SIM102
+# ruff: noqa: D101,N999,D205,N803,N802,N806,FBT002,D416,SIM118,RET503,RET502,RET505,D212,ISC003,SLF001,C901,PLR0913,PLR0912,PLR0915,S110,BLE001,SIM102,PLR2004
 """This file is copy pasted from pyOptSparse: https://github.com/mdolab/pyoptsparse/blob/main/pyoptsparse/pyOpt_history.py.
 
 It is used to read the history of an optimization run.

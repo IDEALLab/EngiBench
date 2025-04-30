@@ -31,13 +31,14 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
+airfoil = ["sqlitedict>=1.6"] # for pyopt_history.py
 electronics = ["networkx >= 3.2.1"]
 beams2d = ["cvxopt >= 1.3.2", "seaborn"]
 thermoelastic2d = ["cvxopt >= 1.3.2", "mmapy >= 0.3.0"]
 photonics2d = ["ceviche >= 0.1.3"]
 all = [
     # All dependencies above
-    "engibench[beams2d,thermoelastic2d,photonics2d,electronics]"
+    "engibench[airfoil,beams2d,thermoelastic2d,photonics2d,electronics]"
 ]
 
 doc = [
