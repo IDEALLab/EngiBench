@@ -181,6 +181,12 @@ class Violations:
     def __bool__(self) -> bool:
         return bool(self.violations)
 
+    def __len__(self) -> int:
+        return len(self.violations)
+
+    def __str__(self) -> str:
+        return "\n".join(str(v) for v in self.violations)
+
 
 T = TypeVar("T", int, float)
 

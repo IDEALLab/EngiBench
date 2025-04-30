@@ -28,10 +28,13 @@ surr_model = train_surrogate(inputs=cond_designs, outputs=objs)
 # Use the model predictions, inverse design here
 desired_conds = {"volfrac": 0.7, "forcedist": 0.3}
 generated_design = inverse_model.predict(desired_conds)
-# Only simulate to get objective values
-objs = problem.simulate(design=generated_design, config=desired_conds)
-# Or run a gradient-based optimizer to polish the generate design
-opt_design, history = problem.optimize(starting_point=generated_design, config=desired_conds)
+
+violated_constraints = problem.check_constraints(generated_design, desired_conds)
+if not violated_constraints:
+    # Only simulate to get objective values
+    objs = problem.simulate(design=generated_design, config=desired_conds)
+    # Or run a gradient-based optimizer to polish the generate design
+    opt_design, history = problem.optimize(starting_point=generated_design, config=desired_conds)
 ```
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
