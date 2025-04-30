@@ -21,7 +21,7 @@ class Config:
         - target_dir: Optional. Default to os.getcwd(). The user can manually change this.
                       All the files (except the original_netlist which already exists) will be saved in this directory,
                         including the rewritten netlist, log and raw files.
-        - original_netlist_path: Optional. Default to "./data/netlist/5_4_3_6_10-dcdc_converter_1.net".
+        - original_netlist_path: Optional. Default to "./data/5_4_3_6_10-dcdc_converter_1.net".
 
     Do not assign:
         - mode: Default to "control". That's the only mode supported in this version now.
@@ -42,7 +42,7 @@ class Config:
     log_file_dir: str = field(init=False)
 
     # Accepts both absolute and relative paths.
-    original_netlist_path: str = "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+    original_netlist_path: str = "./data/5_4_3_6_10-dcdc_converter_1.net"
 
     netlist_name: str = field(init=False)  # This will be set from original_netlist_path in __post_init__().
     mode: str = "control"  # Manually assign "mode=batch" when initializing the Config object will change log_file_path etc.

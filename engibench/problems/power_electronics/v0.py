@@ -108,7 +108,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         self,
         target_dir: str = os.getcwd(),
         original_netlist_path: str = os.path.join(
-            os.path.dirname(os.path.abspath(__file__)), "./data/netlist/5_4_3_6_10-dcdc_converter_1.net"
+            os.path.dirname(os.path.abspath(__file__)), "data/5_4_3_6_10-dcdc_converter_1.net"
         ),
         mode: str = "control",
         ngspice_path: str | None = None,
