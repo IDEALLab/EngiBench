@@ -13,7 +13,7 @@ lastpage:
 ```
 
 <div style="display: flex; justify-content: center; gap: 20px;">
-        <img src="_static/img/engibench_problems.png" alt="EngiBench Problems" width="400"/>
+        <img src="_static/img/engibench_problems.png" alt="EngiBench Problems" width="800"/>
 </div>
 
 
