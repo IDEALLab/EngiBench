@@ -615,6 +615,8 @@ document.write(`
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
+<div class="viewcode-block" id="Problem.check_constraints">
+<a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.check_constraints">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">check_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">constraint</span><span class="o">.</span><span class="n">Violations</span><span class="p">:</span>
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if config and design violate any constraints declared in `Config` and `design_space`.</span>
 
@@ -637,6 +639,7 @@ document.write(`
                 <span class="n">violations</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">design_violation</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">violations</span></div>
+</div>
 
 </pre></div>
 

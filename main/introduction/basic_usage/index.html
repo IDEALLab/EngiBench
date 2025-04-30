@@ -501,10 +501,13 @@ document.write(`
 <span class="c1"># Use the model predictions, inverse design here</span>
 <span class="n">desired_conds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">}</span>
 <span class="n">generated_design</span> <span class="o">=</span> <span class="n">inverse_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">desired_conds</span><span class="p">)</span>
-<span class="c1"># Only simulate to get objective values</span>
-<span class="n">objs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">generated_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
-<span class="c1"># Or run a gradient-based optimizer to polish the generate design</span>
-<span class="n">opt_design</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">starting_point</span><span class="o">=</span><span class="n">generated_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
+
+<span class="n">violated_constraints</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">check_constraints</span><span class="p">(</span><span class="n">generated_design</span><span class="p">,</span> <span class="n">desired_conds</span><span class="p">)</span>
+<span class="k">if</span> <span class="ow">not</span> <span class="n">violated_constraints</span><span class="p">:</span>
+    <span class="c1"># Only simulate to get objective values</span>
+    <span class="n">objs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">generated_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
+    <span class="c1"># Or run a gradient-based optimizer to polish the generate design</span>
+    <span class="n">opt_design</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">starting_point</span><span class="o">=</span><span class="n">generated_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>You can also play with the API here: <a class="reference external" href="https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a></p>
