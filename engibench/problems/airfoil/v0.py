@@ -15,7 +15,6 @@ from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
-import pyoptsparse
 
 from engibench.constraint import bounded
 from engibench.constraint import constraint
@@ -24,6 +23,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.problems.airfoil.pyopt_history import History
 from engibench.problems.airfoil.utils import calc_area
 from engibench.problems.airfoil.utils import calc_off_wall_distance
 from engibench.problems.airfoil.utils import reorder_coords
@@ -505,7 +505,7 @@ class Airfoil(Problem[DesignType]):
 
         # post process -- extract the shape and objective values
         optisteps_history = []
-        history = pyoptsparse.History(self.__local_study_dir + "/output/opt.hst")
+        history = History(self.__local_study_dir + "/output/opt.hst")
         iters = list(map(int, history.getCallCounters()[:]))
 
         for i in range(len(iters)):
@@ -514,7 +514,7 @@ class Airfoil(Problem[DesignType]):
                 objective = history.getValues(names=["obj"], callCounters=[i], allowSens=False, major=False, scale=True)[
                     "obj"
                 ]
-                optisteps_history.append(OptiStep(obj_values=np.array([objective]), step=vals["iter"]))
+                optisteps_history.append(OptiStep(obj_values=np.array(objective), step=vals["iter"]))
 
         history.close()
 
@@ -568,4 +568,5 @@ if __name__ == "__main__":
 
     # Get design and conditions from the dataset, render design
     opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
+    print(optisteps_history)
     problem.render(opt_design, open_window=True)

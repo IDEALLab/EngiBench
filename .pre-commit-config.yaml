@@ -23,7 +23,7 @@ repos:
     hooks:
       - id: codespell
         args:
-          - --skip=*.ipynb
+          - --skip=*.ipynb,engibench/problems/airfoil/pyopt_history.py
           - --ignore-words-list=mor,le,te,ure,varn
   - repo: local
     hooks:

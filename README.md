@@ -27,7 +27,7 @@ pip install engibench
 You can also specify additional dependencies for specific problems:
 
 ```bash
-pip install "engibench[airfoil]"
+pip install "engibench[beams2d]"
 ```
 
 Or you can install all dependencies for all problems:
