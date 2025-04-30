@@ -36,11 +36,6 @@ DesignType = dict[str, Any]
 
 
 @constraint(categories=IMPL)
-def is_closed(design: DesignType) -> None:
-    """Check if a curve is closed."""
-    curve = design["coords"]
-    assert curve[0] == curve[-1], "design: Curve is not closed"
-
 
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
     """Determines if two segments a and b intersect."""
