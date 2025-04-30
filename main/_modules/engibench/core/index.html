@@ -499,6 +499,8 @@ document.write(`
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Design space (algorithm output)&quot;&quot;&quot;</span>
     <span class="n">dataset_id</span><span class="p">:</span> <span class="nb">str</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;String identifier for the problem (useful to pull datasets)&quot;&quot;&quot;</span>
+    <span class="n">design_constraints</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">constraint</span><span class="o">.</span><span class="n">Constraint</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Additional constraints for designs&quot;&quot;&quot;</span>
     <span class="n">_dataset</span><span class="p">:</span> <span class="n">Dataset</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
 <span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataset with designs and performances&quot;&quot;&quot;</span>
     <span class="n">container_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
@@ -619,27 +621,20 @@ document.write(`
 <span class="sd">        Return a :class:`constraint.Violations` object containing all violations.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">try</span><span class="p">:</span>
-                <span class="n">checked_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span><span class="o">**</span><span class="n">config</span><span class="p">)</span>
-            <span class="k">except</span> <span class="ne">TypeError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">cause</span> <span class="o">=</span> <span class="nb">str</span><span class="p">(</span><span class="n">e</span><span class="p">)</span>
-                <span class="c1"># The following is needed for Python 3.9:</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">cause</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">):</span>
-                    <span class="n">cause</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="n">cause</span>
-                <span class="k">if</span> <span class="ow">not</span> <span class="n">cause</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="p">):</span>
-                    <span class="n">cause</span> <span class="o">=</span> <span class="nb">type</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span> <span class="o">+</span> <span class="s2">&quot;.&quot;</span> <span class="o">+</span> <span class="n">cause</span>
-                <span class="k">return</span> <span class="n">constraint</span><span class="o">.</span><span class="n">Violations</span><span class="p">([</span><span class="n">constraint</span><span class="o">.</span><span class="n">Violation</span><span class="p">(</span><span class="n">constraint</span><span class="o">.</span><span class="n">Constraint</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">),</span> <span class="n">cause</span><span class="o">=</span><span class="n">cause</span><span class="p">)])</span>
+            <span class="n">checked_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span><span class="o">**</span><span class="n">config</span><span class="p">)</span>
             <span class="n">violations</span> <span class="o">=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">check_field_constraints</span><span class="p">(</span><span class="n">checked_config</span><span class="p">)</span>
         <span class="k">else</span><span class="p">:</span>
-            <span class="n">violations</span> <span class="o">=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">Violations</span><span class="p">([])</span>
+            <span class="n">violations</span> <span class="o">=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">Violations</span><span class="p">([],</span> <span class="mi">0</span><span class="p">)</span>
 
         <span class="nd">@constraint</span><span class="o">.</span><span class="n">constraint</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">design_constraint</span><span class="p">(</span><span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">design</span><span class="p">),</span> <span class="s2">&quot;design ∉ design_space&quot;</span>
 
-        <span class="n">design_violation</span> <span class="o">=</span> <span class="n">design_constraint</span><span class="o">.</span><span class="n">check_value</span><span class="p">(</span><span class="n">design</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">design_violation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">violations</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">design_violation</span><span class="p">)</span>
+        <span class="n">violations</span><span class="o">.</span><span class="n">n_constraints</span> <span class="o">+=</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design_constraints</span><span class="p">)</span>
+        <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="n">design_constraint</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">design_constraints</span><span class="p">):</span>
+            <span class="n">design_violation</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">check_value</span><span class="p">(</span><span class="n">design</span><span class="p">)</span>
+            <span class="k">if</span> <span class="n">design_violation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                <span class="n">violations</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">design_violation</span><span class="p">)</span>
 
         <span class="k">return</span> <span class="n">violations</span></div>
 
