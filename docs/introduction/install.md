@@ -5,7 +5,7 @@
 
 ## From PyPI
 
-```{include} ../README.md
+```{include} ../../README.md
 :start-after: <!-- start install -->
 :end-before: <!-- end install -->
 ```
@@ -13,7 +13,7 @@
 
 ## From source
 
-```{include} ../README.md
+```{include} ../../README.md
 :start-after: <!-- start dev-install -->
 :end-before: <!-- end dev-install -->
 ```
