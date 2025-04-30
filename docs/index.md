@@ -12,6 +12,11 @@ lastpage:
 :end-before: <!-- end elevator-pitch -->
 ```
 
+<div style="display: flex; justify-content: center; gap: 20px;">
+        <img src="_static/img/engibench_problems.png" alt="EngiBench Problems" width="400"/>
+</div>
+
+
 ## API
 
 ```{include} ../README.md
