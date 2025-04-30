@@ -17,6 +17,7 @@ A dataset is generally composed of several columns:
 
 ## Methods
 ```{eval-rst}
+.. automethod:: engibench.core.Problem.check_constraints
 .. automethod:: engibench.core.Problem.simulate
 .. automethod:: engibench.core.Problem.optimize
 
