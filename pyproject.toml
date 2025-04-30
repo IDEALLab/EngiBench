@@ -284,5 +284,7 @@ module = [
     "autograd.*",
     "ceviche",
     "ceviche.*",
+    "sqlitedict",
+    "sqlitedict.*",
 ]
 ignore_missing_imports = true
