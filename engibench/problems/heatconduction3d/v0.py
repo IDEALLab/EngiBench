@@ -233,16 +233,20 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
         return np.load(design_file)
 
-    def random_design(self) -> tuple[npt.NDArray, int]:
+    def random_design(self, dataset_key: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
+
+        Args:
+            dataset_key (str): The key for the dataset to sample from.
+            design_key (str): The key for the design to sample from.
 
         Returns:
             Tuple of:
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["optimal_design"]))
-        return np.array(self.dataset["train"]["optimal_design"][rnd]), int(rnd)
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_key][design_key]), dtype=int)
+        return np.array(self.dataset[dataset_key][design_key][rnd]), rnd
 
     def render(self, design: npt.NDArray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
