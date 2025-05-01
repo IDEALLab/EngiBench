@@ -583,7 +583,7 @@ class Airfoil(Problem[DesignType]):
         plt.close(fig)
         return fig, ax
 
-    def random_design(self, dataset_key="train", design_key="initial_design") -> tuple[dict[str, Any], int]:
+    def random_design(self, dataset_key: str ="train", design_key: str ="initial_design") -> tuple[dict[str, Any], int]:
         """Samples a valid random initial design.
 
         Args:
