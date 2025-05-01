@@ -527,12 +527,13 @@ class Airfoil(Problem[DesignType]):
 
         return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
-    def render(self, design: DesignType, *, open_window: bool = False) -> Any:
+    def render(self, design: DesignType, *, open_window: bool = False, save_render: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
             design (dict): The design to render.
             open_window (bool): If True, opens a window with the rendered design.
+            save_render (bool): If True, saves the rendered design to a file in the study directory.
 
         Returns:
             Any: The rendered design.
@@ -541,21 +542,59 @@ class Airfoil(Problem[DesignType]):
 
         fig, ax = plt.subplots()
         coords = design["coords"]
-
+        alpha = design["angle_of_attack"]
         ax.scatter(coords[0], coords[1], s=10, alpha=0.7)
-        plt.ylim(-0.15, 0.15)
+        ax.set_title(r"$\alpha$="+str(np.round(alpha,2)) + r"$^\circ$")
+        ax.axis("equal")
+        ax.axis("off")
+        ax.set_xlim((-0.005, 1.005))
+        ax.set_ylim((-0.125,0.125))
         if open_window:
             plt.show()
+        if save_render:
+            plt.savefig(self.__local_study_dir + "/airfoil.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
         return fig, ax
 
-    def random_design(self) -> tuple[dict[str, Any], int]:
+    def render_optisteps(self, optisteps_history: list[OptiStep], open_window: bool = False, save_render: bool = False) -> Any:
+        """Renders the optimization step history.
+
+        Args:
+            optisteps_history (list[OptiStep]): The optimization steps to render.
+            open_window (bool): If True, opens a window with the rendered design.
+            save_render (bool): If True, saves the rendered design to a file in the study directory.
+
+        Returns:
+            Any: Rendered optimization step history.
+        """
+        import matplotlib.pyplot as plt
+
+        fig, ax = plt.subplots()
+        steps = np.array([step.step for step in optisteps_history])
+        objectives = np.array([step.obj_values[0][0] for step in optisteps_history])
+        ax.plot(steps, objectives, label="Drag Coefficient")
+        ax.set_title("Optimization Steps")
+        ax.set_xlabel("Iteration")
+        ax.set_ylabel("Drag counts")
+        if open_window:
+            plt.show()
+        if save_render:
+            plt.savefig(self.__local_study_dir + "/optisteps.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        return fig, ax
+
+    def random_design(self, design_key="initial_design") -> tuple[dict[str, Any], int]:
         """Samples a valid random initial design.
+
+        Args:
+            design_key (str): The key to use for the design in the dataset.
+                Defaults to "initial_design".
 
         Returns:
             tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)
-        initial_design = self.dataset["train"]["initial_design"][rnd]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"][design_key]), dtype=int)
+        initial_design = self.dataset["train"][design_key][rnd]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
 
@@ -563,17 +602,23 @@ if __name__ == "__main__":
     problem = Airfoil()
     problem.reset(seed=0, cleanup=True)
 
+    # Retrieve the dataset
     dataset = problem.dataset
-    # Get design and conditions from the dataset
-    # Print Dataset object keys
+
+    # Get random initial design and optimized conditions from the dataset + the index
     design, idx = problem.random_design()
+
+    # Get the config conditions from the dataset
     config = dataset["train"].select_columns(problem.conditions_keys)[idx]
 
+    # Simulate the design
     print(problem.simulate(design, config=config, mpicores=8))
 
-    problem.reset(seed=1, cleanup=True)
+    # Cleanup the study directory
+    problem.reset(seed=0, cleanup=False)
 
     # Get design and conditions from the dataset, render design
     opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
-    print(optisteps_history)
-    problem.render(opt_design, open_window=True)
+
+    # Render the final optimized design
+    problem.render(opt_design, open_window=False, save_render=True)
