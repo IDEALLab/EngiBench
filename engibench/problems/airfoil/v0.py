@@ -527,13 +527,13 @@ class Airfoil(Problem[DesignType]):
 
         return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
 
-    def render(self, design: DesignType, *, open_window: bool = False, save_render: bool = False) -> Any:
+    def render(self, design: DesignType, *, open_window: bool = False, save: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
             design (dict): The design to render.
             open_window (bool): If True, opens a window with the rendered design.
-            save_render (bool): If True, saves the rendered design to a file in the study directory.
+            save (bool): If True, saves the rendered design to a file in the study directory.
 
         Returns:
             Any: The rendered design.
@@ -551,18 +551,18 @@ class Airfoil(Problem[DesignType]):
         ax.set_ylim((-0.125,0.125))
         if open_window:
             plt.show()
-        if save_render:
+        if save:
             plt.savefig(self.__local_study_dir + "/airfoil.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
         return fig, ax
 
-    def render_optisteps(self, optisteps_history: list[OptiStep], open_window: bool = False, save_render: bool = False) -> Any:
+    def render_optisteps(self, optisteps_history: list[OptiStep], open_window: bool = False, save: bool = False) -> Any:
         """Renders the optimization step history.
 
         Args:
             optisteps_history (list[OptiStep]): The optimization steps to render.
             open_window (bool): If True, opens a window with the rendered design.
-            save_render (bool): If True, saves the rendered design to a file in the study directory.
+            save (bool): If True, saves the rendered design to a file in the study directory.
 
         Returns:
             Any: Rendered optimization step history.
@@ -578,7 +578,7 @@ class Airfoil(Problem[DesignType]):
         ax.set_ylabel("Drag counts")
         if open_window:
             plt.show()
-        if save_render:
+        if save:
             plt.savefig(self.__local_study_dir + "/optisteps.png", dpi=300, bbox_inches="tight")
         plt.close(fig)
         return fig, ax
@@ -621,4 +621,4 @@ if __name__ == "__main__":
     opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
 
     # Render the final optimized design
-    problem.render(opt_design, open_window=False, save_render=True)
+    problem.render(opt_design, open_window=False, save=True)
