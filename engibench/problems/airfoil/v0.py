@@ -5,7 +5,7 @@ Filename convention is that folder paths do not end with /. For example, /path/t
              .:-===+=+==-:
      .==.                        .:-++=:....
  .-:                                           .:--:::.
--            Airfoil v.0                        :====--:-===
+-            Airfoil v.0.0.1                    :====--:-===
 :-                                    .:==:.
    .-::.                     ::::-:.
           ..::::----::::..
@@ -119,7 +119,7 @@ class Airfoil(Problem[DesignType]):
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_v0).
 
-    ### v0
+    ### v0.0.1
 
     #### Fields
     The dataset contains optimal design, conditions, objectives and these additional fields:
