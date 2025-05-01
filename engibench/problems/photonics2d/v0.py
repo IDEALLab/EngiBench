@@ -665,8 +665,9 @@ class Photonics2D(Problem[npt.NDArray]):
 
         return rho_start.astype(np.float32)
 
-
-    def random_design(self, noise: float | None = None, blur: int = 0, dataset_key: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
+    def random_design(
+        self, noise: float | None = None, blur: int = 0, dataset_key: str = "train", design_key: str = "optimal_design"
+    ) -> tuple[npt.NDArray, int]:
         """Generates a random initial design.
 
         Can return a design with small random variations or a uniform design, or can pull

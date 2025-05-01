@@ -48,7 +48,6 @@ DesignType = dict[str, Any]
 
 
 @constraint(categories=IMPL)
-
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
     """Determines if two segments a and b intersect."""
     # intersection: find t such that (p + t dp - q) x dq = 0 with 0 <= t <= 1
@@ -154,7 +153,7 @@ class Airfoil(Problem[DesignType]):
             "angle_of_attack": spaces.Box(low=0.0, high=10.0, shape=(1,), dtype=np.float32),
         }
     )
-    design_constraints = (does_not_self_intersect)
+    design_constraints = does_not_self_intersect
     dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     __local_study_dir: str
@@ -544,11 +543,11 @@ class Airfoil(Problem[DesignType]):
         coords = design["coords"]
         alpha = design["angle_of_attack"]
         ax.scatter(coords[0], coords[1], s=10, alpha=0.7)
-        ax.set_title(r"$\alpha$="+str(np.round(alpha,2)) + r"$^\circ$")
+        ax.set_title(r"$\alpha$=" + str(np.round(alpha, 2)) + r"$^\circ$")
         ax.axis("equal")
         ax.axis("off")
         ax.set_xlim((-0.005, 1.005))
-        ax.set_ylim((-0.125,0.125))
+        ax.set_ylim((-0.125, 0.125))
         if open_window:
             plt.show()
         if save:
