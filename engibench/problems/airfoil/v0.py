@@ -583,22 +583,24 @@ class Airfoil(Problem[DesignType]):
         plt.close(fig)
         return fig, ax
 
-    def random_design(self, design_key="initial_design") -> tuple[dict[str, Any], int]:
+    def random_design(self, dataset_key="train", design_key="initial_design") -> tuple[dict[str, Any], int]:
         """Samples a valid random initial design.
 
         Args:
+            dataset_key (str): The key to use for the dataset. Defaults to "train".
             design_key (str): The key to use for the design in the dataset.
                 Defaults to "initial_design".
 
         Returns:
             tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"][design_key]), dtype=int)
-        initial_design = self.dataset["train"][design_key][rnd]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_key][design_key]), dtype=int)
+        initial_design = self.dataset[dataset_key][design_key][rnd]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
 
 if __name__ == "__main__":
+    # Initialize the problem
     problem = Airfoil()
     problem.reset(seed=0, cleanup=True)
 
@@ -614,7 +616,7 @@ if __name__ == "__main__":
     # Simulate the design
     print(problem.simulate(design, config=config, mpicores=8))
 
-    # Cleanup the study directory
+    # Cleanup the study directory; will delete the previous contents from simulate in this case
     problem.reset(seed=0, cleanup=False)
 
     # Get design and conditions from the dataset, render design
