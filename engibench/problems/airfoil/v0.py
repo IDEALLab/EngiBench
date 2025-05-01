@@ -556,7 +556,7 @@ class Airfoil(Problem[DesignType]):
         plt.close(fig)
         return fig, ax
 
-    def render_optisteps(self, optisteps_history: list[OptiStep], open_window: bool = False, save: bool = False) -> Any:
+    def render_optisteps(self, optisteps_history: list[OptiStep], *, open_window: bool = False, save: bool = False) -> Any:
         """Renders the optimization step history.
 
         Args:
