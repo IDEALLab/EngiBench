@@ -47,6 +47,7 @@ class Problem(Generic[DesignType]):
 
     The main API methods that users should use are:
 
+    - :meth:`check_constraints` - to check if a design and conditions violate any constraints.
     - :meth:`simulate` - to simulate a design and return the performance given some conditions.
     - :meth:`optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.
     - :meth:`reset` - to reset the simulator and numpy random to a given seed.
