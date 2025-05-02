@@ -174,15 +174,19 @@ class PowerElectronics(Problem[npt.NDArray]):
         nx.draw(G, pos, with_labels=True, node_color=node_colors, node_size=200, font_size=10)
         plt.show()
 
-    def random_design(self) -> tuple[npt.NDArray, int]:
+    def random_design(self, dataset_split: str = "train", design_key: str = "initial_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random initial design.
+
+        Args:
+            dataset_split (str): The key for the dataset to sample from.
+            design_key (str): The key for the design to sample from.
 
         Returns:
             DesignType: The valid random design.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]["initial_design"]), dtype=int)
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]), dtype=int)
 
-        return np.array(self.dataset["train"]["initial_design"][rnd]), rnd
+        return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
     def reset(self, seed: int | None = None) -> None:
         """Reset the problem.

@@ -300,16 +300,20 @@ class Beams2D(Problem[npt.NDArray]):
             plt.show()
         return fig, ax
 
-    def random_design(self) -> tuple[npt.NDArray, int]:
+    def random_design(self, dataset_split: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
+
+        Args:
+            dataset_split (str): The key for the dataset to sample from.
+            design_key (str): The key for the design to sample from.
 
         Returns:
             Tuple of:
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset["train"]), dtype=int)
-        return np.array(self.dataset["train"]["optimal_design"][rnd]), rnd
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split]), dtype=int)
+        return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
 
 if __name__ == "__main__":
