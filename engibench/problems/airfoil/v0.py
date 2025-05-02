@@ -1,4 +1,4 @@
-r"""Airfoil problem.
+"""Airfoil problem.
 
 Filename convention is that folder paths do not end with /. For example, /path/to/folder is correct, but /path/to/folder/ is not.
 
@@ -45,6 +45,7 @@ from engibench.utils.files import clone_dir
 from engibench.utils.files import replace_template_values
 
 DesignType = dict[str, Any]
+
 
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
     """Determines if two segments a and b intersect."""
