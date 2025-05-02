@@ -46,8 +46,6 @@ from engibench.utils.files import replace_template_values
 
 DesignType = dict[str, Any]
 
-
-
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
     """Determines if two segments a and b intersect."""
     # intersection: find t such that (p + t dp - q) x dq = 0 with 0 <= t <= 1
@@ -153,7 +151,7 @@ class Airfoil(Problem[DesignType]):
             "angle_of_attack": spaces.Box(low=0.0, high=10.0, shape=(1,), dtype=np.float32),
         }
     )
-    design_constraints = does_not_self_intersect
+    design_constraints = (does_not_self_intersect,)
     dataset_id = "IDEALLab/airfoil_v0"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     __local_study_dir: str
