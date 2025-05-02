@@ -666,7 +666,7 @@ class Photonics2D(Problem[npt.NDArray]):
         return rho_start.astype(np.float32)
 
     def random_design(
-        self, noise: float | None = None, blur: int = 0, dataset_key: str = "train", design_key: str = "optimal_design"
+        self, noise: float | None = None, blur: int = 0, dataset_split: str = "train", design_key: str = "optimal_design"
     ) -> tuple[npt.NDArray, int]:
         """Generates a random initial design.
 
@@ -676,7 +676,7 @@ class Photonics2D(Problem[npt.NDArray]):
         Args:
             noise (float|None): If None, pull from dataset. If float, use that as the noise level.
             blur (int): The amount of pixel blurring to apply to random field. Only active if noise is used.
-            dataset_key (str): The key for the dataset to sample from.
+            dataset_split (str): The key for the dataset to sample from.
             design_key (str): The key for the design to sample from.
 
         Returns:
@@ -689,8 +689,8 @@ class Photonics2D(Problem[npt.NDArray]):
         if noise is not None:
             rho_start = self._randomized_noise_field_design(noise=noise, blur=blur)
             return rho_start, 0
-        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_key]), dtype=int)
-        return np.array(self.dataset[dataset_key][design_key][rnd]), rnd
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split]), dtype=int)
+        return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         """Resets the problem, which in this case, is just the random seed."""
