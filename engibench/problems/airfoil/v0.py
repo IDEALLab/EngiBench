@@ -5,7 +5,7 @@ Filename convention is that folder paths do not end with /. For example, /path/t
              .:-===+=+==-:
      .==.                        .:-++=:....
  .-:                                           .:--:::.
--            Airfoil v.0.0.1                    :====--:-===
+-            Airfoil v.0                        :====--:-===
 :-                                    .:==:.
    .-::.                     ::::-:.
           ..::::----::::..
@@ -47,7 +47,7 @@ from engibench.utils.files import replace_template_values
 DesignType = dict[str, Any]
 
 
-@constraint(categories=IMPL)
+
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
     """Determines if two segments a and b intersect."""
     # intersection: find t such that (p + t dp - q) x dq = 0 with 0 <= t <= 1
@@ -118,7 +118,7 @@ class Airfoil(Problem[DesignType]):
     ## Dataset
     The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/airfoil_v0).
 
-    ### v0.0.1
+    ### v0
 
     #### Fields
     The dataset contains optimal design, conditions, objectives and these additional fields:
@@ -547,7 +547,7 @@ class Airfoil(Problem[DesignType]):
         ax.axis("equal")
         ax.axis("off")
         ax.set_xlim((-0.005, 1.005))
-        ax.set_ylim((-0.125, 0.125))
+
         if open_window:
             plt.show()
         if save:
@@ -582,19 +582,19 @@ class Airfoil(Problem[DesignType]):
         plt.close(fig)
         return fig, ax
 
-    def random_design(self, dataset_key: str = "train", design_key: str = "initial_design") -> tuple[dict[str, Any], int]:
+    def random_design(self, dataset_split: str = "train", design_key: str = "initial_design") -> tuple[dict[str, Any], int]:
         """Samples a valid random initial design.
 
         Args:
-            dataset_key (str): The key to use for the dataset. Defaults to "train".
+            dataset_split (str): The key to use for the dataset. Defaults to "train".
             design_key (str): The key to use for the design in the dataset.
                 Defaults to "initial_design".
 
         Returns:
             tuple[dict[str, Any], int]: The valid random design and the index of the design in the dataset.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_key][design_key]), dtype=int)
-        initial_design = self.dataset[dataset_key][design_key][rnd]
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]), dtype=int)
+        initial_design = self.dataset[dataset_split][design_key][rnd]
         return {"coords": np.array(initial_design["coords"]), "angle_of_attack": initial_design["angle_of_attack"]}, rnd
 
 
