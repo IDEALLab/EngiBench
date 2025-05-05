@@ -410,14 +410,9 @@ document.write(`
   <h1>Source code for engibench.utils.container</h1><div class="highlight"><pre>
 <span></span><span class="sd">&quot;&quot;&quot;Abstraction over container runtimes.&quot;&quot;&quot;</span>
 
-<span class="kn">from</span><span class="w"> </span><span class="nn">__future__</span><span class="w"> </span><span class="kn">import</span> <span class="n">annotations</span>
-
+<span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
-<span class="kn">from</span><span class="w"> </span><span class="nn">typing</span><span class="w"> </span><span class="kn">import</span> <span class="n">TYPE_CHECKING</span>
-
-<span class="k">if</span> <span class="n">TYPE_CHECKING</span><span class="p">:</span>
-    <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
 
 
 <div class="viewcode-block" id="pull">
@@ -465,26 +460,6 @@ document.write(`
         <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Container command failed with exit code </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">:</span><span class="se">\n</span><span class="s2">Command: </span><span class="si">{</span><span class="s1">&#39; &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="si">}</span><span class="se">\n</span><span class="s2">Output: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">output</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">e</span><span class="o">.</span><span class="n">output</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;No output&#39;</span><span class="si">}</span><span class="s2">&quot;</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span></div>
 
-
-
-<span class="k">def</span><span class="w"> </span><span class="nf">runtime</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">[</span><span class="n">ContainerRuntime</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Determine the container runtime to use according to the environment variable `CONTAINER_RUNTIME`.</span>
-
-<span class="sd">    If not set, check for availability.</span>
-
-<span class="sd">    Returns:</span>
-<span class="sd">        Class object of the first available container runtime or the container runtime selected by the</span>
-<span class="sd">        `CONTAINER_RUNTIME` environment variable if set.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="n">runtimes_by_name</span> <span class="o">=</span> <span class="p">{</span><span class="n">rt</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">rt</span> <span class="k">for</span> <span class="n">rt</span> <span class="ow">in</span> <span class="n">RUNTIMES</span><span class="p">}</span>
-    <span class="n">rt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CONTAINER_RUNTIME&quot;</span><span class="p">)</span>
-    <span class="n">rt</span> <span class="o">=</span> <span class="n">runtimes_by_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">rt_name</span><span class="p">)</span> <span class="k">if</span> <span class="n">rt_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
-    <span class="k">if</span> <span class="n">rt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">rt</span>
-    <span class="k">for</span> <span class="n">rt</span> <span class="ow">in</span> <span class="n">RUNTIMES</span><span class="p">:</span>
-        <span class="k">if</span> <span class="n">rt</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
-            <span class="k">return</span> <span class="n">rt</span>
-    <span class="k">return</span> <span class="kc">None</span>
 
 
 <div class="viewcode-block" id="ContainerRuntime">
@@ -551,6 +526,26 @@ document.write(`
         <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Must be implemented by a subclass&quot;</span><span class="p">)</span></div>
 </div>
 
+
+
+<span class="k">def</span><span class="w"> </span><span class="nf">runtime</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">[</span><span class="n">ContainerRuntime</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Determine the container runtime to use according to the environment variable `CONTAINER_RUNTIME`.</span>
+
+<span class="sd">    If not set, check for availability.</span>
+
+<span class="sd">    Returns:</span>
+<span class="sd">        Class object of the first available container runtime or the container runtime selected by the</span>
+<span class="sd">        `CONTAINER_RUNTIME` environment variable if set.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+    <span class="n">runtimes_by_name</span> <span class="o">=</span> <span class="p">{</span><span class="n">rt</span><span class="o">.</span><span class="n">name</span><span class="p">:</span> <span class="n">rt</span> <span class="k">for</span> <span class="n">rt</span> <span class="ow">in</span> <span class="n">RUNTIMES</span><span class="p">}</span>
+    <span class="n">rt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CONTAINER_RUNTIME&quot;</span><span class="p">)</span>
+    <span class="n">rt</span> <span class="o">=</span> <span class="n">runtimes_by_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">rt_name</span><span class="p">)</span> <span class="k">if</span> <span class="n">rt_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="k">if</span> <span class="n">rt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">rt</span>
+    <span class="k">for</span> <span class="n">rt</span> <span class="ow">in</span> <span class="n">RUNTIMES</span><span class="p">:</span>
+        <span class="k">if</span> <span class="n">rt</span><span class="o">.</span><span class="n">is_available</span><span class="p">():</span>
+            <span class="k">return</span> <span class="n">rt</span>
+    <span class="k">return</span> <span class="kc">None</span>
 
 
 <div class="viewcode-block" id="Docker">
