@@ -1,15 +1,10 @@
 """This module contains the MMA subroutine used in the thermoelastic2d problem."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import TYPE_CHECKING
 
 from mmapy import mmasub as external_mmasub
 import numpy as np
-
-if TYPE_CHECKING:
-    from numpy.typing import NDArray
+from numpy.typing import NDArray
 
 RESIDUAL_MAX_VAL = 0.9
 ITERATION_MAX = 500

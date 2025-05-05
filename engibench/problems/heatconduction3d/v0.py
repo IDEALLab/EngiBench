@@ -4,8 +4,6 @@ This module defines a 3D heat conduction topology optimization problem using the
 The problem is solved using the dolfin-adjoint software within a Docker container.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import os
 import subprocess

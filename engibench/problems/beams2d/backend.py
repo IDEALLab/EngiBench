@@ -6,8 +6,6 @@
 This code has been adapted from the Python implementation by Niels Aage and Villads Egede Johansen: https://github.com/arjendeetman/TopOpt-MMA-Python
 """
 
-from __future__ import annotations
-
 import dataclasses
 from typing import Any, overload
 

@@ -1,23 +1,18 @@
 """Core API for Problem and other base classes."""
 
-from __future__ import annotations
-
+from collections.abc import Sequence
 import dataclasses
 from enum import auto
 from enum import Enum
-from typing import Any, Generic, TYPE_CHECKING, TypeVar
+from typing import Any, Generic, TypeVar
 
 from datasets import Dataset
 from datasets import load_dataset
+from gymnasium import spaces
 import numpy as np
 import numpy.typing as npt
 
 from engibench import constraint
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
-    from gymnasium import spaces
 
 DesignType = TypeVar("DesignType")
 

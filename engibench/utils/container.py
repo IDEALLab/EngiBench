@@ -1,13 +1,8 @@
 """Abstraction over container runtimes."""
 
-from __future__ import annotations
-
+from collections.abc import Sequence
 import os
 import subprocess
-from typing import TYPE_CHECKING
-
-if TYPE_CHECKING:
-    from collections.abc import Sequence
 
 
 def pull(image: str) -> None:
@@ -49,26 +44,6 @@ def run(
     except subprocess.CalledProcessError as e:
         msg = f"Container command failed with exit code {e.returncode}:\nCommand: {' '.join(command)}\nOutput: {e.output.decode() if e.output else 'No output'}"
         raise RuntimeError(msg) from e
-
-
-def runtime() -> type[ContainerRuntime] | None:
-    """Determine the container runtime to use according to the environment variable `CONTAINER_RUNTIME`.
-
-    If not set, check for availability.
-
-    Returns:
-        Class object of the first available container runtime or the container runtime selected by the
-        `CONTAINER_RUNTIME` environment variable if set.
-    """
-    runtimes_by_name = {rt.name: rt for rt in RUNTIMES}
-    rt_name = os.environ.get("CONTAINER_RUNTIME")
-    rt = runtimes_by_name.get(rt_name) if rt_name is not None else None
-    if rt is not None:
-        return rt
-    for rt in RUNTIMES:
-        if rt.is_available():
-            return rt
-    return None
 
 
 class ContainerRuntime:
@@ -123,6 +98,26 @@ class ContainerRuntime:
             name: Optional name for the container (not supported by all runtimes).
         """
         raise NotImplementedError("Must be implemented by a subclass")
+
+
+def runtime() -> type[ContainerRuntime] | None:
+    """Determine the container runtime to use according to the environment variable `CONTAINER_RUNTIME`.
+
+    If not set, check for availability.
+
+    Returns:
+        Class object of the first available container runtime or the container runtime selected by the
+        `CONTAINER_RUNTIME` environment variable if set.
+    """
+    runtimes_by_name = {rt.name: rt for rt in RUNTIMES}
+    rt_name = os.environ.get("CONTAINER_RUNTIME")
+    rt = runtimes_by_name.get(rt_name) if rt_name is not None else None
+    if rt is not None:
+        return rt
+    for rt in RUNTIMES:
+        if rt.is_available():
+            return rt
+    return None
 
 
 class Docker(ContainerRuntime):

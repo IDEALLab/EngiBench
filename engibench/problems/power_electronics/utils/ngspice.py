@@ -1,7 +1,5 @@
 """NgSpice wrapper for cross-platform support."""
 
-from __future__ import annotations
-
 import os
 import platform
 import re

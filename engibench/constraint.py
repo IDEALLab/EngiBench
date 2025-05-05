@@ -1,7 +1,5 @@
 """Constraints for parameters of Problem classes."""
 
-from __future__ import annotations
-
 from collections.abc import Callable, Iterable
 import dataclasses
 from dataclasses import dataclass
@@ -48,15 +46,15 @@ class Constraint:
     criticality: Criticality = Criticality.Error
     """Criticality of a violation of the constraint."""
 
-    def category(self, category: Category) -> Constraint:
+    def category(self, category: Category) -> "Constraint":
         """Return a copy of the constraint which has the specified category added."""
         return Constraint(check=self.check, criticality=self.criticality, categories=self.categories | category)
 
-    def warning(self) -> Constraint:
+    def warning(self) -> "Constraint":
         """Return a copy of the constraint with the criticality level set to "warning"."""
         return Constraint(check=self.check, criticality=Criticality.Warning, categories=self.categories)
 
-    def check_dict(self, parameter_args: dict[str, Any]) -> Violation | None:
+    def check_dict(self, parameter_args: dict[str, Any]) -> "Violation | None":
         """Check for a violation of the given constraint for the given parameters."""
         # We first inspect the arguments of check callback:
         sig = inspect.signature(self.check)
@@ -82,7 +80,7 @@ class Constraint:
             return Violation(self, str(e))
         return None
 
-    def check_value(self, value: Any) -> Violation | None:
+    def check_value(self, value: Any) -> "Violation | None":
         """Check for a violation for the given single positional value."""
         try:
             self.check(value)
@@ -165,13 +163,13 @@ class Violations:
         self.violations = violations
         self.n_constraints = n_constraints
 
-    def by_category(self, category: Category) -> Violations:
+    def by_category(self, category: Category) -> "Violations":
         """Filter the violations by the category of the constraint causing the violation."""
         return Violations(
             [violation for violation in self.violations if category in violation.constraint.categories], self.n_constraints
         )
 
-    def by_criticality(self, criticality: Criticality) -> Violations:
+    def by_criticality(self, criticality: Criticality) -> "Violations":
         """Filter the violations by criticality."""
         return Violations(
             [violation for violation in self.violations if violation.constraint.criticality == criticality],

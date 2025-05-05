@@ -15,8 +15,6 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 +-+-+-+-+-+-+-+-+-+
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from dataclasses import field
 import os

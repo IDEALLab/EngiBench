@@ -1,7 +1,5 @@
 """Thermo Elastic 2D Problem."""
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Annotated, Any, ClassVar
