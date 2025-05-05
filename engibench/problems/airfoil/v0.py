@@ -80,10 +80,6 @@ def does_not_self_intersect(design: DesignType) -> None:
 class Airfoil(Problem[DesignType]):
     r"""Airfoil 2D shape optimization problem.
 
-    ```{note}
-    This problem requires `gcc` and `gfortran` to be installed. See the simulator section for more details.
-    ```
-
     ## Problem Description
     This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the [MACH-Aero](https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/) simulator that computes the lift and drag coefficients of the airfoil.
 
