@@ -3,8 +3,6 @@
 
 """Beams 2D problem."""
 
-from __future__ import annotations
-
 from copy import deepcopy
 from dataclasses import dataclass
 from dataclasses import field

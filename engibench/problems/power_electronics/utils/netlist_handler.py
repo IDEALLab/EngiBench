@@ -2,17 +2,11 @@
 
 # ruff: noqa: N806  # Upper case variables
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 import networkx as nx
 
+from engibench.problems.power_electronics.utils.config import Config
 from engibench.problems.power_electronics.utils.constants import COLOR_DICT
 from engibench.problems.power_electronics.utils.constants import COMPONENTS
-
-if TYPE_CHECKING:
-    from engibench.problems.power_electronics.utils.config import Config
 
 
 def parse_topology(config: Config) -> tuple[Config, str, dict[str, list[int]], nx.Graph]:

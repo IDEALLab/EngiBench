@@ -1,16 +1,10 @@
 """Utility functions for the thermoelastic2d problem."""
 
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
-
 from matplotlib import colors
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
-
-if TYPE_CHECKING:
-    from matplotlib.figure import Figure
 
 
 def get_res_bounds(x_res: int, y_res: int) -> tuple[npt.NDArray, npt.NDArray, npt.NDArray, npt.NDArray]:

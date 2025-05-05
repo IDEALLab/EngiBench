@@ -4,12 +4,13 @@ This script generates a dataset for the Photonics2D problem using the SLURM API
 """
 
 from argparse import ArgumentParser
+from collections.abc import Callable
 from itertools import product
 import os
 import pickle
 import shutil
 import time
-from typing import Any, Callable
+from typing import Any
 
 import numpy as np
 

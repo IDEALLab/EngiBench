@@ -1,7 +1,5 @@
 """This module contains the Python implementation of the thermoelastic 2D problem."""
 
-from __future__ import annotations
-
 from math import ceil
 from math import hypot
 import time

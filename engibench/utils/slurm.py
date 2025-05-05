@@ -1,8 +1,7 @@
 """Slurm executor for parameter space discovery."""
 
-from __future__ import annotations
-
 from argparse import ArgumentParser
+from collections.abc import Callable, Iterable, Sequence
 from dataclasses import asdict
 from dataclasses import dataclass
 from dataclasses import field
@@ -14,17 +13,12 @@ import shutil
 import subprocess
 import sys
 import tempfile
-from typing import Any, Generic, TYPE_CHECKING, TypeVar
+from typing import Any, Generic, TypeVar
 
 from numpy import typing as npt
 
 from engibench.core import OptiStep
 from engibench.core import Problem
-
-if TYPE_CHECKING:
-    from collections.abc import Callable, Iterable, Sequence
-
-    import numpy.typing as npt
 
 
 @dataclass
@@ -73,7 +67,7 @@ class Job(Generic[DesignType]):
         }
 
     @classmethod
-    def deserialize(cls, serialized_job: dict[str, Any]) -> Job:
+    def deserialize(cls, serialized_job: dict[str, Any]) -> "Job":
         """Deserialize a job object from an other python process."""
         design_factory = serialized_job["design_factory"]
         return cls(

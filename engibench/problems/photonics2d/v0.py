@@ -6,17 +6,16 @@ https://nbviewer.org/github/fancompute/workshop-invdesign/blob/master/04_Invdes_
 Author: Mark Fuge @markfuge
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 
 # Need os import for makedirs for saving plots
 import os
 import pprint
-from typing import Annotated, Any, ClassVar, TYPE_CHECKING
+from typing import Annotated, Any, ClassVar
 
 # Importing autograd since the ceviche library uses it for automatic differentiation of the FDFD solver
 import autograd.numpy as npa
+from autograd.numpy.numpy_boxes import ArrayBox
 
 # Import ArrayBox type for checking
 import ceviche
@@ -46,9 +45,6 @@ from engibench.problems.photonics2d.backend import operator_blur
 from engibench.problems.photonics2d.backend import operator_proj
 from engibench.problems.photonics2d.backend import poly_ramp
 from engibench.problems.photonics2d.backend import wavelength_to_frequency
-
-if TYPE_CHECKING:
-    from autograd.numpy.numpy_boxes import ArrayBox
 
 
 class Photonics2D(Problem[npt.NDArray]):

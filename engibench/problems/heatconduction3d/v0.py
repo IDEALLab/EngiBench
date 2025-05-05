@@ -4,8 +4,6 @@ This module defines a 3D heat conduction topology optimization problem using the
 The problem is solved using the dolfin-adjoint software within a Docker container.
 """
 
-from __future__ import annotations
-
 from dataclasses import dataclass
 import os
 import subprocess
@@ -292,7 +290,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         ]  # Side edges
 
         for edge in cube_edges:
-            ax.plot(*zip(*cube_vertices[list(edge)]), color="red", linewidth=2)
+            ax.plot(*zip(*cube_vertices[list(edge)], strict=True), color="red", linewidth=2)
 
         if open_window:
             plt.show()
