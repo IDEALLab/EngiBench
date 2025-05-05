@@ -290,7 +290,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         ]  # Side edges
 
         for edge in cube_edges:
-            ax.plot(*zip(*cube_vertices[list(edge)]), color="red", linewidth=2)
+            ax.plot(*zip(*cube_vertices[list(edge)], strict=True), color="red", linewidth=2)
 
         if open_window:
             plt.show()
