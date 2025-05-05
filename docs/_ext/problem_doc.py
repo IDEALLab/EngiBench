@@ -8,8 +8,6 @@ airfoil
 `````
 """
 
-from __future__ import annotations
-
 from collections.abc import Iterator, Sequence
 import contextlib
 import importlib.abc
@@ -22,8 +20,10 @@ import unittest.mock
 
 from docutils import nodes
 from sphinx.application import Sphinx
-from gymnasium import spaces # noqa: F401 this is used to import spaces before mock_imports in BUILTIN_PROBLEMS
 from sphinx.util.docutils import SphinxDirective
+
+MODULE_WHITELIST = frozenset(["engibench"])
+MODULE_EXTRA_MEMBERS = {"networkx": ["Graph"], "gymnasium": ["spaces"]}
 
 
 def setup(app: Sphinx) -> None:
@@ -35,7 +35,7 @@ class ProblemDirective(SphinxDirective):
     required_arguments = 1
 
     def run(self) -> list[Any]:
-        with mock_imports():
+        with mock_imports(MODULE_WHITELIST, extra_members=MODULE_EXTRA_MEMBERS):
             from engibench.core import ObjectiveDirection
             from engibench.utils.all_problems import BUILTIN_PROBLEMS
 
@@ -46,7 +46,10 @@ class ProblemDirective(SphinxDirective):
 
         image = nodes.image(uri=f"../_static/img/problems/{problem_id}.png", width="450px", align="center")
 
-        objectives = [f"{obj}: ↑" if direction == ObjectiveDirection.MAXIMIZE else f"{obj}: ↓" for obj, direction in problem.objectives]
+        objectives = [
+            f"{obj}: ↑" if direction == ObjectiveDirection.MAXIMIZE else f"{obj}: ↓"
+            for obj, direction in problem.objectives
+        ]
         conditions = [f"{cond}: {value}" for cond, value in problem.conditions]
 
         tab_data = [
@@ -142,11 +145,11 @@ def line_indent(line: str) -> int | None:
 
 
 @contextlib.contextmanager
-def mock_imports() -> Iterator[None]:
+def mock_imports(whitelist: frozenset[str], extra_members: dict[str, list[str]] | None = None) -> Iterator[None]:
     """Add an import hook just after the builtin modules hook and the frozen module hook:
     https://docs.python.org/3/reference/import.html#the-meta-path
     """
-    sys.meta_path.insert(2, MockFinder())
+    sys.meta_path.insert(2, MockFinder(whitelist, extra_members))
     yield
     del sys.meta_path[2]
 
@@ -154,21 +157,31 @@ def mock_imports() -> Iterator[None]:
 class MockFinder(importlib.abc.MetaPathFinder):
     """Import hook which loads a mock instead of a module if the module is not engibench."""
 
+    def __init__(self, whitelist: frozenset[str], extra_members: dict[str, list[str]] | None = None) -> None:
+        self.whitelist = whitelist
+        self.mock_loader = MockLoader(extra_members)
+        super().__init__()
+
     def find_spec(
         self, fullname: str, _path: Sequence[str] | None, _target: ModuleType | None = None
     ) -> importlib.machinery.ModuleSpec | None:
-        if fullname.split(".", 1)[0] == "engibench":
+        if fullname.split(".", 1)[0] in self.whitelist:
             return None
-        return importlib.machinery.ModuleSpec(fullname, MockLoader())
+        return importlib.machinery.ModuleSpec(fullname, self.mock_loader)
 
 
 class MockLoader(importlib.abc.Loader):
     """Module loader, preparing the mocks."""
 
-    def create_module(self, _spec: importlib.machinery.ModuleSpec) -> ModuleType:
+    def __init__(self, extra_members: dict[str, list[str]] | None = None) -> None:
+        self.extra_members = extra_members or {}
+        super().__init__()
+
+    def create_module(self, spec: importlib.machinery.ModuleSpec) -> ModuleType:
         # The mock must have the __path__ attribute, otherwise the import
         # system will fail when trying a submodule of the mock module:
-        return unittest.mock.Mock(spec=ModuleType, __path__=unittest.mock.Mock())
+        extra_args = {key: unittest.mock.Mock() for key in self.extra_members.get(spec.name, [])}
+        return unittest.mock.Mock(spec=ModuleType, __path__=unittest.mock.Mock(), **extra_args)
 
     def exec_module(self, module: ModuleType) -> None:
         pass
