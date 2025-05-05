@@ -3,6 +3,7 @@
 <img src="docs/\_static/img/logo_text_large2.png" align="center" width="90%"/>
 </p>
 
+[![Python](https://img.shields.io/pypi/pyversions/engibench.svg)](https://badge.fury.io/py/engibench)
 ![tests](https://github.com/IDEALLab/engibench/workflows/Python%20tests/badge.svg)
 [![pre-commit](https://img.shields.io/badge/pre--commit-enabled-brightgreen?logo=pre-commit&logoColor=white)](https://pre-commit.com/)
 [![code style: Ruff](
