@@ -167,7 +167,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         boundary_dict = dict(self.conditions)
         for key, value in (config or {}).items():
             if key in boundary_dict:
-                if type(value) == list:
+                if isinstance(value, list):
                     boundary_dict[key] = np.array(value)
                 else:
                     boundary_dict[key] = value
