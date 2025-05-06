@@ -167,7 +167,7 @@ class Airfoil(Problem[DesignType]):
         mach: Annotated[
             float, bounded(lower=0.0).category(IMPL), bounded(lower=0.1, upper=1.0).warning().category(IMPL)
         ] = 0.8
-        reynolds: Annotated[float, bounded(lower=0.0).category(IMPL)] = 1e6
+        reynolds: Annotated[float, bounded(lower=0.0).category(IMPL), bounded(lower=1e5, upper=1e9).warning().category(IMPL)] = 1e6
         cl_target: float = 0.5
         altitude: float = 10000.0
         temperature: float = 300.0
