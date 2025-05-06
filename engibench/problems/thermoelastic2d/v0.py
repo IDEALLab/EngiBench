@@ -167,7 +167,11 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         boundary_dict = dict(self.conditions)
         for key, value in (config or {}).items():
             if key in boundary_dict:
-                boundary_dict[key] = value
+                if isinstance(value, list):
+                    boundary_dict[key] = np.array(value)
+                else:
+                    boundary_dict[key] = value
+
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
         return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
 
