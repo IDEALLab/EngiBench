@@ -156,12 +156,12 @@ class Airfoil(Problem[DesignType]):
         """Structured representation of configuration parameters for a numerical computation."""
 
         alpha: Annotated[float, bounded(lower=0.0, upper=10.0).category(THEORY)] = 0.0
-        area_ratio_min: Annotated[float, bounded(upper=1.2).category(THEORY)] = 0.7
+        area_ratio_min: Annotated[float, bounded(lower=0.0, upper=1.2).category(THEORY)] = 0.7
         area_initial: None | float = None
         mach: Annotated[
             float, bounded(lower=0.0).category(IMPL), bounded(lower=0.1, upper=1.0).warning().category(IMPL)
         ] = 0.8
-        reynolds: Annotated[float, bounded(lower=0.0).category(IMPL)] = 1e6
+        reynolds: Annotated[float, bounded(lower=0.0).category(IMPL), bounded(lower=1e5, upper=1e9).warning().category(IMPL)] = 1e6
         cl_target: float = 0.5
         altitude: float = 10000.0
         temperature: float = 300.0
