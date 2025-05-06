@@ -98,6 +98,7 @@ class Photonics2D(Problem[npt.NDArray]):
     - `N_proj`: Number of projection applications (default: 1). Increasing this can help make
                 the design more binary.
     - `N_blur`: Number of blur applications (default: 1). Increasing this smooths the design more.
+    - `initial_beta`: Initial beta for the parameterization (default: 1.0).
     - `save_frame_interval`: Interval for saving intermediate design frames during optimization.
                              If > 0, saves a frame every `save_frame_interval` iterations
                              to the `opt_frames/` directory. Default is 0 (disabled).
@@ -182,6 +183,7 @@ class Photonics2D(Problem[npt.NDArray]):
     _penalty_weight_default = 1e-2  # Default weight for mass penalty term
     _num_blurs_default = 1
     _max_beta_default = 300  # Default maximum beta for scheduling
+    _initial_beta_default = 1.0  # Default initial beta for scheduling
 
     conditions: tuple[tuple[str, Any], ...] = (
         ("lambda1", 1.5),  # First input wavelength in μm
@@ -398,7 +400,8 @@ class Photonics2D(Problem[npt.NDArray]):
         conditions = self._setup_simulation(config)
 
         # Reset the current beta to one for the optimization
-        self._current_beta = 1.0
+        initial_beta = conditions.get("initial_beta", self._initial_beta_default)
+        self._current_beta = self._max_beta_default # Set initial beta to max so that first opt history is under simulate conditions
 
         print("Attempting to run Optimization for Photonics2D under the following conditions:")
         pprint.pp(conditions)
@@ -429,7 +432,7 @@ class Photonics2D(Problem[npt.NDArray]):
         if self._E01 == 0 or self._E02 == 0:
             print(
                 f"Warning: Initial overlap zero (E01={self._E01:.3e}, E02={self._E02:.3e}). Using fallback."
-            )  # Keep this warning
+            )
             self._E01 = self._E01 if self._E01 != 0 else 1e-9
             self._E02 = self._E02 if self._E02 != 0 else 1e-9
 
@@ -449,7 +452,6 @@ class Photonics2D(Problem[npt.NDArray]):
             Note: All functions or inputs here should be compatible with autograd (npa).
             """
             rho = rho_flat.reshape((num_elems_x, num_elems_y))
-            conditions["beta"] = self._current_beta  # Use scheduled beta
 
             # --- Parameterization and Simulation ---
             epsr = epsr_parameterization(
@@ -482,9 +484,8 @@ class Photonics2D(Problem[npt.NDArray]):
         # --- Define Gradient ---
         objective_jac = jacobian(objective_for_optimizer, mode="reverse")
 
-        # --- Define Callback ---
         opti_steps_history: list[OptiStep] = []
-
+        # --- Define Callback ---
         def callback(iteration: int, objective_history_list: list, rho_flat: npt.NDArray | ArrayBox) -> None:
             """Callback for adam_optimize. Receives the history of objective values."""
             # Handle Empty History
@@ -496,7 +497,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
             # Beta Scheduling Logic -- Quadratic ramp from 0 to max_beta
             iteration = len(objective_history_list)
-            self._current_beta = poly_ramp(iteration, max_iter=num_optimization_steps, b0=0, bmax=self._max_beta_default, degree=2)
+            self._current_beta = poly_ramp(iteration, max_iter=num_optimization_steps, b0=initial_beta, bmax=self._max_beta_default, degree=2)
 
             # Store OptiStep info
             neg_norm_objective_value = -last_scalar_obj_value
@@ -719,7 +720,7 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2}
+    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2, "initial_beta": 1.0}
     print(f"Optimizing design with ({opt_config})...")
     # Optimize maximizes (normalized_overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
