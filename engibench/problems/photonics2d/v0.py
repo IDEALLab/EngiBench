@@ -181,6 +181,7 @@ class Photonics2D(Problem[npt.NDArray]):
     _num_projections_default = 1
     _penalty_weight_default = 1e-2  # Default weight for mass penalty term
     _num_blurs_default = 1
+    _max_beta_default = 300  # Default maximum beta for scheduling
 
     conditions: tuple[tuple[str, Any], ...] = (
         ("lambda1", 1.5),  # First input wavelength in μm
@@ -224,7 +225,7 @@ class Photonics2D(Problem[npt.NDArray]):
         # Setup basic simulation parameters
         self.omega1 = wavelength_to_frequency(current_conditions["lambda1"])
         self.omega2 = wavelength_to_frequency(current_conditions["lambda2"])
-        self._current_beta: float = 1.0  # Placeholder for beta scheduling
+        self._current_beta: float = self._max_beta_default
 
         # Config depends on num_elems_x, num_elems_y -> define it in __init__
         @dataclass
@@ -395,6 +396,10 @@ class Photonics2D(Problem[npt.NDArray]):
                   The `step` attribute corresponds to the optimizer iteration.
         """
         conditions = self._setup_simulation(config)
+
+        # Reset the current beta to one for the optimization
+        self._current_beta = 1.0
+
         print("Attempting to run Optimization for Photonics2D under the following conditions:")
         pprint.pp(conditions)
 
@@ -409,7 +414,6 @@ class Photonics2D(Problem[npt.NDArray]):
         self._eta = conditions.get("eta", self._eta_default)
         self._num_projections = conditions.get("num_projections", self._num_projections_default)
         self._num_blurs = conditions.get("num_blurs", self._num_blurs_default)
-        max_beta = 300
         # --- Get the frame saving interval from conditions for plotting ---
         save_frame_interval = conditions.get("save_frame_interval", 0)
 
@@ -492,7 +496,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
             # Beta Scheduling Logic -- Quadratic ramp from 0 to max_beta
             iteration = len(objective_history_list)
-            self._current_beta = poly_ramp(iteration, max_iter=num_optimization_steps, b0=0, bmax=max_beta, degree=2)
+            self._current_beta = poly_ramp(iteration, max_iter=num_optimization_steps, b0=0, bmax=self._max_beta_default, degree=2)
 
             # Store OptiStep info
             neg_norm_objective_value = -last_scalar_obj_value
