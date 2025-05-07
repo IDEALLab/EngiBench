@@ -401,7 +401,9 @@ class Photonics2D(Problem[npt.NDArray]):
 
         # Reset the current beta to one for the optimization
         initial_beta = conditions.get("initial_beta", self._initial_beta_default)
-        self._current_beta = self._max_beta_default # Set initial beta to max so that first opt history is under simulate conditions
+        self._current_beta = (
+            self._max_beta_default
+        )  # Set initial beta to max so that first opt history is under simulate conditions
 
         print("Attempting to run Optimization for Photonics2D under the following conditions:")
         pprint.pp(conditions)
@@ -430,9 +432,7 @@ class Photonics2D(Problem[npt.NDArray]):
         self._E02 = npa.abs(npa.sum(npa.conj(ez2_init) * probe2_init)) * 1e6
 
         if self._E01 == 0 or self._E02 == 0:
-            print(
-                f"Warning: Initial overlap zero (E01={self._E01:.3e}, E02={self._E02:.3e}). Using fallback."
-            )
+            print(f"Warning: Initial overlap zero (E01={self._E01:.3e}, E02={self._E02:.3e}). Using fallback.")
             self._E01 = self._E01 if self._E01 != 0 else 1e-9
             self._E02 = self._E02 if self._E02 != 0 else 1e-9
 
@@ -485,6 +485,7 @@ class Photonics2D(Problem[npt.NDArray]):
         objective_jac = jacobian(objective_for_optimizer, mode="reverse")
 
         opti_steps_history: list[OptiStep] = []
+
         # --- Define Callback ---
         def callback(iteration: int, objective_history_list: list, rho_flat: npt.NDArray | ArrayBox) -> None:
             """Callback for adam_optimize. Receives the history of objective values."""
@@ -497,7 +498,9 @@ class Photonics2D(Problem[npt.NDArray]):
 
             # Beta Scheduling Logic -- Quadratic ramp from 0 to max_beta
             iteration = len(objective_history_list)
-            self._current_beta = poly_ramp(iteration, max_iter=num_optimization_steps, b0=initial_beta, bmax=self._max_beta_default, degree=2)
+            self._current_beta = poly_ramp(
+                iteration, max_iter=num_optimization_steps, b0=initial_beta, bmax=self._max_beta_default, degree=2
+            )
 
             # Store OptiStep info
             neg_norm_objective_value = -last_scalar_obj_value
