@@ -108,19 +108,12 @@ def constraint(
 ) -> Callable[[Check], Constraint] | Constraint:
     """Decorator for check callbacks to convert the callback to a :class:`Constraint`."""
     if check is not None:
-        return Constraint(_unwrap_staticmethod(check))
+        return Constraint(check)
 
     def decorator(check: Check) -> Constraint:
-        return Constraint(_unwrap_staticmethod(check), categories=categories, criticality=criticality)
+        return Constraint(check, categories=categories, criticality=criticality)
 
     return decorator
-
-
-def _unwrap_staticmethod(f: Check | staticmethod) -> Check:
-    """This is needed for Python 3.9."""
-    if isinstance(f, staticmethod):
-        return f.__func__
-    return f
 
 
 class Var:
