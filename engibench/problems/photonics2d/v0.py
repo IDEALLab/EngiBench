@@ -98,7 +98,7 @@ class Photonics2D(Problem[npt.NDArray]):
     - `N_proj`: Number of projection applications (default: 1). Increasing this can help make
                 the design more binary.
     - `N_blur`: Number of blur applications (default: 1). Increasing this smooths the design more.
-    - `initial_beta`: Initial beta for the parameterization (default: 1.0).
+    - `initial_beta`: Initial beta for the optimization continuation scheme (default: 1.0).
     - `save_frame_interval`: Interval for saving intermediate design frames during optimization.
                              If > 0, saves a frame every `save_frame_interval` iterations
                              to the `opt_frames/` directory. Default is 0 (disabled).
