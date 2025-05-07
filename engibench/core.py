@@ -201,7 +201,7 @@ class Problem(Generic[DesignType]):
 
         violations.n_constraints += 1 + len(self.design_constraints)
         for c in (design_constraint, *self.design_constraints):
-            design_violation = c.check_value(design)
+            design_violation = c.check_dict({"design": design, **config})
             if design_violation is not None:
                 violations.violations.append(design_violation)
 
