@@ -1,7 +1,5 @@
 """This file contains tests making sure the implemented problems respect the API."""
 
-from __future__ import annotations
-
 import inspect
 from typing import get_args, get_origin
 
