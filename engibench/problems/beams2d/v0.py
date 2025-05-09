@@ -14,6 +14,7 @@ import numpy.typing as npt
 
 from engibench.constraint import bounded
 from engibench.constraint import constraint
+from engibench.constraint import Criticality
 from engibench.constraint import greater_than
 from engibench.constraint import IMPL
 from engibench.constraint import THEORY
@@ -34,6 +35,16 @@ class ExtendedOptiStep(OptiStep):
     """Extended OptiStep to store a single NumPy array representing a density field at a given optimization step."""
 
     design: npt.NDArray[np.float64] = field(default_factory=lambda: np.array([], dtype=np.float64))
+
+
+@constraint(categories=THEORY, criticality=Criticality.Warning)
+def volume_fraction_bound(design: npt.NDArray, volfrac: float) -> None:
+    """Constraint for volume fraction of the design."""
+    actual_volfrac = design.mean()
+    tolerance = 0.01
+    assert abs(actual_volfrac - volfrac) <= tolerance, (
+        f"Volume fraction of the design {actual_volfrac:.4f} does not match target {volfrac:.4f} specified in the conditions. While the optimizer might fix it, this is likely to affect objective values as the initial design is not feasible given the constraints."
+    )
 
 
 class Beams2D(Problem[npt.NDArray]):
@@ -105,6 +116,7 @@ class Beams2D(Problem[npt.NDArray]):
         ("forcedist", 0.0),
         ("overhang_constraint", False),
     )
+    design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
     dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v{version}"
     container_id = None
