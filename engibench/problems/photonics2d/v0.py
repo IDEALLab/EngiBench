@@ -711,7 +711,7 @@ if __name__ == "__main__":
     problem = Photonics2D(config=problem_config, num_elems_x=120, num_elems_y=120)
     problem.reset(seed=42)  # Use a seed
 
-    start_design, _ = problem.random_design(noise=0.001)  # Randomized design with noise
+    start_design, _ = problem.random_design(noise=0.1, blur=1)  # Randomized design with noise
     fig_start = problem.render(start_design)
 
     # Simulation Example
