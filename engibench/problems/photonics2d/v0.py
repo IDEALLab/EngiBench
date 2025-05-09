@@ -61,15 +61,12 @@ class Photonics2D(Problem[npt.NDArray]):
     Stored as `design_space` (gymnasium.spaces.Box).
 
     ## Objectives
-    0. `neg_field_overlap`: Combined objective to minimize, defined as
-       `penalty - overlap1 * overlap2`. Lower is better. This is the value
-       returned by `simulate` and corresponds to the overlap in the target
-       electrical fields with the desired demultiplexing locations.
-       Note that `optimize` internally works with a normalized version for
-       stability (`penalty - normalized_overlap`) and reports history
-       (`OptiStep`) corresponding to that normalized version.
-       Note: This means comparing the values returned by `simulate` and `optimize` directly
-       may not yield similar numbers.
+    0. `total_overlap`: Objective to maximize, defined as
+       `overlap1 * overlap2`. Higher is better. This is corresponds to
+       the overlap in the target electrical fields with the desired demultiplexing locations.
+       Note that bot `simulate` and `optimize` subtract a small material penalty
+       (`total_overlap - penalty`) to avoid multiple equivalent local optima, but this penalty
+       is small relative to the overlap objective.
 
     ## Conditions
     These are designed as user-configurable parameters that alter the problem definition.
@@ -127,7 +124,7 @@ class Photonics2D(Problem[npt.NDArray]):
     - `lambda2`: The second input wavelength in μm.
     - `blur_radius`: Radius for the density blurring filter (pixels).
     - `optimal_design`: The optimal design density array (shape num_elems_x, num_elems_y).
-    - `optimization_history`: A list of objective values from the optimization process (negative field overlap, where lower is better) -- This is for advanced use.
+    - `optimization_history`: A list of objective values from the optimization process (field overlap  minus penalty, where higher is better) -- This is for advanced use.
 
     #### Creation Method
     To generate a dataset for training, we generate (randomly, uniformly) swept over the following parameters:
@@ -158,9 +155,9 @@ class Photonics2D(Problem[npt.NDArray]):
     """
 
     version = 0
-    # --- Objective Definition (Raw, non-normalized version for simulate) ---
-    objectives: tuple[tuple[str, ObjectiveDirection]] = (("neg_field_overlap", ObjectiveDirection.MINIMIZE),)
-    # Note: optimize internally uses a normalized objective, see OptiStep values.
+    # --- Objective Definition ---
+    objectives: tuple[tuple[str, ObjectiveDirection]] = (("total_overlap", ObjectiveDirection.MAXIMIZE),)
+    # Note: there is also a small material penalty term added to the objective, but this is minor in comparison
     # We keep a single objective name for simplicity in the list.
 
     # Constants specific to problem design
@@ -180,7 +177,7 @@ class Photonics2D(Problem[npt.NDArray]):
     _step_size_default = 1e-1  # Default step size for Adam optimizer
     _eta_default = 0.5
     _num_projections_default = 1
-    _penalty_weight_default = 1e-2  # Default weight for mass penalty term
+    _penalty_weight_default = 1e-3  # Default weight for mass penalty term
     _num_blurs_default = 1
     _max_beta_default = 300  # Default maximum beta for scheduling
     _initial_beta_default = 1.0  # Default initial beta for scheduling
@@ -343,9 +340,7 @@ class Photonics2D(Problem[npt.NDArray]):
             **kwargs: Additional keyword arguments (ignored).
 
         Returns:
-            npt.NDArray: 1-element array: [raw_objective], where
-                         raw_objective = penalty - overlap1 * overlap2. Lower is better.
-                         Note: This is non-normalized, unlike the value optimized internally.
+            npt.NDArray: 1-element array: [total_overlap - penalty], where higher is better.
         """
         conditions = self._setup_simulation(config)
 
@@ -360,16 +355,15 @@ class Photonics2D(Problem[npt.NDArray]):
         self._last_Ez1 = ez1.copy()
         self._last_Ez2 = ez2.copy()
 
-        # --- Calculate Raw Objective (No Normalization) ---
+        # --- Calculate Objective ---
         # Use standard numpy here, no gradients needed
         overlap1 = np.abs(np.sum(np.conj(ez1) * probe1)) * 1e6
         overlap2 = np.abs(np.sum(np.conj(ez2) * probe2)) * 1e6
-        penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default)  # Default to max epsr
+        total_overlap = overlap1 * overlap2  # Maximize this
+        penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default)
         penalty = penalty_weight * np.linalg.norm(design)
 
-        raw_objective = penalty - (overlap1 * overlap2)  # Minimize this
-
-        return np.array([raw_objective], dtype=np.float64)
+        return np.array([total_overlap - penalty], dtype=np.float64)
 
     def optimize(  # noqa: PLR0915
         self,
@@ -379,8 +373,7 @@ class Photonics2D(Problem[npt.NDArray]):
     ) -> tuple[npt.NDArray, list[OptiStep]]:
         """Optimizes a topology (rho) starting from `starting_point` using Adam.
 
-           Internally maximizes a normalized objective (`normalized_overlap - penalty`)
-           for stability and convergence, using gradients from autograd via Ceviche.
+           Maximizes `total_overlap - penalty` using gradients from autograd via Ceviche.
            Optionally saves intermediate design frames based on `save_frame_interval`.
 
         Args:
@@ -393,17 +386,16 @@ class Photonics2D(Problem[npt.NDArray]):
             tuple[npt.NDArray, list[OptiStep]]:
                 - The optimized design `rho` (float32, shape num_elems_x, num_elems_y).
                 - A list of OptiStep history. `OptiStep.obj_values` contains the
-                  value of the internally optimized objective, negated to match a
-                  MINIMIZE direction (i.e., `penalty - normalized_overlap`).
+                  value of the internally optimized objective (i.e., `total_overlap - penalty`).
                   The `step` attribute corresponds to the optimizer iteration.
         """
         conditions = self._setup_simulation(config)
 
         # Reset the current beta to one for the optimization
         initial_beta = conditions.get("initial_beta", self._initial_beta_default)
-        self._current_beta = (
-            self._max_beta_default
-        )  # Set initial beta to max so that first opt history is under simulate conditions
+        # Set current beta to the max so that first opt history is under simulate conditions
+        # Later in optimize we will use initial_beta to perform continuation
+        self._current_beta = self._max_beta_default
 
         print("Attempting to run Optimization for Photonics2D under the following conditions:")
         pprint.pp(conditions)
@@ -422,24 +414,29 @@ class Photonics2D(Problem[npt.NDArray]):
         # --- Get the frame saving interval from conditions for plotting ---
         save_frame_interval = conditions.get("save_frame_interval", 0)
 
-        # --- Initial Simulation for Normalization Constants E01, E02 ---
-        print("Optimize: Calculating E01/E02 using initial design...")  # Keep this info message
+        # --- Initial Simulation for first OptiStep history (IOG calculation) ---
+        print("Optimize: Calculating initial design...")  # Keep this info message
         epsr_init, ez1_init, ez2_init, source1_init, source2_init, probe1_init, probe2_init = self._run_fdfd(
             starting_point, conditions
         )
-
-        self._E01 = npa.abs(npa.sum(npa.conj(ez1_init) * probe1_init)) * 1e6
-        self._E02 = npa.abs(npa.sum(npa.conj(ez2_init) * probe2_init)) * 1e6
-
-        if self._E01 == 0 or self._E02 == 0:
-            print(f"Warning: Initial overlap zero (E01={self._E01:.3e}, E02={self._E02:.3e}). Using fallback.")
-            self._E01 = self._E01 if self._E01 != 0 else 1e-9
-            self._E02 = self._E02 if self._E02 != 0 else 1e-9
 
         self._source1 = source1_init
         self._source2 = source2_init
         self._probe1 = probe1_init
         self._probe2 = probe2_init
+        # Calculate overlaps
+        initial_overlap1 = mode_overlap(ez1_init, self._probe1)
+        initial_overlap2 = mode_overlap(ez2_init, self._probe2)
+        total_overlap_initial = initial_overlap1 * initial_overlap2
+        # Calculate initial material penalty
+        initial_penalty = penalty_weight * np.linalg.norm(starting_point)
+
+        # Add initial design performance into opti_steps_history
+        self.opti_steps_history: list[OptiStep] = []
+        initial_design_optistep = OptiStep(
+            obj_values=np.array([total_overlap_initial - initial_penalty], dtype=np.float64), step=0
+        )
+        self.opti_steps_history.append(initial_design_optistep)
 
         # Ensure directory exists for saving frames
         frame_dir = "opt_frames"
@@ -447,7 +444,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         # --- Define Objective Function for Ceviche Optimizer ---
         def objective_for_optimizer(rho_flat: npt.NDArray | ArrayBox) -> float | ArrayBox:
-            """Calculates (normalized_overlap - penalty) for maximization.
+            """Calculates (overlap - penalty) for maximization.
 
             Note: All functions or inputs here should be compatible with autograd (npa).
             """
@@ -474,17 +471,12 @@ class Photonics2D(Problem[npt.NDArray]):
             # Calculate overlaps
             overlap1 = mode_overlap(ez1, self._probe1)
             overlap2 = mode_overlap(ez2, self._probe2)
-            current_e01 = self._E01  # Assume already handled zero case
-            current_e02 = self._E02
-            normalized_overlap = (overlap1 / current_e01) * (overlap2 / current_e02)
-
+            total_overlap = overlap1 * overlap2
             penalty = penalty_weight * npa.linalg.norm(rho)
-            return normalized_overlap - penalty  # Value to MAXIMIZE
+            return total_overlap - penalty  # Value to MAXIMIZE
 
         # --- Define Gradient ---
         objective_jac = jacobian(objective_for_optimizer, mode="reverse")
-
-        opti_steps_history: list[OptiStep] = []
 
         # --- Define Callback ---
         def callback(iteration: int, objective_history_list: list, rho_flat: npt.NDArray | ArrayBox) -> None:
@@ -503,9 +495,8 @@ class Photonics2D(Problem[npt.NDArray]):
             )
 
             # Store OptiStep info
-            neg_norm_objective_value = -last_scalar_obj_value
-            step_info = OptiStep(obj_values=np.array([neg_norm_objective_value], dtype=np.float64), step=iteration)
-            opti_steps_history.append(step_info)
+            step_info = OptiStep(obj_values=np.array([last_scalar_obj_value], dtype=np.float64), step=iteration)
+            self.opti_steps_history.append(step_info)
 
             # --- Configurable Intermediate Frame Saving ---
             # Check if saving is enabled and if current iteration is a multiple of the interval
@@ -534,7 +525,7 @@ class Photonics2D(Problem[npt.NDArray]):
                 print(f"Callback Iter {iteration}: Saved frame to {save_path}")
             # --- End Frame Saving ---
             if iteration == num_optimization_steps - 1:
-                print(f"Final Iteration {iteration}: Objective Value: {neg_norm_objective_value:.3e}")
+                print(f"Final Iteration {iteration}: Objective Value: {last_scalar_obj_value:.3e}")
                 print("Saving render of final design...")
                 current_rho = rho_flat.reshape((num_elems_x, num_elems_y))
                 current_rho = operator_proj(current_rho, self._eta, beta=self._current_beta, num_projections=1)
@@ -563,7 +554,7 @@ class Photonics2D(Problem[npt.NDArray]):
         # Project the optimized design to the valid range [0, 1]
         rho_optimum = operator_proj(rho_optimum, self._eta, beta=self._current_beta, num_projections=1)
         rho_optimum = np.rint(rho_optimum)  # Convert to binary for final
-        return rho_optimum.astype(np.float32), opti_steps_history
+        return rho_optimum.astype(np.float32), self.opti_steps_history
 
     # --- render method remains the same as previous version ---
     def render(self, design: npt.NDArray, config: dict[str, Any] | None = None, *, open_window: bool = False) -> Any:
@@ -588,7 +579,11 @@ class Photonics2D(Problem[npt.NDArray]):
         print("Rendering design under the following conditions:")
         pprint.pp(conditions)
         # Use run_fdfd but ignore most outputs, just need epsr, ez1, ez2
-        epsr, ez1, ez2, _, _, _, _ = self._run_fdfd(design, conditions)
+        epsr, ez1, ez2, source1, source2, probe1, probe2 = self._run_fdfd(design, conditions)
+
+        overlap1 = mode_overlap(ez1, probe1)
+        overlap2 = mode_overlap(ez2, probe2)
+        total_overlap = overlap1 * overlap2
 
         # Store these fields as the "last" simulated ones as well
         self._last_epsr = epsr.copy()
@@ -619,6 +614,10 @@ class Photonics2D(Problem[npt.NDArray]):
                     axis.plot(sl.x * np.ones(len(sl.y)), sl.y, "w-", alpha=0.5, linewidth=1)
         lambda1_um = conditions["lambda1"]
         lambda2_um = conditions["lambda2"]
+        blur_radius = conditions["blur_radius"]
+        fig.suptitle(
+            f"Total Overlap: {total_overlap:.2f} (λ1={lambda1_um:.2f} μm, λ2={lambda2_um:.2f} μm, blur={blur_radius}, $\\beta$ = {self._current_beta:.2f})",
+        )
         ax[0].set_title(f"|Ez| at $\\lambda_1$ = {lambda1_um:.2f} $\\mu$m")
         ax[1].set_title(f"|Ez| at $\\lambda_2$ = {lambda2_um:.2f} $\\mu$m")
         ax[2].set_title(r"Permittivity $\epsilon_r$")
@@ -723,14 +722,14 @@ if __name__ == "__main__":
 
     # Optimization Example
     # Advanced Usage: Modifying optimization parameters
-    opt_config = {"num_optimization_steps": 100, "save_frame_interval": 2, "initial_beta": 1.0}
+    opt_config = {"num_optimization_steps": 200, "save_frame_interval": 2, "initial_beta": 1.0}
     print(f"Optimizing design with ({opt_config})...")
-    # Optimize maximizes (normalized_overlap - penalty)
+    # Optimize maximizes (overlap - penalty)
     optimized_design, opti_history = problem.optimize(start_design, config=opt_config)
     print(f"Optimization finished. History length: {len(opti_history)}")
     if opti_history:
-        print(f"First step objective (normalized, minimized): {opti_history[0].obj_values[0]:.4f}")
-        print(f"Last step objective (normalized, minimized): {opti_history[-1].obj_values[0]:.4f}")
+        print(f"First step objective: {opti_history[0].obj_values[0]:.4f}")
+        print(f"Last step objective: {opti_history[-1].obj_values[0]:.4f}")
 
     print("Rendering optimized design...")
     fig_opt = problem.render(optimized_design, open_window=True)
