@@ -432,11 +432,11 @@ class Photonics2D(Problem[npt.NDArray]):
         initial_penalty = penalty_weight * np.linalg.norm(starting_point)
 
         # Add initial design performance into opti_steps_history
-        self.opti_steps_history: list[OptiStep] = []
+        opti_steps_history: list[OptiStep] = []
         initial_design_optistep = OptiStep(
             obj_values=np.array([total_overlap_initial - initial_penalty], dtype=np.float64), step=0
         )
-        self.opti_steps_history.append(initial_design_optistep)
+        opti_steps_history.append(initial_design_optistep)
 
         # Ensure directory exists for saving frames
         frame_dir = "opt_frames"
@@ -496,7 +496,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
             # Store OptiStep info
             step_info = OptiStep(obj_values=np.array([last_scalar_obj_value], dtype=np.float64), step=iteration)
-            self.opti_steps_history.append(step_info)
+            opti_steps_history.append(step_info)
 
             # --- Configurable Intermediate Frame Saving ---
             # Check if saving is enabled and if current iteration is a multiple of the interval
@@ -554,7 +554,7 @@ class Photonics2D(Problem[npt.NDArray]):
         # Project the optimized design to the valid range [0, 1]
         rho_optimum = operator_proj(rho_optimum, self._eta, beta=self._current_beta, num_projections=1)
         rho_optimum = np.rint(rho_optimum)  # Convert to binary for final
-        return rho_optimum.astype(np.float32), self.opti_steps_history
+        return rho_optimum.astype(np.float32), opti_steps_history
 
     # --- render method remains the same as previous version ---
     def render(self, design: npt.NDArray, config: dict[str, Any] | None = None, *, open_window: bool = False) -> Any:
