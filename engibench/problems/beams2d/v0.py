@@ -334,38 +334,35 @@ if __name__ == "__main__":
     problem = Beams2D()
     problem.reset(seed=0)
 
+    print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
+    dataset = problem.dataset
+
+    # Example of getting the training set
+    optimal_train = dataset["train"]["optimal_design"]
+    c_train = dataset["train"]["c"]
+    params_train = dataset["train"].select_columns(problem.conditions_keys)
+
+    # Get design and conditions from the dataset, render design
+    # Note that here, we override any previous configs to re-optimize the same design as a test case.
     design, idx = problem.random_design()
-    print(problem.check_constraints(design, {"volfrac": 0.20}))
+    config = params_train[idx]
+    compliance = c_train[idx]
+    fig, ax = problem.render(design, open_window=True)
 
-    # print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
-    # dataset = problem.dataset
+    print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
-    # # Example of getting the training set
-    # optimal_train = dataset["train"]["optimal_design"]
-    # c_train = dataset["train"]["c"]
-    # params_train = dataset["train"].select_columns(problem.conditions_keys)
+    try:
+        c_ref = problem.simulate(design, config=config)[0]
+        print(f"Calculated compliance: {c_ref:.4f}")
+    except ArithmeticError:
+        print("Failed to calculate compliance for upscaled design.")
 
-    # # Get design and conditions from the dataset, render design
-    # # Note that here, we override any previous configs to re-optimize the same design as a test case.
-    # design, idx = problem.random_design()
-    # config = params_train[idx]
-    # compliance = c_train[idx]
-    # fig, ax = problem.render(design, open_window=True)
+    # Sample Optimization
+    print("\nNow conducting a sample optimization with the given configs:", config)
 
-    # print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
+    # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
+    optimal_design, optisteps_history = problem.optimize(config=config)
+    print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
+    print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 
-    # try:
-    #     c_ref = problem.simulate(design, config=config)[0]
-    #     print(f"Calculated compliance: {c_ref:.4f}")
-    # except ArithmeticError:
-    #     print("Failed to calculate compliance for upscaled design.")
-
-    # # Sample Optimization
-    # print("\nNow conducting a sample optimization with the given configs:", config)
-
-    # # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    # optimal_design, optisteps_history = problem.optimize(config=config)
-    # print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
-    # print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
-
-    # fig, ax = problem.render(optimal_design, open_window=True)
+    fig, ax = problem.render(optimal_design, open_window=True)
