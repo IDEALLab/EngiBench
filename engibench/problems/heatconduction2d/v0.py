@@ -14,12 +14,24 @@ import numpy as np
 import numpy.typing as npt
 
 from engibench.constraint import bounded
+from engibench.constraint import constraint
+from engibench.constraint import Criticality
 from engibench.constraint import IMPL
 from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.utils import container
+
+
+@constraint(categories=THEORY, criticality=Criticality.Warning)
+def volume_fraction_bound(design: npt.NDArray, volume: float) -> None:
+    """Constraint for volume fraction of the design."""
+    actual_volfrac = design.mean()
+    tolerance = 0.01
+    assert abs(actual_volfrac - volume) <= tolerance, (
+        f"Volume fraction of the design {actual_volfrac:.4f} does not match target {volume:.4f} specified in the conditions. While the optimizer might fix it, this is likely to affect objective values as the initial design is not feasible given the constraints."
+    )
 
 
 class HeatConduction2D(Problem[npt.NDArray]):
@@ -70,6 +82,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         ("volume", 0.5),
         ("length", 0.5),
     )
+    design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
