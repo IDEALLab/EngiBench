@@ -514,7 +514,7 @@ document.write(`
 <td><p><code class="docutils literal notranslate"><span class="pre">Box(0.0,</span> <span class="pre">1.0,</span> <span class="pre">(120,</span> <span class="pre">120),</span> <span class="pre">float64)</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Objectives</p></td>
-<td><p>neg_field_overlap: ↓</p></td>
+<td><p>total_overlap: ↑</p></td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
 <td><p>lambda1: 1.5</p>
@@ -547,15 +547,12 @@ Stored as <code class="docutils literal notranslate"><span class="pre">design_sp
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
 <ol class="arabic simple" start="0">
-<li><p><code class="docutils literal notranslate"><span class="pre">neg_field_overlap</span></code>: Combined objective to minimize, defined as
-<code class="docutils literal notranslate"><span class="pre">penalty</span> <span class="pre">-</span> <span class="pre">overlap1</span> <span class="pre">*</span> <span class="pre">overlap2</span></code>. Lower is better. This is the value
-returned by <code class="docutils literal notranslate"><span class="pre">simulate</span></code> and corresponds to the overlap in the target
-electrical fields with the desired demultiplexing locations.
-Note that <code class="docutils literal notranslate"><span class="pre">optimize</span></code> internally works with a normalized version for
-stability (<code class="docutils literal notranslate"><span class="pre">penalty</span> <span class="pre">-</span> <span class="pre">normalized_overlap</span></code>) and reports history
-(<code class="docutils literal notranslate"><span class="pre">OptiStep</span></code>) corresponding to that normalized version.
-Note: This means comparing the values returned by <code class="docutils literal notranslate"><span class="pre">simulate</span></code> and <code class="docutils literal notranslate"><span class="pre">optimize</span></code> directly
-may not yield similar numbers.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">total_overlap</span></code>: Objective to maximize, defined as
+<code class="docutils literal notranslate"><span class="pre">overlap1</span> <span class="pre">*</span> <span class="pre">overlap2</span></code>. Higher is better. This is corresponds to
+the overlap in the target electrical fields with the desired demultiplexing locations.
+Note that bot <code class="docutils literal notranslate"><span class="pre">simulate</span></code> and <code class="docutils literal notranslate"><span class="pre">optimize</span></code> subtract a small material penalty
+(<code class="docutils literal notranslate"><span class="pre">total_overlap</span> <span class="pre">-</span> <span class="pre">penalty</span></code>) to avoid multiple equivalent local optima, but this penalty
+is small relative to the overlap objective.</p></li>
 </ol>
 </section>
 <section id="conditions">
@@ -625,7 +622,7 @@ gradients computed via automatic differentiation (<code class="docutils literal 
 <li><p><code class="docutils literal notranslate"><span class="pre">lambda2</span></code>: The second input wavelength in μm.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">blur_radius</span></code>: Radius for the density blurring filter (pixels).</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">optimal_design</span></code>: The optimal design density array (shape num_elems_x, num_elems_y).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">optimization_history</span></code>: A list of objective values from the optimization process (negative field overlap, where lower is better) – This is for advanced use.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">optimization_history</span></code>: A list of objective values from the optimization process (field overlap  minus penalty, where higher is better) – This is for advanced use.</p></li>
 </ul>
 </section>
 <section id="creation-method">
