@@ -69,7 +69,7 @@ if not violated_constraints:
    opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
 ```
 
-You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
+You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb). We also provide good quality implementations of algorithms compatible with the API in [EngiOpt](https://github.com/IDEALLab/EngiOpt).
 
 <!-- end api -->
 
@@ -95,7 +95,7 @@ See [docs/tutorials/new_problem.md](docs/tutorials/new_problem.md).
 
 ## License
 
-The code of EngiBench and EngiOpt is licensed under the GPLv3 license. See the [LICENSE](LICENSE) file for details.
+The code of EngiBench and [EngiOpt](https://github.com/IDEALLab/EngiOpt) is licensed under the GPLv3 license. See the [LICENSE](LICENSE) file for details.
 All the associated datasets are licensed under the CC-BY-NC-SA 4.0 license.
 
 ## Citing
