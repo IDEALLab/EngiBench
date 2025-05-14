@@ -296,7 +296,7 @@ class Airfoil(Problem[DesignType]):
         # The script generates the mesh and FFD files
         try:
             bash_command = (
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
+                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
                 + self.__docker_study_dir
                 + "/pre_process.py"
                 + " > "
@@ -410,7 +410,7 @@ class Airfoil(Problem[DesignType]):
         # The script takes a mesh and ffd and performs an optimization
         try:
             bash_command = (
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
                 + str(mpicores)
                 + " python "
                 + self.__docker_study_dir
@@ -484,7 +484,7 @@ class Airfoil(Problem[DesignType]):
             # Launches a docker container with the optimize_airfoil.py script
             # The script takes a mesh and ffd and performs an optimization
             bash_command = (
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
                 + str(mpicores)
                 + " python "
                 + self.__docker_study_dir
