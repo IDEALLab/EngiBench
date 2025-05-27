@@ -210,7 +210,6 @@ class Airfoil(Problem[DesignType]):
         # Docker target directory
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
-        self.__docker_tmp_dir = "/tmp"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil"
 
         super().__init__()
@@ -309,7 +308,7 @@ class Airfoil(Problem[DesignType]):
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
                 name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir), (self.__local_base_directory, self.__docker_tmp_dir)],
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
 
         except Exception as e:
@@ -424,7 +423,7 @@ class Airfoil(Problem[DesignType]):
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
                 name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir), (self.__local_base_directory, self.__docker_tmp_dir)],
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
         except Exception as e:
             raise RuntimeError(
@@ -498,7 +497,7 @@ class Airfoil(Problem[DesignType]):
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
                 name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir), (self.__local_base_directory, self.__docker_tmp_dir)],
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
             )
         except Exception as e:
             raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e
