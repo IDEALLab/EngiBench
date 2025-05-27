@@ -238,23 +238,19 @@ class Singularity(ContainerRuntime):
             # Extract just the image part if it's already a docker URI
             if docker_uri.startswith("docker://"):
                 image = docker_uri[len("docker://"):]
-        
+
         # Parse the image name to match Singularity's naming convention
         # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
-        if '/' in image:
-            # Get the part after the last '/'
-            image_name = image.split('/')[-1]
-        else:
-            image_name = image
-            
+        image_name = image.split("/")[-1] if "/" in image else image
+
         # Replace ":" with "_" in the image name
         sif_filename = image_name.replace(":", "_") + ".sif"
-        
+
         # Check if the image already exists
         if os.path.exists(sif_filename):
             print(f"Image file already exists: {sif_filename} - skipping pull")
             return
-        
+
         # Image doesn't exist, proceed with pull
         subprocess.run([cls.executable, "pull", docker_uri], check=True)
 
