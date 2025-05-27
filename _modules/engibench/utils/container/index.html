@@ -666,9 +666,29 @@ document.write(`
 <span class="sd">        Args:</span>
 <span class="sd">            image: Container image to pull.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
+        <span class="c1"># Convert to docker URI if needed</span>
         <span class="k">if</span> <span class="s2">&quot;://&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image</span><span class="p">:</span>
-            <span class="n">image</span> <span class="o">=</span> <span class="s2">&quot;docker://&quot;</span> <span class="o">+</span> <span class="n">image</span>
-        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;pull&quot;</span><span class="p">,</span> <span class="n">image</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+            <span class="n">docker_uri</span> <span class="o">=</span> <span class="s2">&quot;docker://&quot;</span> <span class="o">+</span> <span class="n">image</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="n">docker_uri</span> <span class="o">=</span> <span class="n">image</span>
+            <span class="c1"># Extract just the image part if it&#39;s already a docker URI</span>
+            <span class="k">if</span> <span class="n">docker_uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;docker://&quot;</span><span class="p">):</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">docker_uri</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;docker://&quot;</span><span class="p">):]</span>
+
+        <span class="c1"># Parse the image name to match Singularity&#39;s naming convention</span>
+        <span class="c1"># For &quot;mdolab/public:u22-gcc-ompi-stable&quot;, Singularity creates &quot;public_u22-gcc-ompi-stable.sif&quot;</span>
+        <span class="n">image_name</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
+
+        <span class="c1"># Replace &quot;:&quot; with &quot;_&quot; in the image name</span>
+        <span class="n">sif_filename</span> <span class="o">=</span> <span class="n">image_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.sif&quot;</span>
+
+        <span class="c1"># Check if the image already exists</span>
+        <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">sif_filename</span><span class="p">):</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Image file already exists: </span><span class="si">{</span><span class="n">sif_filename</span><span class="si">}</span><span class="s2"> - skipping pull&quot;</span><span class="p">)</span>
+            <span class="k">return</span>
+
+        <span class="c1"># Image doesn&#39;t exist, proceed with pull</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;pull&quot;</span><span class="p">,</span> <span class="n">docker_uri</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
