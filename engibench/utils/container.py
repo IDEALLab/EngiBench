@@ -1,7 +1,7 @@
 """Abstraction over container runtimes."""
 
 from collections.abc import Sequence
-import os, sys
+import os
 import subprocess
 
 
@@ -272,10 +272,9 @@ class Singularity(ContainerRuntime):
             env: Mapping of environment variable names and values to set inside the container.
             name: Optional name for the container (not supported by all runtimes).
         """
-        
         # HPC/Singularity containers require explicit /tmp mounting to prevent memory issues
         # and ensure application compatibility. This is container configuration, not insecure temp file creation.
-        mounts.append((mounts[0][0], '/tmp')) # nosec B108
+        mounts.append((mounts[0][0], "/tmp")) # noqa: S108
 
         mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
         env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
