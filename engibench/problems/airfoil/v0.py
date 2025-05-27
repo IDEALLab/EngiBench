@@ -210,6 +210,7 @@ class Airfoil(Problem[DesignType]):
         # Docker target directory
         # This is used for files that are mounted into the docker container
         self.__docker_base_dir = "/home/mdolabuser/mount/engibench"
+        self.__docker_tmp_dir = "/tmp"
         self.__docker_target_dir = self.__docker_base_dir + "/engibench_studies/problems/airfoil"
 
         super().__init__()
@@ -296,7 +297,7 @@ class Airfoil(Problem[DesignType]):
         # The script generates the mesh and FFD files
         try:
             bash_command = (
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
+                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && python "
                 + self.__docker_study_dir
                 + "/pre_process.py"
                 + " > "
@@ -308,7 +309,7 @@ class Airfoil(Problem[DesignType]):
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
                 name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                mounts=[(self.__local_base_directory, self.__docker_base_dir), (self.__local_base_directory, self.__docker_tmp_dir)],
             )
 
         except Exception as e:
@@ -410,7 +411,7 @@ class Airfoil(Problem[DesignType]):
         # The script takes a mesh and ffd and performs an optimization
         try:
             bash_command = (
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
                 + str(mpicores)
                 + " python "
                 + self.__docker_study_dir
@@ -423,7 +424,7 @@ class Airfoil(Problem[DesignType]):
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
                 name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                mounts=[(self.__local_base_directory, self.__docker_base_dir), (self.__local_base_directory, self.__docker_tmp_dir)],
             )
         except Exception as e:
             raise RuntimeError(
@@ -484,7 +485,7 @@ class Airfoil(Problem[DesignType]):
             # Launches a docker container with the optimize_airfoil.py script
             # The script takes a mesh and ffd and performs an optimization
             bash_command = (
-                "source ~/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
+                "source /home/mdolabuser/.bashrc_mdolab && cd /home/mdolabuser/mount/engibench && mpirun -np "
                 + str(mpicores)
                 + " python "
                 + self.__docker_study_dir
@@ -497,7 +498,7 @@ class Airfoil(Problem[DesignType]):
                 command=["/bin/bash", "-c", bash_command],
                 image=self.container_id,
                 name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                mounts=[(self.__local_base_directory, self.__docker_base_dir), (self.__local_base_directory, self.__docker_tmp_dir)],
             )
         except Exception as e:
             raise RuntimeError(f"Optimization failed: {e!s}. Check logs in {self.__local_study_dir}") from e
