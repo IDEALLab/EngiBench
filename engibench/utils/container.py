@@ -237,7 +237,7 @@ class Singularity(ContainerRuntime):
             docker_uri = image
             # Extract just the image part if it's already a docker URI
             if docker_uri.startswith("docker://"):
-                image = docker_uri[len("docker://"):]
+                image = docker_uri[len("docker://") :]
 
         # Parse the image name to match Singularity's naming convention
         # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
@@ -274,7 +274,7 @@ class Singularity(ContainerRuntime):
         """
         # HPC/Singularity containers require explicit /tmp mounting to prevent memory issues
         # and ensure application compatibility. This is container configuration, not insecure temp file creation.
-        mounts.append((mounts[0][0], "/tmp")) # noqa: S108
+        mounts.append((mounts[0][0], "/tmp"))  # noqa: S108
 
         mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
         env_args = (["--env", f"{var}={value}"] for var, value in (env or {}).items())
