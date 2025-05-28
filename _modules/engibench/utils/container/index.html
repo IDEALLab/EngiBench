@@ -677,7 +677,7 @@ document.write(`
             <span class="n">docker_uri</span> <span class="o">=</span> <span class="n">image</span>
             <span class="c1"># Extract just the image part if it&#39;s already a docker URI</span>
             <span class="k">if</span> <span class="n">docker_uri</span><span class="o">.</span><span class="n">startswith</span><span class="p">(</span><span class="s2">&quot;docker://&quot;</span><span class="p">):</span>
-                <span class="n">image</span> <span class="o">=</span> <span class="n">docker_uri</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;docker://&quot;</span><span class="p">):]</span>
+                <span class="n">image</span> <span class="o">=</span> <span class="n">docker_uri</span><span class="p">[</span><span class="nb">len</span><span class="p">(</span><span class="s2">&quot;docker://&quot;</span><span class="p">)</span> <span class="p">:]</span>
 
         <span class="c1"># Parse the image name to match Singularity&#39;s naming convention</span>
         <span class="c1"># For &quot;mdolab/public:u22-gcc-ompi-stable&quot;, Singularity creates &quot;public_u22-gcc-ompi-stable.sif&quot;</span>
@@ -712,7 +712,21 @@ document.write(`
 <span class="sd">            env: Mapping of environment variable names and values to set inside the container.</span>
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">mount_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mounts</span><span class="p">)</span>
+        <span class="c1"># Create a mutable working copy to add required system mounts</span>
+        <span class="n">working_mounts</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">mounts</span><span class="p">)</span>
+
+        <span class="c1"># HPC/Singularity containers require explicit /tmp mounting to prevent memory issues</span>
+        <span class="c1"># and ensure application compatibility. This is container configuration, not insecure temp file creation.</span>
+        <span class="k">if</span> <span class="n">working_mounts</span><span class="p">:</span>  <span class="c1"># Only add /tmp mount if we have existing mounts</span>
+            <span class="c1"># Use the first mount&#39;s host path for /tmp (existing logic)</span>
+            <span class="n">tmp_host_path</span> <span class="o">=</span> <span class="n">working_mounts</span><span class="p">[</span><span class="mi">0</span><span class="p">][</span><span class="mi">0</span><span class="p">]</span>
+            <span class="n">working_mounts</span><span class="o">.</span><span class="n">append</span><span class="p">((</span><span class="n">tmp_host_path</span><span class="p">,</span> <span class="s2">&quot;/tmp&quot;</span><span class="p">))</span>  <span class="c1"># noqa: S108</span>
+        <span class="k">else</span><span class="p">:</span>
+            <span class="c1"># Handle the empty mounts case - perhaps use a default temp directory</span>
+            <span class="c1"># or skip the /tmp mount altogether</span>
+            <span class="k">pass</span>
+
+        <span class="n">mount_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">working_mounts</span><span class="p">)</span>
         <span class="n">env_args</span> <span class="o">=</span> <span class="p">([</span><span class="s2">&quot;--env&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">())</span>
         <span class="k">if</span> <span class="s2">&quot;://&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image</span><span class="p">:</span>
             <span class="n">image</span> <span class="o">=</span> <span class="s2">&quot;docker://&quot;</span> <span class="o">+</span> <span class="n">image</span>
