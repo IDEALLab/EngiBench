@@ -1,5 +1,6 @@
 """Thermo Elastic 2D Problem."""
 
+import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Annotated, Any, ClassVar
@@ -94,30 +95,11 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
         ("volume_fraction", ObjectiveDirection.MINIMIZE),
     )
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("fixed_elements", FIXED_ELEMENTS),
-        ("force_elements_x", FORCE_ELEMENTS_X),
-        ("force_elements_y", FORCE_ELEMENTS_Y),
-        ("heatsink_elements", HEATSINK_ELEMENTS),
-        ("volfrac", 0.3),
-        ("rmin", 1.1),
-        ("weight", 0.5),  # 1.0 for pure structural, 0.0 for pure thermal
-    )
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY), dtype=np.float32)
-    dataset_id = "IDEALLab/thermoelastic_2d_v0"
-    container_id = None
 
     @dataclass
-    class Config:
-        """Structured representation of configuration parameters for a numerical computation."""
+    class Conditions:
+        """Conditions."""
 
-        nelx: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
-        nely: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
-        volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
-        rmin: Annotated[
-            float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
-        ] = 1.1
-        weight: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
         fixed_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
             default_factory=lambda: FIXED_ELEMENTS
         )
@@ -130,6 +112,24 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         heatsink_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
             default_factory=lambda: HEATSINK_ELEMENTS
         )
+        volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
+        rmin: Annotated[
+            float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
+        ] = 1.1
+        weight: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
+        """1.0 for pure structural, 0.0 for pure thermal"""
+
+    conditions = Conditions()
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY), dtype=np.float32)
+    dataset_id = "IDEALLab/thermoelastic_2d_v0"
+    container_id = None
+
+    @dataclass
+    class Config(Conditions):
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        nelx: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
+        nely: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
 
         @constraint
         @staticmethod
@@ -164,7 +164,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         Returns:
             dict: The performance of the design - each entry of the dict corresponds to a named objective value.
         """
-        boundary_dict = dict(self.conditions)
+        boundary_dict = dataclasses.asdict(self.conditions)
         for key, value in (config or {}).items():
             if key in boundary_dict:
                 if isinstance(value, list):
@@ -187,8 +187,8 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        boundary_dict = dict(self.conditions)
-        boundary_dict.update({k: v for k, v in (config or {}).items() if k in dict(self.conditions)})
+        boundary_dict = dataclasses.asdict(self.conditions)
+        boundary_dict.update({k: v for k, v in (config or {}).items() if k in boundary_dict})
         results = FeaModel(plot=False, eval_only=False).run(boundary_dict, x_init=starting_point)
         design = np.array(results["design"]).astype(np.float32)
         opti_steps = results["opti_steps"]
@@ -219,7 +219,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         Returns:
             DesignType: The valid random design.
         """
-        boundary_dict = dict(self.conditions)
+        boundary_dict = dataclasses.asdict(self.conditions)
         volfrac = boundary_dict["volfrac"]
         design = volfrac * np.ones((NELX, NELY))
         return design, 0

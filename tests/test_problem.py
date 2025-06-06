@@ -18,12 +18,16 @@ from engibench.core import Problem
 class FakeProblem(Problem[NDArray[np.float64]]):
     version = 1
     objectives = ()
-    conditions = ()
     design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 3), dtype=np.float64)
     container_id = None
 
     @dataclass
-    class Config:
+    class Conditions: ...
+
+    conditions = Conditions()
+
+    @dataclass
+    class Config(Conditions):
         x: Annotated[int, bounded(lower=10)]
         y: Annotated[float, bounded(upper=-1.0)] = -1.0
 
@@ -68,7 +72,12 @@ def test_check_constraints_handles_constraints_on_design_and_config() -> None:
     class FakeProblem(Problem[NDArray[np.float64]]):
         version = 1
         objectives = ()
-        conditions = ()
+
+        @dataclass
+        class Conditions: ...
+
+        conditions = Conditions()
+
         design_space = spaces.Box(low=0.0, high=1.0, shape=(2, 3), dtype=np.float64)
         container_id = None
 
