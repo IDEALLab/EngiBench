@@ -4,6 +4,7 @@
 """Beams 2D problem."""
 
 from copy import deepcopy
+import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
 from typing import Annotated, Any
@@ -28,6 +29,7 @@ from engibench.problems.beams2d.backend import inner_opt
 from engibench.problems.beams2d.backend import overhang_filter
 from engibench.problems.beams2d.backend import setup
 from engibench.problems.beams2d.backend import State
+from engibench.utils.upcast import upcast
 
 
 @dataclass
@@ -108,17 +110,51 @@ class Beams2D(Problem[npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection]] = (("c", ObjectiveDirection.MINIMIZE),)
-    nelx = 100
-    nely = 50
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("volfrac", 0.35),
-        ("rmin", 2.0),
-        ("forcedist", 0.0),
-        ("overhang_constraint", False),
-    )
+
+    @dataclass
+    class Conditions:
+        """Conditions."""
+
+        volfrac: Annotated[
+            float,
+            bounded(lower=0.0, upper=1.0).category(THEORY),
+            bounded(lower=0.1, upper=0.9).warning().category(IMPL),
+        ] = 0.35
+        rmin: Annotated[
+            float, greater_than(0.0).category(THEORY), bounded(lower=1.0, upper=10.0).category(IMPL).warning()
+        ] = 2.0
+        forcedist: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.0
+        overhang_constraint: bool = False
+
+    @dataclass
+    class ConfigBase(Conditions):
+        """Common options for all workflows."""
+
+        penal: Annotated[
+            float, bounded(lower=1.0).category(IMPL), bounded(lower=2.0, upper=5.0).category(IMPL).warning()
+        ] = 3.0
+        nelx: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)] = (
+            100
+        )
+        nely: Annotated[int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)] = 50
+
+    @dataclass
+    class Config(ConfigBase):
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        max_iter: Annotated[
+            int, bounded(lower=0).category(THEORY), bounded(lower=1, upper=1000).category(IMPL).warning()
+        ] = 100
+
+        @constraint
+        @staticmethod
+        def rmin_bound(rmin: float, nelx: int, nely: int) -> None:
+            """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
+            assert 0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
+
     design_constraints = (volume_fraction_bound,)
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx), dtype=np.float64)
-    dataset_id = f"IDEALLab/beams_2d_{nely}_{nelx}_v{version}"
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(Config.nely, Config.nelx), dtype=np.float64)
+    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v{version}"
     container_id = None
 
     def __init__(self, config: dict[str, Any] | None = None):
@@ -129,52 +165,19 @@ class Beams2D(Problem[npt.NDArray]):
         """
         super().__init__()
 
-        config = config or {}
+        # Replace the config with any new configs passed in
+        self.config = self.Config(**(config or {}))
 
-        # Replace the conditions with any new configs passed in
-        self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
+        # Restrict config to BaseConfig fields:
+        base_config = upcast(self.config)
+        # Restrict further to conditions:
+        self.conditions = upcast(base_config)
+        self.base_config = dataclasses.asdict(base_config)
         self.__st = State()
-        if "nely" in config and "nelx" in config:
-            self.nelx = config["nelx"]
-            self.nely = config["nely"]
-            self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
-            self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
-
-        # Default values of Config depend on nelx, nely => define it in __init__
-        @dataclass
-        class Config:
-            """Structured representation of configuration parameters for a numerical computation."""
-
-            nelx: Annotated[
-                int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
-            ] = self.nelx
-            nely: Annotated[
-                int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
-            ] = self.nely
-            penal: Annotated[
-                float, bounded(lower=1.0).category(IMPL), bounded(lower=2.0, upper=5.0).category(IMPL).warning()
-            ] = 3.0
-            max_iter: Annotated[
-                int, bounded(lower=0).category(THEORY), bounded(lower=1, upper=1000).category(IMPL).warning()
-            ] = 100
-            volfrac: Annotated[
-                float,
-                bounded(lower=0.0, upper=1.0).category(THEORY),
-                bounded(lower=0.1, upper=0.9).warning().category(IMPL),
-            ] = 0.35
-            rmin: Annotated[
-                float, greater_than(0.0).category(THEORY), bounded(lower=1.0, upper=10.0).category(IMPL).warning()
-            ] = 2.0
-            forcedist: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.0
-            overhang_constraint: bool = False
-
-            @constraint
-            @staticmethod
-            def rmin_bound(rmin: float, nelx: int, nely: int) -> None:
-                """Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""
-                assert 0 < rmin <= max(nelx, nely), f"Params.rmin: {rmin} ∉ (0, max(nelx, nely)]"
-
-        self.Config = Config
+        self.nelx = self.config.nelx
+        self.nely = self.config.nelx
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
+        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
 
     def simulate(
         self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
@@ -193,7 +196,7 @@ class Beams2D(Problem[npt.NDArray]):
         if len(design.shape) > 1:
             design = image_to_design(design)
 
-        base_config = {"nelx": self.nelx, "nely": self.nely, "penal": 3.0, **dict(self.conditions), **(config or {})}
+        base_config = {**self.base_config, **(config or {})}
 
         # Assumes ndof is initialized as 0. This is a check to see if setup has run yet.
         # If setup has run, skips the process for repeated simulations during optimization.
@@ -219,40 +222,31 @@ class Beams2D(Problem[npt.NDArray]):
         Returns:
             Tuple[np.ndarray, dict]: The optimized design and its performance.
         """
-        base_config = {
-            "nelx": self.nelx,
-            "nely": self.nely,
-            "max_iter": 100,
-            "penal": 3.0,
-            **dict(self.conditions),
-            **(config or {}),
-        }
+        base_config = self.Config(**self.base_config, **(config or {}))
 
-        self.__st = setup(base_config)
+        self.__st = setup(dataclasses.asdict(base_config))
 
         # Returns the full history of the optimization instead of just the last step
         optisteps_history = []
 
         if starting_point is None:
-            xPhys = x = base_config["volfrac"] * np.ones(base_config["nely"] * base_config["nelx"], dtype=float)
-            dc = np.zeros(base_config["nely"] * base_config["nelx"])
-            dv = np.zeros(base_config["nely"] * base_config["nelx"])
+            xPhys = x = base_config.volfrac * np.ones(base_config.nely * base_config.nelx, dtype=float)
+            dc = np.zeros(base_config.nely * base_config.nelx)
+            dv = np.zeros(base_config.nely * base_config.nelx)
         else:
             starting_point = image_to_design(starting_point)
             assert starting_point is not None
             xPhys = x = deepcopy(starting_point)
-            ce = calc_sensitivity(starting_point, st=self.__st, cfg=base_config)
-            dc = (
-                -base_config["penal"] * starting_point ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)
-            ) * ce
-            dv = np.ones(base_config["nely"] * base_config["nelx"])
+            ce = calc_sensitivity(starting_point, st=self.__st, cfg=dataclasses.asdict(base_config))
+            dc = (-base_config.penal * starting_point ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
+            dv = np.ones(base_config.nely * base_config.nelx)
 
         xPrint, _, _ = overhang_filter(xPhys, base_config, dc, dv)
         loop, change = (0, 1.0)
 
-        while change > self.__st.min_change and loop < base_config["max_iter"]:
-            ce = calc_sensitivity(xPrint, st=self.__st, cfg=base_config)
-            c = self.simulate(xPrint, ce=ce, config=base_config)
+        while change > self.__st.min_change and loop < base_config.max_iter:
+            ce = calc_sensitivity(xPrint, st=self.__st, cfg=dataclasses.asdict(base_config))
+            c = self.simulate(xPrint, ce=ce, config=dataclasses.asdict(base_config))
 
             # Record the current state in optisteps_history
             current_step = ExtendedOptiStep(obj_values=np.array(c), step=loop)
@@ -261,25 +255,24 @@ class Beams2D(Problem[npt.NDArray]):
 
             loop += 1
 
-            dc = (-base_config["penal"] * xPrint ** (base_config["penal"] - 1) * (self.__st.Emax - self.__st.Emin)) * ce
-            dv = np.ones(base_config["nely"] * base_config["nelx"])
-            xPrint, dc, dv = overhang_filter(xPhys, base_config, dc, dv)  # MATLAB implementation
+            dc = (-base_config.penal * xPrint ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
+            dv = np.ones(base_config.nely * base_config.nelx)
+            xPrint, dc, dv = overhang_filter(xPhys, dataclasses.asdict(base_config), dc, dv)  # MATLAB implementation
 
             dc = np.asarray(self.__st.H * (dc[np.newaxis].T / self.__st.Hs))[:, 0]
             dv = np.asarray(self.__st.H * (dv[np.newaxis].T / self.__st.Hs))[:, 0]
             # Ensure dc remains nonpositive
             dc = np.clip(dc, None, 0.0)
 
-            xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, base_config)
+            xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, dataclasses.asdict(base_config))
             # Compute the change by the inf. norm
             change = np.linalg.norm(  # type: ignore[assignment]
-                xnew.reshape(base_config["nelx"] * base_config["nely"], 1)
-                - x.reshape(base_config["nelx"] * base_config["nely"], 1),
+                xnew.reshape(base_config.nelx * base_config.nely, 1) - x.reshape(base_config.nelx * base_config.nely, 1),
                 np.inf,
             )
             x = deepcopy(xnew)
 
-        return design_to_image(xPrint, base_config["nelx"], base_config["nely"]), optisteps_history
+        return design_to_image(xPrint, base_config.nelx, base_config.nely), optisteps_history
 
     def reset(self, seed: int | None = None, **kwargs) -> None:
         r"""Reset numpy random to a given seed.
@@ -340,7 +333,8 @@ if __name__ == "__main__":
     # Example of getting the training set
     optimal_train = dataset["train"]["optimal_design"]
     c_train = dataset["train"]["c"]
-    params_train = dataset["train"].select_columns(problem.conditions_keys)
+    condition_keys = [f.name for f in dataclasses.fields(problem.Conditions)]
+    params_train = dataset["train"].select_columns(condition_keys)
 
     # Get design and conditions from the dataset, render design
     # Note that here, we override any previous configs to re-optimize the same design as a test case.

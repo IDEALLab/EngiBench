@@ -6,12 +6,13 @@ https://nbviewer.org/github/fancompute/workshop-invdesign/blob/master/04_Invdes_
 Author: Mark Fuge @markfuge
 """
 
+import dataclasses
 from dataclasses import dataclass
 
 # Need os import for makedirs for saving plots
 import os
 import pprint
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, Any
 
 # Importing autograd since the ceviche library uses it for automatic differentiation of the FDFD solver
 import autograd.numpy as npa
@@ -45,6 +46,7 @@ from engibench.problems.photonics2d.backend import operator_blur
 from engibench.problems.photonics2d.backend import operator_proj
 from engibench.problems.photonics2d.backend import poly_ramp
 from engibench.problems.photonics2d.backend import wavelength_to_frequency
+from engibench.utils.upcast import upcast
 
 
 class Photonics2D(Problem[npt.NDArray]):
@@ -169,8 +171,6 @@ class Photonics2D(Problem[npt.NDArray]):
     _epsr_min = 1.0  # Minimum relative permittivity (background)
     _epsr_max = 12.0  # Maximum relative permittivity (material)
     _space_slice = 8  # Extra space for source/probe slices (pixels)
-    _num_elems_x_default = 120  # Default number of grid cells in x
-    _num_elems_y_default = 120  # Default number of grid cells in y
 
     # Defaults for the optimization parameters
     _num_optimization_steps_default = 200  # Default number of optimization steps
@@ -182,22 +182,58 @@ class Photonics2D(Problem[npt.NDArray]):
     _max_beta_default = 300  # Default maximum beta for scheduling
     _initial_beta_default = 1.0  # Default initial beta for scheduling
 
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("lambda1", 1.5),  # First input wavelength in μm
-        ("lambda2", 1.3),  # Second input wavelength in μm
-        ("blur_radius", 2),  # Radius for the density blurring filter (pixels)
-    )
+    @dataclass
+    class Conditions:
+        """Conditions."""
 
-    design_space = spaces.Box(low=0.0, high=1.0, shape=(_num_elems_x_default, _num_elems_y_default), dtype=np.float64)
+        lambda1: Annotated[
+            float,
+            bounded(lower=0.0).category(THEORY),
+            bounded(lower=0.5).category(IMPL),
+            bounded(lower=0.5, upper=1.5).warning().category(IMPL),
+        ] = 1.5
+        """First input wavelength in μm"""
+        lambda2: Annotated[
+            float,
+            bounded(lower=0.0).category(THEORY),
+            bounded(lower=0.5).category(IMPL),
+            bounded(lower=0.5, upper=1.5).warning().category(IMPL),
+        ] = 1.3
+        """Second input wavelength in μm"""
+        blur_radius: Annotated[
+            int, bounded(lower=0).category(THEORY | IMPL), bounded(lower=0, upper=5).warning().category(IMPL)
+        ] = 2
+        """Radius for the density blurring filter (pixels)"""
 
-    dataset_id = f"IDEALLab/photonics_2d_{_num_elems_x_default}_{_num_elems_y_default}_v0"
+    @dataclass
+    class Config(Conditions):
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        num_elems_x: Annotated[
+            int,
+            bounded(lower=0).category(THEORY),
+            bounded(lower=60).category(IMPL),
+            bounded(lower=90, upper=200).warning().category(IMPL),
+        ] = 120
+        """number of grid cells in x"""
+        num_elems_y: Annotated[
+            int,
+            bounded(lower=0).category(THEORY),
+            bounded(lower=105).category(IMPL),
+            bounded(lower=110, upper=300).warning().category(IMPL),
+        ] = 120
+        """number of grid cells in y"""
+
+    design_space = spaces.Box(low=0.0, high=1.0, shape=(Config.num_elems_x, Config.num_elems_y), dtype=np.float64)
+
+    dataset_id = f"IDEALLab/photonics_2d_{Config.num_elems_x}_{Config.num_elems_y}_v0"
     container_id = None
 
     def __init__(
         self,
         config: dict[str, Any] | None = None,
-        num_elems_x: int = _num_elems_x_default,
-        num_elems_y: int = _num_elems_y_default,
+        num_elems_x: int = Config.num_elems_x,
+        num_elems_y: int = Config.num_elems_y,
         **kwargs,
     ) -> None:
         """Initializes the Photonics2D problem.
@@ -211,66 +247,26 @@ class Photonics2D(Problem[npt.NDArray]):
         super().__init__(**kwargs)
 
         # Replace the conditions with any new configs passed in
-        config = config or {}
-        self.conditions = tuple((key, config.get(key, value)) for key, value in self.conditions)
-        current_conditions = self.conditions_dict
+        self.config = self.Config(num_elems_x=num_elems_x, num_elems_y=num_elems_y, **(config or {}))
+        # Restrict config to conditions:
+        self.conditions = upcast(self.config)
+
         print("Initializing Photonics Problem with configuration:")
-        pprint.pp(current_conditions)
+        pprint.pp(self.conditions)
         self.num_elems_x = num_elems_x
         self.num_elems_y = num_elems_y
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(num_elems_x, num_elems_y), dtype=np.float32)
         self.dataset_id = f"IDEALLab/photonics_2d_{num_elems_x}_{num_elems_y}_v{self.version}"
 
         # Setup basic simulation parameters
-        self.omega1 = wavelength_to_frequency(current_conditions["lambda1"])
-        self.omega2 = wavelength_to_frequency(current_conditions["lambda2"])
+        self.omega1 = wavelength_to_frequency(self.conditions.lambda1)
+        self.omega2 = wavelength_to_frequency(self.conditions.lambda2)
         self._current_beta: float = self._max_beta_default
-
-        # Config depends on num_elems_x, num_elems_y -> define it in __init__
-        @dataclass
-        class Config:
-            """Structured representation of configuration parameters for a numerical computation."""
-
-            num_elems_x: ClassVar[
-                Annotated[
-                    int,
-                    bounded(lower=0).category(THEORY),
-                    bounded(lower=60).category(IMPL),
-                    bounded(lower=90, upper=200).warning().category(IMPL),
-                ]
-            ] = self.num_elems_x
-            num_elems_y: ClassVar[
-                Annotated[
-                    int,
-                    bounded(lower=0).category(THEORY),
-                    bounded(lower=105).category(IMPL),
-                    bounded(lower=110, upper=300).warning().category(IMPL),
-                ]
-            ] = self.num_elems_y
-
-            lambda1: Annotated[
-                float,
-                bounded(lower=0.0).category(THEORY),
-                bounded(lower=0.5).category(IMPL),
-                bounded(lower=0.5, upper=1.5).warning().category(IMPL),
-            ] = 1.5
-            lambda2: Annotated[
-                float,
-                bounded(lower=0.0).category(THEORY),
-                bounded(lower=0.5).category(IMPL),
-                bounded(lower=0.5, upper=1.5).warning().category(IMPL),
-            ] = 1.3
-            blur_radius: Annotated[
-                int, bounded(lower=0).category(THEORY | IMPL), bounded(lower=0, upper=5).warning().category(IMPL)
-            ] = 2
-
-        self.Config = Config
 
     def _setup_simulation(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
         """Helper function to setup simulation parameters and domain."""
         # Merge config with default conditions
-        current_conditions = self.conditions_dict
-        current_conditions.update(config or {})
+        current_conditions = {**dataclasses.asdict(self.conditions), **(config or {})}
 
         # Initialize domain geometry
         self._bg_rho, self._design_region, self._input_slice, self._output_slice1, self._output_slice2 = init_domain(

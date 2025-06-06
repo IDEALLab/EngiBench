@@ -179,3 +179,24 @@ def test_field_constraints_with_class_vars() -> None:
         ("Params.static_x: 0.0 ∉ [1.0, ∞]", constraint.Criticality.Error, THEORY),
         ("Params.x: 0.0 ∉ [1.0, ∞]", constraint.Criticality.Error, IMPL),
     ]
+
+
+def test_field_constraints_with_inheritance() -> None:
+    @dataclass
+    class ParamsBase:
+        x: Annotated[float, bounded(lower=1.0).category(IMPL)] = 0.0
+
+    @dataclass
+    class Params(ParamsBase):
+        y: Annotated[float, bounded(lower=-1.0).category(IMPL)] = 0.0
+
+    params = Params()
+
+    assert params.x == 0.0
+    violations = [
+        (v.cause, v.constraint.criticality, v.constraint.categories)
+        for v in constraint.check_field_constraints(params).violations
+    ]
+    assert violations == [
+        ("Params.x: 0.0 ∉ [1.0, ∞]", constraint.Criticality.Error, IMPL),
+    ]
