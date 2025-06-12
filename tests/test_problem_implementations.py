@@ -1,7 +1,6 @@
 """This file contains tests making sure the implemented problems respect the API."""
 
-from __future__ import annotations
-
+import dataclasses
 import inspect
 from typing import get_args, get_origin
 
@@ -73,9 +72,9 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
                 f"Problem {problem_class.__name__}: The dataset should contain the field {o}."
             )
 
-    for cond, _ in problem.conditions:
-        assert cond in dataset["train"].column_names, (
-            f"Problem {problem_class.__name__}: The dataset should contain the field {cond}."
+    for f in dataclasses.fields(problem.Conditions):
+        assert f.name in dataset["train"].column_names, (
+            f"Problem {problem_class.__name__}: The dataset should contain the field {f.name}."
         )
     if problem_class.__module__.startswith("engibench.problems.power_electronics"):
         print(f"Skipping optimal design test for power electronics problem {problem_class.__name__}")

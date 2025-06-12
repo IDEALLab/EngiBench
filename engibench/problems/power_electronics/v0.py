@@ -3,6 +3,7 @@
 
 """Power Electronics problem."""
 
+from dataclasses import dataclass
 import os
 from typing import Any, NoReturn
 
@@ -92,7 +93,12 @@ class PowerElectronics(Problem[npt.NDArray]):
         ("DcGain", ObjectiveDirection.MINIMIZE),
         ("Voltage_Ripple", ObjectiveDirection.MAXIMIZE),
     )
-    conditions: tuple[tuple[str, Any], ...] = ()
+
+    @dataclass
+    class Conditions:
+        """Conditions."""
+
+    conditions = Conditions()
     design_space = spaces.Box(
         low=np.array([1e-6] * 6 + [1e-6] * 3 + [0.1] + [0] * 10),
         high=np.array([2e-5] * 6 + [1e-3] * 3 + [0.9] + [1] * 10),

@@ -77,10 +77,16 @@ class Problem(Generic[DesignType]):
     """Version of the problem"""
     objectives: tuple[tuple[str, ObjectiveDirection], ...]
     """Objective names and types (minimize or maximize)"""
-    conditions: tuple[tuple[str, Any], ...]
+    Conditions: type
+    """Conditions for the design problem as a dataclass declaring types, defaults and constraints"""
+    conditions: Any
     """Conditions for the design problem"""
     design_space: spaces.Space[DesignType]
     """Design space (algorithm output)"""
+    Config: type
+    """Dataclass declaring types, defaults (optional) and constraints"""
+    config: Any | None = None
+    """Instance of :class:`Config` held by an instance of `Problem`"""
     dataset_id: str
     """String identifier for the problem (useful to pull datasets)"""
     design_constraints: tuple[constraint.Constraint, ...] = ()
@@ -89,8 +95,6 @@ class Problem(Generic[DesignType]):
     """Dataset with designs and performances"""
     container_id: str | None
     """String identifier for the singularity container"""
-    Config: type | None = None
-    """Dataclass declaring types, defaults (optional) and constraints"""
 
     # This handles the RNG properly
     np_random: np.random.Generator
@@ -111,19 +115,14 @@ class Problem(Generic[DesignType]):
         return self._dataset
 
     @property
-    def conditions_dict(self) -> dict[str, Any]:
-        """Returns the conditions as a dictionary."""
-        return dict(self.conditions)
+    def objectives_keys(self) -> list[str]:
+        """Returns the objective names as a list."""
+        return [name for name, _ in self.objectives]
 
     @property
     def conditions_keys(self) -> list[str]:
         """Returns the condition names as a list."""
-        return [name for name, _ in self.conditions]
-
-    @property
-    def objectives_keys(self) -> list[str]:
-        """Returns the objective names as a list."""
-        return [name for name, _ in self.objectives]
+        return [f.name for f in dataclasses.fields(self.conditions)]
 
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
@@ -188,12 +187,13 @@ class Problem(Generic[DesignType]):
         """Check if config and design violate any constraints declared in `Config` and `design_space`.
 
         Return a :class:`constraint.Violations` object containing all violations.
+
+        If the class instance holds an attribute `config` which is not `None`,
+        the fields of `config` will be used as default values.
         """
-        if self.Config is not None:
-            checked_config = self.Config(**config)
-            violations = constraint.check_field_constraints(checked_config)
-        else:
-            violations = constraint.Violations([], 0)
+        defaults = dataclasses.asdict(self.config) if self.config is not None else {}
+        checked_config = self.Config(**defaults, **config)
+        violations = constraint.check_field_constraints(checked_config)
 
         @constraint.constraint
         def design_constraint(design: DesignType) -> None:

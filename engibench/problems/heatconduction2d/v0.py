@@ -78,48 +78,47 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("c", ObjectiveDirection.MINIMIZE),)
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("volume", 0.5),
-        ("length", 0.5),
-    )
+
+    @dataclass
+    class Conditions:
+        """Conditions."""
+
+        volume: Annotated[
+            float,
+            bounded(lower=0.0, upper=1.0).category(THEORY),
+            bounded(lower=0.3, upper=0.6).warning().category(IMPL),
+        ] = 0.5
+        """Volume constraint"""
+        length: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
+        """Length constraint"""
+
+    @dataclass
+    class Config(Conditions):
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        resolution: Annotated[
+            int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
+        ] = 101
+        """Resolution of the design space for the initialization"""
+
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(101, 101), dtype=np.float64)
     dataset_id = "IDEALLab/heat_conduction_2d_v0"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
 
-    def __init__(self, volume: float = 0.5, length: float = 0.5, resolution: int = 101) -> None:
+    def __init__(self, **kwargs: Any) -> None:
         """Initialize the HeatConduction2D problem.
 
         Args:
-            volume (float): Volume constraint
-            length (float): Length constraint
-            resolution (int): Resolution of the design space for the initialization.
+            kwargs: Arguments are passed to :class:`HeatConduction2D.Config`.
         """
         super().__init__()
-        self.volume = volume
-        self.length = length
-        self.resolution = resolution
-        self.conditions = (
-            ("volume", self.volume),
-            ("length", self.length),
-        )
+        self.config = self.Config(**kwargs)
+        self.volume = self.config.volume
+        self.length = self.config.length
+        self.resolution = self.config.resolution
+        self.conditions = self.Conditions(self.volume, self.length)
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.resolution, self.resolution), dtype=np.float64)
-
-        @dataclass
-        class Config:
-            """Structured representation of configuration parameters for a numerical computation."""
-
-            resolution: Annotated[
-                int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
-            ] = self.resolution
-            volume: Annotated[
-                float,
-                bounded(lower=0.0, upper=1.0).category(THEORY),
-                bounded(lower=0.3, upper=0.6).warning().category(IMPL),
-            ] = self.volume
-            length: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = self.length
-
-        self.Config = Config
 
     def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
         """Simulate the design.

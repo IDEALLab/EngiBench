@@ -15,6 +15,7 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 +-+-+-+-+-+-+-+-+-+
 """
 
+import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
 import os
@@ -132,13 +133,6 @@ class Airfoil(Problem[DesignType]):
 
     version = 0
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (("cd", ObjectiveDirection.MINIMIZE),)
-    conditions: tuple[tuple[str, Any], ...] = (
-        ("mach", 0.8),
-        ("reynolds", 1e6),
-        ("area_initial", None),
-        ("area_ratio_min", 0.7),
-        ("cl_target", 0.5),
-    )
 
     design_space = spaces.Dict(
         {
@@ -152,19 +146,26 @@ class Airfoil(Problem[DesignType]):
     __local_study_dir: str
 
     @dataclass
-    class Config:
-        """Structured representation of configuration parameters for a numerical computation."""
+    class Conditions:
+        """Conditions."""
 
-        alpha: Annotated[float, bounded(lower=0.0, upper=10.0).category(THEORY)] = 0.0
-        area_ratio_min: Annotated[float, bounded(lower=0.0, upper=1.2).category(THEORY)] = 0.7
-        area_initial: None | float = None
         mach: Annotated[
             float, bounded(lower=0.0).category(IMPL), bounded(lower=0.1, upper=1.0).warning().category(IMPL)
         ] = 0.8
         reynolds: Annotated[
             float, bounded(lower=0.0).category(IMPL), bounded(lower=1e5, upper=1e9).warning().category(IMPL)
         ] = 1e6
+        area_initial: float | None = None
+        area_ratio_min: Annotated[float, bounded(lower=0.0, upper=1.2).category(THEORY)] = 0.7
         cl_target: float = 0.5
+
+    conditions = Conditions()
+
+    @dataclass
+    class Config(Conditions):
+        """Structured representation of configuration parameters for a numerical computation."""
+
+        alpha: Annotated[float, bounded(lower=0.0, upper=10.0).category(THEORY)] = 0.0
         altitude: float = 10000.0
         temperature: float = 300.0
         use_altitude: bool = False
@@ -244,6 +245,14 @@ class Airfoil(Problem[DesignType]):
         """
         tmp = os.path.join(self.__docker_study_dir, "tmp")
 
+        # Calculate the off-the-wall distance
+        estimate_s0 = True
+        if estimate_s0:
+            s0 = calc_off_wall_distance(
+                mach=config["mach"], reynolds=config["reynolds"], freestreamTemp=config["temperature"]
+            )
+        else:
+            s0 = 1e-5
         base_config = {
             "design_fname": f"'{self.__docker_study_dir}/{filename}.dat'",
             "tmp_xyz_fname": f"'{tmp}'",
@@ -257,29 +266,18 @@ class Airfoil(Problem[DesignType]):
             "ffd_ymarginl": 0.05,
             "ffd_pts": 10,
             "N_grid": 100,
-            "estimate_s0": True,
+            "estimate_s0": estimate_s0,
             "make_input_design_blunt": True,
             "input_blunted": False,
+            "s0": s0,
+            **dataclasses.asdict(self.Conditions()),
         }
-
-        # Calculate the off-the-wall distance
-        if base_config["estimate_s0"]:
-            s0 = calc_off_wall_distance(
-                mach=config["mach"], reynolds=config["reynolds"], freestreamTemp=config["temperature"]
-            )
-        else:
-            s0 = 1e-5
-
-        base_config["s0"] = s0
-
-        # Adds the boundary conditions to the configuration
-        base_config.update(self.conditions)
 
         # Scale the design to fit in the design space
         scaled_design, input_blunted = scale_coords(
             design["coords"],
             blunted=bool(base_config["input_blunted"]),
-            xcut=base_config["xCut"],  # type: ignore[arg-type]
+            xcut=base_config["xCut"],
         )
         base_config["input_blunted"] = input_blunted
 
@@ -397,7 +395,7 @@ class Airfoil(Problem[DesignType]):
             "output_dir": "'" + self.__docker_study_dir + "/output/'",
             "mesh_fname": "'" + self.__docker_study_dir + "/design.cgns'",
             "task": "'analysis'",
-            **dict(self.conditions),
+            **dataclasses.asdict(self.Conditions()),
             **(config or {}),
         }
         self.__design_to_simulator_input(design, base_config)
@@ -471,7 +469,7 @@ class Airfoil(Problem[DesignType]):
             "ffd_fname": "'" + self.__docker_study_dir + "/" + filename + "_ffd.xyz'",
             "mesh_fname": "'" + self.__docker_study_dir + "/" + filename + ".cgns'",
             "area_input_design": calc_area(starting_point["coords"]),
-            **dict(self.conditions),
+            **dataclasses.asdict(self.Conditions()),
             **(config or {}),
         }
         self.__design_to_simulator_input(starting_point, base_config, filename)
@@ -595,6 +593,7 @@ class Airfoil(Problem[DesignType]):
 
 if __name__ == "__main__":
     # Initialize the problem
+
     problem = Airfoil()
     problem.reset(seed=0, cleanup=True)
 
