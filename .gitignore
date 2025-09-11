@@ -158,3 +158,9 @@ cython_debug/
 # Editors
 .idea/
 .vscode/
+
+# Apptainer/Singularity
+*.sif
+*.img
+*.sqsh
+*.sandbox/

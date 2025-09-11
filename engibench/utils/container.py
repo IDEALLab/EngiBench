@@ -240,6 +240,10 @@ class Apptainer(ContainerRuntime):
         # uses the local temporary directory to store temporary data when building images
         os.environ["APPTAINER_TMPDIR"] = os.environ.get("TMPDIR", tempfile.gettempdir())
 
+        # Check if APPTAINER_BIND_TMP is set, otherwise set it to false
+        if "APPTAINER_BIND_TMP" not in os.environ:
+            os.environ["APPTAINER_BIND_TMP"] = "false"
+
     @classmethod
     def sif_filename(cls, image: str) -> str:
         """Construct the sif filename from an image specifier."""
@@ -297,6 +301,10 @@ class Apptainer(ContainerRuntime):
 
         # Get sif filename
         sif_image = cls.sif_filename(image)
+
+        # if APPTAINER_BIND_TMP, add an additional mount for /tmp to /tmp
+        if os.environ.get("APPTAINER_BIND_TMP", "false").lower() in ("1", "true", "yes"):
+            mounts = list(mounts) + [("/tmp", "/tmp")]  # noqa: RUF005, S108
 
         # Reconstruct mount and env args
         mount_args = (["--mount", f"type=bind,src={src},target={target}"] for src, target in mounts)
