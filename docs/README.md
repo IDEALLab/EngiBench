@@ -31,7 +31,7 @@ This will automatically include the docstrings of your `Problem` class as well a
 Install the required packages and EngiBench (or your fork):
 
 ```
-pip install engibench[doc]
+pip install "engibench[doc]"
 ```
 
 To build the documentation once:

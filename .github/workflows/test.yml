@@ -49,7 +49,7 @@ jobs:
     - name: Install ngspice
       shell: powershell
       run: |
-        curl.exe -L -o ngspice.7z "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/44.2/ngspice-44.2_64.7z"
+        curl.exe -L -o ngspice.7z "https://downloads.sourceforge.net/project/ngspice/ng-spice-rework/45.2/ngspice-45.2_64.7z"
 
         7z x ngspice.7z -o"C:\Program Files"
 

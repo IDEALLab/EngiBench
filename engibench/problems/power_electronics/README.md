@@ -5,7 +5,7 @@
 
 ## Installation of ngSpice
 ### 1. Windows
-Download ngSpice from https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/.
+Download NGSpice from https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/.
 
 Make sure `ngspice.exe` is located either at `C:/Program Files/Spice64/bin/ngspice.exe` or at `C:/Program Files (x86)/ngspice/bin/ngspice.exe`.
 

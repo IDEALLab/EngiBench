@@ -2,6 +2,7 @@
 
 from collections.abc import Sequence
 import os
+import shutil
 import subprocess
 import tempfile
 
@@ -46,7 +47,10 @@ def run(  # noqa: PLR0913
         result = RUNTIME.run(command, image, mounts, env, name, sync_uid=sync_uid)
         result.check_returncode()
     except subprocess.CalledProcessError as e:
-        msg = f"Container command failed with exit code {e.returncode}:\nCommand: {' '.join(command)}\nOutput: {e.output.decode() if e.output else 'No output'}"
+        msg = f"""Container command failed with exit code {e.returncode}:
+Command: {" ".join(command)}
+stdout: {result.stdout.decode() if result.stdout else "No output"}
+stderr: {result.stderr.decode() if result.stderr else "No output"}"""
         raise RuntimeError(msg) from e
 
 
@@ -197,11 +201,17 @@ class Docker(ContainerRuntime):
                 *command,
             ],
             check=False,
+            capture_output=True,
+            env=cls._env(),
         )
 
     @classmethod
     def _user_args(cls) -> tuple[str, ...]:
         return ("--user", str(os.getuid()))
+
+    @classmethod
+    def _env(cls) -> dict[str, str] | None:
+        return None
 
 
 class Podman(Docker):
@@ -233,6 +243,16 @@ class Podman(Docker):
     @classmethod
     def _user_args(cls) -> tuple[str, ...]:
         return ("--userns=keep-id", "--user", str(os.getuid()))
+
+    @classmethod
+    def _env(cls) -> dict[str, str] | None:
+        # podman needs to have pasta in the PATH variable to configure
+        # network namespaces
+        pasta_executable = shutil.which("pasta")
+        if pasta_executable is None:
+            msg = "pasta executable not available. This is needed for podman to work properly"
+            raise RuntimeError(msg)
+        return {"PATH": os.path.dirname(pasta_executable)}
 
 
 DOCKER_PREFIX = "docker://"
@@ -317,6 +337,7 @@ class Apptainer(ContainerRuntime):
 
         # Get sif filename
         sif_image = cls.sif_filename(image)
+        cls.pull(image)
 
         return subprocess.run(
             [

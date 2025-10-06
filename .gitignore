@@ -2,7 +2,16 @@
 __pycache__/
 *.py[cod]
 *$py.class
+
+# Custom
 engibench_studies/
+experiment/engibench_studies/
+apptainer-cache/
+engibench/problems/airfoil/device_dataset_slurm_airfoil.py
+engibench/problems/airfoil/test_imports.py
+experiment/
+singularity-cache/
+
 
 # C extensions
 *.so
@@ -130,6 +139,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+engibench_env/
 
 # Spyder project settings
 .spyderproject

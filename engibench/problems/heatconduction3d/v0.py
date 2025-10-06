@@ -41,8 +41,16 @@ class HeatConduction3D(Problem[npt.NDArray]):
     ## Problem Description
     This problem simulates the performance of a Topology optimisation of heat conduction problems governed by the Poisson equation (https://github.com/dolfin-adjoint/pyadjoint/blob/master/examples/poisson-topology/poisson-topology.py)
 
+    ## Motivation
+    Heat conduction problems serve as fundamental benchmarks for the development and evaluation of design optimization methods, with applications ranging from thermal management in electronic devices to insulation systems and
+    heat exchangers in industrial applications. As thermal management has become critical in fields such as aerospace, automotive, and consumer electronics,  both industry and academia have shown growing interest in advanced thermal
+    design systems. In response to this demand, topology optimization has become popular as a powerful approach for improving heat dissipation while minimizing material usage.  In addition, the development of additive manufacturing
+    technologies has made the complex geometries produced by topology optimization more feasible to fabricate in real-world applications.
+
     ## Design space
-    The design space is represented by a 3D numpy array which indicates the resolution.
+    These problems are a specific subset of topology optimization problems aimed at minimizing thermal compliance within a unit cube (3D), subject to: a constraint on the volume of highly conductive material used, and given boundary conditions,
+    particularly the location of the adiabatic region. The adiabatic region refers to a  prescribed symmetric area on the bottom surface of the 3D problem space. The 3D design space is represented as a 3D tensor of densities. By default,
+    a $51 \times 51 \times 51$ space is used for the 3D problem.
 
     ## Objectives
     The objective is defined and indexed as follows:

@@ -55,23 +55,62 @@ class Photonics2D(Problem[npt.NDArray]):
     ## Problem Description
     Optimize a 2D material distribution (`rho`) to function as a wavelength
     demultiplexer, routing wave with `lambda1` to output 1 and `lambda2` to output 2. The
-    design variables represent material density which is converted to permittivity
+    design variables represent material density that is converted to permittivity
     using filtering and projection.
 
+    ### Motivation
+    The optimization of photonic circuits in general, and multiplexers in particular, was
+    one of the initial and most widely studied problems in the inverse design of
+    electromagnetic/optical devices. In part, this is because multiplexer
+    devices have several interesting properties that make them more difficult to create generative
+    models of, compared to other problems in EngiBench. This includes the fact that, due to the wave
+    properties of the physical phenomena there are usually multiple solutions with equivalent or
+    similar performance, which results from shifting or inverting the phase profile of the
+    electromagnetic wave. This adds complexity to the generative model in that the solution may not
+    have a single unique global minimum. Another motivating factor for including this problem is the
+    complexity of the structures/designs themselves: unlike in structural or thermal compliance
+    problems, which lead to connected structures, the photonics solutions often involve several
+    disconnected elements whose relative position and spacing is governed by the specific wavelengths
+    it needs to demultiplex. This is a difficult prediction and generation task, compared to, e.g.,
+    generating a connected beam structure. Thus, it acts as a good counterpoint to add to the library
+    and provides a mechanism to benchmark generative algorithms that can perform well on both
+    connected and disconnected design topologies.
+
     ## Design space
-    2D tensor `rho` (num_elems_x, num_elems_y) with values in [0, 1], representing material density.
-    Stored as `design_space` (gymnasium.spaces.Box).
+    This problem simulates a wavelength demultiplexer where the optimized device will direct an
+    electromagnetic wave to one of two possible output ports depending on the wavelength/frequency of
+    the incoming wave. Specifically, the demultiplexer targets two specific wavelengths (referred to
+    $\lambda_1$ and $\lambda_2$ in the library), and the performance of the device is how well it can
+    bend or direct the energy toward two specific locations in the device, as measured by how much of
+    the electric field of each wavelength overlaps with the desired output port locations. The design
+    space consists of a 2D array representing the presence of either a high or low permittivity,
+    parameterized by `nelx` and `nely`, i.e., $\text{design_space} = [0,1]^{\text{nelx}\times \text{nely}}$.
+    By default, the library uses a $120 \times 120$ space, however, this can be modified to non-square
+    design spaces by the user. Specifically, we use a 2D tensor `rho` (num_elems_x, num_elems_y) with
+    values in [0, 1], representing material density. This is stored as `design_space` (gymnasium.spaces.Box).
 
     ## Objectives
+    The main objective is to maximize the overlap of the electric field of the simulated wavelength at
+    the target output location, with an optional penalty for the amount of material used (this penalty
+    weight is set to a small default value ($1e^{-2}$) for consistency, but can be altered for advanced
+    usage):
     0. `total_overlap`: Objective to maximize, defined as
-       `overlap1 * overlap2`. Higher is better. This is corresponds to
+       `overlap1 * overlap2`. Higher is better. This corresponds to
        the overlap in the target electrical fields with the desired demultiplexing locations.
        Note that bot `simulate` and `optimize` subtract a small material penalty
        (`total_overlap - penalty`) to avoid multiple equivalent local optima, but this penalty
        is small relative to the overlap objective.
 
     ## Conditions
-    These are designed as user-configurable parameters that alter the problem definition.
+    These are designed as user-configurable parameters that alter the problem definition. The
+    conditions consist of the two input wavelengths to be demultiplexed --
+    $\lambda_1$ and $\lambda_2$, as well as a desired `blur_radius` ($r_{blur}$) parameter,
+    which blurs (using a circular convolution) the pixelized design field for a chosen number of
+    integer pixels\textemdash this blurring essentially creates a penalty on the minimum feature size
+    of the design. The size of the device -- expressed as `nelx` and `nely` -- is also adjustable,
+    and could be viewed as a possible condition for multi-resolution problems, but in practice, as with
+    `Beams2D`, this is built into the problem definition since it produces a different dataset.
+
     Default problem parameters that can be overridden via the `config` dict:
     - `lambda1`: The first input wavelength in μm (default: 1.5 μm).
     - `lambda2`: The first input wavelength in μm (default: 1.3 μm).
@@ -114,9 +153,24 @@ class Photonics2D(Problem[npt.NDArray]):
     The simulation uses the `ceviche` library's Finite Difference Frequency Domain (FDFD)
     solver (`fdfd_ez`). Optimization uses `ceviche.optimizers.adam_optimize` with
     gradients computed via automatic differentiation (`autograd`).
+    The simulation code uses the \texttt{ceviche} library and specifically,
+    the wave demultiplexer demonstration case provided by the
+    [library authors](https://github.com/fancompute/workshop-invdesign/blob/master/04_Invdes_wdm_scheduling.ipynb}
+    based on their related publication, which uses a similar formalism to an earlier demultiplexer
+    paper by Piggott (2015). The optimization method is first-order and uses the Adam optimizer. Beyond
+    the baseline implementation already available via `ceviche`, we implemented a polynomial $\beta$ continuation
+    scheme that performed more reliably than the step-wise continuation scheme used in the original implementation,
+    and EngiBench also possesses the ability to change the starting and ending continuation values, for future
+    research cases where one wishes to estimate or optimize the continuation schedule themselves. Other than these
+    changes, the implementation of this problem is as consistent as possible with that of the original `ceviche` library.
 
     ## Dataset
-    This problem currently provides one dataset corresponding to resolution of 120x120, are available on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0).
+    This problem offers a single datasets of `nelx`=120 and `nely`=120, although various sizes of `nelx` and `nely`
+    could be generated from the library if desired. The dataset includes columns for the optimal design, all conditions
+    listed above, and the corresponding objective value history as the optimizer optimized toward the optimal design
+    provided in the dataset. The dataset was generated by sampling by sampling at random $\lambda_1$, $\lambda_2$ and
+    $r_{blur}$ over the conditions mentioned above. The dataset is available on the
+    [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/photonics_2d_120_120_v0).
 
     ### v0
 

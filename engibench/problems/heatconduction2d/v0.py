@@ -40,9 +40,16 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
     ## Problem Description
     This problem simulates the performance of a Topology optimisation of heat conduction problems governed by the Poisson equation (https://www.dolfin-adjoint.org/en/stable/documentation/poisson-topology/poisson-topology.html)
+    ## Motivation
+    Heat conduction problems serve as fundamental benchmarks for the development and evaluation of design optimization methods, with applications ranging from thermal management in electronic devices to insulation systems and
+    heat exchangers in industrial applications. As thermal management has become critical in fields such as aerospace, automotive, and consumer electronics,  both industry and academia have shown growing interest in advanced thermal
+    design systems. In response to this demand, topology optimization has become popular as a powerful approach for improving heat dissipation while minimizing material usage.  In addition, the development of additive manufacturing
+    technologies has made the complex geometries produced by topology optimization more feasible to fabricate in real-world applications.
 
     ## Design space
-    The design space is represented by a 2D numpy array which indicates the resolution.
+    These problems are a specific subset of topology optimization problems aimed at minimizing thermal compliance within a unit square (2D) subject to: a constraint on the volume of highly conductive material used, and given boundary conditions,
+    particularly the location of the adiabatic region. The adiabatic region refers to a symmetric length on the bottom side of the 2D problem space . The design space for the 2D problem consists of a 2D array representing solid densities,
+    which is parametrized by resolution, that is, 'DesignSpace = [0,1] By default, a $101 \times 101$ space is used for the 2D problem.
 
     ## Objectives
     The objective is defined and indexed as follows:
@@ -255,8 +262,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
                 np.ndarray: The valid random design.
                 int: The random index selected.
         """
-        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]))
-        return np.array(self.dataset[dataset_split][design_key][rnd]), int(rnd)
+        rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]), dtype=int)
+        return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
     def render(self, design: npt.NDArray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.

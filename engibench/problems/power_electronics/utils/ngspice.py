@@ -6,7 +6,7 @@ import re
 import subprocess
 
 MIN_SUPPORTED_VERSION: int = 42  # Major version number of ngspice
-MAX_SUPPORTED_VERSION: int = 44  # Major version number of ngspice
+MAX_SUPPORTED_VERSION: int = 45  # Major version number of ngspice
 
 
 class NgSpice:
@@ -48,7 +48,7 @@ class NgSpice:
                 ngspice_path = possible_paths[0]  # Default to first path if none found
             if ngspice_path is None or not os.path.exists(ngspice_path):
                 raise FileNotFoundError(
-                    f"ngspice.exe not found at {ngspice_path}. You can download it from https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/. You can also see our GitHub Actions workflow (test.yml) for how to automatically install it."
+                    f"ngspice.exe not found at {ngspice_path}. You can download it from https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/. You can also see our GitHub Actions workflow (test.yml) for how to automatically install it."
                 )
             return ngspice_path
         if self.system in ["darwin", "linux"]:
