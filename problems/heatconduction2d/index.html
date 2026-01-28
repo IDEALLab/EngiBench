@@ -187,10 +187,12 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="nav bd-sidenav">
@@ -520,7 +522,6 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
@@ -535,7 +536,6 @@ document.write(`
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
             </nav>
         </div>
@@ -551,6 +551,15 @@ document.write(`
 <h1>Heat Conduction 2D<a class="headerlink" href="#heat-conduction-2d" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="../../_images/heatconduction2d.png"><img alt="../../_images/heatconduction2d.png" class="align-center" src="../../_images/heatconduction2d.png" style="width: 450px;" />
 </a>
+<p>HeatConduction 2D topology optimization problem.</p>
+<p>This problem simulates the performance of a Topology optimisation of heat conduction problems governed by the Poisson equation (https://www.dolfin-adjoint.org/en/stable/documentation/poisson-topology/poisson-topology.html)</p>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>Heat conduction problems serve as fundamental benchmarks for the development and evaluation of design optimization methods, with applications ranging from thermal management in electronic devices to insulation systems and
+heat exchangers in industrial applications. As thermal management has become critical in fields such as aerospace, automotive, and consumer electronics,  both industry and academia have shown growing interest in advanced thermal
+design systems. In response to this demand, topology optimization has become popular as a powerful approach for improving heat dissipation while minimizing material usage.  In addition, the development of additive manufacturing
+technologies has made the complex geometries produced by topology optimization more feasible to fabricate in real-world applications.</p>
+</section>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
 <tr class="row-odd"><td><p>Version</p></td>
@@ -563,8 +572,10 @@ document.write(`
 <td><p>c: ↓</p></td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
-<td><p>volume: 0.5</p>
-<p>length: 0.5</p>
+<td><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">volume</span></code>: Volume limits on the material distributions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">length</span></code>: Length of the adiabatic region on the bottom side of the design domain</p></li>
+</ul>
 </td>
 </tr>
 <tr class="row-odd"><td><p>Dataset</p></td>
@@ -576,21 +587,12 @@ document.write(`
 <tr class="row-odd"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.heatconduction2d.v0</span> <span class="pre">import</span> <span class="pre">HeatConduction2D</span></code></p></td>
 </tr>
+<tr class="row-even"><td><p>Lead</p></td>
+<td><p>Milad Habibi <a class="reference external" href="https://github.com/MIladHB">&#64;MIladHB</a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>HeatConduction 2D topology optimization problem.</p>
-<section id="problem-description">
-<h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
-<p>This problem simulates the performance of a Topology optimisation of heat conduction problems governed by the Poisson equation (https://www.dolfin-adjoint.org/en/stable/documentation/poisson-topology/poisson-topology.html)</p>
-</section>
-<section id="motivation">
-<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
-<p>Heat conduction problems serve as fundamental benchmarks for the development and evaluation of design optimization methods, with applications ranging from thermal management in electronic devices to insulation systems and
-heat exchangers in industrial applications. As thermal management has become critical in fields such as aerospace, automotive, and consumer electronics,  both industry and academia have shown growing interest in advanced thermal
-design systems. In response to this demand, topology optimization has become popular as a powerful approach for improving heat dissipation while minimizing material usage.  In addition, the development of additive manufacturing
-technologies has made the complex geometries produced by topology optimization more feasible to fabricate in real-world applications.</p>
-</section>
 <section id="design-space">
 <h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
 <p>These problems are a specific subset of topology optimization problems aimed at minimizing thermal compliance within a unit square (2D) subject to: a constraint on the volume of highly conductive material used, and given boundary conditions,
@@ -608,8 +610,8 @@ which is parametrized by resolution, that is, ‘DesignSpace = [0,1] By default,
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
 <p>The conditions are defined by the following parameters:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">volume</span></code>: the volume limits on the material distributions</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">length</span></code>: The length of the adiabatic region on the bottom side of the design domain.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volume</span></code>: Volume limits on the material distributions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">length</span></code>: Length of the adiabatic region on the bottom side of the design domain</p></li>
 </ul>
 </section>
 <section id="simulator">
@@ -636,10 +638,6 @@ We convert use intermediary files to convert from and to the simulator that is r
 <h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
 <p>If you use this problem in your research, please cite the following paper:
 Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inverse Design?” in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678</p>
-</section>
-<section id="lead">
-<h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
-<p>Milad Habibi &#64;MIladHB</p>
 </section>
 </section>
 
@@ -688,7 +686,6 @@ Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inv
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
@@ -703,7 +700,6 @@ Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inv
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
   </nav></div>
 

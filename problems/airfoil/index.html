@@ -187,10 +187,12 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="nav bd-sidenav">
@@ -520,7 +522,6 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
@@ -535,7 +536,6 @@ document.write(`
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
             </nav>
         </div>
@@ -560,6 +560,8 @@ On local machines, we recommend using <a class="reference external" href="https:
 </div>
 <a class="reference internal image-reference" href="../../_images/airfoil.png"><img alt="../../_images/airfoil.png" class="align-center" src="../../_images/airfoil.png" style="width: 450px;" />
 </a>
+<p>Airfoil 2D shape optimization problem.</p>
+<p>This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the <a class="reference external" href="https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/">MACH-Aero</a> simulator that computes the lift and drag coefficients of the airfoil.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
 <tr class="row-odd"><td><p>Version</p></td>
@@ -574,11 +576,13 @@ On local machines, we recommend using <a class="reference external" href="https:
 </td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
-<td><p>mach: 0.8</p>
-<p>reynolds: 1000000.0</p>
-<p>area_initial: nan</p>
-<p>area_ratio_min: 0.7</p>
-<p>cl_target: 0.5</p>
+<td><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">mach</span></code>: Mach number</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reynolds</span></code>: Reynolds number</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area_initial</span></code>: actual initial airfoil area</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area_ratio_min</span></code>: Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cl_target</span></code>: Target lift coefficient to satisfy equality constraint</p></li>
+</ul>
 </td>
 </tr>
 <tr class="row-odd"><td><p>Dataset</p></td>
@@ -590,14 +594,12 @@ On local machines, we recommend using <a class="reference external" href="https:
 <tr class="row-odd"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.airfoil.v0</span> <span class="pre">import</span> <span class="pre">Airfoil</span></code></p></td>
 </tr>
+<tr class="row-even"><td><p>Lead</p></td>
+<td><p>Cashen Diniz <a class="reference external" href="https://github.com/cashend">&#64;cashend</a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>Airfoil 2D shape optimization problem.</p>
-<section id="problem-description">
-<h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
-<p>This problem simulates the performance of an airfoil in a 2D environment. An airfoil is represented by a set of 192 points that define its shape. The performance is evaluated by the <a class="reference external" href="https://mdolab-mach-aero.readthedocs-hosted.com/en/latest/">MACH-Aero</a> simulator that computes the lift and drag coefficients of the airfoil.</p>
-</section>
 <section id="motivation">
 <h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
 <p>The field of aerodynamics has always been a challenging testbed for engineering problems. In fact, many optimization and design methodologies were originally developed or perfected specifically for aerodynamic design applications [1]. Part of the reason for this is that even relatively simple aerodynamics problems can be complex, with slight changes in design parameters typically resulting in large changes in performance. In addition, the potential applications derived from solving these problems are quite practical, ranging from fixed-wing aircraft to hydrofoils used in ships, and wind turbine blades [2]. Here, we present Airfoil, a simple yet sufficiently realistic 2-dimensional aerodynamics benchmark problem.</p>
@@ -685,11 +687,11 @@ On local machines, we recommend using <a class="reference external" href="https:
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
 <p>The conditions are defined by the following parameters:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">mach</span></code>: Mach number.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">reynolds</span></code>: Reynolds number.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">area_ratio_min</span></code>: Minimum area ratio (ratio relative to initial area) constraint.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">area_initial</span></code>: Initial area.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">cl_target</span></code>: Target lift coefficient to satisfy equality constraint.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">mach</span></code>: Mach number</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">reynolds</span></code>: Reynolds number</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area_initial</span></code>: actual initial airfoil area</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">area_ratio_min</span></code>: Minimum ratio the initial area is allowed to decrease to i.e minimum_area = area_initial*area_target</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">cl_target</span></code>: Target lift coefficient to satisfy equality constraint</p></li>
 </ul>
 <p>Note that while it may be possible to constrain the design’s area ahead of time, this is not typically possible for the prescribed coefficient of lift. In addition it may not be possible to achieve certain combinations of prescribed area and coefficient of lift constraints.</p>
 </section>
@@ -862,10 +864,6 @@ Hajdik, H. M., Yildirim, A., Wu, N., Brelje, B. J., Seraj, S., Mangano, M., Anib
 pyGeo: A geometry package for multidisciplinary design optimization.
 Journal of Open Source Software, 8(87), 5319.</p>
 </section>
-<section id="lead">
-<h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
-<p>Cashen Diniz &#64;cashend</p>
-</section>
 </section>
 
 
@@ -913,7 +911,6 @@ Journal of Open Source Software, 8(87), 5319.</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
@@ -928,7 +925,6 @@ Journal of Open Source Software, 8(87), 5319.</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
   </nav></div>
 

@@ -40,6 +40,8 @@
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
     <script>DOCUMENTATION_OPTIONS.pagename = 'problems/beams2d';</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
@@ -185,10 +187,12 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="nav bd-sidenav">
@@ -519,6 +523,20 @@ document.write(`
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1">v1</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
 </ul>
             </nav>
         </div>
@@ -534,6 +552,14 @@ document.write(`
 <h1>Beams2D<a class="headerlink" href="#beams2d" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="../../_images/beams2d.png"><img alt="../../_images/beams2d.png" class="align-center" src="../../_images/beams2d.png" style="width: 450px;" />
 </a>
+<p>Beam 2D topology optimization problem - Version 1 (v1).</p>
+<section id="v1">
+<h2>v1<a class="headerlink" href="#v1" title="Link to this heading">#</a></h2>
+<p>This version augments v0 by fixing a minor detail in the v0 warm-start optimization process.
+Specifically, when warm-starting from a provided design, a small epsilon value is added to
+avoid zero-density values that could lead to gradient issues. The datasets themselves remain unchanged.</p>
+<p>All other behavior is identical to v0.</p>
+</section>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
 <tr class="row-odd"><td><p>Version</p></td>
@@ -546,10 +572,12 @@ document.write(`
 <td><p>c: ↓</p></td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
-<td><p>volfrac: 0.35</p>
-<p>rmin: 2.0</p>
-<p>forcedist: 0.0</p>
-<p>overhang_constraint: False</p>
+<td><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Desired volume fraction of solid material</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Minimum feature length of beam members</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">forcedist</span></code>: Fractional distance of the downward force from the top-left (default) to the top-right corner</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overhang_constraint</span></code>: Boolean flag to enable a 45-degree overhang constraint for manufacturability</p></li>
+</ul>
 </td>
 </tr>
 <tr class="row-odd"><td><p>Dataset</p></td>
@@ -558,17 +586,125 @@ document.write(`
 <tr class="row-even"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.beams2d.v1</span> <span class="pre">import</span> <span class="pre">Beams2D</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p>Lead</p></td>
+<td><p>Arthur Drake <a class="reference external" href="https://github.com/arthurdrake1">&#64;arthurdrake1</a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>Beam 2D topology optimization problem - Version 1 (v1).</p>
-<section id="v1">
-<h2>v1<a class="headerlink" href="#v1" title="Link to this heading">#</a></h2>
-<p>This version augments v0 by fixing a minor detail in the v0 warm-start optimization process.
-Specifically, when warm-starting from a provided design, a small epsilon value is added to
-avoid zero-density values that could lead to gradient issues. The datasets themselves remain unchanged.</p>
-<p>All other behavior is identical to v0.
-See v0.py for full baseline documentation.</p>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>The optimization of beam cross-sections is one of a fundamental problem in engineering, aiming to
+maximize the structural stiffness under some applied force. This objective is usually formulated as
+minimizing the compliance, which is the inverse of stiffness. In particular, TO frames the problem as
+one of optimal material distribution, defining a grid of elements for which the material densities must
+be determined on a scale from 0 to 1, where 1 represents the presence of material. After applying the
+beam loads and other boundary conditions, designs are typically optimized using a gradient-based
+approach with the help of the finite element method (FEM). While this is one of the simplest
+TO applications, it is still a computationally expensive process requiring many iterations, opening the
+door for faster approximation methods such as generative inverse design.
+One of the most common beam types in TO is the Messerschmitt-Bölkow-Blohm (MBB) beam,
+which is supported at the bottom-right and bottom-left corners, with a downward force applied
+on the top-center. Given this symmetric configuration, one half of the design may be optimized
+while representing the entire structure. We implement the MBB beam in ENGIBENCH for the most
+accessible comparison to previous works in this domain.</p>
+</section>
+<section id="design-space">
+<h2>Design Space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
+<p>This problem simulates the right half-section of a MBB beam under bending. This half-beam is
+subjected to a force at its top-left corner (corresponding to the top-center of the entire design) which
+may also be shifted to the right to simulate different loading conditions. A roller support at the
+bottom-right corner prevents vertical movement, and a symmetric boundary condition is enforced on
+the left edge. The design space is an array of solid densities in <code class="docutils literal notranslate"><span class="pre">[0.,</span> <span class="pre">1.]</span></code> with a default size of
+<code class="docutils literal notranslate"><span class="pre">(100,</span> <span class="pre">50)</span></code> used by default, where <code class="docutils literal notranslate"><span class="pre">nelx</span> <span class="pre">=</span> <span class="pre">100</span></code> and <code class="docutils literal notranslate"><span class="pre">nely</span> <span class="pre">=</span> <span class="pre">50</span></code>. Internally, this is represented as
+a flattened <code class="docutils literal notranslate"><span class="pre">(5000,)</span></code> array. Alternative shapes include <code class="docutils literal notranslate"><span class="pre">(50,</span> <span class="pre">25)</span></code> for faster computation and <code class="docutils literal notranslate"><span class="pre">(200,</span> <span class="pre">100)</span></code>
+for higher-resolution results. Corresponding datasets for these three resolutions are provided.</p>
+</section>
+<section id="objectives">
+<h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
+<p>The goal is to optimize the distribution of solid material to minimize compliance
+(equivalently, maximize stiffness) while satisfying constraints on material usage and minimum feature size.
+Compliance is calculated as the sum of strain energy over the structure.</p>
+<p>The objectives are defined and indexed as follows:</p>
+<ol class="arabic simple" start="0">
+<li><p><code class="docutils literal notranslate"><span class="pre">c</span></code>: Compliance to minimize.</p></li>
+</ol>
+</section>
+<section id="conditions">
+<h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
+<p>The following input parameters define the problem conditions:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Desired volume fraction of solid material</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Minimum feature length of beam members</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">forcedist</span></code>: Fractional distance of the downward force from the top-left (default) to the top-right corner</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overhang_constraint</span></code>: Boolean flag to enable a 45-degree overhang constraint for manufacturability</p></li>
+</ul>
+</section>
+<section id="simulator">
+<h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
+<p>Our simulation code is based on a Python adaptation of the popular 88-line topology optimization
+code. It uses the more versatile density filtering approach in combination with a standard
+Optimality Criteria (OC) optimization method. Two primary sensitivity matrices, one with respect
+to compliance (<code class="docutils literal notranslate"><span class="pre">dc</span></code>) and the other with respect to volume fraction (<code class="docutils literal notranslate"><span class="pre">dv</span></code>), are continuously updated
+and used to calculate a given design’s compliance value. We have also ensured that during the
+required Lagrange multiplier search within OC, the inner optimization loop terminates if the absolute
+difference upper and lower bounds diminishes to a value smaller than machine precision. This
+prevents the code from becoming stuck at this point, which we observed in some warm-starting
+instances with noisy initial designs.</p>
+<p>Compliance <code class="docutils literal notranslate"><span class="pre">c</span></code> is calculated using:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">c</span> <span class="o">=</span> <span class="p">((</span><span class="n">Emin</span> <span class="o">+</span> <span class="n">xPrint</span><span class="o">**</span><span class="n">penal</span> <span class="o">*</span> <span class="p">(</span><span class="n">Emax</span> <span class="o">-</span> <span class="n">Emin</span><span class="p">))</span> <span class="o">*</span> <span class="n">ce</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">xPrint</span></code> is the current true density field, <code class="docutils literal notranslate"><span class="pre">penal</span></code> is the penalization factor (e.g., 3.0),
+and <code class="docutils literal notranslate"><span class="pre">ce</span></code> is the element-wise strain energy density.</p>
+</section>
+<section id="dataset">
+<h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
+<p>This problem offers multiple datasets for various sizes of <code class="docutils literal notranslate"><span class="pre">nelx</span></code> and <code class="docutils literal notranslate"><span class="pre">nely</span></code>. Each dataset includes
+columns for the optimal design, all conditions listed above, and the corresponding objective values.
+For advanced usage, we also provide a column containing the optimization history. The datasets have
+been generated by sampling conditions over a structured grid for various problem sizes.
+Three datasets are available on the <a class="reference external" href="https://huggingface.co/datasets/IDEALLab">Hugging Face Datasets Hub</a>.
+They correspond to resolutions of <span class="math notranslate nohighlight">\(50 \times 25\)</span>, <span class="math notranslate nohighlight">\(100 \times 50\)</span> (default), and <span class="math notranslate nohighlight">\(200 \times 100\)</span>.</p>
+<section id="v0">
+<h3>v0<a class="headerlink" href="#v0" title="Link to this heading">#</a></h3>
+<section id="fields">
+<h4>Fields<a class="headerlink" href="#fields" title="Link to this heading">#</a></h4>
+<p>Each dataset contains:</p>
+<ul class="simple">
+<li><p>Optimized beam structures,</p></li>
+<li><p>The corresponding condition parameters,</p></li>
+<li><p>Objective values (compliance),</p></li>
+<li><p>Full optimization histories (for advanced use).</p></li>
+</ul>
+</section>
+<section id="creation-method">
+<h4>Creation Method<a class="headerlink" href="#creation-method" title="Link to this heading">#</a></h4>
+<p>Datasets were generated by uniformly sampling the condition space. The resolutions used are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(50,</span> <span class="pre">25)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(100,</span> <span class="pre">50)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(200,</span> <span class="pre">100)</span></code></p></li>
+</ul>
+<p>A more comprehensive description of the creation method can be found in the <a class="reference external" href="https://github.com/IDEALLab/EngiBench/tree/main/engibench/problems/beams2d">README</a>.</p>
+</section>
+</section>
+</section>
+<section id="citation">
+<h2>Citation<a class="headerlink" href="#citation" title="Link to this heading">#</a></h2>
+<p>If you use this problem in your research, please cite the following paper:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">andreassen2011efficient</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="p">{</span><span class="n">Efficient</span> <span class="n">topology</span> <span class="n">optimization</span> <span class="ow">in</span> <span class="n">MATLAB</span> <span class="n">using</span> <span class="mi">88</span> <span class="n">lines</span> <span class="n">of</span> <span class="n">code</span><span class="p">},</span>
+    <span class="n">author</span><span class="o">=</span><span class="p">{</span><span class="n">Andreassen</span><span class="p">,</span> <span class="n">Erik</span> <span class="ow">and</span> <span class="n">Clausen</span><span class="p">,</span> <span class="n">Anders</span> <span class="ow">and</span> <span class="n">Schevenels</span><span class="p">,</span> <span class="n">Mattias</span> <span class="ow">and</span> <span class="n">Lazarov</span><span class="p">,</span> <span class="n">Boyan</span> <span class="n">S</span> <span class="ow">and</span> <span class="n">Sigmund</span><span class="p">,</span> <span class="n">Ole</span><span class="p">},</span>
+    <span class="n">journal</span><span class="o">=</span><span class="p">{</span><span class="n">Structural</span> <span class="ow">and</span> <span class="n">Multidisciplinary</span> <span class="n">Optimization</span><span class="p">},</span>
+    <span class="n">volume</span><span class="o">=</span><span class="p">{</span><span class="mi">43</span><span class="p">},</span>
+    <span class="n">number</span><span class="o">=</span><span class="p">{</span><span class="mi">1</span><span class="p">},</span>
+    <span class="n">pages</span><span class="o">=</span><span class="p">{</span><span class="mi">1</span><span class="o">--</span><span class="mi">16</span><span class="p">},</span>
+    <span class="n">year</span><span class="o">=</span><span class="p">{</span><span class="mi">2011</span><span class="p">},</span>
+    <span class="n">publisher</span><span class="o">=</span><span class="p">{</span><span class="n">Springer</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
 </section>
 </section>
 
@@ -618,6 +754,20 @@ See v0.py for full baseline documentation.</p>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1">v1</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
 </ul>
   </nav></div>
 

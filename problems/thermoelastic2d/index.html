@@ -187,10 +187,12 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="nav bd-sidenav">
@@ -520,14 +522,12 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
             </nav>
         </div>
@@ -543,6 +543,8 @@ document.write(`
 <h1>Thermoelastic2D<a class="headerlink" href="#thermoelastic2d" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="../../_images/thermoelastic2d.png"><img alt="../../_images/thermoelastic2d.png" class="align-center" src="../../_images/thermoelastic2d.png" style="width: 450px;" />
 </a>
+<p>Truss 2D integer optimization problem.</p>
+<p>This is 2D topology optimization problem for minimizing weakly coupled thermo-elastic compliance subject to boundary conditions and a volume fraction constraint.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
 <tr class="row-odd"><td><p>Version</p></td>
@@ -558,13 +560,15 @@ document.write(`
 </td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
-<td><p>fixed_elements: &lt;dataclasses._MISSING_TYPE object at 0x7f80fe024a90&gt;</p>
-<p>force_elements_x: &lt;dataclasses._MISSING_TYPE object at 0x7f80fe024a90&gt;</p>
-<p>force_elements_y: &lt;dataclasses._MISSING_TYPE object at 0x7f80fe024a90&gt;</p>
-<p>heatsink_elements: &lt;dataclasses._MISSING_TYPE object at 0x7f80fe024a90&gt;</p>
-<p>volfrac: 0.3</p>
-<p>rmin: 1.1</p>
-<p>weight: 0.5</p>
+<td><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: Binary NxN matrix of the structurally fixed elements in the domain</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Binary NxN matrix specifying elements that have a structural load in the x-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Binary NxN matrix specifying elements that have a structural load in the y-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Binary NxN matrix specifying elements that have a heat sink</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Target volume fraction for the volume fraction constraint</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Filter size used in the optimization routine</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization</p></li>
+</ul>
 </td>
 </tr>
 <tr class="row-odd"><td><p>Dataset</p></td>
@@ -573,14 +577,12 @@ document.write(`
 <tr class="row-even"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.thermoelastic2d.v0</span> <span class="pre">import</span> <span class="pre">ThermoElastic2D</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p>Lead</p></td>
+<td><p>Gabriel Apaza <a class="reference external" href="https://github.com/gapaza">&#64;gapaza</a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>Truss 2D integer optimization problem.</p>
-<section id="problem-description">
-<h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
-<p>This is 2D topology optimization problem for minimizing weakly coupled thermo-elastic compliance subject to boundary conditions and a volume fraction constraint.</p>
-</section>
 <section id="motivation">
 <h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
 <p>As articulated in their respective sections, both the Beams2D and HeatConduction2D problems found in the EngiBench library are fundamental engineering design problems that have historically served as benchmarks for the development and testing of optimization methods.
@@ -592,7 +594,7 @@ To address this distinction, a multi-physics topology optimization problem is de
 <p>This multi-physics topology optimization problem is governed by linear elasticity and steady-state heat conduction with a one-way coupling from the thermal domain to the elastic domain.
 The problem is defined over a square 2D domain, where load elements and support elements are placed along the boundary to define a unique elastic condition.
 Similarly, heatsink elements are placed along the boundary to define a unique thermal condition.
-The design space is then defined by a 2D array representing density values (parameterized by DesignSpace = [0,1]^{nelx x nely}, where nelx and nely denote the x and y dimensions).</p>
+The design space is then defined by a 2D array representing density values (parameterized by DesignSpace = [0,1]^{<code class="docutils literal notranslate"><span class="pre">nelx</span></code> x <code class="docutils literal notranslate"><span class="pre">nely</span></code>}, where nelx and <code class="docutils literal notranslate"><span class="pre">nely</span></code> denote the x and y dimensions).</p>
 </section>
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
@@ -601,15 +603,14 @@ Total compliance is defined as the sum of thermal compliance and structural comp
 </section>
 <section id="conditions">
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
-<p>Problem conditions are defined by creating a python dict with the following info:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: Encodes a binary NxN matrix of the structurally fixed elements in the domain.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Encodes a binary NxN matrix specifying elements that have a structural load in the x-direction.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Encodes a binary NxN matrix specifying elements that have a structural load in the y-direction.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Encodes a binary NxN matrix specifying elements that have a heat sink.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Encodes the target volume fraction for the volume fraction constraint.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Encodes the filter size used in the optimization routine.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Allows one to control which objective is optimized for. 1.0 Is pure structural optimization, while 0.0 is pure thermal optimization.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: Binary NxN matrix of the structurally fixed elements in the domain</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Binary NxN matrix specifying elements that have a structural load in the x-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Binary NxN matrix specifying elements that have a structural load in the y-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Binary NxN matrix specifying elements that have a heat sink</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Target volume fraction for the volume fraction constraint</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Filter size used in the optimization routine</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization</p></li>
 </ul>
 </section>
 <section id="simulator">
@@ -643,10 +644,6 @@ Furthermore, values for the volume fraction constraint are randomly selected in 
 <li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: The filter size used in the optimization routine</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: The domain weighting used in the optimization routine</p></li>
 </ul>
-</section>
-<section id="lead">
-<h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
-<p>Gabriel Apaza &#64;gapaza</p>
 </section>
 </section>
 
@@ -695,14 +692,12 @@ Furthermore, values for the volume fraction constraint are randomly selected in 
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
   </nav></div>
 

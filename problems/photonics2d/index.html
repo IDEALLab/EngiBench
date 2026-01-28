@@ -187,10 +187,12 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="nav bd-sidenav">
@@ -520,10 +522,7 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
@@ -539,7 +538,6 @@ document.write(`
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
             </nav>
         </div>
@@ -555,6 +553,11 @@ document.write(`
 <h1>Photonics2D<a class="headerlink" href="#photonics2d" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="../../_images/photonics2d.png"><img alt="../../_images/photonics2d.png" class="align-center" src="../../_images/photonics2d.png" style="width: 450px;" />
 </a>
+<p>Photonic Inverse Design 2D Problem (Wavelength Demultiplexer).</p>
+<p>Optimize a 2D material distribution (<code class="docutils literal notranslate"><span class="pre">rho</span></code>) to function as a wavelength
+demultiplexer, routing wave with <code class="docutils literal notranslate"><span class="pre">lambda1</span></code> to output 1 and <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> to output 2. The
+design variables represent material density that is converted to permittivity
+using filtering and projection.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
 <tr class="row-odd"><td><p>Version</p></td>
@@ -567,9 +570,12 @@ document.write(`
 <td><p>total_overlap: ↑</p></td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
-<td><p>lambda1: 1.5</p>
-<p>lambda2: 1.3</p>
-<p>blur_radius: 2</p>
+<td><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda1</span></code>: First input wavelength in μm</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda2</span></code>: Second input wavelength in μm</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">blur_radius</span></code>: Radius for the density blurring filter (pixels).
+        Higher values correspond to larger elements, which could possibly be more manufacturable.</p></li>
+</ul>
 </td>
 </tr>
 <tr class="row-odd"><td><p>Dataset</p></td>
@@ -578,18 +584,14 @@ document.write(`
 <tr class="row-even"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.photonics2d.v0</span> <span class="pre">import</span> <span class="pre">Photonics2D</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p>Lead</p></td>
+<td><p>Mark Fuge <a class="reference external" href="https://github.com/markfuge">&#64;markfuge</a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>Photonic Inverse Design 2D Problem (Wavelength Demultiplexer).</p>
-<section id="problem-description">
-<h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
-<p>Optimize a 2D material distribution (<code class="docutils literal notranslate"><span class="pre">rho</span></code>) to function as a wavelength
-demultiplexer, routing wave with <code class="docutils literal notranslate"><span class="pre">lambda1</span></code> to output 1 and <code class="docutils literal notranslate"><span class="pre">lambda2</span></code> to output 2. The
-design variables represent material density that is converted to permittivity
-using filtering and projection.</p>
 <section id="motivation">
-<h3>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h3>
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
 <p>The optimization of photonic circuits in general, and multiplexers in particular, was
 one of the initial and most widely studied problems in the inverse design of
 electromagnetic/optical devices. In part, this is because multiplexer
@@ -606,7 +608,6 @@ it needs to demultiplex. This is a difficult prediction and generation task, com
 generating a connected beam structure. Thus, it acts as a good counterpoint to add to the library
 and provides a mechanism to benchmark generative algorithms that can perform well on both
 connected and disconnected design topologies.</p>
-</section>
 </section>
 <section id="design-space">
 <h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
@@ -647,13 +648,10 @@ and could be viewed as a possible condition for multi-resolution problems, but i
 <code class="docutils literal notranslate"><span class="pre">Beams2D</span></code>, this is built into the problem definition since it produces a different dataset.</p>
 <p>Default problem parameters that can be overridden via the <code class="docutils literal notranslate"><span class="pre">config</span></code> dict:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">lambda1</span></code>: The first input wavelength in μm (default: 1.5 μm).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">lambda2</span></code>: The first input wavelength in μm (default: 1.3 μm).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">blur_radius</span></code>: Radius for the density blurring filter (default: 2).
-Higher values correspond to larger elements, which could
-possibly be more manufacturable.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">num_elems_x</span></code>: Number of grid cells in x (default: 120).</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">num_elems_y</span></code>: Number of grid cells in y (default: 120).</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda1</span></code>: First input wavelength in μm (default: 1.5)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">lambda2</span></code>: Second input wavelength in μm (default: 1.3)</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">blur_radius</span></code>: Radius for the density blurring filter (pixels).
+        Higher values correspond to larger elements, which could possibly be more manufacturable. (default: 2)</p></li>
 </ul>
 <p>In practice, for the dataset loading, we will keep <code class="docutils literal notranslate"><span class="pre">num_elems_x</span></code> and <code class="docutils literal notranslate"><span class="pre">num_elems_y</span></code>to set
 values for each dataset, such that different resolutions correspond to different
@@ -757,10 +755,6 @@ provided by the original library authors:</p>
 </pre></div>
 </div>
 </section>
-<section id="lead">
-<h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
-<p>Mark Fuge &#64;markfuge</p>
-</section>
 </section>
 
 
@@ -808,10 +802,7 @@ provided by the original library authors:</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
-</ul>
-</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
@@ -827,7 +818,6 @@ provided by the original library authors:</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
   </nav></div>
 

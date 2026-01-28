@@ -187,10 +187,12 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Utils</span></p>
 <ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
 <ul class="nav bd-sidenav">
@@ -520,7 +522,6 @@ document.write(`
             </div>
             <nav aria-label="Page">
                 <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
@@ -535,7 +536,6 @@ document.write(`
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
             </nav>
         </div>
@@ -551,6 +551,15 @@ document.write(`
 <h1>PowerElectronics<a class="headerlink" href="#powerelectronics" title="Link to this heading">#</a></h1>
 <a class="reference internal image-reference" href="../../_images/power_electronics.png"><img alt="../../_images/power_electronics.png" class="align-center" src="../../_images/power_electronics.png" style="width: 450px;" />
 </a>
+<p>Power Electronics parameter optimization problem.</p>
+<div class="admonition note">
+<p class="admonition-title">Note</p>
+<p>This problem requires <code class="docutils literal notranslate"><span class="pre">ngspice</span></code> to be installed. See the simulator section for more details.</p>
+</div>
+<p>This problem simulates a power converter circuit which has a fixed circuit topology. There are 5 switches, 4 diodes, 3 inductors and 6 capacitors.
+The circuit topology is fixed. It is defined in the netlist file <code class="docutils literal notranslate"><span class="pre">5_4_3_6_10-dcdc_converter_1.net</span></code>.
+By changing circuit parameters such as capacitance, we rewrite the netlist file and use ngSpice to simulate the circuits to get the performance metrics, which are defined as the objectives of this problem.
+You can use this problem to train your regression model. You can also try to find the optimal circuit parameters that minimize objectives.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
 <tr class="row-odd"><td><p>Version</p></td>
@@ -567,7 +576,9 @@ document.write(`
 </td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
-<td></td>
+<td><ul class="simple">
+</ul>
+</td>
 </tr>
 <tr class="row-odd"><td><p>Dataset</p></td>
 <td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/power_electronics_v0">IDEALLab/power_electronics_v0</a></p></td>
@@ -575,21 +586,12 @@ document.write(`
 <tr class="row-even"><td><p>Import</p></td>
 <td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.power_electronics.v0</span> <span class="pre">import</span> <span class="pre">PowerElectronics</span></code></p></td>
 </tr>
+<tr class="row-odd"><td><p>Lead</p></td>
+<td><p>Xuliang Dong <a class="reference external" href="https://github.com/ liangXD523">&#64; liangXD523</a></p></td>
+</tr>
 </tbody>
 </table>
 </div>
-<p>Power Electronics parameter optimization problem.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This problem requires <code class="docutils literal notranslate"><span class="pre">ngspice</span></code> to be installed. See the simulator section for more details.</p>
-</div>
-<section id="problem-description">
-<h2>Problem Description<a class="headerlink" href="#problem-description" title="Link to this heading">#</a></h2>
-<p>This problem simulates a power converter circuit which has a fixed circuit topology. There are 5 switches, 4 diodes, 3 inductors and 6 capacitors.
-The circuit topology is fixed. It is defined in the netlist file <code class="docutils literal notranslate"><span class="pre">5_4_3_6_10-dcdc_converter_1.net</span></code>.
-By changing circuit parameters such as capacitance, we rewrite the netlist file and use ngSpice to simulate the circuits to get the performance metrics, which are defined as the objectives of this problem.
-You can use this problem to train your regression model. You can also try to find the optimal circuit parameters that minimize objectives.</p>
-</section>
 <section id="motivation">
 <h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
 <p>Optimizing circuit parameters is a critical aspect of circuit design but remains challenging, particularly for power converter circuits that contain diodes and switches,
@@ -675,10 +677,6 @@ Here are the 3 parts:</p>
 <h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
 <p>If you use this problem in your research, please cite the following paper:</p>
 </section>
-<section id="lead">
-<h2>Lead<a class="headerlink" href="#lead" title="Link to this heading">#</a></h2>
-<p>Xuliang Dong &#64; liangXD523</p>
-</section>
 </section>
 
 
@@ -726,7 +724,6 @@ Here are the 3 parts:</p>
   </div>
   <nav class="bd-toc-nav page-toc">
     <ul class="visible nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-description">Problem Description</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
@@ -741,7 +738,6 @@ Here are the 3 parts:</p>
 </ul>
 </li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#lead">Lead</a></li>
 </ul>
   </nav></div>
 
