@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>Heat Conduction 2D &#8212; EngiBench Documentation</title>
+    <title>Thermoelastic3D &#8212; EngiBench Documentation</title>
   
   
   
@@ -42,12 +42,12 @@
     <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
     <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
     <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/heatconduction2d';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/thermoelastic3d';</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
     <link rel="search" title="Search" href="../../search/" />
-    <link rel="next" title="Heat Conduction 3D" href="../heatconduction3d/" />
-    <link rel="prev" title="Heat Conduction" href="../heatconduction/" />
+    <link rel="next" title="Photonics2D" href="../photonics2d/" />
+    <link rel="prev" title="Thermoelastic2D" href="../thermoelastic2d/" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   </head>
@@ -174,11 +174,11 @@
 <li class="toctree-l1"><a class="reference internal" href="../airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../thermoelastic3d/">Thermoelastic3D</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Thermoelastic3D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../power_electronics/">PowerElectronics</a></li>
-<li class="toctree-l1 current active has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details open="open"><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul class="current">
-<li class="toctree-l2 current active"><a class="current reference internal" href="#">Heat Conduction 2D</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">Heat Conduction 2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">Heat Conduction 3D</a></li>
 </ul>
 </details></li>
@@ -382,7 +382,7 @@
       
       
       
-      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/heatconduction2d.md" target="_blank"
+      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/thermoelastic3d.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -399,7 +399,7 @@
       
       
       
-      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/heatconduction2d.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/thermoelastic3d.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -513,7 +513,7 @@ document.write(`
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>Heat Conduction 2D</h1>
+    <h1>Thermoelastic3D</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -528,15 +528,7 @@ document.write(`
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
 </ul>
             </nav>
         </div>
@@ -548,97 +540,115 @@ document.write(`
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="heat-conduction-2d">
-<h1>Heat Conduction 2D<a class="headerlink" href="#heat-conduction-2d" title="Link to this heading">#</a></h1>
-<a class="reference internal image-reference" href="../../_images/heatconduction2d.png"><img alt="../../_images/heatconduction2d.png" class="align-center" src="../../_images/heatconduction2d.png" style="width: 450px;" />
+  <section class="tex2jax_ignore mathjax_ignore" id="thermoelastic3d">
+<h1>Thermoelastic3D<a class="headerlink" href="#thermoelastic3d" title="Link to this heading">#</a></h1>
+<a class="reference internal image-reference" href="../../_images/thermoelastic3d.png"><img alt="../../_images/thermoelastic3d.png" class="align-center" src="../../_images/thermoelastic3d.png" style="width: 450px;" />
 </a>
-<p>HeatConduction 2D topology optimization problem.</p>
-<p>This problem simulates the performance of a Topology optimisation of heat conduction problems governed by the Poisson equation (https://www.dolfin-adjoint.org/en/stable/documentation/poisson-topology/poisson-topology.html)</p>
-<section id="motivation">
-<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
-<p>Heat conduction problems serve as fundamental benchmarks for the development and evaluation of design optimization methods, with applications ranging from thermal management in electronic devices to insulation systems and
-heat exchangers in industrial applications. As thermal management has become critical in fields such as aerospace, automotive, and consumer electronics,  both industry and academia have shown growing interest in advanced thermal
-design systems. In response to this demand, topology optimization has become popular as a powerful approach for improving heat dissipation while minimizing material usage.  In addition, the development of additive manufacturing
-technologies has made the complex geometries produced by topology optimization more feasible to fabricate in real-world applications.</p>
-</section>
+<p>Truss 3D integer optimization problem.</p>
+<p>This is 3D topology optimization problem for minimizing weakly coupled thermo-elastic compliance subject to boundary conditions and a volume fraction constraint.</p>
 <div class="pst-scrollable-table-container"><table class="table">
 <tbody>
 <tr class="row-odd"><td><p>Version</p></td>
 <td><p>0</p></td>
 </tr>
 <tr class="row-even"><td><p>Design space</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Box(0.0,</span> <span class="pre">1.0,</span> <span class="pre">(101,</span> <span class="pre">101),</span> <span class="pre">float64)</span></code></p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Box(0.0,</span> <span class="pre">1.0,</span> <span class="pre">(16,</span> <span class="pre">16,</span> <span class="pre">16),</span> <span class="pre">float32)</span></code></p></td>
 </tr>
 <tr class="row-odd"><td><p>Objectives</p></td>
-<td><p>c: ↓</p></td>
+<td><p>structural_compliance: ↓</p>
+<p>thermal_compliance: ↓</p>
+<p>volume_fraction: ↓</p>
+</td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
 <td><ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">volume</span></code>: Volume limits on the material distributions</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">length</span></code>: Length of the adiabatic region on the bottom side of the design domain</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: Binary NxNxN array of the structurally fixed elements in the domain</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Binary NxNxN array specifying elements that have a structural load in the x-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Binary NxNxN array specifying elements that have a structural load in the y-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_z</span></code>: Binary NxNxN array specifying elements that have a structural load in the z-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Binary NxNxN array specifying elements that have a heat sink</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Target volume fraction for the volume fraction constraint</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Filter size used in the optimization routine</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">penal</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization</p></li>
 </ul>
 </td>
 </tr>
 <tr class="row-odd"><td><p>Dataset</p></td>
-<td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0">IDEALLab/heat_conduction_2d_v0</a></p></td>
+<td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/thermoelastic_3d_v0">IDEALLab/thermoelastic_3d_v0</a></p></td>
 </tr>
-<tr class="row-even"><td><p>Container</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">quay.io/dolfinadjoint/pyadjoint:master</span></code></p></td>
+<tr class="row-even"><td><p>Import</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.thermoelastic3d.v0</span> <span class="pre">import</span> <span class="pre">ThermoElastic3D</span></code></p></td>
 </tr>
-<tr class="row-odd"><td><p>Import</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.heatconduction2d.v0</span> <span class="pre">import</span> <span class="pre">HeatConduction2D</span></code></p></td>
-</tr>
-<tr class="row-even"><td><p>Lead</p></td>
-<td><p>Milad Habibi <a class="reference external" href="https://github.com/MIladHB">&#64;MIladHB</a></p></td>
+<tr class="row-odd"><td><p>Lead</p></td>
+<td><p>Gabriel Apaza <a class="reference external" href="https://github.com/gapaza">&#64;gapaza</a></p></td>
 </tr>
 </tbody>
 </table>
 </div>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>As articulated in their respective sections, both the Beams2D and HeatConduction2D problems found in the EngiBench library are fundamental engineering design problems that have historically served as benchmarks for the development and testing of optimization methods.
+While their relevance is supported by needs in real engineering design scenarios (aerospace, automotive, consumer electronics, etc…), their mono-domain nature ignores the reality that coupling between domains exists, and should be accounted for in scenarios where performance in one domain significantly impacts performance in another.
+To address this distinction, a multi-physics topology optimization problem is developed that captures the coupling between structural and thermal domains in three dimensions.</p>
+</section>
 <section id="design-space">
 <h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
-<p>These problems are a specific subset of topology optimization problems aimed at minimizing thermal compliance within a unit square (2D) subject to: a constraint on the volume of highly conductive material used, and given boundary conditions,
-particularly the location of the adiabatic region. The adiabatic region refers to a symmetric length on the bottom side of the 2D problem space . The design space for the 2D problem consists of a 2D array representing solid densities,
-which is parametrized by resolution, that is, ‘DesignSpace = [0,1] By default, a <span class="math notranslate nohighlight">\(101 \times 101\)</span> space is used for the 2D problem.</p>
+<p>This multi-physics topology optimization problem is governed by linear elasticity and steady-state heat conduction with a one-way coupling from the thermal domain to the elastic domain.
+The problem is defined over a cube 3D domain, where load elements and support elements are placed along the boundary to define a unique elastic condition.
+Similarly, heatsink elements are placed along the boundary to define a unique thermal condition.
+The design space is then defined by a 3D array representing density values (parameterized by DesignSpace = [0,1]^{nelx x nely x nelz}, where nelx, nely, and nelz denote the x, y, and z dimensions respectively).</p>
 </section>
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
-<p>The objective is defined and indexed as follows:</p>
-<ol class="arabic simple" start="0">
-<li><p><code class="docutils literal notranslate"><span class="pre">c</span></code>: Thermal compliance coefficient to minimize.</p></li>
-</ol>
+<p>The objective of this problem is to minimize total compliance C under a volume fraction constraint V by placing a thermally conductive material.
+Total compliance is defined as the sum of thermal compliance and structural compliance.</p>
 </section>
 <section id="conditions">
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
-<p>The conditions are defined by the following parameters:</p>
 <ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">volume</span></code>: Volume limits on the material distributions</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">length</span></code>: Length of the adiabatic region on the bottom side of the design domain</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: Binary NxNxN array of the structurally fixed elements in the domain</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Binary NxNxN array specifying elements that have a structural load in the x-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Binary NxNxN array specifying elements that have a structural load in the y-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_z</span></code>: Binary NxNxN array specifying elements that have a structural load in the z-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Binary NxNxN array specifying elements that have a heat sink</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Target volume fraction for the volume fraction constraint</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Filter size used in the optimization routine</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">penal</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization</p></li>
 </ul>
 </section>
 <section id="simulator">
 <h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
-<p>The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
-We convert use intermediary files to convert from and to the simulator that is run from a Docker image.</p>
+<p>The simulation code is based on a Python adaptation of the popular 88-line topology optimization code, modified to handle the thermal domain in addition to thermal-elastic coupling.
+Optimization is conducted by reformulating the integer optimization problem as a continuous one (leveraging a SIMP approach), where a density filtering approach is used to prevent checkerboard-like artifacts.
+The optimization process itself operates by calculating the sensitivities of the design variables with respect to total compliance (done efficiently using the Adjoint method), calculating the sensitivities of the design variables with respect to the constraint value, and then updating the design variables by solving a convex-linear subproblem and taking a small step (using the method of moving asymptotes).
+The optimization loop terminates when either an upper bound of the number of iterations has been reached or if the magnitude of the gradient update is below some threshold.</p>
 </section>
 <section id="dataset">
 <h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
-<p>The dataset has been generated the dolfin-adjoint software. It is hosted on the <a class="reference external" href="https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0">Hugging Face Datasets Hub</a>.</p>
-<section id="v0">
-<h3>v0<a class="headerlink" href="#v0" title="Link to this heading">#</a></h3>
-<section id="fields">
-<h4>Fields<a class="headerlink" href="#fields" title="Link to this heading">#</a></h4>
-<p>The dataset only contains conditions and optimal designs (no objective).</p>
-</section>
-<section id="creation-method">
-<h4>Creation Method<a class="headerlink" href="#creation-method" title="Link to this heading">#</a></h4>
-<p>The creation method for the dataset is specified in the reference paper.</p>
-</section>
-</section>
-</section>
-<section id="references">
-<h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
-<p>If you use this problem in your research, please cite the following paper:
-Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inverse Design?” in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678</p>
+<p>The dataset linked to this problem is on huggingface <a class="reference external" href="https://huggingface.co/datasets/IDEALLab/thermoelastic_3d_v0">Hugging Face Datasets Hub</a>.
+This dataset contains a set of 100 optimized thermoelastic designs in a 16x16x16 domain, where each design is optimized for a unique set of conditions.
+Each datapoint’s conditions are randomly generated by arbitrarily placing: a single loaded element along the bottom boundary, two fixed elements (fixed in the x, y, and z direction) along the left and top boundary, and heatsink elements along the right boundary.
+Furthermore, values for the volume fraction constraint are randomly selected in the range <span class="math notranslate nohighlight">\([0.2, 0.5]\)</span>.</p>
+<p>Relevant datapoint fields include:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">optimal_design</span></code>: An optimized design for the set of boundary conditions</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">fixed_elements</span></code>: Encodes a binary NxNxN matrix of the structurally fixed elements in the domain.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Encodes a binary NxNxN matrix specifying elements that have a structural load in the x-direction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Encodes a binary NxNxN matrix specifying elements that have a structural load in the y-direction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">force_elements_z</span></code>: Encodes a binary NxNxN matrix specifying elements that have a structural load in the z-direction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Encodes a binary NxNxN matrix specifying elements that have a heat sink.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volume_fraction</span></code>: The volume fraction value of the optimized design</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">structural_compliance</span></code>: The structural compliance of the optimized design</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">thermal_compliance</span></code>: The thermal compliance of the optimized design</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nelx</span></code>: The number of elements in the x-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nely</span></code>: The number of elements in the y-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">nelz</span></code>: The number of elements in the z-direction</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: The volume fraction target of the optimized design</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: The filter size used in the optimization routine</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: The domain weighting used in the optimization routine</p></li>
+</ul>
 </section>
 </section>
 
@@ -654,20 +664,20 @@ Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inv
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../heatconduction/"
+       href="../thermoelastic2d/"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Heat Conduction</p>
+        <p class="prev-next-title">Thermoelastic2D</p>
       </div>
     </a>
     <a class="right-next"
-       href="../heatconduction3d/"
+       href="../photonics2d/"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">Heat Conduction 3D</p>
+        <p class="prev-next-title">Photonics2D</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -692,15 +702,7 @@ Milad Habibi, Jun Wang, and Mark Fuge, “When Is it Actually Worth Learning Inv
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
 </ul>
   </nav></div>
 
