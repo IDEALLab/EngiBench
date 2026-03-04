@@ -40,5 +40,9 @@ if not violated_constraints:
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb)
 
+For a workshop-oriented end-to-end benchmarking tutorial (DCC'26), see:
+
+- [EngiOpt workshop notebooks](https://github.com/IDEALLab/EngiOpt/tree/main/workshops/dcc26)
+
 
 Under the hood, the design representation is converted into a format that the simulator can understand. The simulator then evaluates or optimizes the design and returns the results. Note that the underlying simulators are often written in other languages and necessitate running in containerized environments. This is completely abstracted away from the user, who only needs to provide the design and the configuration.

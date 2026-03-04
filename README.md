@@ -73,6 +73,10 @@ if not violated_constraints:
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb). We also provide good quality implementations of algorithms compatible with the API in [EngiOpt](https://github.com/IDEALLab/EngiOpt).
 
+For a complete DCC'26 workshop flow (setup, lightweight model training, evaluation, and new-problem scaffold), see the notebook suite in EngiOpt:
+
+- https://github.com/IDEALLab/EngiOpt/tree/main/workshops/dcc26
+
 <!-- end api -->
 
 ## Development
