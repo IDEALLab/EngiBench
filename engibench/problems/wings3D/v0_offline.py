@@ -61,7 +61,7 @@ class Wings3DOffline(Problem[DesignType]):
         cl = float(row.get("cl_val", np.nan))
         return np.array([cd, cl], dtype=np.float64)
 
-        def render(self, design: DesignType, *, open_window: bool = False, save: bool = False) -> Figure:
+    def render(self, design: DesignType, *, open_window: bool = False, save: bool = False) -> Figure:
         coords = np.asarray(design["coords"], dtype=np.float32)
         fig, ax = plt.subplots()
         ax.plot(coords[:, 0], coords[:, 1])
