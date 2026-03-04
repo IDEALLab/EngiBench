@@ -544,13 +544,15 @@ document.write(`
 Read our <a class="reference external" href="https://github.com/IDEALLab/EngiBench/blob/main/CONTRIBUTING.md">contribution guide</a> before diving into the code!</p>
 <section id="install">
 <h2>Install<a class="headerlink" href="#install" title="Link to this heading">#</a></h2>
-<p>To install EngiBench for development, clone the repo, install the pre-commit hooks, and install all dev dependencies:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:IDEALLab/EngiBench.git
+<p>To install EngiBench for development, clone the repo, install the <a class="reference external" href="https://pre-commit.com/">pre-commit</a> hooks, and install all dev dependencies:</p>
+<div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:IDEALLab/EngiBench.git
 <span class="nb">cd</span><span class="w"> </span>EngiBench
 pre-commit<span class="w"> </span>install
 pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
 </pre></div>
 </div>
+<p>Our pre-commit config also includes a hook to ensure compliance with <a class="reference external" href="https://www.conventionalcommits.org">conventional commit</a>
+formatting (see <a class="reference internal" href="#./CONTRIBUTING.md#commit-message-format"><span class="xref myst">CONTRIBUTING.md</span></a>).</p>
 <p>Also worth installing <a class="reference external" href="https://docs.astral.sh/ruff/"><code class="docutils literal notranslate"><span class="pre">ruff</span></code></a> and <a class="reference external" href="https://www.mypy-lang.org/"><code class="docutils literal notranslate"><span class="pre">mypy</span></code></a> in your editor as we are checking the code style and type safety on our CI.</p>
 <section id="code">
 <h3>Code<a class="headerlink" href="#code" title="Link to this heading">#</a></h3>
