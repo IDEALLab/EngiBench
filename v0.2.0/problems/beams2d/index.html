@@ -1,0 +1,826 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Beams2D &#8212; EngiBench Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/bootstrap.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+
+  
+  <link href="../../_static/vendor/fontawesome/6.5.2/css/all.min.css?digest=dfe6caa3a7d634c4db9b" rel="stylesheet" />
+  <link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-solid-900.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-brands-400.woff2" />
+<link rel="preload" as="font" type="font/woff2" crossorigin href="../../_static/vendor/fontawesome/6.5.2/webfonts/fa-regular-400.woff2" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=eba8b062" />
+  
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b" />
+  <script src="../../_static/vendor/fontawesome/6.5.2/js/all.min.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+    <script src="../../_static/documentation_options.js?v=b1f04811"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=887ef09a"></script>
+    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
+    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/beams2d';</script>
+    <link rel="icon" href="../../_static/logo_2.png"/>
+    <link rel="index" title="Index" href="../../genindex/" />
+    <link rel="search" title="Search" href="../../search/" />
+    <link rel="next" title="Thermoelastic2D" href="../thermoelastic2d/" />
+    <link rel="prev" title="Airfoil" href="../airfoil/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-primary-sidebar-checkbox"/>
+  <label class="overlay overlay-primary" for="pst-primary-sidebar-checkbox"></label>
+  
+  <input type="checkbox"
+          class="sidebar-toggle"
+          id="pst-secondary-sidebar-checkbox"/>
+  <label class="overlay overlay-secondary" for="pst-secondary-sidebar-checkbox"></label>
+  
+  <div class="search-button__wrapper">
+    <div class="search-button__overlay"></div>
+    <div class="search-button__search-container">
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+  </div>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <div class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/logo_2.png" class="logo__image only-light" alt="EngiBench Documentation - Home"/>
+    <script>document.write(`<img src="../../_static/logo_2.png" class="logo__image only-dark" alt="EngiBench Documentation - Home"/>`);</script>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         id="search-input"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/install/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/basic_usage/">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/api/">API</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Problems</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../airfoil/">Airfoil</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Beams2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../thermoelastic3d/">Thermoelastic3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../power_electronics/">PowerElectronics</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">Heat Conduction 2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">Heat Conduction 3D</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../external/">External Problems</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Algorithms</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../tutorials/new_problem/">Adding a new problem</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench">Github</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md">Contribute to the Docs</a></li>
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item">
+<div class="sidebar-versions">
+  <div class="sidebar-group">
+    <div class="sidebar-heading">
+      <span>Versions</span>
+    </div>
+    <ul class="version-list">
+      
+      <li class="version-item">
+        <a href="/" class="version-link">
+          main
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1/" class="version-link">
+          v0.0.1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha0/" class="version-link">
+          v0.0.1-alpha0
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha1/" class="version-link">
+          v0.0.1-alpha1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha2/" class="version-link">
+          v0.0.1-alpha2
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha3/" class="version-link">
+          v0.0.1-alpha3
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.1.0/" class="version-link">
+          v0.1.0
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.2.0/" class="version-link">
+          v0.2.0
+          
+        </a>
+      </li>
+      
+    </ul>
+  </div>
+</div>
+
+<style>
+.sidebar-versions {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background: var(--color-sidebar-background);
+  border-radius: 4px;
+}
+
+.sidebar-heading {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-sidebar-caption-text);
+}
+
+.version-list {
+  list-style: none;
+  padding-left: 0.5rem;
+  margin: 0;
+}
+
+.version-item {
+  margin: 0.25rem 0;
+}
+
+.version-link {
+  color: var(--color-sidebar-link-text);
+  text-decoration: none;
+  display: block;
+  padding: 0.25rem 0;
+}
+
+.version-link:hover {
+  color: var(--color-sidebar-link-text--hover);
+}
+
+.version-current {
+  font-size: 0.875em;
+  opacity: 0.7;
+  margin-left: 0.3em;
+}
+
+.current .version-link {
+  font-weight: 600;
+  color: var(--color-sidebar-link-text--active);
+}
+</style>
+</div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+  </div>
+  
+  <div id="rtd-footer-container"></div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/beams2d.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/beams2d.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button" title="light/dark" aria-label="light/dark" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="theme-switch fa-solid fa-sun fa-lg" data-mode="light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg" data-mode="dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"></i>
+  </button>
+`);
+</script>
+
+
+<script>
+document.write(`
+  <button class="btn btn-sm pst-navbar-icon search-button search-button__button" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+  </button>
+`);
+</script>
+<button class="sidebar-toggle secondary-toggle btn btn-sm" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Beams2D</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1">v1</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="beams2d">
+<h1>Beams2D<a class="headerlink" href="#beams2d" title="Link to this heading">#</a></h1>
+<a class="reference internal image-reference" href="../../_images/beams2d.png"><img alt="../../_images/beams2d.png" class="align-center" src="../../_images/beams2d.png" style="width: 450px;" />
+</a>
+<p>Beam 2D topology optimization problem - Version 1 (v1).</p>
+<section id="v1">
+<h2>v1<a class="headerlink" href="#v1" title="Link to this heading">#</a></h2>
+<p>This version augments v0 by fixing a minor detail in the v0 warm-start optimization process.
+Specifically, when warm-starting from a provided design, a small epsilon value is added to
+avoid zero-density values that could lead to gradient issues. The datasets themselves remain unchanged.</p>
+<p>All other behavior is identical to v0.</p>
+</section>
+<div class="pst-scrollable-table-container"><table class="table">
+<tbody>
+<tr class="row-odd"><td><p>Version</p></td>
+<td><p>1</p></td>
+</tr>
+<tr class="row-even"><td><p>Design space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Box(0.0,</span> <span class="pre">1.0,</span> <span class="pre">(50,</span> <span class="pre">100),</span> <span class="pre">float64)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Objectives</p></td>
+<td><p>c: ↓</p></td>
+</tr>
+<tr class="row-even"><td><p>Conditions</p></td>
+<td><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Desired volume fraction of solid material</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Minimum feature length of beam members</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">forcedist</span></code>: Fractional distance of the downward force from the top-left (default) to the top-right corner</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overhang_constraint</span></code>: Boolean flag to enable a 45-degree overhang constraint for manufacturability</p></li>
+</ul>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Dataset</p></td>
+<td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/beams_2d_50_100_v0">IDEALLab/beams_2d_50_100_v0</a></p></td>
+</tr>
+<tr class="row-even"><td><p>Import</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.beams2d.v1</span> <span class="pre">import</span> <span class="pre">Beams2D</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Lead</p></td>
+<td><p>Arthur Drake <a class="reference external" href="https://github.com/arthurdrake1">&#64;arthurdrake1</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>The optimization of beam cross-sections is one of a fundamental problem in engineering, aiming to
+maximize the structural stiffness under some applied force. This objective is usually formulated as
+minimizing the compliance, which is the inverse of stiffness. In particular, TO frames the problem as
+one of optimal material distribution, defining a grid of elements for which the material densities must
+be determined on a scale from 0 to 1, where 1 represents the presence of material. After applying the
+beam loads and other boundary conditions, designs are typically optimized using a gradient-based
+approach with the help of the finite element method (FEM). While this is one of the simplest
+TO applications, it is still a computationally expensive process requiring many iterations, opening the
+door for faster approximation methods such as generative inverse design.
+One of the most common beam types in TO is the Messerschmitt-Bölkow-Blohm (MBB) beam,
+which is supported at the bottom-right and bottom-left corners, with a downward force applied
+on the top-center. Given this symmetric configuration, one half of the design may be optimized
+while representing the entire structure. We implement the MBB beam in ENGIBENCH for the most
+accessible comparison to previous works in this domain.</p>
+</section>
+<section id="design-space">
+<h2>Design Space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
+<p>This problem simulates the right half-section of a MBB beam under bending. This half-beam is
+subjected to a force at its top-left corner (corresponding to the top-center of the entire design) which
+may also be shifted to the right to simulate different loading conditions. A roller support at the
+bottom-right corner prevents vertical movement, and a symmetric boundary condition is enforced on
+the left edge. The design space is an array of solid densities in <code class="docutils literal notranslate"><span class="pre">[0.,</span> <span class="pre">1.]</span></code> with a default size of
+<code class="docutils literal notranslate"><span class="pre">(100,</span> <span class="pre">50)</span></code> used by default, where <code class="docutils literal notranslate"><span class="pre">nelx</span> <span class="pre">=</span> <span class="pre">100</span></code> and <code class="docutils literal notranslate"><span class="pre">nely</span> <span class="pre">=</span> <span class="pre">50</span></code>. Internally, this is represented as
+a flattened <code class="docutils literal notranslate"><span class="pre">(5000,)</span></code> array. Alternative shapes include <code class="docutils literal notranslate"><span class="pre">(50,</span> <span class="pre">25)</span></code> for faster computation and <code class="docutils literal notranslate"><span class="pre">(200,</span> <span class="pre">100)</span></code>
+for higher-resolution results. Corresponding datasets for these three resolutions are provided.</p>
+</section>
+<section id="objectives">
+<h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
+<p>The goal is to optimize the distribution of solid material to minimize compliance
+(equivalently, maximize stiffness) while satisfying constraints on material usage and minimum feature size.
+Compliance is calculated as the sum of strain energy over the structure.</p>
+<p>The objectives are defined and indexed as follows:</p>
+<ol class="arabic simple" start="0">
+<li><p><code class="docutils literal notranslate"><span class="pre">c</span></code>: Compliance to minimize.</p></li>
+</ol>
+</section>
+<section id="conditions">
+<h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
+<p>The following input parameters define the problem conditions:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Desired volume fraction of solid material</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Minimum feature length of beam members</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">forcedist</span></code>: Fractional distance of the downward force from the top-left (default) to the top-right corner</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">overhang_constraint</span></code>: Boolean flag to enable a 45-degree overhang constraint for manufacturability</p></li>
+</ul>
+</section>
+<section id="simulator">
+<h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
+<p>Our simulation code is based on a Python adaptation of the popular 88-line topology optimization
+code. It uses the more versatile density filtering approach in combination with a standard
+Optimality Criteria (OC) optimization method. Two primary sensitivity matrices, one with respect
+to compliance (<code class="docutils literal notranslate"><span class="pre">dc</span></code>) and the other with respect to volume fraction (<code class="docutils literal notranslate"><span class="pre">dv</span></code>), are continuously updated
+and used to calculate a given design’s compliance value. We have also ensured that during the
+required Lagrange multiplier search within OC, the inner optimization loop terminates if the absolute
+difference upper and lower bounds diminishes to a value smaller than machine precision. This
+prevents the code from becoming stuck at this point, which we observed in some warm-starting
+instances with noisy initial designs.</p>
+<p>Compliance <code class="docutils literal notranslate"><span class="pre">c</span></code> is calculated using:</p>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">c</span> <span class="o">=</span> <span class="p">((</span><span class="n">Emin</span> <span class="o">+</span> <span class="n">xPrint</span><span class="o">**</span><span class="n">penal</span> <span class="o">*</span> <span class="p">(</span><span class="n">Emax</span> <span class="o">-</span> <span class="n">Emin</span><span class="p">))</span> <span class="o">*</span> <span class="n">ce</span><span class="p">)</span><span class="o">.</span><span class="n">sum</span><span class="p">()</span>
+</pre></div>
+</div>
+<p>where <code class="docutils literal notranslate"><span class="pre">xPrint</span></code> is the current true density field, <code class="docutils literal notranslate"><span class="pre">penal</span></code> is the penalization factor (e.g., 3.0),
+and <code class="docutils literal notranslate"><span class="pre">ce</span></code> is the element-wise strain energy density.</p>
+</section>
+<section id="dataset">
+<h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
+<p>This problem offers multiple datasets for various sizes of <code class="docutils literal notranslate"><span class="pre">nelx</span></code> and <code class="docutils literal notranslate"><span class="pre">nely</span></code>. Each dataset includes
+columns for the optimal design, all conditions listed above, and the corresponding objective values.
+For advanced usage, we also provide a column containing the optimization history. The datasets have
+been generated by sampling conditions over a structured grid for various problem sizes.
+Three datasets are available on the <a class="reference external" href="https://huggingface.co/datasets/IDEALLab">Hugging Face Datasets Hub</a>.
+They correspond to resolutions of <span class="math notranslate nohighlight">\(50 \times 25\)</span>, <span class="math notranslate nohighlight">\(100 \times 50\)</span> (default), and <span class="math notranslate nohighlight">\(200 \times 100\)</span>.</p>
+<section id="v0">
+<h3>v0<a class="headerlink" href="#v0" title="Link to this heading">#</a></h3>
+<section id="fields">
+<h4>Fields<a class="headerlink" href="#fields" title="Link to this heading">#</a></h4>
+<p>Each dataset contains:</p>
+<ul class="simple">
+<li><p>Optimized beam structures,</p></li>
+<li><p>The corresponding condition parameters,</p></li>
+<li><p>Objective values (compliance),</p></li>
+<li><p>Full optimization histories (for advanced use).</p></li>
+</ul>
+</section>
+<section id="creation-method">
+<h4>Creation Method<a class="headerlink" href="#creation-method" title="Link to this heading">#</a></h4>
+<p>Datasets were generated by uniformly sampling the condition space. The resolutions used are:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">(50,</span> <span class="pre">25)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(100,</span> <span class="pre">50)</span></code></p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">(200,</span> <span class="pre">100)</span></code></p></li>
+</ul>
+<p>A more comprehensive description of the creation method can be found in the <a class="reference external" href="https://github.com/IDEALLab/EngiBench/tree/main/engibench/problems/beams2d">README</a>.</p>
+</section>
+</section>
+</section>
+<section id="citation">
+<h2>Citation<a class="headerlink" href="#citation" title="Link to this heading">#</a></h2>
+<p>If you use this problem in your research, please cite the following paper:</p>
+<div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="nd">@article</span><span class="p">{</span><span class="n">andreassen2011efficient</span><span class="p">,</span>
+    <span class="n">title</span><span class="o">=</span><span class="p">{</span><span class="n">Efficient</span> <span class="n">topology</span> <span class="n">optimization</span> <span class="ow">in</span> <span class="n">MATLAB</span> <span class="n">using</span> <span class="mi">88</span> <span class="n">lines</span> <span class="n">of</span> <span class="n">code</span><span class="p">},</span>
+    <span class="n">author</span><span class="o">=</span><span class="p">{</span><span class="n">Andreassen</span><span class="p">,</span> <span class="n">Erik</span> <span class="ow">and</span> <span class="n">Clausen</span><span class="p">,</span> <span class="n">Anders</span> <span class="ow">and</span> <span class="n">Schevenels</span><span class="p">,</span> <span class="n">Mattias</span> <span class="ow">and</span> <span class="n">Lazarov</span><span class="p">,</span> <span class="n">Boyan</span> <span class="n">S</span> <span class="ow">and</span> <span class="n">Sigmund</span><span class="p">,</span> <span class="n">Ole</span><span class="p">},</span>
+    <span class="n">journal</span><span class="o">=</span><span class="p">{</span><span class="n">Structural</span> <span class="ow">and</span> <span class="n">Multidisciplinary</span> <span class="n">Optimization</span><span class="p">},</span>
+    <span class="n">volume</span><span class="o">=</span><span class="p">{</span><span class="mi">43</span><span class="p">},</span>
+    <span class="n">number</span><span class="o">=</span><span class="p">{</span><span class="mi">1</span><span class="p">},</span>
+    <span class="n">pages</span><span class="o">=</span><span class="p">{</span><span class="mi">1</span><span class="o">--</span><span class="mi">16</span><span class="p">},</span>
+    <span class="n">year</span><span class="o">=</span><span class="p">{</span><span class="mi">2011</span><span class="p">},</span>
+    <span class="n">publisher</span><span class="o">=</span><span class="p">{</span><span class="n">Springer</span><span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../airfoil/"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Airfoil</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../thermoelastic2d/"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Thermoelastic2D</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <div class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item">
+  <div class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav class="bd-toc-nav page-toc">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#v1">v1</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
+<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
+</ul>
+</li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By ETH Zurich's IDEAL Lab
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script src="../../_static/scripts/bootstrap.js?digest=dfe6caa3a7d634c4db9b"></script>
+<script src="../../_static/scripts/pydata-sphinx-theme.js?digest=dfe6caa3a7d634c4db9b"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
