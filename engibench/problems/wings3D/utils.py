@@ -1,9 +1,25 @@
-"""Utility functions for the airfoil problem."""
+"""Utility functions for the wings3D problem."""
 
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
 
+
+def get_slice_coords(coords: npt.NDArray, slice_num: int) -> npt.NDArray[np.float32]:
+    """Extract one slice curve from coords.
+
+    Expected shapes:
+      - (n_slices, n_points, 2): full wing sections, return coords[slice_num]
+      - (n_points, 2): already a single slice, return as-is
+    """
+    arr = np.asarray(coords, dtype=np.float32)
+
+    if arr.ndim == 3:
+        return arr[int(slice_num)]
+    if arr.ndim == 2:
+        return arr
+
+    raise ValueError(f"Unexpected coords shape: {arr.shape}")
 
 def _extract_connectivities(df_slice: pd.DataFrame) -> tuple[npt.NDArray[np.int32], npt.NDArray[np.int32]]:
     """Extract node connectivities from the dataframe slice.
@@ -279,61 +295,51 @@ def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
         coords_x_reordered, coords_y_reordered, indices_reordered
     )
 
-    return np.array([coords_x_reordered, coords_y_reordered])
+    return np.column_stack((coords_x_reordered, coords_y_reordered)).astype(np.float32)
 
-
-def scale_coords(
+def _scale_single_slice(
     coords: npt.NDArray[np.float64],
     blunted: bool = False,  # noqa: FBT001, FBT002
     xcut: float = 0.99,
-    min_trailing_edge_indices: float = 6,
+    min_trailing_edge_indices: int = 6,
 ) -> tuple[npt.NDArray[np.float64], bool]:
-    """Scales the coordinates to fit in the design space.
+    """Scale a single slice with shape (n_points, 2)."""
+    arr = np.asarray(coords, dtype=np.float64).copy()
 
-    Args:
-        coords (np.ndarray): The coordinates to scale.
-        blunted (bool): If True, the coordinates are assumed to be blunted.
-        xcut (float): The x coordinate of the cut, if the coordinates are blunted.
-        min_trailing_edge_indices (int): The minimum number of trailing edge indices to remove.
+    if arr.ndim != 2 or arr.shape[1] != 2:
+        raise ValueError(f"Expected single-slice coords with shape (n_points, 2), got {arr.shape}")
 
-    Returns:
-        np.ndarray: The scaled coordinates.
-    """
     # Test if the coordinates are blunted or not
-    if not (blunted) and is_blunted(coords):
+    if (not blunted) and is_blunted(arr):
         blunted = True
         print(
-            "The coordinates may be blunted. However, blunted was not set to True. Will set blunted to True and continue, but please check the coordinates."
+            "The coordinates may be blunted. However, blunted was not set to True. "
+            "Will set blunted to True and continue, but please check the coordinates."
         )
 
-    if not (blunted):
-        xcut = 1.0
-
     # Scale x coordinates to be xcut in length
-    airfoil_length = np.abs(np.max(coords[0, :]) - np.min(coords[0, :]))
+    airfoil_length = np.abs(np.max(arr[:, 0]) - np.min(arr[:, 0]))
 
     # Center the coordinates around the leading edge and scale them
-    coords[0, :] = xcut * (coords[0, :] - np.min(coords[0, :])) / airfoil_length
-    airfoil_length = np.abs(np.max(coords[0, :]) - np.min(coords[0, :]))
+    arr[:, 0] = xcut * (arr[:, 0] - np.min(arr[:, 0])) / airfoil_length
 
     # Shift the coordinates to be centered at 0 at the leading edge
-    leading_id = np.argmin(coords[0, :])
-    y_dist = coords[1, leading_id]
-    coords[1, :] += -y_dist
+    leading_id = np.argmin(arr[:, 0])
+    y_dist = arr[leading_id, 1]
+    arr[:, 1] += -y_dist
+
     # Ensure the first and last points are the same
-    coords[0, 0] = xcut
-    coords[0, -1] = xcut
-    coords[1, -1] = coords[1, 0]
-    # Set the leading edge location
+    arr[0, 0] = xcut
+    arr[-1, 0] = xcut
+    arr[-1, 1] = arr[0, 1]
 
     if blunted:
-        coords_x = coords[0, :]
-        # Get all of the trailing edge indices, i.e where consecutive x coordinates are the same
+        coords_x = arr[:, 0]
+
         err = 1e-5
         x_gt = np.max(coords_x) * 0.99
         trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < err)[0]
         trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < err)[0]
-        # Include any indices that are in either list
         trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
         trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
 
@@ -342,17 +348,52 @@ def scale_coords(
         while len(trailing_edge_indices) < min_trailing_edge_indices:
             trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < err)[0]
             trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < err)[0]
-            # Include any indices that are in either list
             trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
             trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
             err *= 1.5
             if err > err_stop:
                 break
 
-        # Remove the trailing edge indices from the coordinates
-        coords = np.delete(coords, trailing_edge_indices[1:-1], axis=1)
+        if len(trailing_edge_indices) > 2:
+            arr = np.delete(arr, trailing_edge_indices[1:-1], axis=0)
 
-    return coords, blunted
+    return arr, blunted
+
+
+def scale_coords(
+    coords: npt.NDArray[np.float64],
+    blunted: bool = False,  # noqa: FBT001, FBT002
+    xcut: float = 0.99,
+    min_trailing_edge_indices: int = 6,
+) -> tuple[npt.NDArray[np.float64], bool]:
+    """Scales coordinates for either one slice or a full wing."""
+    arr = np.asarray(coords, dtype=np.float64)
+
+    if arr.ndim == 2:
+        return _scale_single_slice(
+            arr,
+            blunted=blunted,
+            xcut=xcut,
+            min_trailing_edge_indices=min_trailing_edge_indices,
+        )
+
+    if arr.ndim == 3:
+        scaled_slices = []
+        any_blunted = blunted
+
+        for curve in arr:
+            scaled_curve, curve_blunted = _scale_single_slice(
+                curve,
+                blunted=blunted,
+                xcut=xcut,
+                min_trailing_edge_indices=min_trailing_edge_indices,
+            )
+            scaled_slices.append(scaled_curve)
+            any_blunted = any_blunted or curve_blunted
+
+        return np.stack(scaled_slices), any_blunted
+
+    raise ValueError(f"Unexpected coords shape: {arr.shape}")
 
 
 def calc_off_wall_distance(  # noqa: PLR0913
@@ -392,38 +433,47 @@ def calc_off_wall_distance(  # noqa: PLR0913
 
 
 def is_blunted(coords: npt.NDArray[np.float64], delta_x_tol: float = 1e-5) -> bool:
-    """Checks if the coordinates are blunted or not.
+    """Checks if a single slice is blunted.
 
     Args:
-        coords (np.ndarray): The coordinates to check.
+        coords (np.ndarray): Slice coordinates with shape (n_points, 2).
         delta_x_tol (float): The tolerance for the x coordinate difference.
 
     Returns:
         bool: True if the coordinates are blunted, False otherwise.
     """
-    # Check if the coordinates going away from the tip have a small delta y
-    coords_x = coords[0, :]
-    # Get all of the trailing edge indices, i.e where consecutive x coordinates are the same
+    arr = np.asarray(coords, dtype=np.float64)
+
+    if arr.ndim != 2 or arr.shape[1] != 2:
+        raise ValueError(f"Expected single-slice coords with shape (n_points, 2), got {arr.shape}")
+
+    coords_x = arr[:, 0]
+
     x_gt = np.max(coords_x) * 0.99
     trailing_edge_indices_l = np.where(np.abs(coords_x - np.roll(coords_x, -1)) < delta_x_tol)[0]
     trailing_edge_indices_r = np.where(np.abs(coords_x - np.roll(coords_x, 1)) < delta_x_tol)[0]
-    # Include any indices that are in either list
+
     trailing_edge_indices = np.unique(np.concatenate((trailing_edge_indices_l, trailing_edge_indices_r)))
     trailing_edge_indices = trailing_edge_indices[coords_x[trailing_edge_indices] >= x_gt]
 
-    # check if we have no trailing edge indices
     return not len(trailing_edge_indices) <= 1
 
 
 def calc_area(coords: npt.NDArray[np.float32]) -> float:
-    """Calculates the area of the airfoil.
+    """Calculates the area of a slice, or the summed area of all slices in a wing."""
+    arr = np.asarray(coords, dtype=np.float32)
 
-    Args:
-        coords (np.ndarray): The coordinates of the airfoil.
+    if arr.ndim == 2:
+        x = arr[:, 0]
+        y = arr[:, 1]
+        return float(0.5 * np.absolute(np.sum(x * np.roll(y, -1)) - np.sum(y * np.roll(x, -1))))
 
-    Returns:
-        float: The area of the airfoil.
-    """
-    return 0.5 * np.absolute(
-        np.sum(coords[0, :] * np.roll(coords[1, :], -1)) - np.sum(coords[1, :] * np.roll(coords[0, :], -1))
-    )
+    if arr.ndim == 3:
+        total_area = 0.0
+        for curve in arr:
+            x = curve[:, 0]
+            y = curve[:, 1]
+            total_area += 0.5 * np.absolute(np.sum(x * np.roll(y, -1)) - np.sum(y * np.roll(x, -1)))
+        return float(total_area)
+
+    raise ValueError(f"Unexpected coords shape: {arr.shape}")
