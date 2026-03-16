@@ -6,10 +6,7 @@ Filename convention is that folder paths do not end with /. For example, /path/t
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
-from fileinput import filename
 from importlib.util import find_spec
-from engibench.problems.power_electronics.utils import config
-from engibench.problems.wings3D.dataset_hf_wings3d import load_wings3d_dataset
 import json
 import os
 import shutil
@@ -31,7 +28,6 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
-from engibench.problems.wings3D.pyopt_history import History
 from engibench.problems.wings3D.templates import cli_interface
 from engibench.problems.wings3D.utils import calc_area
 from engibench.problems.wings3D.utils import calc_off_wall_distance
@@ -47,6 +43,9 @@ if find_spec("pyoptsparse") is None:
     sys.modules["pyoptsparse"] = fake_pyoptsparse
 
 DesignType = dict[str, Any]
+
+# Expected dimensionality of the wing coordinate array: (n_slices, n_points, 2)
+COORDS_NDIMS = 3
 
 
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
@@ -80,7 +79,7 @@ def does_not_self_intersect(design: DesignType) -> None:
     """Check that no wing slice has self intersections."""
     coords = np.asarray(design["coords"])
 
-    if coords.ndim != 3:
+    if coords.ndim != COORDS_NDIMS:
         raise ValueError(f"Expected coords with shape (n_slices, n_points, 2), got {coords.shape}")
 
     for slice_idx, curve in enumerate(coords):
@@ -89,6 +88,7 @@ def does_not_self_intersect(design: DesignType) -> None:
             f"design: Slice {slice_idx} self-intersects at segment {intersection[0]}: "
             f"{intersection[1]} -- {intersection[2]}"
         )
+
 
 class Wings3D(Problem[DesignType]):
     r"""Wings3D 3D shape optimization problem.
@@ -115,7 +115,6 @@ class Wings3D(Problem[DesignType]):
     dataset_id = "Cashen/optiwing3d_engibench"
     container_id = "mdolab/public:u22-gcc-ompi-stable"
     __local_study_dir: str
-    #self.dataset_id = dataset_id
 
     @dataclass
     class Conditions:
@@ -257,10 +256,7 @@ class Wings3D(Problem[DesignType]):
         )
 
         # Save the design to a temporary file. Format to 1e-6 rounding
-        np.savetxt(
-            self.__local_study_dir + "/" + filename + ".dat",
-            scaled_design.reshape(-1, 2)
-        )
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.reshape(-1, 2))
         # Launches a docker container with the pre_process.py script
         # The script generates the mesh and FFD files
         bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && python {self.__docker_study_dir}/pre_process.py '{json.dumps(dataclasses.asdict(args))}'"
@@ -324,17 +320,18 @@ class Wings3D(Problem[DesignType]):
 
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4):
         """Simulate the performance (dummy for now)."""
+        del config, mpicores
 
         # Ensure angle_of_attack is a float
         if isinstance(design["angle_of_attack"], np.ndarray):
             design["angle_of_attack"] = design["angle_of_attack"][0]
 
         # Dummy simulation
-        drag = float(np.random.uniform(0.01, 0.05))
-        lift = float(np.random.uniform(0.3, 1.2))
+        rng = np.random.default_rng()
+        drag = float(rng.uniform(0.01, 0.05))
+        lift = float(rng.uniform(0.3, 1.2))
 
         return np.array([drag, lift])
-
 
     def optimize(
         self, starting_point: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
@@ -349,6 +346,8 @@ class Wings3D(Problem[DesignType]):
         Returns:
             tuple[dict[str, Any], list[OptiStep]]: The optimized design and its performance.
         """
+        del mpicores
+
         if isinstance(starting_point["angle_of_attack"], np.ndarray):
             starting_point["angle_of_attack"] = starting_point["angle_of_attack"][0]
 
@@ -362,7 +361,7 @@ class Wings3D(Problem[DesignType]):
             raise ValueError("optimize(): config is missing the required parameter 'area_initial'")
         if "opt" in config:
             config["opt"] = cli_interface.Algorithm[config["opt"]]
-        args = cli_interface.OptimizeParameters(
+        _args = cli_interface.OptimizeParameters(
             **{
                 **dataclasses.asdict(self.Conditions()),
                 "alpha": starting_point["angle_of_attack"],
@@ -385,7 +384,7 @@ class Wings3D(Problem[DesignType]):
         }
 
         # post process -- extract the shape and objective values
-        optisteps_history = []
+        optisteps_history: list[OptiStep] = []
 
         return opt_design, optisteps_history
 
@@ -402,8 +401,7 @@ class Wings3D(Problem[DesignType]):
         """
         fig, ax = plt.subplots()
         coords = design["coords"]
-        alpha = design["angle_of_attack"]
-        alpha_val = float(np.asarray(alpha).squeeze())
+        alpha = float(np.asarray(design["angle_of_attack"]).squeeze())
 
         for curve in coords:
             ax.plot(curve[:, 0], curve[:, 1], alpha=0.8)
@@ -455,35 +453,26 @@ class Wings3D(Problem[DesignType]):
         coords = np.stack([np.stack(s) for s in raw_coords]).astype(np.float32)
 
         # Remove duplicates and interpolate to ensure exactly N_POINTS per slice
-        from scipy.interpolate import interp1d
+
         for i in range(len(coords)):
             slice_coords = coords[i]
             unique_coords, unique_indices = np.unique(slice_coords, axis=0, return_index=True)
             unique_indices = np.sort(unique_indices)
             unique_coords = slice_coords[unique_indices]
-            
+
             if len(unique_coords) < self.N_POINTS:
                 # Interpolate to N_POINTS
                 t_old = np.linspace(0, 1, len(unique_coords))
                 t_new = np.linspace(0, 1, self.N_POINTS)
-                interp_x = interp1d(t_old, unique_coords[:, 0], kind='linear')
-                interp_y = interp1d(t_old, unique_coords[:, 1], kind='linear')
+                interp_x = interp1d(t_old, unique_coords[:, 0], kind="linear")
+                interp_y = interp1d(t_old, unique_coords[:, 1], kind="linear")
                 new_x = interp_x(t_new)
                 new_y = interp_y(t_new)
                 slice_coords = np.column_stack((new_x, new_y)).astype(np.float32)
             elif len(unique_coords) > self.N_POINTS:
-                slice_coords = unique_coords[:self.N_POINTS]
+                slice_coords = unique_coords[: self.N_POINTS]
             else:
                 slice_coords = unique_coords
-            
-            # # Check orientation and reverse if clockwise
-            # x = slice_coords[:, 0]
-            # y = slice_coords[:, 1]
-            # area = 0.5 * np.sum(x[:-1]*y[1:] - x[1:]*y[:-1]) + 0.5*(x[-1]*y[0] - x[0]*y[-1])
-            # if area < 0:
-            #     slice_coords = slice_coords[::-1]
-            
-            coords[i] = slice_coords
 
         angle_of_attack = dataset_split_data["alpha"][rnd]
 
@@ -491,6 +480,7 @@ class Wings3D(Problem[DesignType]):
             "coords": coords,
             "angle_of_attack": np.array([angle_of_attack], dtype=np.float32),
         }, rnd
+
 
 if __name__ == "__main__":
     # Initialize the problem
@@ -506,20 +496,14 @@ if __name__ == "__main__":
     print("Initial design (shape): ", design["coords"].shape)
     print("Initial angle of attack: ", design["angle_of_attack"])
 
-    # Get the config conditions from  the dataset
-    config = dataset["train"][idx]
-
+    # Get the config conditions from the dataset
+    dataset_config = dataset["train"][idx]
 
     # Simulate the design
-    print("Simulation results: ", problem.simulate(design, config=config, mpicores=8))
-
-    # Cleanup the study directory; will delete the previous contents from simulate in this case
-    #problem.reset(seed=1, cleanup=True)
+    print("Simulation results: ", problem.simulate(design, config=dataset_config, mpicores=8))
 
     # Get design and conditions from the dataset, render design
-    opt_design, optisteps_history = problem.optimize(design, config=config, mpicores=8)
+    opt_design, optisteps_history = problem.optimize(design, config=dataset_config, mpicores=8)
     print("Optimized design: ", opt_design)
     print("Optimization history: ", optisteps_history)
 
-    # Render the final optimized design
-    #problem.render(opt_design, open_window=False, save=False)
