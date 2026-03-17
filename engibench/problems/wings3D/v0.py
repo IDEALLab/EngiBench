@@ -474,7 +474,7 @@ class Wings3D(Problem[DesignType]):
             else:
                 slice_coords = unique_coords
 
-        angle_of_attack = dataset_split_data["alpha"][rnd]
+        angle_of_attack = dataset_split_data["alpha"][rnd]euler-tunnel start
 
         return {
             "coords": coords,
