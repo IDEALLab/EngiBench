@@ -108,6 +108,54 @@ class FeaModel:
 
         return h, hs
 
+    def has_converged(self, change: float, iterr: int) -> bool:
+        """Determines whether the optimization process has converged based on the change in design variables and iteration count.
+
+        Args:
+            change (float): The maximum change in design variables from the previous iteration.
+            iterr (int): The current iteration number.
+
+        Returns:
+            bool: True if the optimization has converged, False otherwise. Convergence is defined as either:
+                - The change in design variables is below a predefined threshold and a minimum number of iterations have been completed.
+                - The maximum number of iterations has been reached.
+        """
+        if iterr >= self.max_iter:
+            return True
+        return change < UPDATE_THRESHOLD and iterr >= MIN_ITERATIONS
+
+    def record_step(
+        self,
+        opti_steps: list,
+        obj_values: np.ndarray,
+        iterr: int,
+        x_curr: np.ndarray,
+        x_update: np.ndarray,
+        *,
+        extra_iter: bool,
+    ):  # noqa: PLR0913
+        """Helper to handle OptiStep creation and updates.
+
+        Args:
+            opti_steps (list): The list of OptiStep instances to update.
+            obj_values (np.ndarray): The current objective values to record.
+            iterr (int): The current iteration number.
+            x_curr (np.ndarray): The current design variable field before the update.
+            x_update (np.ndarray): The change in design variables from the last update.
+            extra_iter (bool): Flag indicating if this is the extra iteration after convergence for gradient information gathering.
+
+        Returns:
+            None. This function updates the opti_steps list in place.
+        """
+        if extra_iter is False:
+            step = OptiStep(obj_values=obj_values, step=iterr, x=x_curr, x_update=x_update)
+            opti_steps.append(step)
+
+        if len(opti_steps) > 1:
+            # Targeting the most recent step to update its 'delta'
+            target_idx = -2 if not extra_iter else -1
+            opti_steps[target_idx].obj_values_update = obj_values.copy() - opti_steps[target_idx].obj_values
+
     def run(self, bcs: dict[str, Any], x_init: np.ndarray | None = None) -> dict[str, Any]:  # noqa: PLR0915
         """Run the optimization algorithm for the coupled structural-thermal problem.
 
@@ -157,7 +205,7 @@ class FeaModel:
 
         # 2. Parameters
         penal = 3  # Penalty term
-        rmin = 1.1  # Filter's radius
+        rmin = 1.5  # Filter's radius
         e = 1.0  # Modulus of elasticity
         nu = 0.3  # Poisson's ratio
         k = 1.0  # Conductivity
@@ -177,6 +225,9 @@ class FeaModel:
         c = 10000 * np.ones((m, 1))
         d = np.zeros((m, 1))
 
+        # Convergence / Iteration Criteria
+        extra_iter = False  # This flag denotes if we are on the final extra iteration (for purpose of gathering gradient information)
+
         # 3. Matrices
         ke, k_eth, c_ethm = self.get_matricies(nu, e, k, alpha)
 
@@ -190,7 +241,7 @@ class FeaModel:
         f0valm = 0.0
         f0valt = 0.0
 
-        while change > UPDATE_THRESHOLD or iterr < MIN_ITERATIONS:
+        while not self.has_converged(change, iterr) or extra_iter is True:
             iterr += 1
             s_time = time.time()
             curr_time = time.time()
@@ -287,10 +338,11 @@ class FeaModel:
                     "thermal_compliance": f0valt,
                     "volume_fraction": vf_error,
                 }
+
+            # OptiStep Information
             vf_error = np.abs(np.mean(x) - volfrac)
             obj_values = np.array([f0valm, f0valt, vf_error])
-            opti_step = OptiStep(obj_values=obj_values, step=iterr)
-            opti_steps.append(opti_step)
+            x_curr = x.copy()  # Design variables before the gradient update (nely, nelx)
 
             df0dx = df0dx_mat.reshape(nely * nelx, 1)
             df0dx = (h @ (xval * df0dx)) / hs[:, None] / np.maximum(1e-3, xval)  # Filtered sensitivity
@@ -333,6 +385,12 @@ class FeaModel:
 
             x = xmma.reshape(nely, nelx)
 
+            # Extract the exact gradient update step for OptiStep
+            x_update = x.copy() - x_curr
+
+            # Record the OptiStep
+            self.record_step(opti_steps, obj_values, iterr, x_curr, x_update, extra_iter=extra_iter)
+
             # Print results
             change = np.max(np.abs(xmma - xold1))
             change_evol.append(change)
@@ -342,8 +400,15 @@ class FeaModel:
                 f" It.: {iterr:4d} Obj.: {f0val:10.4f} Vol.: {np.sum(x) / (nelx * nely):6.3f} ch.: {change:6.3f} || t_forward:{t_forward:6.3f} + t_sensitivity:{t_sensitivity:6.3f} + t_sens_calc:{t_sensitivity_calc:6.3f} + t_mma: {t_mma:6.3f} = {t_total:6.3f}"
             )
 
-            if iterr > self.max_iter:
-                break
+            # If extra_iter is True, we just did our last iteration and want to break
+            if extra_iter is True:
+                x = xold1.reshape(nely, nelx)  # Revert to design before the last update (for accurate gradient information)
+                break  # We technically don't have to break here, as the logic is built into the loop condition
+
+            # We know we are not on the extra iteration
+            # Check to see if we have converged. If so, flag our extra iteration
+            if self.has_converged(change, iterr):
+                extra_iter = True
 
         print("Optimization finished...")
         vf_error = np.abs(np.mean(x) - volfrac)
