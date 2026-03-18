@@ -135,6 +135,12 @@ if __name__ == "__main__":
         default=20.0,
         help="Minimum sampling bound for angle of attack.",
     )
+    parser.add_argument(
+        "--field_output",
+        action="store_true",
+        default=False,
+        help="Include surface field variables (VelocityX, VelocityY, VelocityZ, CoefPressure) in simulation output.",
+    )
     args = parser.parse_args()
 
     # HPC account for job submission
@@ -153,6 +159,9 @@ if __name__ == "__main__":
     group_size = args.group_size
     n_slurm_array = args.num_slurm_array
     minutes_per_sim = args.minutes_per_simulation
+
+    # Field output flag
+    field_output = args.field_output
 
     # Flow parameter and angle of attack ranges
     min_ma = args.min_mach_number
@@ -200,6 +209,7 @@ if __name__ == "__main__":
             problem_configuration = {"mach": ma, "reynolds": re, "alpha": alpha}
             config = {"problem_configuration": problem_configuration, "configuration_id": config_id}
             config["design"] = design["coords"]
+            config["field_output"] = field_output
             simulate_configs_designs.append(config)
             config_id += 1
 

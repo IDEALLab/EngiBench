@@ -32,6 +32,7 @@ from engibench.problems.airfoil.templates import cli_interface
 from engibench.problems.airfoil.utils import calc_area
 from engibench.problems.airfoil.utils import calc_off_wall_distance
 from engibench.problems.airfoil.utils import reorder_coords
+from engibench.problems.airfoil.utils import reorder_coords_fields
 from engibench.problems.airfoil.utils import scale_coords
 from engibench.utils import container
 from engibench.utils.files import clone_dir
@@ -259,14 +260,20 @@ class Airfoil(Problem[DesignType]):
 
         return filename
 
-    def simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
+    def simulator_output_to_design(
+        self, simulator_output: str | None = None, field_output: bool = False
+    ) -> npt.NDArray[np.float32]:
         """Converts a simulator output to a design.
 
         Args:
             simulator_output (str): The simulator output to convert. If None, the latest slice file is used.
+            field_output (bool): If True, returns ordered coordinates together with their corresponding
+                surface field variables (VelocityX, VelocityY, VelocityZ, CoefPressure) as an array of
+                shape ``(6, N)``. If False (default), returns only the ordered coordinates as shape ``(2, N)``.
 
         Returns:
-            np.ndarray: The corresponding design.
+            np.ndarray: The reordered airfoil coordinates, shape ``(2, N)``, or coordinates with field
+                variables, shape ``(6, N)``, when ``field_output=True``.
         """
         if simulator_output is None:
             # Take latest slice file
@@ -304,18 +311,28 @@ class Airfoil(Problem[DesignType]):
         # Concatenate node connections to the main data
         slice_df = pd.concat([slice_df, nodes_arr], axis=1)
 
+        if field_output:
+            return reorder_coords_fields(slice_df)
         return reorder_coords(slice_df)
 
-    def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
+    def simulate(
+        self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4, field_output: bool = False
+    ) -> npt.NDArray | tuple[npt.NDArray, npt.NDArray]:
         """Simulates the performance of an airfoil design.
 
         Args:
             design (dict): The design to simulate.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
             mpicores (int): The number of MPI cores to use in the simulation.
+            field_output (bool): If True, also returns surface field variables (velocity components and
+                pressure coefficient) alongside the aerodynamic performance. Returns a tuple
+                ``(np.array([drag, lift]), surface_fields)`` where ``surface_fields`` has shape ``(6, N)``
+                with rows ``[x, y, VelocityX, VelocityY, VelocityZ, CoefPressure]``.
 
         Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
+            npt.NDArray | tuple[npt.NDArray, npt.NDArray]: ``np.array([drag, lift])`` when
+                ``field_output=False``, or ``(np.array([drag, lift]), surface_fields)`` when
+                ``field_output=True``.
         """
         if isinstance(design["angle_of_attack"], np.ndarray):
             design["angle_of_attack"] = design["angle_of_attack"][0]
@@ -353,6 +370,9 @@ class Airfoil(Problem[DesignType]):
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
         drag = float(outputs[4])
+        if field_output:
+            surface_fields = self.simulator_output_to_design(field_output=True)
+            return np.array([drag, lift]), surface_fields
         return np.array([drag, lift])
 
     def optimize(

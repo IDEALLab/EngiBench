@@ -7,7 +7,9 @@ import numpy as np
 from engibench.problems.airfoil.v0 import Airfoil
 
 
-def simulate_slurm(problem_configuration: dict, configuration_id: int, design: list) -> dict:
+def simulate_slurm(
+    problem_configuration: dict, configuration_id: int, design: list, field_output: bool = False
+) -> dict:
     """Takes in the given configuration and designs, then runs the simulation analysis.
 
     Any arguments should be things that you want to change across the different jobs, and anything
@@ -18,6 +20,9 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
             For the airfoil problem this includes Mach number, Reynolds number, and angle of attack.
         configuration_id (int): A unique identifier for the job for later debugging or tracking.
         design (list): list of lists defining x and y coordinates of airfoil geometry.
+        field_output (bool): If True, surface field variables (velocity components and pressure
+            coefficient) are extracted from the simulation and included in the returned dict under
+            the key ``"surface_fields"``.
 
     Returns:
         "performance_dict": Dictionary of aerodynamic performance (lift & drag).
@@ -25,6 +30,9 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
             the time taken for dataset generation.
         "problem_configuration": Problem configuration parameters
         "configuration_id": Identifier for specific simulation configurations
+        "surface_fields": Array of shape ``(6, N)`` with rows
+            ``[x, y, VelocityX, VelocityY, VelocityZ, CoefPressure]`` (only present when
+            ``field_output=True``).
     """
     # Instantiate problem
     problem = Airfoil()
@@ -41,19 +49,26 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
     print("Starting `simulate` via SLURM...")
     start_time = time.time()
 
-    performance = problem.simulate(my_design, mpicores=1, config=problem_configuration)
-    performance_dict = {"drag": performance[0], "lift": performance[1]}
+    performance = problem.simulate(my_design, mpicores=1, config=problem_configuration, field_output=field_output)
+    if field_output:
+        aerodynamics, surface_fields = performance
+        performance_dict = {"drag": aerodynamics[0], "lift": aerodynamics[1]}
+    else:
+        performance_dict = {"drag": performance[0], "lift": performance[1]}
     print("Finished `simulate` via SLURM.")
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Elapsed time for `simulate`: {elapsed_time:.2f} seconds")
 
-    return {
+    result = {
         "performance_dict": performance_dict,
         "simulate_time": elapsed_time,
         "problem_configuration": problem_configuration,
         "configuration_id": configuration_id,
     }
+    if field_output:
+        result["surface_fields"] = surface_fields
+    return result
 
 
 def optimize_slurm(problem_configuration: dict, configuration_id: int, design: list):
