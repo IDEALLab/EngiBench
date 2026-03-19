@@ -1,0 +1,882 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>Problem constraints &#8212; EngiBench Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=8878045cc6db502f8baf" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=3c74b3bc" />
+  
+  <!-- So that users can add custom icons -->
+  <script src="../../_static/scripts/fontawesome.js?digest=8878045cc6db502f8baf"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf" />
+
+    <script src="../../_static/documentation_options.js?v=238f96fa"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'development/problem_constraints';</script>
+    <link rel="icon" href="../../_static/logo_2.png"/>
+    <link rel="index" title="Index" href="../../genindex/" />
+    <link rel="search" title="Search" href="../../search/" />
+    <link rel="prev" title="Adding a new problem" href="../new_problem/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  </head>
+  
+  
+  <body data-bs-spy="scroll" data-bs-target=".bd-toc-nav" data-offset="180" data-bs-root-margin="0px 0px -60%" data-default-mode="">
+
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/logo_2.png" class="logo__image only-light" alt="EngiBench Documentation - Home"/>
+    <img src="../../_static/logo_2.png" class="logo__image only-dark pst-js-only" alt="EngiBench Documentation - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/install/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/basic_usage/">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/api/">API</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Problems</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/photonics2d/">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/power_electronics/">PowerElectronics</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction2d/">Heat Conduction 2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction3d/">Heat Conduction 3D</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/external/">External Problems</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Algorithms</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via slurm</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench">Github</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md">Contribute to the Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../new_problem/">Adding a new problem</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Problem constraints</a></li>
+
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item">
+<div class="sidebar-versions">
+  <div class="sidebar-group">
+    <div class="sidebar-heading">
+      <span>Versions</span>
+    </div>
+    <ul class="version-list">
+      
+      <li class="version-item">
+        <a href="/" class="version-link">
+          main
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1/" class="version-link">
+          v0.0.1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha0/" class="version-link">
+          v0.0.1-alpha0
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha1/" class="version-link">
+          v0.0.1-alpha1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha2/" class="version-link">
+          v0.0.1-alpha2
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha3/" class="version-link">
+          v0.0.1-alpha3
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.1.0/" class="version-link">
+          v0.1.0
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.2.0/" class="version-link">
+          v0.2.0
+          
+        </a>
+      </li>
+      
+    </ul>
+  </div>
+</div>
+
+<style>
+.sidebar-versions {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background: var(--color-sidebar-background);
+  border-radius: 4px;
+}
+
+.sidebar-heading {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-sidebar-caption-text);
+}
+
+.version-list {
+  list-style: none;
+  padding-left: 0.5rem;
+  margin: 0;
+}
+
+.version-item {
+  margin: 0.25rem 0;
+}
+
+.version-link {
+  color: var(--color-sidebar-link-text);
+  text-decoration: none;
+  display: block;
+  padding: 0.25rem 0;
+}
+
+.version-link:hover {
+  color: var(--color-sidebar-link-text--hover);
+}
+
+.version-current {
+  font-size: 0.875em;
+  opacity: 0.7;
+  margin-left: 0.3em;
+}
+
+.current .version-link {
+  font-weight: 600;
+  color: var(--color-sidebar-link-text--active);
+}
+</style>
+</div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/development/problem_constraints.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fdevelopment/problem_constraints.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button pst-js-only" aria-label="Color mode" data-bs-title="Color mode"  data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <i class="theme-switch fa-solid fa-sun                fa-lg" data-mode="light" title="Light"></i>
+  <i class="theme-switch fa-solid fa-moon               fa-lg" data-mode="dark"  title="Dark"></i>
+  <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg" data-mode="auto"  title="System Settings"></i>
+</button>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>Problem constraints</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Problem constraints</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.THEORY"><code class="docutils literal notranslate"><span class="pre">THEORY</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.IMPL"><code class="docutils literal notranslate"><span class="pre">IMPL</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Criticality"><code class="docutils literal notranslate"><span class="pre">Criticality</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Criticality.Error"><code class="docutils literal notranslate"><span class="pre">Criticality.Error</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Criticality.Warning"><code class="docutils literal notranslate"><span class="pre">Criticality.Warning</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simple-constraint-only-constraining-a-single-parameter">Simple constraint, only constraining a single parameter</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.bounded"><code class="docutils literal notranslate"><span class="pre">constraint.bounded()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.less_than"><code class="docutils literal notranslate"><span class="pre">constraint.less_than()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.greater_than"><code class="docutils literal notranslate"><span class="pre">constraint.greater_than()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constraint-which-also-may-affect-more-than-one-parameter">Constraint which also may affect more than one parameter</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-beams2d">Example: Beams2D</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-custom-constraints">Writing custom constraints</a></li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.constraint"><code class="docutils literal notranslate"><span class="pre">constraint()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint"><code class="docutils literal notranslate"><span class="pre">Constraint</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.categories"><code class="docutils literal notranslate"><span class="pre">Constraint.categories</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.category"><code class="docutils literal notranslate"><span class="pre">Constraint.category()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.check"><code class="docutils literal notranslate"><span class="pre">Constraint.check</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.check_dict"><code class="docutils literal notranslate"><span class="pre">Constraint.check_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.check_value"><code class="docutils literal notranslate"><span class="pre">Constraint.check_value()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.criticality"><code class="docutils literal notranslate"><span class="pre">Constraint.criticality</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.warning"><code class="docutils literal notranslate"><span class="pre">Constraint.warning()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="problem-constraints">
+<h1>Problem constraints<a class="headerlink" href="#problem-constraints" title="Link to this heading">#</a></h1>
+<p>The <a class="reference internal" href="../../introduction/api/#engibench.core.Problem" title="engibench.core.Problem"><span class="xref myst py py-class"><code class="docutils literal notranslate"><span class="pre">Problem</span></code></span></a> class provides a <a class="reference internal" href="../../introduction/api/#engibench.core.Problem.check_constraints" title="engibench.core.Problem.check_constraints"><span class="xref myst py py-meth"><code class="docutils literal notranslate"><span class="pre">check_constraints</span></code></span></a> method to validate input parameters.</p>
+<p>So that it works, problems have to declare the constraints for their parameters in their <code class="docutils literal notranslate"><span class="pre">Conditions</span></code> class member (which itself is a <a class="reference external" href="https://docs.python.org/3/library/dataclasses.html">dataclass</a>).</p>
+<p>Constraints can have the following categories:</p>
+<dl class="py data">
+<dt class="sig sig-object py" id="engibench.constraint.THEORY">
+<span class="sig-prename descclassname"><span class="pre">engibench.constraint.</span></span><span class="sig-name descname"><span class="pre">THEORY</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;Category.Theory:</span> <span class="pre">1&gt;</span></span><a class="headerlink" href="#engibench.constraint.THEORY" title="Link to this definition">#</a></dt>
+<dd><p>The constraint is not known to cause a runtime error, values outside of
+the constraint domain are unphysical and might lead to unphysical domains.</p>
+</dd></dl>
+
+<dl class="py data">
+<dt class="sig sig-object py" id="engibench.constraint.IMPL">
+<span class="sig-prename descclassname"><span class="pre">engibench.constraint.</span></span><span class="sig-name descname"><span class="pre">IMPL</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">&lt;Category.Implementation:</span> <span class="pre">2&gt;</span></span><a class="headerlink" href="#engibench.constraint.IMPL" title="Link to this definition">#</a></dt>
+<dd><p>Violating the constraint, will cause runtime errors / undefined behavior
+due to the implementation.</p>
+</dd></dl>
+
+<p>A constraint can have more than one category. The <code class="docutils literal notranslate"><span class="pre">|</span></code> operator can be used to combine categories.</p>
+<p>On top of categories, constraints have a criticality level (<a class="reference internal" href="#engibench.constraint.Criticality.Error" title="engibench.constraint.Criticality.Error"><span class="xref myst py py-attr"><code class="docutils literal notranslate"><span class="pre">Error</span></code></span></a> by default)</p>
+<dl class="py class">
+<dt class="sig sig-object py" id="engibench.constraint.Criticality">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">engibench.constraint.</span></span><span class="sig-name descname"><span class="pre">Criticality</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/engibench/constraint/#Criticality"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.constraint.Criticality" title="Link to this definition">#</a></dt>
+<dd><p>Criticality of a constraint violation.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="engibench.constraint.Criticality.Error">
+<span class="sig-name descname"><span class="pre">Error</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></span><a class="headerlink" href="#engibench.constraint.Criticality.Error" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="engibench.constraint.Criticality.Warning">
+<span class="sig-name descname"><span class="pre">Warning</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">2</span></span><a class="headerlink" href="#engibench.constraint.Criticality.Warning" title="Link to this definition">#</a></dt>
+<dd></dd></dl>
+
+</dd></dl>
+
+<p>There are 2 ways to declare a constraint:</p>
+<section id="simple-constraint-only-constraining-a-single-parameter">
+<h2>Simple constraint, only constraining a single parameter<a class="headerlink" href="#simple-constraint-only-constraining-a-single-parameter" title="Link to this heading">#</a></h2>
+<p>Use <a class="reference external" href="https://docs.python.org/3/library/typing.html#typing.Annotated">typing.Annotated</a>,
+where the annotation is one or multiple <a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="xref myst py py-class"><code class="docutils literal notranslate"><span class="pre">Constraint</span></code></span></a> objects.</p>
+<p>Predefined constraints are:</p>
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.constraint.bounded">
+<span class="sig-prename descclassname"><span class="pre">constraint.</span></span><span class="sig-name descname"><span class="pre">bounded</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">upper</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">T</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="pre">Constraint</span></a></span></span><a class="headerlink" href="#engibench.constraint.bounded" title="Link to this definition">#</a></dt>
+<dd><p>Create a constraint which checks that the specified parameter is contained in an interval <cite>[lower, upper]</cite>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.constraint.less_than">
+<span class="sig-prename descclassname"><span class="pre">constraint.</span></span><span class="sig-name descname"><span class="pre">less_than</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="pre">Constraint</span></a></span></span><a class="headerlink" href="#engibench.constraint.less_than" title="Link to this definition">#</a></dt>
+<dd><p>Create a constraint which checks that the specified parameter is less than <cite>upper</cite>.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.constraint.greater_than">
+<span class="sig-prename descclassname"><span class="pre">constraint.</span></span><span class="sig-name descname"><span class="pre">greater_than</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="pre">Constraint</span></a></span></span><a class="headerlink" href="#engibench.constraint.greater_than" title="Link to this definition">#</a></dt>
+<dd><p>Create a constraint which checks that the specified parameter is greater than <cite>lower</cite>.</p>
+</dd></dl>
+
+<p>Example:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span>    <span class="nd">@dataclass</span>
+    <span class="k">class</span><span class="w"> </span><span class="nc">Conditions</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Conditions.&quot;&quot;&quot;</span>
+
+        <span class="n">volfrac</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
+            <span class="nb">float</span><span class="p">,</span>
+            <span class="n">bounded</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mf">0.0</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="mf">1.0</span><span class="p">)</span><span class="o">.</span><span class="n">category</span><span class="p">(</span><span class="n">THEORY</span><span class="p">),</span>
+            <span class="n">bounded</span><span class="p">(</span><span class="n">lower</span><span class="o">=</span><span class="mf">0.1</span><span class="p">,</span> <span class="n">upper</span><span class="o">=</span><span class="mf">0.9</span><span class="p">)</span><span class="o">.</span><span class="n">warning</span><span class="p">()</span><span class="o">.</span><span class="n">category</span><span class="p">(</span><span class="n">IMPL</span><span class="p">),</span>
+        <span class="p">]</span> <span class="o">=</span> <span class="mf">0.35</span>
+</pre></div>
+</div>
+<p>Here, we declare a <a class="reference internal" href="#engibench.constraint.THEORY" title="engibench.constraint.THEORY"><span class="xref myst py py-data"><code class="docutils literal notranslate"><span class="pre">THEORY</span></code></span></a>/<a class="reference internal" href="#engibench.constraint.Criticality.Error" title="engibench.constraint.Criticality.Error"><span class="xref myst py py-attr"><code class="docutils literal notranslate"><span class="pre">Error</span></code></span></a> constraint and a <a class="reference internal" href="#engibench.constraint.IMPL" title="engibench.constraint.IMPL"><span class="xref myst py py-data"><code class="docutils literal notranslate"><span class="pre">IMPL</span></code></span></a>/<a class="reference internal" href="#engibench.constraint.Criticality.Warning" title="engibench.constraint.Criticality.Warning"><span class="xref myst py py-attr"><code class="docutils literal notranslate"><span class="pre">Warning</span></code></span></a> constraint for the <code class="docutils literal notranslate"><span class="pre">volfrac</span></code> parameter.</p>
+</section>
+<section id="constraint-which-also-may-affect-more-than-one-parameter">
+<h2>Constraint which also may affect more than one parameter<a class="headerlink" href="#constraint-which-also-may-affect-more-than-one-parameter" title="Link to this heading">#</a></h2>
+<p>Add a static method, decorated with the <a class="reference internal" href="#engibench.constraint.constraint" title="engibench.constraint.constraint"><span class="xref myst py py-func"><code class="docutils literal notranslate"><span class="pre">&#64;constraint</span></code></span></a> decorator.</p>
+<p>Example:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span>    <span class="nd">@dataclass</span>
+    <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">(</span><span class="n">Conditions</span><span class="p">):</span>
+<span class="w">        </span><span class="sd">&quot;&quot;&quot;Structured representation of conditions.&quot;&quot;&quot;</span>
+
+        <span class="n">rmin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
+        <span class="n">nelx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
+        <span class="n">nely</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">50</span>
+
+        <span class="nd">@constraint</span>
+        <span class="nd">@staticmethod</span>
+        <span class="k">def</span><span class="w"> </span><span class="nf">rmin_bound</span><span class="p">(</span><span class="n">rmin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">nelx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nely</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+<span class="w">            </span><span class="sd">&quot;&quot;&quot;Constraint for rmin ∈ (0.0, max{ nelx, nely }].&quot;&quot;&quot;</span>
+            <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">rmin</span> <span class="o">&lt;=</span> <span class="nb">max</span><span class="p">(</span><span class="n">nelx</span><span class="p">,</span> <span class="n">nely</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Params.rmin: </span><span class="si">{</span><span class="n">rmin</span><span class="si">}</span><span class="s2"> ∉ (0, max(nelx, nely)]&quot;</span>
+</pre></div>
+</div>
+<p>This declares a constraint for the 3 parameters (<code class="docutils literal notranslate"><span class="pre">rmin</span></code>, <code class="docutils literal notranslate"><span class="pre">nelx</span></code>, <code class="docutils literal notranslate"><span class="pre">nely</span></code>) with custom logic. This constraint does not have any category.
+If we would want to add a category, <code class="docutils literal notranslate"><span class="pre">&#64;constraint</span></code> could be replaced by <code class="docutils literal notranslate"><span class="pre">&#64;constraint(category=ERROR)</span></code> for example.</p>
+</section>
+<section id="example-beams2d">
+<h2>Example: Beams2D<a class="headerlink" href="#example-beams2d" title="Link to this heading">#</a></h2>
+<p>Here, we provide a concrete example for the <a class="reference internal" href="../../problems/beams2d/"><span class="std std-doc">Beams2D</span></a> problem that illustrates when
+to use certain constraints over others.</p>
+<ol class="arabic simple">
+<li><p>The case for a <a class="reference internal" href="#engibench.constraint.THEORY" title="engibench.constraint.THEORY"><span class="xref myst py py-data"><code class="docutils literal notranslate"><span class="pre">THEORY</span></code></span></a>/<a class="reference internal" href="#engibench.constraint.Criticality.Error" title="engibench.constraint.Criticality.Error"><span class="xref myst py py-attr"><code class="docutils literal notranslate"><span class="pre">Error</span></code></span></a> constraint:
+We know that for a topology optimization problem like <a class="reference internal" href="../../problems/beams2d/"><span class="std std-doc">Beams2D</span></a>, the volume fraction <code class="docutils literal notranslate"><span class="pre">volfrac</span></code> must be defined between 0 and 1 because the design
+space must be somewhere between empty void (0) and completely filled with solid material (1). Therefore, this <strong>must</strong> be our theoretical bound and
+we declare <code class="docutils literal notranslate"><span class="pre">bounded(lower=0.0,</span> <span class="pre">upper=1.0).category(THEORY)</span></code> as an argument when defining <code class="docutils literal notranslate"><span class="pre">volfrac</span></code>. Violating this constraint will throw an error,
+because it is physically impossible to have a volume fraction outside of this range.</p></li>
+<li><p>The case for a <a class="reference internal" href="#engibench.constraint.IMPL" title="engibench.constraint.IMPL"><span class="xref myst py py-data"><code class="docutils literal notranslate"><span class="pre">IMPL</span></code></span></a>/<a class="reference internal" href="#engibench.constraint.Criticality.Warning" title="engibench.constraint.Criticality.Warning"><span class="xref myst py py-attr"><code class="docutils literal notranslate"><span class="pre">Warning</span></code></span></a> constraint:
+Through experimentation, we have found that values of <code class="docutils literal notranslate"><span class="pre">volfrac</span></code> below 0.1 lead to solver instability and high compliance values, as there is not
+enough material available for the optimizer to provide adequate support against the applied force. We have also found that values above 0.9 do not
+provide any structurally meaningful solutions, since the design space can be almost completely filled with solid material. Therefore, we
+<strong>recommend</strong> users to stay within these practical implementation bounds, declaring <code class="docutils literal notranslate"><span class="pre">bounded(lower=0.1,</span> <span class="pre">upper=0.9).warning().category(IMPL)</span></code> as
+another argument of <code class="docutils literal notranslate"><span class="pre">volfrac</span></code>. Violating this constraint will produce a warning summarizing the above explanation, but allow the user to continue.</p></li>
+</ol>
+</section>
+<section id="writing-custom-constraints">
+<h2>Writing custom constraints<a class="headerlink" href="#writing-custom-constraints" title="Link to this heading">#</a></h2>
+<p>Using custom logic using the <code class="docutils literal notranslate"><span class="pre">&#64;constraint</span></code> form is straight forward - as shown in the above example with the <code class="docutils literal notranslate"><span class="pre">rmin_bound</span></code> constraint.
+But also custom logic inside <code class="docutils literal notranslate"><span class="pre">Annotated[]</span></code> is supported. Every <a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="xref myst py py-class"><code class="docutils literal notranslate"><span class="pre">Constraint</span></code></span></a>
+objects object inside <code class="docutils literal notranslate"><span class="pre">Annotated[]</span></code> is considered a constraint.
+The simplest case is an unparametrized constraint:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.constraint</span><span class="w"> </span><span class="kn">import</span> <span class="n">Constraint</span>
+
+<span class="n">non_zero</span> <span class="o">=</span> <span class="n">Constraint</span><span class="p">(</span><span class="k">lambda</span> <span class="n">value</span><span class="p">:</span> <span class="n">value</span> <span class="o">!=</span> <span class="mi">0</span><span class="p">)</span>
+</pre></div>
+</div>
+<p>Parameterizable constraints are defined as functions returning <a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="xref myst py py-class"><code class="docutils literal notranslate"><span class="pre">Constraint</span></code></span></a> objects:</p>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.constraint</span><span class="w"> </span><span class="kn">import</span> <span class="n">Constraint</span>
+
+<span class="k">def</span><span class="w"> </span><span class="nf">not_equal_to</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Constraint</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a constraint which checks that the specified parameter is not equal to `value`.&quot;&quot;&quot;</span>
+
+    <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">actual_value</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
+        <span class="k">assert</span> <span class="n">actual_value</span> <span class="o">!=</span> <span class="n">value</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;value == </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+
+    <span class="k">return</span> <span class="n">Constraint</span><span class="p">(</span><span class="n">check</span><span class="p">)</span>
+</pre></div>
+</div>
+</section>
+</section>
+<section class="tex2jax_ignore mathjax_ignore" id="api">
+<h1>API<a class="headerlink" href="#api" title="Link to this heading">#</a></h1>
+<dl class="py function">
+<dt class="sig sig-object py" id="engibench.constraint.constraint">
+<span class="sig-prename descclassname"><span class="pre">engibench.constraint.</span></span><span class="sig-name descname"><span class="pre">constraint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">check</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span></em>, <em class="sig-param"><span class="positional-only-separator o"><abbr title="Positional-only parameter separator (PEP 570)"><span class="pre">/</span></abbr></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="pre">Constraint</span></a></span></span><a class="reference internal" href="../../_modules/engibench/constraint/#constraint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.constraint.constraint" title="Link to this definition">#</a></dt>
+<dt class="sig sig-object py">
+<span class="sig-prename descclassname"><span class="pre">engibench.constraint.</span></span><span class="sig-name descname"><span class="pre">constraint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="keyword-only-separator o"><abbr title="Keyword-only parameters separator (PEP 3102)"><span class="pre">*</span></abbr></span></em>, <em class="sig-param"><span class="n"><span class="pre">categories</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Category</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">UNCATEGORIZED</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">criticality</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><a class="reference internal" href="#engibench.constraint.Criticality" title="engibench.constraint.Criticality"><span class="pre">Criticality</span></a></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">Criticality.Error</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="pre">Constraint</span></a><span class="p"><span class="pre">]</span></span></span></span></dt>
+<dd><p>Decorator for check callbacks to convert the callback to a <a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><code class="xref py py-class docutils literal notranslate"><span class="pre">Constraint</span></code></a>.</p>
+</dd></dl>
+
+<dl class="py class">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint">
+<span class="property"><span class="k"><span class="pre">class</span></span><span class="w"> </span></span><span class="sig-prename descclassname"><span class="pre">engibench.constraint.</span></span><span class="sig-name descname"><span class="pre">Constraint</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="pre">check:</span> <span class="pre">~collections.abc.Callable[[...],</span> <span class="pre">None],</span> <span class="pre">categories:</span> <span class="pre">~engibench.constraint.Category</span> <span class="pre">=</span> <span class="pre">&lt;Category:</span> <span class="pre">0&gt;,</span> <span class="pre">criticality:</span> <span class="pre">~engibench.constraint.Criticality</span> <span class="pre">=</span> <span class="pre">Criticality.Error</span></em><span class="sig-paren">)</span><a class="reference internal" href="../../_modules/engibench/constraint/#Constraint"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.constraint.Constraint" title="Link to this definition">#</a></dt>
+<dd><p>Constraint for parameters passed to e.g. <a class="reference internal" href="../../introduction/api/#engibench.core.Problem.optimize" title="engibench.core.Problem.optimize"><code class="xref py py-meth docutils literal notranslate"><span class="pre">engibench.core.Problem.optimize()</span></code></a>.</p>
+<dl class="py attribute">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint.categories">
+<span class="sig-name descname"><span class="pre">categories</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Category</span></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">0</span></span><a class="headerlink" href="#engibench.constraint.Constraint.categories" title="Link to this definition">#</a></dt>
+<dd><p>Categories of the constraint.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint.category">
+<span class="sig-name descname"><span class="pre">category</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">category</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Category</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="pre">Constraint</span></a></span></span><a class="reference internal" href="../../_modules/engibench/constraint/#Constraint.category"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.constraint.Constraint.category" title="Link to this definition">#</a></dt>
+<dd><p>Return a copy of the constraint which has the specified category added.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint.check">
+<span class="sig-name descname"><span class="pre">check</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="pre">Callable</span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">[</span></span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">None</span><span class="p"><span class="pre">]</span></span></span><a class="headerlink" href="#engibench.constraint.Constraint.check" title="Link to this definition">#</a></dt>
+<dd><p>Check callback raising an AssertError if the constraint is violated.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint.check_dict">
+<span class="sig-name descname"><span class="pre">check_dict</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">parameter_args</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Violation</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/engibench/constraint/#Constraint.check_dict"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.constraint.Constraint.check_dict" title="Link to this definition">#</a></dt>
+<dd><p>Check for a violation of the given constraint for the given parameters.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint.check_value">
+<span class="sig-name descname"><span class="pre">check_value</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">value</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">Any</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">Violation</span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span></span><a class="reference internal" href="../../_modules/engibench/constraint/#Constraint.check_value"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.constraint.Constraint.check_value" title="Link to this definition">#</a></dt>
+<dd><p>Check for a violation for the given single positional value.</p>
+</dd></dl>
+
+<dl class="py attribute">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint.criticality">
+<span class="sig-name descname"><span class="pre">criticality</span></span><span class="property"><span class="p"><span class="pre">:</span></span><span class="w"> </span><a class="reference internal" href="#engibench.constraint.Criticality" title="engibench.constraint.Criticality"><span class="pre">Criticality</span></a></span><span class="property"><span class="w"> </span><span class="p"><span class="pre">=</span></span><span class="w"> </span><span class="pre">1</span></span><a class="headerlink" href="#engibench.constraint.Constraint.criticality" title="Link to this definition">#</a></dt>
+<dd><p>Criticality of a violation of the constraint.</p>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.constraint.Constraint.warning">
+<span class="sig-name descname"><span class="pre">warning</span></span><span class="sig-paren">(</span><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><a class="reference internal" href="#engibench.constraint.Constraint" title="engibench.constraint.Constraint"><span class="pre">Constraint</span></a></span></span><a class="reference internal" href="../../_modules/engibench/constraint/#Constraint.warning"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.constraint.Constraint.warning" title="Link to this definition">#</a></dt>
+<dd><p>Return a copy of the constraint with the criticality level set to “warning”.</p>
+</dd></dl>
+
+</dd></dl>
+
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../new_problem/"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Adding a new problem</p>
+      </div>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="visible nav section-nav flex-column">
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#">Problem constraints</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.THEORY"><code class="docutils literal notranslate"><span class="pre">THEORY</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.IMPL"><code class="docutils literal notranslate"><span class="pre">IMPL</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Criticality"><code class="docutils literal notranslate"><span class="pre">Criticality</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Criticality.Error"><code class="docutils literal notranslate"><span class="pre">Criticality.Error</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Criticality.Warning"><code class="docutils literal notranslate"><span class="pre">Criticality.Warning</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simple-constraint-only-constraining-a-single-parameter">Simple constraint, only constraining a single parameter</a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.bounded"><code class="docutils literal notranslate"><span class="pre">constraint.bounded()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.less_than"><code class="docutils literal notranslate"><span class="pre">constraint.less_than()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.greater_than"><code class="docutils literal notranslate"><span class="pre">constraint.greater_than()</span></code></a></li>
+</ul>
+</li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#constraint-which-also-may-affect-more-than-one-parameter">Constraint which also may affect more than one parameter</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-beams2d">Example: Beams2D</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#writing-custom-constraints">Writing custom constraints</a></li>
+</ul>
+</li>
+<li class="toc-h1 nav-item toc-entry"><a class="reference internal nav-link" href="#api">API</a><ul class="visible nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.constraint"><code class="docutils literal notranslate"><span class="pre">constraint()</span></code></a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint"><code class="docutils literal notranslate"><span class="pre">Constraint</span></code></a><ul class="nav section-nav flex-column">
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.categories"><code class="docutils literal notranslate"><span class="pre">Constraint.categories</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.category"><code class="docutils literal notranslate"><span class="pre">Constraint.category()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.check"><code class="docutils literal notranslate"><span class="pre">Constraint.check</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.check_dict"><code class="docutils literal notranslate"><span class="pre">Constraint.check_dict()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.check_value"><code class="docutils literal notranslate"><span class="pre">Constraint.check_value()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.criticality"><code class="docutils literal notranslate"><span class="pre">Constraint.criticality</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.constraint.Constraint.warning"><code class="docutils literal notranslate"><span class="pre">Constraint.warning()</span></code></a></li>
+</ul>
+</li>
+</ul>
+</li>
+</ul>
+
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By ETH Zurich's IDEAL Lab
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=8878045cc6db502f8baf"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=8878045cc6db502f8baf"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>

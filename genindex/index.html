@@ -184,14 +184,13 @@
 </ul>
 </details></li>
 </ul>
-<p aria-level="2" class="caption" role="heading"><span class="caption-text">Tutorials</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../tutorials/new_problem/">Adding a new problem</a></li>
-</ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Development</span></p>
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench">Github</a></li>
 <li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md">Contribute to the Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/new_problem/">Adding a new problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../development/problem_constraints/">Problem constraints</a></li>
+
 </ul>
 
     </div>
@@ -458,9 +457,11 @@
 
 <div class="genindex-jumpbox">
  <a href="#A"><strong>A</strong></a>
+ | <a href="#B"><strong>B</strong></a>
  | <a href="#C"><strong>C</strong></a>
  | <a href="#D"><strong>D</strong></a>
  | <a href="#E"><strong>E</strong></a>
+ | <a href="#G"><strong>G</strong></a>
  | <a href="#I"><strong>I</strong></a>
  | <a href="#J"><strong>J</strong></a>
  | <a href="#L"><strong>L</strong></a>
@@ -470,6 +471,8 @@
  | <a href="#P"><strong>P</strong></a>
  | <a href="#R"><strong>R</strong></a>
  | <a href="#S"><strong>S</strong></a>
+ | <a href="#T"><strong>T</strong></a>
+ | <a href="#W"><strong>W</strong></a>
  
 </div>
 <h2 id="A">A</h2>
@@ -484,20 +487,46 @@
   </ul></td>
 </tr></table>
 
+<h2 id="B">B</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.bounded">bounded() (engibench.constraint method)</a>
+</li>
+  </ul></td>
+</tr></table>
+
 <h2 id="C">C</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint.categories">categories (engibench.constraint.Constraint attribute)</a>
+</li>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint.category">category() (engibench.constraint.Constraint method)</a>
+</li>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint.check">check (engibench.constraint.Constraint attribute)</a>
+</li>
       <li><a href="../introduction/api/#engibench.core.Problem.check_constraints">check_constraints() (engibench.core.Problem method)</a>
+</li>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint.check_dict">check_dict() (engibench.constraint.Constraint method)</a>
+</li>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint.check_value">check_value() (engibench.constraint.Constraint method)</a>
 </li>
       <li><a href="../introduction/api/#engibench.core.Problem.conditions">conditions (engibench.core.Problem attribute)</a>
 </li>
   </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint">Constraint (class in engibench.constraint)</a>
+</li>
       <li><a href="../utils/slurm/#engibench.utils.slurm.SlurmConfig.constraint">constraint (engibench.utils.slurm.SlurmConfig attribute)</a>
+</li>
+      <li><a href="../development/problem_constraints/#engibench.constraint.constraint">constraint() (in module engibench.constraint)</a>
 </li>
       <li><a href="../introduction/api/#engibench.core.Problem.container_id">container_id (engibench.core.Problem attribute)</a>
 </li>
       <li><a href="../utils/container/#engibench.utils.container.ContainerRuntime">ContainerRuntime (class in engibench.utils.container)</a>
+</li>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Criticality">Criticality (class in engibench.constraint)</a>
+</li>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint.criticality">criticality (engibench.constraint.Constraint attribute)</a>
 </li>
   </ul></td>
 </tr></table>
@@ -521,13 +550,29 @@
 <h2 id="E">E</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
   <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Criticality.Error">Error (engibench.constraint.Criticality attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../utils/slurm/#engibench.utils.slurm.SlurmConfig.extra_args">extra_args (engibench.utils.slurm.SlurmConfig attribute)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="G">G</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.greater_than">greater_than() (engibench.constraint method)</a>
 </li>
   </ul></td>
 </tr></table>
 
 <h2 id="I">I</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.IMPL">IMPL (in module engibench.constraint)</a>
+</li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../utils/container/#engibench.utils.container.ContainerRuntime.is_available">is_available() (engibench.utils.container.ContainerRuntime class method)</a>
 </li>
@@ -544,6 +589,10 @@
 
 <h2 id="L">L</h2>
 <table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.less_than">less_than() (engibench.constraint method)</a>
+</li>
+  </ul></td>
   <td style="width: 33%; vertical-align: top;"><ul>
       <li><a href="../utils/slurm/#engibench.utils.slurm.SlurmConfig.log_dir">log_dir (engibench.utils.slurm.SlurmConfig attribute)</a>
 </li>
@@ -642,6 +691,26 @@
       <li><a href="../utils/slurm/#engibench.utils.slurm.SlurmConfig">SlurmConfig (class in engibench.utils.slurm)</a>
 </li>
       <li><a href="../utils/slurm/#engibench.utils.slurm.SubmittedJobArray">SubmittedJobArray (class in engibench.utils.slurm)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="T">T</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.THEORY">THEORY (in module engibench.constraint)</a>
+</li>
+  </ul></td>
+</tr></table>
+
+<h2 id="W">W</h2>
+<table style="width: 100%" class="indextable genindextable"><tr>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Criticality.Warning">Warning (engibench.constraint.Criticality attribute)</a>
+</li>
+  </ul></td>
+  <td style="width: 33%; vertical-align: top;"><ul>
+      <li><a href="../development/problem_constraints/#engibench.constraint.Constraint.warning">warning() (engibench.constraint.Constraint method)</a>
 </li>
   </ul></td>
 </tr></table>
