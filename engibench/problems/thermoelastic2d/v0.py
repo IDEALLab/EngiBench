@@ -76,7 +76,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
     conditions = Conditions()
     design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY), dtype=np.float32)
-    dataset_id = "IDEALLab/thermoelastic_2d_v0"
+    dataset_id = "IDEALLab/thermoelastic_2d_v1"
     container_id = None
 
     @dataclass
