@@ -8,7 +8,7 @@ from engibench.problems.airfoil.v0 import Airfoil
 
 
 def simulate_slurm(
-    problem_configuration: dict, configuration_id: int, design: list, field_output: bool = False
+    problem_configuration: dict, configuration_id: int, design: list, *, field_output: bool = False
 ) -> dict:
     """Takes in the given configuration and designs, then runs the simulation analysis.
 

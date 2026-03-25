@@ -261,7 +261,7 @@ class Airfoil(Problem[DesignType]):
         return filename
 
     def simulator_output_to_design(
-        self, simulator_output: str | None = None, field_output: bool = False
+        self, simulator_output: str | None = None, *, field_output: bool = False
     ) -> npt.NDArray[np.float32]:
         """Converts a simulator output to a design.
 
