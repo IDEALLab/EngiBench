@@ -9,6 +9,7 @@ experiment/engibench_studies/
 apptainer-cache/
 engibench/problems/airfoil/device_dataset_slurm_airfoil.py
 engibench/problems/airfoil/test_imports.py
+engibench/problems/airfoil/input_data/
 experiment/
 singularity-cache/
 scratch/
@@ -169,3 +170,6 @@ cython_debug/
 # Editors
 .idea/
 .vscode/
+
+# Singularity / Apptainer
+*.sif
