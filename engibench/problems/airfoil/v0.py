@@ -315,9 +315,7 @@ class Airfoil(Problem[DesignType]):
             return reorder_coords_fields(slice_df)
         return reorder_coords(slice_df)
 
-    def simulate(
-        self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4, field_output: bool = False
-    ) -> npt.NDArray | tuple[npt.NDArray, npt.NDArray]:
+    def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
         """Simulates the performance of an airfoil design.
 
         Args:
@@ -370,10 +368,66 @@ class Airfoil(Problem[DesignType]):
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
         drag = float(outputs[4])
-        if field_output:
-            surface_fields = self.simulator_output_to_design(field_output=True)
-            return np.array([drag, lift]), surface_fields
+
         return np.array([drag, lift])
+
+    def simulate_field(
+        self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
+    ) -> tuple[npt.NDArray, npt.NDArray]:
+        """Simulates the performance of an airfoil design.
+
+        Args:
+            design (dict): The design to simulate.
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
+            mpicores (int): The number of MPI cores to use in the simulation.
+            field_output (bool): If True, also returns surface field variables (velocity components and
+                pressure coefficient) alongside the aerodynamic performance. Returns a tuple
+                ``(np.array([drag, lift]), surface_fields)`` where ``surface_fields`` has shape ``(6, N)``
+                with rows ``[x, y, VelocityX, VelocityY, VelocityZ, CoefPressure]``.
+
+        Returns:
+            npt.NDArray | tuple[npt.NDArray, npt.NDArray]: ``np.array([drag, lift])`` when
+                ``field_output=False``, or ``(np.array([drag, lift]), surface_fields)`` when
+                ``field_output=True``.
+        """
+        if isinstance(design["angle_of_attack"], np.ndarray):
+            design["angle_of_attack"] = design["angle_of_attack"][0]
+
+        # pre-process the design and run the simulation
+
+        # Prepares the airfoil_analysis.py script with the simulation configuration
+        conditions = self.Conditions()
+        config = config or {}
+        args = cli_interface.AnalysisParameters(
+            alpha=design["angle_of_attack"],
+            altitude=config.get("altitude", 10000),
+            temperature=config.get("temperature", 300),
+            reynolds=config.get("reynolds", conditions.reynolds),
+            mach=config.get("mach", conditions.mach),
+            use_altitude=config.get("use_altitude", False),
+            output_dir=config.get("output_dir", self.__docker_study_dir + "/output/"),
+            mesh_fname=config.get("mesh_fname", self.__docker_study_dir + "/design.cgns"),
+            task=cli_interface.Task[config["task"]] if "task" in config else cli_interface.Task.ANALYSIS,
+        )
+        self.__design_to_simulator_input(design, mach=args.mach, reynolds=args.reynolds, temperature=args.temperature)
+
+        # Launches a docker container with the airfoil_analysis.py script
+        # The script takes a mesh and ffd and performs an optimization
+        bash_command = f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && mpirun -np {mpicores} python -m mpi4py {self.__docker_study_dir}/airfoil_analysis.py '{json.dumps(args.to_dict())}'"
+        assert self.container_id is not None, "Container ID is not set"
+        container.run(
+            command=["/bin/bash", "-c", bash_command],
+            image=self.container_id,
+            name="machaero",
+            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            sync_uid=True,
+        )
+
+        outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
+        lift = float(outputs[3])
+        drag = float(outputs[4])
+        surface_fields = self.simulator_output_to_design(field_output=True)
+        return np.array([drag, lift]), surface_fields
 
     def optimize(
         self, starting_point: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4

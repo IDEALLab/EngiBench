@@ -7,9 +7,7 @@ import numpy as np
 from engibench.problems.airfoil.v0 import Airfoil
 
 
-def simulate_slurm(
-    problem_configuration: dict, configuration_id: int, design: list, *, field_output: bool = False
-) -> dict:
+def simulate_slurm(problem_configuration: dict, configuration_id: int, design: list, *, field_output: bool = False) -> dict:
     """Takes in the given configuration and designs, then runs the simulation analysis.
 
     Any arguments should be things that you want to change across the different jobs, and anything
@@ -49,11 +47,11 @@ def simulate_slurm(
     print("Starting `simulate` via SLURM...")
     start_time = time.time()
 
-    performance = problem.simulate(my_design, mpicores=1, config=problem_configuration, field_output=field_output)
     if field_output:
-        aerodynamics, surface_fields = performance
-        performance_dict = {"drag": aerodynamics[0], "lift": aerodynamics[1]}
+        performance, surface_fields = problem.simulate_field(my_design, mpicores=1, config=problem_configuration)
+        performance_dict = {"drag": performance[0], "lift": performance[1], "surface_fields": surface_fields}
     else:
+        performance = problem.simulate(my_design, mpicores=1, config=problem_configuration)
         performance_dict = {"drag": performance[0], "lift": performance[1]}
     print("Finished `simulate` via SLURM.")
     end_time = time.time()
