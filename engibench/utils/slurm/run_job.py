@@ -7,6 +7,7 @@ import shutil
 import sys
 from typing import Any
 
+from engibench.utils.slurm import dump_with_job_error
 from engibench.utils.slurm import JobError
 from engibench.utils.slurm import MemorizeModule
 
@@ -40,32 +41,31 @@ def map_job_group(work_dir: str, n_jobs: int) -> None:
             with open(os.path.join(work_dir, "jobs", f"{index}.pkl"), "rb") as stream:
                 args = pickle.load(stream)
         except Exception as e:  # noqa: BLE001
-            with open(result_path, "wb") as out_stream:
-                pickle.dump(JobError(e, "Unpickle job array item", {}), out_stream)
+            dump_with_job_error(JobError(e, "Unpickle job array item", {}), result_path)
             continue
         try:
             result = map_callback(**args)
-            with open(result_path, "wb") as out_stream:
-                pickle.dump(MemorizeModule(result), out_stream)
+            dump_with_job_error(MemorizeModule(result), result_path)
         except Exception as e:  # noqa: BLE001
-            with open(result_path, "wb") as out_stream:
-                pickle.dump(JobError(e, "Run job array item", args), out_stream)
+            dump_with_job_error(JobError(e, "Run job array item", args), result_path)
 
 
 def reduce_job_results(work_dir: str, n_jobs: int) -> None:
     """Collect all results or errors from job array jobs, passing to a reduce callback."""
     results = []  # prepare empty list for error, occurring before `results` is assigned a value
+    reduced_pkl = os.path.join(work_dir, "reduced.pkl")
     try:
         with open(os.path.join(work_dir, "jobs", "reduce.pkl"), "rb") as in_stream:
             reduce_callback = pickle.load(in_stream)
 
         results = collect_jobs(work_dir, n_jobs)
         reduced = reduce_callback(results)
+        dump_with_job_error(MemorizeModule(reduced), reduced_pkl)
     except Exception as e:  # noqa: BLE001
         errors = [e] + [err for err in results if isinstance(err, Exception)]
-        reduced = JobError(ExceptionGroup("", errors), "reduce", {}) if errors else JobError(e, "reduce", {})
-    with open(os.path.join(work_dir, "reduced.pkl"), "wb") as out_stream:
-        pickle.dump(MemorizeModule(reduced), out_stream)
+        dump_with_job_error(
+            JobError(ExceptionGroup("", errors), "reduce", {}) if errors else JobError(e, "reduce", {}), reduced_pkl
+        )
 
 
 def save(work_dir: str, n_jobs: int, out: str) -> None:
@@ -74,8 +74,7 @@ def save(work_dir: str, n_jobs: int, out: str) -> None:
 
     if not any(isinstance(r, JobError) for r in results):
         shutil.rmtree(work_dir)
-    with open(out, "wb") as out_stream:
-        pickle.dump(results, out_stream)
+    dump_with_job_error(results, out)
 
 
 def collect_jobs(work_dir: str, n_jobs: int) -> list[Any]:

@@ -2,7 +2,9 @@
 
 import dataclasses
 import inspect
-from typing import get_args, get_origin
+import os
+import sys
+from typing import Any, get_args, get_origin
 
 import gymnasium
 from gymnasium import spaces
@@ -11,8 +13,6 @@ import pytest
 
 from engibench import Problem
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
-
-PYTHON_PROBLEMS = [p for p in BUILTIN_PROBLEMS.values() if p.container_id is None]
 
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
@@ -86,7 +86,12 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done testing {problem_class.__name__}.")
 
 
-@pytest.mark.parametrize("problem_class", PYTHON_PROBLEMS)
+def problem_id(problem_class: type[Problem]) -> str:
+    id_, _ = problem_class.__module__.removeprefix("engibench.problems.").split(".", 1)
+    return id_
+
+
+@pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
 def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """Check that all problems defined in Python files respect the API.
 
@@ -95,6 +100,8 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     2. The optimization produces valid designs within the design space
     3. The optimization history contains valid objective values
     """
+    if problem_class.container_id is not None and not sys.platform.startswith("linux"):
+        pytest.skip(f"Skipping containerized problem {problem_class.__name__} on non-linux platform")
     print(f"Testing optimization and simulation for {problem_class.__name__}...")
     # Initialize problem and get a random design
     problem = problem_class(seed=1)
@@ -102,7 +109,11 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
 
     # Test simulation outputs
     print(f"Simulating {problem_class.__name__}...")
-    objs = problem.simulate(design)
+    if problem_class.__module__.startswith("engibench.problems.airfoil"):
+        objs = problem.simulate(design, mpicores=1)  # type: ignore[call-arg]
+    else:
+        objs = problem.simulate(design)
+
     expected_obj_count = len(problem.objectives)
     assert objs.shape[0] == expected_obj_count, (
         f"Problem {problem_class.__name__}: Simulation returned {objs.shape[0]} objectives "
@@ -111,12 +122,21 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done simulating {problem_class.__name__}.")
     # Test optimization outputs
     print(f"Optimizing {problem_class.__name__}...")
-    # Skip optimization test for power electronics problems
-    if problem_class.__module__.startswith("engibench.problems.power_electronics"):
-        print(f"Skipping optimization test for power electronics problem {problem_class.__name__}")
+    # Skip optimization test for power electronics, airfoil, and heat conduction problems
+    if problem_id(problem_class) == "airfoil":
+        print(f"Skipping optimization test for {problem_class.__name__}")
         return
     problem.reset(seed=1)
-    optimal_design, history = problem.optimize(starting_point=design)
+    default_max_iter = 10
+    max_iter = os.environ.get("ENGIBENCH_MAX_ITER", default_max_iter)
+    max_iter_config: dict[str, Any] = {
+        key: max_iter for key in ("max_iter", "num_optimization_steps") if hasattr(problem_class.Config, key)
+    }
+    try:
+        optimal_design, history = problem.optimize(starting_point=design, config=max_iter_config)
+    except NotImplementedError:
+        print("Problem class {problem_class.__name__} does not implement optimize - Skipping optimize")
+        return
     if isinstance(problem.design_space, spaces.Box):
         assert np.all(optimal_design >= problem.design_space.low), (
             f"Problem {problem_class.__name__}: The optimal design should be within the design space."

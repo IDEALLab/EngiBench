@@ -81,14 +81,18 @@ Both EngiBench and EngiOpt are open source projects and we welcome contributions
 
 ### Installation
 <!-- start dev-install -->
-To install EngiBench for development, clone the repo, install the pre-commit hooks, and install all dev dependencies:
+To install EngiBench for development, clone the repo, install the [pre-commit](https://pre-commit.com/) hooks, and install all dev dependencies:
 
-```bash
+```sh
 git clone git@github.com:IDEALLab/EngiBench.git
 cd EngiBench
 pre-commit install
 pip install -e ".[dev]"
 ```
+
+Our pre-commit config also includes a hook to ensure compliance with [conventional commit](https://www.conventionalcommits.org)
+formatting (see [CONTRIBUTING.md](./CONTRIBUTING.md#commit-message-format)).
+
 Also worth installing [`ruff`](https://docs.astral.sh/ruff/) and [`mypy`](https://www.mypy-lang.org/) in your editor as we are checking the code style and type safety on our CI.
 <!-- end dev-install -->
 
@@ -106,14 +110,12 @@ All the associated datasets are licensed under the CC-BY-NC-SA 4.0 license.
 If you use EngiBench in your research, please cite the following paper:
 
 ```bibtex
-@misc{felten_engibench_2025,
+@inproceedings{felten_engibench_2025,
 	title = {{EngiBench}: {A} {Framework} for {Data}-{Driven} {Engineering} {Design} {Research}},
-	url = {http://arxiv.org/abs/2508.00831},
-	doi = {10.48550/arXiv.2508.00831},
-	urldate = {2025-08-07},
-	publisher = {arXiv},
+	url = {https://openreview.net/forum?id=YowD33Q89V},
+	urldate = {2025-10-07},
 	author = {Felten, Florian and Apaza, Gabriel and B\¨aunlich, Gerhard and Diniz, Cashen and Dong, Xuliang and Drake, Arthur and Habibi, Milad and Hoffman, Nathaniel J. and Keeler, Matthew and Massoudi, Soheyl and VanGessel, Francis G. and Fuge, Mark},
-	month = jun,
+	booktitle = {Proceedings of the 39th Conference on Neural Information Processing Systems ({NeurIPS} 2025)},
 	year = {2025},
 }
 ```

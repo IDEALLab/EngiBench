@@ -47,3 +47,15 @@ For example,
 - [x] I have done this task
 - [ ] I have not done this task
 -->
+
+
+# Reviewer Checklist:
+
+- [ ] The content of this PR brings value to the community. It is not too specific to a particular use case.
+- [ ] The tests and checks pass (linting, formatting, type checking). For a new problem, double check the github actions workflow to ensure the problem is being tested.
+- [ ] The documentation is updated.
+- [ ] The code is understandable and commented. No large code blocks are left unexplained, no huge file. Can I read and understand the code easily?
+- [ ] There is no merge conflict.
+- [ ] The changes are not breaking the existing results (datasets, training curves, etc.). If they do, is there a good reason for it? And is the associated problem version bumped?
+- [ ] For a new problem, has the dataset been generated with our slurm script so we can re-generate it if needed? (This also ensures that the problem is running on the HPC.)
+- [ ] For bugfixes, it is a robust fix and not a hacky workaround.

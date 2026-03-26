@@ -2,8 +2,6 @@
 
 import os
 import shutil
-from string import Template
-from typing import Any
 
 
 def _create_study_dir(study_dir: str) -> None:
@@ -50,34 +48,4 @@ def clone_dir(source_dir: str, target_dir: str) -> None:
                     raise RuntimeError(msg) from e
     except Exception as e:
         msg = f"Failed to clone directory from {source_dir} to {target_dir}: {e!s}"
-        raise RuntimeError(msg) from e
-
-
-def replace_template_values(template_fname: str, values: dict[str, Any]) -> None:
-    """Replace values in a template file.
-
-    Args:
-        template_fname (str): Path to the template file.
-        values (dict[str, Any]): Dictionary with the values to replace.
-    """
-    if not os.path.exists(template_fname):
-        msg = f"Template file does not exist: {template_fname}"
-        raise FileNotFoundError(msg)
-
-    try:
-        with open(template_fname) as f:
-            template = Template(f.read())
-            try:
-                content = template.substitute(values)
-            except KeyError as e:
-                msg = f"Missing required template value: {e}"
-                raise ValueError(msg) from e
-            except ValueError as e:
-                msg = f"Invalid template value: {e}"
-                raise ValueError(msg) from e
-
-        with open(template_fname, "w") as f:
-            f.write(content)
-    except OSError as e:
-        msg = f"Failed to process template file {template_fname}: {e!s}"
         raise RuntimeError(msg) from e

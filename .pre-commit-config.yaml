@@ -1,5 +1,7 @@
 # See https://pre-commit.com for more information
 # See https://pre-commit.com/hooks.html for more hooks
+---
+default_install_hook_types: [pre-commit, commit-msg]
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v5.0.0
@@ -25,6 +27,10 @@ repos:
         args:
           - --skip=*.ipynb,engibench/problems/airfoil/pyopt_history.py
           - --ignore-words-list=mor,le,te,ure,varn
+  - repo: https://gitlab.ethz.ch/sis/tools/conventional-commit-lint
+    rev: 0.9.0
+    hooks:
+      - id: conventional-commit-lint
   - repo: local
     hooks:
       - id: pyright

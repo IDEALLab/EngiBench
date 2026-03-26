@@ -24,7 +24,11 @@ class Category(Flag):
 
 
 IMPL = Category.Implementation
+"""Violating the constraint, will cause runtime errors / undefined behavior
+  due to the implementation."""
 THEORY = Category.Theory
+"""The constraint is not known to cause a runtime error, values outside of
+ the constraint domain are unphysical and might lead to unphysical domains."""
 UNCATEGORIZED = Category(0)
 
 
@@ -37,7 +41,7 @@ class Criticality(Enum):
 
 @dataclass
 class Constraint:
-    """Constraint for parameters passed to e.g. :method:`engibench.core.Problem.optimize()`."""
+    """Constraint for parameters passed to e.g. :py:meth:`engibench.core.Problem.optimize()`."""
 
     check: Check
     """Check callback raising an AssertError if the constraint is violated."""
@@ -216,7 +220,7 @@ def check_optimize_constraints(
     design: Any,
     config: dict[str, Any],
 ) -> Violations:
-    """Specifically check the arguments of :method:`engibench.core.Problem.optimize()`."""
+    """Specifically check the arguments of :meth:`engibench.core.Problem.optimize()`."""
     return check_constraints(constraints, {"design": design, **config})
 
 

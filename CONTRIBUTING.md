@@ -16,6 +16,13 @@ EngiBench aims to simplify research and adoption of ML for engineering design. W
 * Ensure your PR description clearly explains the problem and your solution. Reference the related issue if applicable.
 * Verify your code passes all required checks (see our [PR template](https://github.com/IDEALLab/EngiBench/blob/main/.github/PULL_REQUEST_TEMPLATE.md) for details).
 
+### Commit Message Format
+
+We follow the rules of [conventional commit](https://www.conventionalcommits.org).
+This will be checked in our CI by [conventional-commit-lint](https://gitlab.ethz.ch/sis/tools/conventional-commit-lint).
+A [commit-msg hook](https://git-scm.com/book/en/v2/Customizing-Git-Git-Hooks) is provided by our
+[.pre-commit-config.yaml](./.pre-commit-config.yaml).
+
 ### Documentation or Cosmetic Changes
 
 * Open a PR for fixes such as typos, formatting, or minor documentation updates.

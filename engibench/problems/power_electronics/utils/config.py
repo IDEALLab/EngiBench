@@ -63,7 +63,7 @@ class Config:
     switch_L1: list[float] = field(init=False)  # Binary.
     switch_L2: list[float] = field(init=False)  # Binary.
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         """Post-initialization of the Config object."""
         assert self.target_dir, "target_dir must be set before using the Config object."
         self.netlist_dir: str = os.path.normpath(os.path.join(self.target_dir, "./data/netlist"))
@@ -98,7 +98,7 @@ class Config:
         self.switch_L1 = []
         self.switch_L2 = []
 
-    def __str__(self):
+    def __str__(self) -> str:
         """More readable print()."""
         return f"""Config:
             - Target Directory: {self.target_dir}

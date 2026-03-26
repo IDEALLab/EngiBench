@@ -29,10 +29,9 @@ preferred-citation:
     - family-names: Fuge
       given-names: Mark
   date-released: 2025-06-01
-  doi: 10.48550/arXiv.2508.00831
-  url: "http://arxiv.org/abs/2508.00831"
+  collection-title: "Proceedings of the 39th Conference on Neural Information Processing Systems ({NeurIPS} 2025)"
+  url: "https://openreview.net/forum?id=YowD33Q89V"
   version: "2025"
-  publisher: "arXiv"
 authors:
   - family-names: Felten
     given-names: Florian
@@ -59,8 +58,7 @@ authors:
   - family-names: Fuge
     given-names: Mark
 date-released: 2025-06-01
-doi: 10.48550/arXiv.2508.00831
-url: "http://arxiv.org/abs/2508.00831"
+collection-title: "Proceedings of the 39th Conference on Neural Information Processing Systems ({NeurIPS} 2025)"
+url: "https://openreview.net/forum?id=YowD33Q89V"
 version: "2025"
-publisher: "arXiv"
 message: "If you use EngiBench in your research, please cite this work."

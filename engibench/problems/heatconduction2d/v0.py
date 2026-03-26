@@ -5,11 +5,11 @@ The problem is solved using the dolfin-adjoint software within a Docker containe
 """
 
 from dataclasses import dataclass
-import os
-import subprocess
+from pathlib import Path
 from typing import Annotated, Any
 
 from gymnasium import spaces
+from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
@@ -22,7 +22,9 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
-from engibench.utils import container
+from engibench.problems.heatconduction2d.shared import load_float
+from engibench.problems.heatconduction2d.shared import run_container_script
+from engibench.utils.cli import np_array_to_bytes
 
 
 @constraint(categories=THEORY, criticality=Criticality.Warning)
@@ -38,50 +40,12 @@ def volume_fraction_bound(design: npt.NDArray, volume: float) -> None:
 class HeatConduction2D(Problem[npt.NDArray]):
     r"""HeatConduction 2D topology optimization problem.
 
-    ## Problem Description
     This problem simulates the performance of a Topology optimisation of heat conduction problems governed by the Poisson equation (https://www.dolfin-adjoint.org/en/stable/documentation/poisson-topology/poisson-topology.html)
     ## Motivation
     Heat conduction problems serve as fundamental benchmarks for the development and evaluation of design optimization methods, with applications ranging from thermal management in electronic devices to insulation systems and
     heat exchangers in industrial applications. As thermal management has become critical in fields such as aerospace, automotive, and consumer electronics,  both industry and academia have shown growing interest in advanced thermal
     design systems. In response to this demand, topology optimization has become popular as a powerful approach for improving heat dissipation while minimizing material usage.  In addition, the development of additive manufacturing
     technologies has made the complex geometries produced by topology optimization more feasible to fabricate in real-world applications.
-
-    ## Design space
-    These problems are a specific subset of topology optimization problems aimed at minimizing thermal compliance within a unit square (2D) subject to: a constraint on the volume of highly conductive material used, and given boundary conditions,
-    particularly the location of the adiabatic region. The adiabatic region refers to a symmetric length on the bottom side of the 2D problem space . The design space for the 2D problem consists of a 2D array representing solid densities,
-    which is parametrized by resolution, that is, 'DesignSpace = [0,1] By default, a $101 \times 101$ space is used for the 2D problem.
-
-    ## Objectives
-    The objective is defined and indexed as follows:
-
-    0. `c`: Thermal compliance coefficient to minimize.
-
-    ## Conditions
-    The conditions are defined by the following parameters:
-    - `volume`: the volume limits on the material distributions
-    - `length`: The length of the adiabatic region on the bottom side of the design domain.
-
-    ## Simulator
-    The simulator is a docker container with the dolfin-adjoint software that computes the thermal compliance of the design.
-    We convert use intermediary files to convert from and to the simulator that is run from a Docker image.
-
-    ## Dataset
-    The dataset has been generated the dolfin-adjoint software. It is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0).
-
-    ### v0
-
-    #### Fields
-    The dataset only contains conditions and optimal designs (no objective).
-
-    #### Creation Method
-    The creation method for the dataset is specified in the reference paper.
-
-    ## References
-    If you use this problem in your research, please cite the following paper:
-    Milad Habibi, Jun Wang, and Mark Fuge, "When Is it Actually Worth Learning Inverse Design?" in IDETC 2023. doi: https://doi.org/10.1115/DETC2023-116678
-
-    ## Lead
-    Milad Habibi @MIladHB
     """
 
     version = 0
@@ -96,9 +60,9 @@ class HeatConduction2D(Problem[npt.NDArray]):
             bounded(lower=0.0, upper=1.0).category(THEORY),
             bounded(lower=0.3, upper=0.6).warning().category(IMPL),
         ] = 0.5
-        """Volume constraint"""
+        """Volume limits on the material distributions"""
         length: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
-        """Length constraint"""
+        """Length of the adiabatic region on the bottom side of the design domain"""
 
     @dataclass
     class Config(Conditions):
@@ -108,6 +72,8 @@ class HeatConduction2D(Problem[npt.NDArray]):
             int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
         ] = 101
         """Resolution of the design space for the initialization"""
+        max_iter: int = 100
+        """Maximum number of iterations for the solver in `optimize()`."""
 
     config: Config
 
@@ -146,24 +112,17 @@ class HeatConduction2D(Problem[npt.NDArray]):
         if design is None:
             design = self.initialize_design(volume, resolution)
 
-        self.__copy_templates()
-        with open("templates/sim_var.txt", "w") as f:
-            f.write(f"{volume}\t{length}\t{resolution}")
-
-        filename = "templates/hr_data_v=" + str(volume) + "_w=" + str(length) + "_.npy"
-        np.save(filename, design)
-
-        current_dir = os.getcwd()
-        container.run(
-            command=["python3", "/home/fenics/shared/templates/simulate_heat_conduction_2d.py"],
-            image=self.container_id,
-            name="dolfin",
-            mounts=[(current_dir, "/home/fenics/shared")],
+        perf = load_float(
+            run_container_script(
+                self.container_id,
+                Path(__file__).parent / "templates" / "simulate_heat_conduction_2d.py",
+                args=(resolution - 1, volume, length),
+                stdin=np_array_to_bytes(design),
+                output_path="RES_SIM/Performance.txt",
+            )
         )
 
-        with open(r"templates/RES_SIM/Performance.txt") as fp:
-            perf = fp.read()
-        return np.array([float(perf)])
+        return np.array([perf])
 
     def optimize(
         self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None
@@ -180,25 +139,20 @@ class HeatConduction2D(Problem[npt.NDArray]):
         config = config or {}
         volume = config.get("volume", self.config.volume)
         length = config.get("length", self.config.length)
+        max_iter = config.get("max_iter", self.config.max_iter)
         resolution = config.get("resolution", self.config.resolution)
         if starting_point is None:
             starting_point = self.initialize_design(volume, resolution)
 
-        self.__copy_templates()
-        with open("templates/OPT_var.txt", "w") as f:
-            f.write(f"{volume}\t{length}\t{resolution}")
-
-        filename = "templates/hr_data_OPT_v=" + str(volume) + "_w=" + str(length) + "_.npy"
-        np.save(filename, starting_point)
-
-        current_dir = os.getcwd()
-        container.run(
-            command=["python3", "/home/fenics/shared/templates/optimize_heat_conduction_2d.py"],
-            image=self.container_id,
-            name="dolfin",
-            mounts=[(current_dir, "/home/fenics/shared")],
+        output = np.load(
+            run_container_script(
+                self.container_id,
+                Path(__file__).parent / "templates" / "optimize_heat_conduction_2d.py",
+                args=(resolution - 1, volume, length, max_iter),
+                stdin=np_array_to_bytes(starting_point),
+                output_path=f"RES_OPT/OUTPUT={volume}_w={length}.npz",
+            )
         )
-        output = np.load("templates/RES_OPT/OUTPUT=" + str(volume) + "_w=" + str(length) + "_.npz")
 
         steps = output["OptiStep"]
         optisteps = [OptiStep(step, it) for it, step in enumerate(steps)]
@@ -208,13 +162,6 @@ class HeatConduction2D(Problem[npt.NDArray]):
     def reset(self, seed: int | None = None, **kwargs) -> None:
         """Reset the problem to a given seed."""
         super().reset(seed, **kwargs)
-
-    def __copy_templates(self) -> None:
-        """Copy the templates from the installation location to the current working directory."""
-        if not os.path.exists("templates"):
-            os.mkdir("templates")
-        templates_location = os.path.dirname(os.path.abspath(__file__)) + "/templates/"
-        subprocess.run(["cp", "-r", f"{templates_location}/.", "templates/"], check=True)
 
     def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
@@ -229,26 +176,15 @@ class HeatConduction2D(Problem[npt.NDArray]):
         volume = volume if volume is not None else self.config.volume
         resolution = resolution if resolution is not None else self.config.resolution
 
-        self.__copy_templates()
-        with open("templates/Des_var.txt", "w") as f:
-            f.write(f"{volume}\t{resolution}")
-
         # Run the Docker command
-        current_dir = os.getcwd()
-        container.run(
-            command=["python3", "/home/fenics/shared/templates/initialize_design_2d.py"],
-            image=self.container_id,
-            name="dolfin",
-            mounts=[(current_dir, "/home/fenics/shared")],
+        return np.load(
+            run_container_script(
+                self.container_id,
+                Path(__file__).parent / "templates" / "initialize_design_2d.py",
+                args=(resolution - 1, volume),
+                output_path=f"initialize_design/initial_v={volume}_resol={resolution}.npy",
+            )
         )
-
-        # Load the generated design data from the numpy file
-        design_file = f"templates/initialize_design/initial_v={volume}_resol={resolution}_.npy"
-        if not os.path.exists(design_file):
-            error_msg = f"Design file {design_file} not found."
-            raise FileNotFoundError(error_msg)
-
-        return np.load(design_file)
 
     def random_design(self, dataset_split: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
@@ -265,7 +201,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
         rnd = self.np_random.integers(low=0, high=len(self.dataset[dataset_split][design_key]), dtype=int)
         return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
-    def render(self, design: npt.NDArray, *, open_window: bool = False) -> Any:
+    def render(self, design: npt.NDArray, *, open_window: bool = False) -> Figure:
         """Renders the design in a human-readable format.
 
         Args:
@@ -273,7 +209,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
             open_window (bool): If True, opens a window with the rendered design.
 
         Returns:
-            Any: The rendered design.
+            Figure: The rendered design.
         """
         if design is None:
             design = self.initialize_design()
@@ -285,7 +221,7 @@ class HeatConduction2D(Problem[npt.NDArray]):
 
         if open_window:
             plt.show()
-        return fig, ax
+        return fig
 
 
 # Check if the script is run directly

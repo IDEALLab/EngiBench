@@ -54,116 +54,10 @@ def volume_fraction_bound(design: npt.NDArray, volfrac: float) -> None:
 class Beams2D(Problem[npt.NDArray]):
     r"""Beam 2D topology optimization problem.
 
-    ## Problem Description
     Beams2D is a structural topology optimization (TO) problem that optimizes a 2D Messerschmitt-Bölkow-Blohm
     (MBB) beam under bending. The beam is symmetric about the central vertical axis, with a force applied
     at the top; only the right half is modeled in our case. Problems are formulated using density-based TO,
     drawing from an existing Python [implementation](https://github.com/arjendeetman/TopOpt-MMA-Python).
-
-    ## Motivation
-    The optimization of beam cross-sections is one of a fundamental problem in engineering, aiming to
-    maximize the structural stiffness under some applied force. This objective is usually formulated as
-    minimizing the compliance, which is the inverse of stiffness. In particular, TO frames the problem as
-    one of optimal material distribution, defining a grid of elements for which the material densities must
-    be determined on a scale from 0 to 1, where 1 represents the presence of material. After applying the
-    beam loads and other boundary conditions, designs are typically optimized using a gradient-based
-    approach with the help of the finite element method (FEM). While this is one of the simplest
-    TO applications, it is still a computationally expensive process requiring many iterations, opening the
-    door for faster approximation methods such as generative inverse design.
-    One of the most common beam types in TO is the Messerschmitt-Bölkow-Blohm (MBB) beam,
-    which is supported at the bottom-right and bottom-left corners, with a downward force applied
-    on the top-center. Given this symmetric configuration, one half of the design may be optimized
-    while representing the entire structure. We implement the MBB beam in ENGIBENCH for the most
-    accessible comparison to previous works in this domain.
-
-    ## Design Space
-    This problem simulates the right half-section of a MBB beam under bending. This half-beam is
-    subjected to a force at its top-left corner (corresponding to the top-center of the entire design) which
-    may also be shifted to the right to simulate different loading conditions. A roller support at the
-    bottom-right corner prevents vertical movement, and a symmetric boundary condition is enforced on
-    the left edge. The design space is an array of solid densities in `[0., 1.]` with a default size of
-    `(100, 50)` used by default, where `nelx = 100` and `nely = 50`. Internally, this is represented as
-    a flattened `(5000,)` array. Alternative shapes include `(50, 25)` for faster computation and `(200, 100)`
-    for higher-resolution results. Corresponding datasets for these three resolutions are provided.
-
-    ## Objectives
-    The goal is to optimize the distribution of solid material to minimize compliance
-    (equivalently, maximize stiffness) while satisfying constraints on material usage and minimum feature size.
-    Compliance is calculated as the sum of strain energy over the structure.
-
-    The objectives are defined and indexed as follows:
-
-    0. `c`: Compliance to minimize.
-
-    ## Conditions
-    The following input parameters define the problem conditions:
-    - `volfrac`: Desired volume fraction of solid material.
-    - `rmin`: Minimum feature length of beam members.
-    - `forcedist`: Fractional distance of the downward force from the top-left (default) to the top-right corner.
-    - `overhang_constraint`: Boolean flag to enable a 45-degree overhang constraint for manufacturability.
-
-    ## Simulator
-    Our simulation code is based on a Python adaptation of the popular 88-line topology optimization
-    code. It uses the more versatile density filtering approach in combination with a standard
-    Optimality Criteria (OC) optimization method. Two primary sensitivity matrices, one with respect
-    to compliance (`dc`) and the other with respect to volume fraction (`dv`), are continuously updated
-    and used to calculate a given design's compliance value. We have also ensured that during the
-    required Lagrange multiplier search within OC, the inner optimization loop terminates if the absolute
-    difference upper and lower bounds diminishes to a value smaller than machine precision. This
-    prevents the code from becoming stuck at this point, which we observed in some warm-starting
-    instances with noisy initial designs.
-
-    Compliance `c` is calculated using:
-    ```python
-    c = ((Emin + xPrint**penal * (Emax - Emin)) * ce).sum()
-    ```
-
-    where `xPrint` is the current true density field, `penal` is the penalization factor (e.g., 3.0),
-    and `ce` is the element-wise strain energy density.
-
-    ## Dataset
-    This problem offers multiple datasets for various sizes of `nelx` and `nely`. Each dataset includes
-    columns for the optimal design, all conditions listed above, and the corresponding objective values.
-    For advanced usage, we also provide a column containing the optimization history. The datasets have
-    been generated by sampling conditions over a structured grid for various problem sizes.
-    Three datasets are available on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab).
-    They correspond to resolutions of $50 \times 25$, $100 \times 50$ (default), and $200 \times 100$.
-
-    ### v0
-
-    #### Fields
-    Each dataset contains:
-    - Optimized beam structures,
-    - The corresponding condition parameters,
-    - Objective values (compliance),
-    - Full optimization histories (for advanced use).
-
-    #### Creation Method
-    Datasets were generated by uniformly sampling the condition space. The resolutions used are:
-    - `(50, 25)`
-    - `(100, 50)`
-    - `(200, 100)`
-
-    A more comprehensive description of the creation method can be found in the [README](https://github.com/IDEALLab/EngiBench/tree/main/engibench/problems/beams2d).
-
-    ## Citation
-    If you use this problem in your research, please cite the following paper:
-    ```
-    @article{andreassen2011efficient,
-        title={Efficient topology optimization in MATLAB using 88 lines of code},
-        author={Andreassen, Erik and Clausen, Anders and Schevenels, Mattias and Lazarov, Boyan S and Sigmund, Ole},
-        journal={Structural and Multidisciplinary Optimization},
-        volume={43},
-        number={1},
-        pages={1--16},
-        year={2011},
-        publisher={Springer}
-    }
-    ```
-
-
-    ## Lead
-    Arthur Drake @arthurdrake1
     """
 
     version = 0
@@ -178,11 +72,15 @@ class Beams2D(Problem[npt.NDArray]):
             bounded(lower=0.0, upper=1.0).category(THEORY),
             bounded(lower=0.1, upper=0.9).warning().category(IMPL),
         ] = 0.35
+        """Desired volume fraction of solid material"""
         rmin: Annotated[
             float, greater_than(0.0).category(THEORY), bounded(lower=1.0, upper=10.0).category(IMPL).warning()
         ] = 2.0
+        """Minimum feature length of beam members"""
         forcedist: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.0
+        """Fractional distance of the downward force from the top-left (default) to the top-right corner"""
         overhang_constraint: bool = False
+        """Boolean flag to enable a 45-degree overhang constraint for manufacturability"""
 
     @dataclass
     class SimulateConfig(Conditions):
@@ -212,7 +110,7 @@ class Beams2D(Problem[npt.NDArray]):
 
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(Config.nely, Config.nelx), dtype=np.float64)
-    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v{version}"
+    dataset_id = f"IDEALLab/beams_2d_{Config.nely}_{Config.nelx}_v0"
     container_id = None
 
     def __init__(self, seed: int = 0, config: dict[str, Any] | None = None):
@@ -235,7 +133,7 @@ class Beams2D(Problem[npt.NDArray]):
         self.nelx = self.config.nelx
         self.nely = self.config.nely
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx), dtype=np.float64)
-        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v{self.version}"
+        self.dataset_id = f"IDEALLab/beams_2d_{self.nely}_{self.nelx}_v0"
 
     def simulate(
         self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
@@ -385,18 +283,20 @@ class Beams2D(Problem[npt.NDArray]):
         return np.array(self.dataset[dataset_split][design_key][rnd]), rnd
 
 
-if __name__ == "__main__":
-    # Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
-    # Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
-    # If a new nely and nelx are not passed in, uses the default conditions.
+def main(problem_type: type[Problem]) -> None:
+    """Provides a way to instantiate the problem without having to pass configs to optimize or simulate later.
 
-    problem = Beams2D(seed=0)
+    Possible sets of nely and nelx: (25, 50), (50, 100), and (100, 200)
+    If a new nely and nelx are not passed in, uses the default conditions.
+    """
+    problem = problem_type(seed=0)
 
+    assert hasattr(problem, "nelx")
+    assert hasattr(problem, "nely")
     print(f"Loading dataset for nely={problem.nely}, nelx={problem.nelx}.")
     dataset = problem.dataset
 
     # Example of getting the training set
-    optimal_train = dataset["train"]["optimal_design"]
     c_train = dataset["train"]["c"]
     condition_keys = [f.name for f in dataclasses.fields(problem.Conditions)]
     params_train = dataset["train"].select_columns(condition_keys)
@@ -406,7 +306,7 @@ if __name__ == "__main__":
     design, idx = problem.random_design()
     config = params_train[idx]
     compliance = c_train[idx]
-    fig, ax = problem.render(design, open_window=True)
+    problem.render(design, open_window=True)
 
     print(f"Verifying compliance via simulation. Reference value: {compliance:.4f}")
 
@@ -421,8 +321,12 @@ if __name__ == "__main__":
     problem.reset(seed=1)
 
     # NOTE: optimal_design and optisteps_history[-1].stored_design are interchangeable.
-    optimal_design, optisteps_history = problem.optimize(config=config)
+    optimal_design, optisteps_history = problem.optimize(config=config, starting_point=None)
     print(f"Final compliance: {optisteps_history[-1].obj_values[0]:.4f}")
     print(f"Final design volume fraction: {optimal_design.sum() / (np.prod(optimal_design.shape)):.4f}")
 
-    fig, ax = problem.render(optimal_design, open_window=True)
+    problem.render(optimal_design, open_window=True)
+
+
+if __name__ == "__main__":
+    main(Beams2D)

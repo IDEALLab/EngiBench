@@ -1,24 +1,23 @@
 #!/usr/bin/env python3
 
 """This script sets up and initializes the design problem for a finite element analysis using dolfin adjoint based on SIMP method.
+
 It defines the resolution, reads the design variables, and writes out the initial design to a file.
 """
 
-import os
+from fenics import Constant
+from fenics import FunctionSpace
+from fenics import interpolate
+from fenics import UnitSquareMesh
+from fenics import XDMFFile
 import numpy as np
-from fenics import *
 
-# Define the base directory path for templates and read the design variables
-base_path = "/home/fenics/shared"
-des_var_path = os.path.join(base_path, "templates", "Des_var.txt")
+from engibench.utils.cli import cast_argv
 
-# Read the design variable file and extract parameters
-with open(des_var_path, "r") as file:
-    lines = file.read().split("\t")
-
-# Set the number of discretization points (NN) and the volume fraction (vol_f)
-NN = int(lines[1])-1  # Resolution of the grid (arbitrary, affects performance)
-vol_f = float(lines[0])  # Volume fraction for the control
+# Extract parameters
+# NN: Resolution of the grid (arbitrary, affects performance)
+# vol_f: Volume fraction for the control
+NN, vol_f, output_path = cast_argv(int, float, str)
 
 # Discretization step size (based on NN)
 step = 1.0 / float(NN)
@@ -26,7 +25,6 @@ step = 1.0 / float(NN)
 # Generate mesh grid values for both x and y directions
 x_values = np.linspace(0, 1, num=NN + 1)
 y_values = np.linspace(0, 1, num=NN + 1)
-os.remove(des_var_path)
 
 # Set up the finite element function space
 V = Constant(vol_f)  # Volume bound on the control
@@ -39,8 +37,7 @@ if __name__ == "__main__":
     a = interpolate(MM, A)  # Initial guess for the design
 
     # Define the path to save the design files
-    design_folder = os.path.join(base_path, "templates", "initialize_design")
-    xdmf_file_path = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN+1}_.xdmf")
+    xdmf_file_path = output_path.removesuffix(".npy") + ".xdmf"
 
     # Write the mesh and initial design to an XDMF file
     with XDMFFile(xdmf_file_path) as outfile:
@@ -52,11 +49,10 @@ if __name__ == "__main__":
 
     # Populate the results array with the mesh coordinates and the corresponding volume value
     ind = 0
-    for xs in x_values:
-        for ys in y_values:
+    for _xs in x_values:
+        for _ys in y_values:
             results[ind, 0] = V  # Store the volume value
             ind += 1
-    results=results.reshape(NN+1, NN+1)
+    results = results.reshape(NN + 1, NN + 1)
     # Save the results array to a .npy file
-    filename = os.path.join(design_folder, f"initial_v={vol_f}_resol={NN+1}_.npy")
-    np.save(filename, results)
+    np.save(output_path, results)

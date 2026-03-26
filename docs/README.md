@@ -11,16 +11,38 @@ Fork EngiBench and edit the docstring in the problem's Python file. Then, pip in
 ### Adding a new problem
 
 Ensure the problem is in EngiBench (or your fork). Ensure that its Python file has a properly formatted markdown docstring. Install using `pip install -e .[doc]` and add a markdown file in the [./problems/](problems/) of the repo.
-Use Engibench's own `problem` directive in the docs of your new problem:
+Use EngiBench's own `problem:table` and `problem:conditions` directives in the docs of your new problem:
    ``````md
    # Your Problem
 
-   ``` {problem} your_problem
+   ``` {problem:table}
+   :lead: Chuck Norris @chucknorris
    ```
+
+   ...
+
+   ## Conditions
+
+   ``` {problem:conditions}
+   ```
+
+   ...
    ``````
 
-Here, `your_problem` must match the name of the module where your problem class is defined.
-This will automatically include the docstrings of your `Problem` class as well as a table with its metadata. Then complete the [other steps](#other-steps).
+**`problem:table`**: This directive extracts metadata from a problem and
+inserts a table filled with the metadata.
+By default, the directive will try to import the problem `engibench.problems.<problem_id>`, where `<problem_id>` is the filename (without `.md` extension) of the markdown file the directive is used.
+
+Options (optional):
+* `:problem_id:` override `<problem_id>`,
+* `:lead:` Add a row "Lead" to the table, containing the specified value.
+   If the value ends with `@username`, a link to `https://github.com/username` will be inserted.
+
+**`problem:conditions`**: This directive lists the conditions extracted from a problem as in the "Conditions" row produced by the `problem:table` directive. The `<problem_id>` is determined the same way as in `problem:table`.
+
+Options:
+* `:problem_id:` override `<problem_id>`,
+* `:defaults:` include default values in the list of conditions
 
 #### Other steps
 
@@ -52,7 +74,7 @@ You can then open http://localhost:8000 in your browser to watch a live updated 
 
 ## Writing Tutorials
 
-We use Sphinx-Gallery to build the tutorials inside the `docs/tutorials` directory. Check `docs/tutorials/demo.py` to see an example of a tutorial and [Sphinx-Gallery documentation](https://sphinx-gallery.github.io/stable/syntax.html) for more information.
+We use Sphinx-Gallery to build the tutorials inside the `docs/tutorials` directory. Check [Sphinx-Gallery documentation](https://sphinx-gallery.github.io/stable/syntax.html) for more information.
 
 To convert Jupyter Notebooks to the python tutorials you can use [this script](https://gist.github.com/mgoulao/f07f5f79f6cd9a721db8a34bba0a19a7).
 

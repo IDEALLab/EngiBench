@@ -1,2 +1,3 @@
-hi: $hi
-world: $world
+---
+hi: hello
+world: world

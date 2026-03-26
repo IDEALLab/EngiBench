@@ -12,6 +12,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from traceback import StackSummary
 from traceback import TracebackException
 from typing import Any, Generic, TypeVar
 
@@ -24,7 +25,7 @@ class JobError(Exception):
     - :attr:`origin` - Original exception instance.
     - :attr:`context` - Info (string) about which step failed (e.g. map, reduce or save).
     - :attr:`job_args` - dict containing the arguments passed to the job callback if the exception occurred during a job.
-    - :attr:`traceback` - `TracebackException <https://docs.python.org/3/library/traceback.html#traceback.TracebackException>`__ object.
+    - :attr:`traceback` - `TracebackException <https://docs.python.org/3/library/traceback.html#traceback.TracebackException>`_ object.
     """
 
     def __init__(self, origin: Exception, context: str, job_args: dict[str, Any]) -> None:
@@ -40,6 +41,24 @@ class JobError(Exception):
 
 {"".join(self.traceback.format())}
 """
+
+
+def dump_with_job_error(obj: Any, path: str) -> None:
+    """Pickle objects to a file which might contain a :py:class:`JobError` instance."""
+    with open(path, "wb") as stream:
+        pickler = TracebackPickler(stream)
+        pickler.dump(obj)
+
+
+class TracebackPickler(pickle.Pickler):
+    """Custom pickler to avoid pickling code objects when pickling tracebacks."""
+
+    def reducer_override(self, obj):
+        """Custom reducer for StackSummary."""
+        if isinstance(obj, StackSummary):
+            return StackSummary.from_list, ([(s.filename, s.lineno, s.name, s.line) for s in obj],)
+        # For any other object, fallback to usual reduction
+        return NotImplemented
 
 
 if sys.version_info < (3, 11):
@@ -209,6 +228,7 @@ def run_sbatch(
         ("--output", log_file),
         ("--comment", slurm_args.name),
         ("--time", slurm_args.runtime),
+        ("--account", slurm_args.account),
         ("--constraint", slurm_args.constraint),
         ("--mem-per-cpu", slurm_args.mem_per_cpu),
         ("--mem", slurm_args.mem),

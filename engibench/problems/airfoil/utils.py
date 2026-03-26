@@ -255,11 +255,11 @@ def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
     # Get coordinates
     coords_x = df_slice["CoordinateX"].to_numpy()
     coords_y = df_slice["CoordinateY"].to_numpy()
-    indices = np.arange(len(df_slice))
+    indices = np.arange(len(df_slice), dtype=np.int32)
 
     # Identify segments
     id_breaks_start, id_breaks_end, segment_ids = _identify_segments(connectivities)
-    unique_segment_ids = np.arange(len(id_breaks_start))
+    unique_segment_ids = np.arange(len(id_breaks_start), dtype=np.int32)
 
     # Order segments
     new_seg_order = _order_segments(coords_x, coords_y, id_breaks_start, id_breaks_end, unique_segment_ids)

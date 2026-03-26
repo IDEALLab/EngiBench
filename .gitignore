@@ -11,6 +11,7 @@ engibench/problems/airfoil/device_dataset_slurm_airfoil.py
 engibench/problems/airfoil/test_imports.py
 experiment/
 singularity-cache/
+scratch/
 
 
 # C extensions

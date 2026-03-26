@@ -73,23 +73,11 @@ reduced = job.reduce(list, slurm_args=slurm_args) # Collect all results to a lis
 
 # To save resources, to render the docs no actual optimization is performed.
 # Instead optimize() is replaced by a method returning zeros:
-print(reduced)
+print(reduced) # doctest: +ELLIPSIS
 ```
 
 ```{testoutput} slurm
-[array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]]), array([[0., ..., 0.],
-       ...,
-       [0., ..., 0.]])]
+[array([[0., ..., 0.]], shape=(100, 50)), ...]
 ```
 
 **Step 4b:** Save all results in one [pickle](https://docs.python.org/3/library/pickle.html) archive

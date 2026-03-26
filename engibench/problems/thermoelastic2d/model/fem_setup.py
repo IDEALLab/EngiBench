@@ -148,17 +148,15 @@ def fe_mthm_bc(  # noqa: PLR0915, PLR0913
 
     # Number of elements
     n_elements = nelx * nely
-    elx_idx, ely_idx = np.meshgrid(np.arange(nelx), np.arange(nely), indexing="ij")
-    elx_idx = elx_idx.ravel()
-    ely_idx = ely_idx.ravel()
+    elx_idx, ely_idx = (el.ravel() for el in np.meshgrid(np.arange(nelx), np.arange(nely), indexing="ij"))
 
     # Compute the base node numbers for each element
-    n1 = (nely + 1) * elx_idx + ely_idx
-    n2 = (nely + 1) * (elx_idx + 1) + ely_idx
+    i1 = (nely + 1) * elx_idx + ely_idx
+    i2 = (nely + 1) * (elx_idx + 1) + ely_idx
 
     # Construct element degree-of-freedom arrays:
-    edof4 = np.stack([n1 + 1, n2 + 1, n2, n1], axis=1)
-    edof8 = np.stack([2 * n1 + 2, 2 * n1 + 3, 2 * n2 + 2, 2 * n2 + 3, 2 * n2, 2 * n2 + 1, 2 * n1, 2 * n1 + 1], axis=1)
+    edof4 = np.stack([i1 + 1, i2 + 1, i2, i1], axis=1)
+    edof8 = np.stack([2 * i1 + 2, 2 * i1 + 3, 2 * i2 + 2, 2 * i2 + 3, 2 * i2, 2 * i2 + 1, 2 * i1, 2 * i1 + 1], axis=1)
 
     # Compute penalized element stiffness factors.
     penalized = x[ely_idx, elx_idx] ** penal

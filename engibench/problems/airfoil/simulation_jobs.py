@@ -54,3 +54,24 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
         "problem_configuration": problem_configuration,
         "configuration_id": configuration_id,
     }
+
+
+def optimize_slurm(problem_configuration: dict, configuration_id: int, design: list):
+    """Takes starting point (design coordinate and angle of attack) and config (mach, reynolds, angle of attack), then runs the aerodynamic optimization.
+
+    Any arguments should be things that you want to change across the different jobs, and anything
+    that is the same/static across the runs should just be defined inside this function.
+
+    Args:
+        problem_configuration (dict): The specific configuration used to initialize the optimization being passed.
+            For the airfoil problem this includes Mach number, Reynolds number, and angle of attack.
+        configuration_id (int): A unique identifier for the job for later debugging or tracking.
+        design (list): list of lists defining x and y coordinates of airfoil geometry.
+
+    Returns:
+        "performance_dict": Dictionary of aerodynamic performance (lift & drag).
+        "optimization_time": The time taken to run this optimization job. Useful for aggregating
+            the time taken for dataset generation.
+        "optimized_configuration": Problem configuration parameters for optimized design (optimized coordinates and angle of attack)
+        "configuration_id": Identifier for specific simulation configurations
+    """

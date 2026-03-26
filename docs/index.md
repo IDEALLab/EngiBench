@@ -55,6 +55,7 @@ introduction/api
 problems/airfoil
 problems/beams2d
 problems/thermoelastic2d
+problems/thermoelastic3d
 problems/photonics2d
 problems/power_electronics
 problems/heatconduction
@@ -69,25 +70,16 @@ EngiOpt <https://github.com/IDEALLab/EngiOpt>
 ```
 
 ```{toctree}
-:hidden:
-:caption: Utils
 
-utils/container
-utils/slurm
+utils/index
 ```
 
 ```{toctree}
 :hidden:
 :glob:
-:caption: Tutorials
-
-tutorials/*
-```
-
-```{toctree}
-:hidden:
 :caption: Development
 
 Github <https://github.com/IDEALLab/EngiBench>
 Contribute to the Docs <https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md>
+development/*
 ```
