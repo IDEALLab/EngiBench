@@ -14,6 +14,7 @@ from engibench.problems.thermoelastic2d.model.fem_matrix_builder import fe_melth
 from engibench.problems.thermoelastic2d.model.fem_setup import fe_mthm_bc
 from engibench.problems.thermoelastic2d.model.mma_subroutine import MMAInputs
 from engibench.problems.thermoelastic2d.model.mma_subroutine import mmasub
+from engibench.problems.thermoelastic2d.model.opti_dataclass import OptiStepUpdate
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 from engibench.problems.thermoelastic2d.utils import plot_multi_physics
 
@@ -124,31 +125,24 @@ class FeaModel:
             return True
         return change < UPDATE_THRESHOLD and iterr >= MIN_ITERATIONS
 
-    def record_step(
-        self,
-        opti_steps: list,
-        obj_values: np.ndarray,
-        iterr: int,
-        x_curr: np.ndarray,
-        x_update: np.ndarray,
-        *,
-        extra_iter: bool,
-    ):  # noqa: PLR0913
+    def record_step(self, opti_steps: list, opti_step_update: OptiStepUpdate):
         """Helper to handle OptiStep creation and updates.
 
         Args:
-            opti_steps (list): The list of OptiStep instances to update.
-            obj_values (np.ndarray): The current objective values to record.
-            iterr (int): The current iteration number.
-            x_curr (np.ndarray): The current design variable field before the update.
-            x_update (np.ndarray): The change in design variables from the last update.
-            extra_iter (bool): Flag indicating if this is the extra iteration after convergence for gradient information gathering.
+            opti_steps (list): The list of OptiStep objects to be updated in place with the new step information.
+            opti_step_update (OptiStepUpdate): A dataclass encapsulating all input parameters.
 
         Returns:
             None. This function updates the opti_steps list in place.
         """
+        obj_values = opti_step_update.obj_values
+        iterr = opti_step_update.iterr
+        x_curr = opti_step_update.x_curr
+        x_sensitivities = opti_step_update.x_sensitivities
+        x_update = opti_step_update.x_update
+        extra_iter = opti_step_update.extra_iter
         if extra_iter is False:
-            step = OptiStep(obj_values=obj_values, step=iterr, x=x_curr, x_update=x_update)
+            step = OptiStep(obj_values=obj_values, step=iterr, x=x_curr, x_sensitivities=x_sensitivities, x_update=x_update)
             opti_steps.append(step)
 
         if len(opti_steps) > 1:
@@ -389,7 +383,16 @@ class FeaModel:
             x_update = x.copy() - x_curr
 
             # Record the OptiStep
-            self.record_step(opti_steps, obj_values, iterr, x_curr, x_update, extra_iter=extra_iter)
+            df0dx_all = np.stack([df0dx_m, df0dx_t, df0dx_mat, dfdx.reshape(nely, nelx)], axis=0)
+            opti_step_update = OptiStepUpdate(
+                obj_values=obj_values,
+                iterr=iterr,
+                x_curr=x_curr,
+                x_sensitivities=df0dx_all,
+                x_update=x_update,
+                extra_iter=extra_iter,
+            )
+            self.record_step(opti_steps, opti_step_update)
 
             # Print results
             change = np.max(np.abs(xmma - xold1))
