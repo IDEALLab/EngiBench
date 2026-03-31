@@ -125,7 +125,7 @@ class FeaModel:
             return True
         return change < UPDATE_THRESHOLD and iterr >= MIN_ITERATIONS
 
-    def record_step(self, opti_steps: list, opti_step_update: OptiStepUpdate):
+    def record_step(self, opti_steps: list[OptiStep], opti_step_update: OptiStepUpdate):
         """Helper to handle OptiStep creation and updates.
 
         Args:
