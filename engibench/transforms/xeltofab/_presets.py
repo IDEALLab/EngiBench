@@ -4,8 +4,6 @@ This module contains no xeltofab imports — it stores plain dicts of kwargs
 that are passed to ``PipelineParams(...)`` at runtime.
 """
 
-from __future__ import annotations
-
 from typing import Any
 
 # 2D problems: contour extraction only; repair/remesh/decimate are 3D-only and irrelevant.
