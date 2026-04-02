@@ -3,7 +3,7 @@
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, Any
 
 from gymnasium import spaces
 from matplotlib import colors
@@ -83,8 +83,8 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     class Config(Conditions):
         """Structured representation of configuration parameters for a numerical computation."""
 
-        nelx: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
-        nely: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
+        nelx: Annotated[int, bounded(lower=1).category(THEORY)] = NELX
+        nely: Annotated[int, bounded(lower=1).category(THEORY)] = NELY
         max_iter: int = fea_model.MAX_ITERATIONS
         """Maximal number of iterations for optimize."""
 
