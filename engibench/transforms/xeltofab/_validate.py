@@ -1,7 +1,5 @@
 """Input and output validation for the xeltofab mesh transform."""
 
-from __future__ import annotations
-
 from typing import TYPE_CHECKING
 import warnings
 
@@ -58,7 +56,7 @@ def validate_input(design: npt.NDArray) -> npt.NDArray:
 
 
 def validate_output(
-    state: PipelineState,
+    state: "PipelineState",
     input_volume_fraction: float,
     tolerance: float,
 ) -> list[str]:

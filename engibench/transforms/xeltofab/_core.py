@@ -1,7 +1,5 @@
 """Core bridge between EngiBench density-field problems and xeltofab mesh generation."""
 
-from __future__ import annotations
-
 from typing import Any, TYPE_CHECKING
 
 import numpy as np
@@ -37,14 +35,14 @@ def _check_xeltofab() -> None:
 
 
 def to_mesh(
-    problem: Problem,
+    problem: "Problem",
     design: npt.NDArray,
     *,
-    params: PipelineParams | None = None,
+    params: "PipelineParams | None" = None,
     validate: bool = True,
     volume_tolerance: float = 0.05,
     **kwargs: Any,
-) -> PipelineState:
+) -> "PipelineState":
     """Convert an EngiBench density-field design to a mesh via xeltofab.
 
     Args:
@@ -94,7 +92,7 @@ def to_mesh(
     return state
 
 
-def save(state: PipelineState, path: str | Path) -> None:
+def save(state: "PipelineState", path: "str | Path") -> None:
     """Save a processed mesh to a file.
 
     Convenience wrapper around ``xeltofab.save_mesh``.
