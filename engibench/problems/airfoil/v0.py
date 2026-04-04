@@ -451,7 +451,11 @@ class Airfoil(Problem[DesignType]):
                     optisteps_history.append(OptiStep(obj_values=obj_np, step=vals["iter"]))
 
         opt_alpha_values = history.getValues(names=["alpha_fc"], callCounters=["last"], major=True)
-        opt_alpha = float(opt_alpha_values["alpha_fc"].flatten()[0]) if opt_alpha_values and "alpha_fc" in opt_alpha_values and len(opt_alpha_values["alpha_fc"]) > 0 else starting_point["angle_of_attack"]
+        opt_alpha = (
+            float(opt_alpha_values["alpha_fc"].flatten()[0])
+            if opt_alpha_values and "alpha_fc" in opt_alpha_values and len(opt_alpha_values["alpha_fc"]) > 0
+            else starting_point["angle_of_attack"]
+        )
 
         history.close()
 
