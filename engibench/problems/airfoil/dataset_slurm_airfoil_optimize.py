@@ -6,6 +6,7 @@ collects the resulting optimized geometry and performance.
 """
 
 from argparse import ArgumentParser
+import sys
 
 from datasets import concatenate_datasets
 from datasets import load_dataset
@@ -44,8 +45,9 @@ if __name__ == "__main__":
     -min_aoa, --min_angle_of_attack: Lower bound for angle of attack.
     -max_aoa, --max_angle_of_attack: Upper bound for angle of attack.
     -return_history, --return_history: Whether to include optimizer step history in results.
+    --extra_args: Additional arguments forwarded verbatim to sbatch (e.g. --extra_args '--partition=gpu' --extra_args '--gres=gpu:1').
     """
-    parser = ArgumentParser()
+    parser = ArgumentParser(allow_abbrev=False)
     parser.add_argument(
         "-account",
         "--hpc_account",
@@ -137,7 +139,30 @@ if __name__ == "__main__":
         default=False,
         help="Include optimizer step history (optisteps_history) in results.",
     )
-    args = parser.parse_args()
+    parser.add_argument(
+        "--extra_args",
+        action="append",
+        default=[],
+        metavar="ARG",
+        help=(
+            "Additional argument forwarded verbatim to sbatch. "
+            "Repeat the flag for each extra argument. "
+            "Example: --extra_args '--partition=gpu' --extra_args '--gres=gpu:1'"
+        ),
+    )
+    # Rewrite "--extra_args -something" to "--extra_args=-something" so argparse
+    # does not mistake the value for a new flag.
+    argv = sys.argv[1:]
+    rewritten = []
+    i = 0
+    while i < len(argv):
+        if argv[i] in ("--extra_args",) and i + 1 < len(argv) and argv[i + 1].startswith("-"):
+            rewritten.append(f"--extra_args={argv[i + 1]}")
+            i += 2
+        else:
+            rewritten.append(argv[i])
+            i += 1
+    args = parser.parse_args(rewritten)
 
     # HPC account for job submission
     hpc_account = args.hpc_account
@@ -151,6 +176,7 @@ if __name__ == "__main__":
     n_slurm_array = args.num_slurm_array
     minutes_per_opt = args.minutes_per_optimization
     return_history = args.return_history
+    extra_args = args.extra_args
 
     # Flow parameter and angle of attack ranges
     min_ma = args.min_mach_number
@@ -216,6 +242,7 @@ if __name__ == "__main__":
         ntasks=1,
         cpus_per_task=1,
         log_dir="./opt_logs/",
+        extra_args=extra_args,
     )
 
     submitted_jobs = []
