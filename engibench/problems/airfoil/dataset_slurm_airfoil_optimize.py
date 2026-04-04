@@ -156,7 +156,7 @@ if __name__ == "__main__":
     rewritten = []
     i = 0
     while i < len(argv):
-        if argv[i] in ("--extra_args",) and i + 1 < len(argv) and argv[i + 1].startswith("-"):
+        if argv[i] == "--extra_args" and i + 1 < len(argv) and argv[i + 1].startswith("-"):
             rewritten.append(f"--extra_args={argv[i + 1]}")
             i += 2
         else:
