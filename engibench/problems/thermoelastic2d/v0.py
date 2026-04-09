@@ -42,7 +42,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
         ("structural_compliance", ObjectiveDirection.MINIMIZE),
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
-        ("volume_fraction", ObjectiveDirection.MINIMIZE),
+        ("volume_fraction_error", ObjectiveDirection.MINIMIZE),
     )
 
     @dataclass
@@ -65,7 +65,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             default_factory=lambda: HEATSINK_ELEMENTS
         )
         """Binary NxN matrix specifying elements that have a heat sink"""
-        volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
+        volume_fraction_target: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
         """Target volume fraction for the volume fraction constraint"""
         rmin: Annotated[
             float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
@@ -129,7 +129,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
                     boundary_dict[key] = value
 
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
-        return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
+        return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction_error"]])
 
     def optimize(
         self, starting_point: npt.NDArray, config: dict[str, Any] | None = None
