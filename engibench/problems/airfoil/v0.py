@@ -256,6 +256,7 @@ class Airfoil(Problem[DesignType]):
             image=self.container_id,
             name="machaero",
             mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
             sync_uid=True,
         )
 
