@@ -79,9 +79,17 @@ jobs:
       uses: actions/setup-python@v5
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Install ngspice
-      run: |
-        brew install ngspice # for power electronics problems
+    # - name: Install ngspice
+    #   run: |
+    #      # for power electronics problems
+    #      VERSION=45.2
+    #      brew tap-new local/oldies
+    #      brew extract --version=$VERSION ngspice local/oldies
+    #      # Fix outdated URL:
+    #      sed -i -e "s|ng-spice-rework/|ng-spice-rework/old-releases/|" /opt/homebrew/Library/Taps/local/homebrew-oldies/Formula/ngspice@${VERSION}.rb
+    #      brew install local/oldies/ngspice@$VERSION
+    #      brew pin ngspice@$VERSION
+    #      ngspice --version
     - name: Install dependencies
       run: |
         python -m pip install --upgrade pip
