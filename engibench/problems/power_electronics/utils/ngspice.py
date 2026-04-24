@@ -3,6 +3,7 @@
 import os
 import platform
 import re
+import shutil
 import subprocess
 
 MIN_SUPPORTED_VERSION: int = 42  # Major version number of ngspice
@@ -28,27 +29,25 @@ class NgSpice:
         """Get the path to the ngspice executable based on the operating system.
 
         Returns:
-            The path to ngspice executable or None if not found
+            The path to the ngspice executable
         """
         if self.system == "windows":
             # For Windows, use the bundled ngspice.exe
-            # Look for ngspice in Spice64 folder and common install locations
+            # Look for ngspice in PATH (e.g. Chocolatey), Spice64 folder and common install locations
             possible_paths = [
                 self.ngspice_windows_path,
-                "ngspice.exe",
+                shutil.which("ngspice"),
                 os.path.normpath(os.path.join("C:/Program Files/Spice64/bin/ngspice.exe")),
                 os.path.normpath(os.path.join("C:/Program Files (x86)/ngspice/bin/ngspice.exe")),
             ]
 
-            for path in possible_paths:
-                if path and os.path.exists(path):
-                    ngspice_path: str | None = path
-                    break
-            else:
-                ngspice_path = possible_paths[0]  # Default to first path if none found
-            if ngspice_path is None or not os.path.exists(ngspice_path):
+            ngspice_path: str | None = next((p for p in possible_paths if p and os.path.exists(p)), None)
+            if ngspice_path is None:
                 raise FileNotFoundError(
-                    f"ngspice.exe not found at {ngspice_path}. You can download it from https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/. You can also see our GitHub Actions workflow (test.yml) for how to automatically install it."
+                    "ngspice.exe not found. You can install it via Chocolatey "
+                    "(`choco install ngspice`) or download it from "
+                    "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/. "
+                    "You can also see our GitHub Actions workflow (test.yml) for how to automatically install it."
                 )
             return ngspice_path
         if self.system in ["darwin", "linux"]:
@@ -108,18 +107,21 @@ class NgSpice:
             subprocess.CalledProcessError: If ngspice fails to run
         """
         if self.system == "windows":
+            # Try finding the version from the docs folder (for SourceForge binary package)
             pattern_int = re.compile(r"ngspice-(\d+)-manual\.pdf")
             pattern_dec = re.compile(r"ngspice-(\d+\.\d+)-manual\.pdf")
 
             docs_path = os.path.normpath(os.path.join(os.path.dirname(self._ngspice_path), "../docs/"))
-            for filename in os.listdir(docs_path):
-                match_int = pattern_int.match(filename)
-                match_dec = pattern_dec.match(filename)
-                if match_int:
-                    return int(match_int.group(1))  # Already returns just the major version
-                if match_dec:
-                    return int(match_dec.group(1).split(".")[0])  # Return only the major version
-            raise NgSpiceManualNotFoundError
+            try:
+                for filename in os.listdir(docs_path):
+                    match_int = pattern_int.match(filename)
+                    match_dec = pattern_dec.match(filename)
+                    if match_int:
+                        return int(match_int.group(1))  # Already returns just the major version
+                    if match_dec:
+                        return int(match_dec.group(1).split(".")[0])  # Return only the major version
+            except OSError:
+                print(f"Could not read ngspice docs folder at {docs_path!r}, falling back to --version flag.")
 
         cmd = [self._ngspice_path, "--version"]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
