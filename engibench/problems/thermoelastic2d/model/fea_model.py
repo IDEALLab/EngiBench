@@ -192,7 +192,7 @@ class FeaModel:
         n = nely * nelx  # Total number of elements
 
         # OptiSteps records
-        opti_steps = []
+        opti_steps: list[OptiStep] = []
 
         # 1. Initial Design
         x = self.get_initial_design(volfrac, nelx, nely) if x_init is None else x_init
