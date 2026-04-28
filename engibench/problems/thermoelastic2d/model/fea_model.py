@@ -330,7 +330,7 @@ class FeaModel:
                 return {
                     "structural_compliance": f0valm,
                     "thermal_compliance": f0valt,
-                    "volume_fraction": vf_error,
+                    "volume_fraction_error": vf_error,
                 }
 
             # OptiStep Information
@@ -421,7 +421,7 @@ class FeaModel:
             "bcs": bcs,
             "structural_compliance": f0valm,
             "thermal_compliance": f0valt,
-            "volume_fraction": vf_error,
+            "volume_fraction_error": vf_error,
             "opti_steps": opti_steps,
         }
 

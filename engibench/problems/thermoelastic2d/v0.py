@@ -42,7 +42,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
         ("structural_compliance", ObjectiveDirection.MINIMIZE),
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
-        ("volume_fraction", ObjectiveDirection.MINIMIZE),
+        ("volume_fraction_error", ObjectiveDirection.MINIMIZE),
     )
 
     @dataclass
@@ -129,7 +129,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
                     boundary_dict[key] = value
 
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
-        return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
+        return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction_error"]])
 
     def optimize(
         self, starting_point: npt.NDArray, config: dict[str, Any] | None = None
