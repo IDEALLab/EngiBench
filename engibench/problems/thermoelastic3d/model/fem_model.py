@@ -220,7 +220,7 @@ class FeaModel3D:
         volfrac = bcs["volfrac"]
 
         # OptiSteps records
-        opti_steps = []
+        opti_steps: list[OptiStep] = []
 
         # 1. Initial design
         x = self.get_initial_design(volfrac, nelx, nely, nelz) if x_init is None else x_init.copy()
