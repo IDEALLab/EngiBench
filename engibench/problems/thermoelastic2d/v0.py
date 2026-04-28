@@ -65,7 +65,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             default_factory=lambda: HEATSINK_ELEMENTS
         )
         """Binary NxN matrix specifying elements that have a heat sink"""
-        volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
+        volume_fraction_target: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
         """Target volume fraction for the volume fraction constraint"""
         rmin: Annotated[
             float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
