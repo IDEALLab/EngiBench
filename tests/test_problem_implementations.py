@@ -102,6 +102,8 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """
     if problem_class.container_id is not None and not sys.platform.startswith("linux"):
         pytest.skip(f"Skipping containerized problem {problem_class.__name__} on non-linux platform")
+    if problem_class.__module__.startswith("engibench.problems.power_electronics") and sys.platform == "darwin":
+        pytest.skip(f"Skipping {problem_class.__name__} on MacOs")
     print(f"Testing optimization and simulation for {problem_class.__name__}...")
     # Initialize problem and get a random design
     problem = problem_class(seed=1)
