@@ -138,15 +138,15 @@ class FeaModel3D:
     def has_converged(self, change: float, iterr: int) -> bool:
         """Determines whether the optimization process has converged based on the change in design variables and iteration count.
 
-                Args:
-                    change (float): The maximum change in design variables from the previous iteration.
-                    iterr (int): The current iteration number.
+        Args:
+            change (float): The maximum change in design variables from the previous iteration.
+            iterr (int): The current iteration number.
 
-                Returns:
-                    bool: True if the optimization has converged, False otherwise. Convergence is defined as either:
-                        - The change in design variables is below a predefined threshold and a minimum number of iterations have been completed.
-                        - The maximum number of iterations has been reached.
-                """
+        Returns:
+            bool: True if the optimization has converged, False otherwise. Convergence is defined as either:
+            - The change in design variables is below a predefined threshold and a minimum number of iterations have been completed.
+            - The maximum number of iterations has been reached.
+        """
         if iterr >= self.max_iter:
             return True
         return change < UPDATE_THRESHOLD and iterr >= MIN_ITERATIONS
@@ -383,8 +383,6 @@ class FeaModel3D:
             vf_error = np.abs(np.mean(x) - volfrac)
             obj_values = np.array([f0valm, f0valt, vf_error])
             x_curr = x.copy()
-            # opti_step = OptiStep(obj_values=obj_values, step=iterr)
-            # opti_steps.append(opti_step)
 
             xval = x.reshape(n, 1)
             volconst = np.sum(x) / (volfrac * n) - 1.0
