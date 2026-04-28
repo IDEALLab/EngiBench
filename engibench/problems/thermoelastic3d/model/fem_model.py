@@ -468,7 +468,9 @@ class FeaModel3D:
 
             # If extra_iter is True, we just did our last iteration and want to break
             if extra_iter is True:
-                x = xold1.reshape(nely, nelx, nelz)  # Revert to design before the last update (for accurate gradient information)
+                x = xold1.reshape(
+                    nely, nelx, nelz
+                )  # Revert to design before the last update (for accurate gradient information)
                 break  # We technically don't have to break here, as the logic is built into the loop condition
 
             # We know we are not on the extra iteration
