@@ -441,7 +441,7 @@ class FeaModel3D:
             x_update = x.copy() - x_curr
 
             # Record the OptiStep
-            df0dx_all = np.stack([df0dx_m, df0dx_t, df0dx_mat, dfdx.reshape(nely, nelx)], axis=0)  # (4, nely, nelx, nelz)
+            df0dx_all = np.stack([df0dx_m, df0dx_t, df0dx_mat, dfdx.reshape(nely, nelx, nelz)], axis=0)  # (4, nely, nelx, nelz)
             opti_step_update = OptiStepUpdate(
                 obj_values=obj_values,
                 iterr=iterr,
