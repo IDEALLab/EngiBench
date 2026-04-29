@@ -178,7 +178,7 @@ export APPTAINER_HOME=$HOME/scratch/EngiBench
 export APPTAINER_CACHEDIR=$APPTAINER_HOME/apptainer-cache
 
 # Load the apptainer module. Note that not all HPC systems require this
-# and/or the module name may differ. For example, not required on ETH's Euler cluster, 
+# and/or the module name may differ. For example, not required on ETH's Euler cluster,
 # where apptainer is available by default and no such module exists.
 module load apptainer
 
@@ -191,7 +191,7 @@ source ../.venv/bin/activate
 # Run the dataset generaiton python file. Note that the CLI exposes
 # many parameters of the dataset generation, e.g. number of LHS samples
 # and Mach, Reynolds, and alpha ranges. However, further customization,
-# e.g. changing the sampling strategy and algorithm, will require 
+# e.g. changing the sampling strategy and algorithm, will require
 # editing of the python file.
 python ../engibench/problems/airfoil/dataset_slurm_airfoil.py \
     -type simulate \
