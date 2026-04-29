@@ -177,8 +177,9 @@ export OMP_NUM_THREADS=1
 export APPTAINER_HOME=$HOME/scratch/EngiBench
 export APPTAINER_CACHEDIR=$APPTAINER_HOME/apptainer-cache
 
-# Load the apptainer module. Not required on ETH's Euler cluster, where
-# apptainer is available by default and no such module exists.
+# Load the apptainer module. Note that not all HPC systems require this
+# and/or the module name may differ. For example, not required on ETH's Euler cluster, 
+# where apptainer is available by default and no such module exists.
 module load apptainer
 
 # Activate a preconfigured Python environment with EngiBench installed.
@@ -187,6 +188,11 @@ module load apptainer
 # lives in the parent directory.
 source ../.venv/bin/activate
 
+# Run the dataset generaiton python file. Note that the CLI exposes
+# many parameters of the dataset generation, e.g. number of LHS samples
+# and Mach, Reynolds, and alpha ranges. However, further customization,
+# e.g. changing the sampling strategy and algorithm, will require 
+# editing of the python file.
 python ../engibench/problems/airfoil/dataset_slurm_airfoil.py \
     -type simulate \
     -account "$SLURM_JOB_ACCOUNT" \
