@@ -119,7 +119,7 @@ class FeaModel:
         Args:
             bcs (dict[str, any]): A dictionary containing boundary conditions and problem parameters.
                 Expected keys include:
-                    - 'volfrac' (float): Target volume fraction.
+                    - 'volume_fraction_target' (float): Target volume fraction.
                     - 'fixed_elements' (np.ndarray): NxN binary array encoding the location of fixed elements.
                     - 'force_elements_x' (np.ndarray): NxN binary array encoding the location of loaded elements in the x direction.
                     - 'force_elements_y' (np.ndarray): NxN binary array encoding the location of loaded elements in the y direction.
@@ -146,7 +146,7 @@ class FeaModel:
         nelx = fe_h - 1
         nely = fe_w - 1
 
-        volfrac = bcs["volfrac"]
+        volfrac = bcs["volume_fraction_target"]
         n = nely * nelx  # Total number of elements
 
         # OptiSteps records
@@ -285,7 +285,7 @@ class FeaModel:
                 return {
                     "structural_compliance": f0valm,
                     "thermal_compliance": f0valt,
-                    "volume_fraction": vf_error,
+                    "volume_fraction_error": vf_error,
                 }
             vf_error = np.abs(np.mean(x) - volfrac)
             obj_values = np.array([f0valm, f0valt, vf_error])
@@ -353,7 +353,7 @@ class FeaModel:
             "bcs": bcs,
             "structural_compliance": f0valm,
             "thermal_compliance": f0valt,
-            "volume_fraction": vf_error,
+            "volume_fraction_error": vf_error,
             "opti_steps": opti_steps,
         }
 
@@ -372,7 +372,7 @@ if __name__ == "__main__":
         "fixed_elements": [lci[21], lci[32], lci[43]],
         "force_elements_y": [bri[31]],
         "heatsink_elements": [lci[31], lci[32], lci[33]],
-        "volfrac": 0.2,
+        "volume_fraction_target": 0.2,
         "rmin": 1.1,
         "weight": 1.0,  # 1.0 for pure structural, 0.0 for pure thermal
     }
