@@ -552,7 +552,7 @@
 <tr class="row-odd"><td><p>Objectives</p></td>
 <td><p>structural_compliance: ↓</p>
 <p>thermal_compliance: ↓</p>
-<p>volume_fraction: ↓</p>
+<p>volume_fraction_error: ↓</p>
 </td>
 </tr>
 <tr class="row-even"><td><p>Conditions</p></td>
@@ -561,7 +561,7 @@
 <li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Binary NxN matrix specifying elements that have a structural load in the x-direction</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Binary NxN matrix specifying elements that have a structural load in the y-direction</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Binary NxN matrix specifying elements that have a heat sink</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Target volume fraction for the volume fraction constraint</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volume_fraction_target</span></code>: Target volume fraction for the volume fraction constraint</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Filter size used in the optimization routine</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization</p></li>
 </ul>
@@ -604,7 +604,7 @@ Total compliance is defined as the sum of thermal compliance and structural comp
 <li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Binary NxN matrix specifying elements that have a structural load in the x-direction</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Binary NxN matrix specifying elements that have a structural load in the y-direction</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Binary NxN matrix specifying elements that have a heat sink</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Target volume fraction for the volume fraction constraint</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volume_fraction_target</span></code>: Target volume fraction for the volume fraction constraint</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: Filter size used in the optimization routine</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization</p></li>
 </ul>
