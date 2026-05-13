@@ -17,7 +17,8 @@ The design space is then defined by a 2D array representing density values (para
 
 ## Objectives
 The objective of this problem is to minimize total compliance C under a volume fraction constraint V by placing a thermally conductive material.
-Total compliance is defined as the sum of thermal compliance and structural compliance.
+Total compliance is defined as a linear combination of thermal compliance and structural compliance.
+The weight configuration parameter defines the relative importance of thermal compliance and structural compliance in the total compliance calculation, where a weight of 1 corresponds to a purely structural problem and a weight of 0 corresponds to a purely thermal problem.
 
 ## Conditions
 
@@ -44,11 +45,11 @@ Relevant datapoint fields include:
 - `force_elements_x`: Encodes a binary NxN matrix specifying elements that have a structural load in the x-direction.
 - `force_elements_y`: Encodes a binary NxN matrix specifying elements that have a structural load in the y-direction.
 - `heatsink_elements`: Encodes a binary NxN matrix specifying elements that have a heat sink.
-- `volume_fraction`: The volume fraction value of the optimized design
+- `volume_fraction_error`: The volume fraction error with respect to the target volume fraction
 - `structural_compliance`: The structural compliance of the optimized design
 - `thermal_compliance`: The thermal compliance of the optimized design
 - `nelx`: The number of elements in the x-direction
 - `nely`: The number of elements in the y-direction
-- `volfrac`: The volume fraction target of the optimized design
+- `volume_fraction_target`: The volume fraction target of the optimized design
 - `rmin`: The filter size used in the optimization routine
 - `weight`: The domain weighting used in the optimization routine
