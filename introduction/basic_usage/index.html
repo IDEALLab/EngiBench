@@ -163,13 +163,16 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
+</ul>
+</details></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/photonics2d/">Photonics2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/power_electronics/">PowerElectronics</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/heatconduction/">Heat Conduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction2d/">Heat Conduction 2D</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction3d/">Heat Conduction 3D</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/heatconduction/">HeatConduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction2d/">HeatConduction2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction3d/">HeatConduction3D</a></li>
 </ul>
 </details></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/external/">External Problems</a></li>
@@ -521,7 +524,7 @@
   <section class="tex2jax_ignore mathjax_ignore" id="basic-usage">
 <h1>Basic Usage<a class="headerlink" href="#basic-usage" title="Link to this heading">#</a></h1>
 <p>Our API is designed to be simple and easy to use. Here is a basic example of how to use EngiBench to create a problem, get the dataset, and evaluate a design.</p>
-<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.problems.beams2d.v0</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams2D</span>
+<div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.problems.beams2d.v1</span><span class="w"> </span><span class="kn">import</span> <span class="n">Beams2D</span>
 
 <span class="c1"># Create a problem</span>
 <span class="n">problem</span> <span class="o">=</span> <span class="n">Beams2D</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">0</span><span class="p">)</span>
