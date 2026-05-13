@@ -595,7 +595,8 @@ The design space is then defined by a 2D array representing density values (para
 <section id="objectives">
 <h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
 <p>The objective of this problem is to minimize total compliance C under a volume fraction constraint V by placing a thermally conductive material.
-Total compliance is defined as the sum of thermal compliance and structural compliance.</p>
+Total compliance is defined as a linear combination of thermal compliance and structural compliance.
+The weight configuration parameter defines the relative importance of thermal compliance and structural compliance in the total compliance calculation, where a weight of 1 corresponds to a purely structural problem and a weight of 0 corresponds to a purely thermal problem.</p>
 </section>
 <section id="conditions">
 <h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
@@ -631,12 +632,12 @@ Furthermore, values for the volume fraction constraint are randomly selected in 
 <li><p><code class="docutils literal notranslate"><span class="pre">force_elements_x</span></code>: Encodes a binary NxN matrix specifying elements that have a structural load in the x-direction.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">force_elements_y</span></code>: Encodes a binary NxN matrix specifying elements that have a structural load in the y-direction.</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">heatsink_elements</span></code>: Encodes a binary NxN matrix specifying elements that have a heat sink.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">volume_fraction</span></code>: The volume fraction value of the optimized design</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volume_fraction_error</span></code>: The volume fraction error with respect to the target volume fraction</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">structural_compliance</span></code>: The structural compliance of the optimized design</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">thermal_compliance</span></code>: The thermal compliance of the optimized design</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">nelx</span></code>: The number of elements in the x-direction</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">nely</span></code>: The number of elements in the y-direction</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: The volume fraction target of the optimized design</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volume_fraction_target</span></code>: The volume fraction target of the optimized design</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">rmin</span></code>: The filter size used in the optimization routine</p></li>
 <li><p><code class="docutils literal notranslate"><span class="pre">weight</span></code>: The domain weighting used in the optimization routine</p></li>
 </ul>
