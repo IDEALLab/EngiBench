@@ -68,7 +68,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
             int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
         ] = 51
         """Resolution of the design space"""
-        max_iter: int = 100
+        max_iter: Annotated[int, bounded(lower=1).category(THEORY)] = 100
         """Maximum number of iterations for the solver in `optimize()`."""
 
     config: Config
