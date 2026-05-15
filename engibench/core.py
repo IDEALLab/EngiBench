@@ -42,6 +42,17 @@ class ObjectiveDirection(Enum):
     MAXIMIZE = auto()
 
 
+@dataclasses.dataclass
+class SimulationResult:
+    """Base type for the return value of `Problem.simulate_with_details()`.
+
+    Derived problem classes may return instances of derived `SimulationResult` classes, to return more fields.
+    """
+
+    objective_values: npt.NDArray
+    """Performance of the simulated design -- each entry corresponds to an objective value."""
+
+
 class Problem(Generic[DesignType]):
     r"""Main class for defining an engineering design problem.
 
@@ -54,6 +65,7 @@ class Problem(Generic[DesignType]):
 
     - :meth:`check_constraints` - to check if a design and conditions violate any constraints.
     - :meth:`simulate` - to simulate a design and return the performance given some conditions.
+    - :meth:`simulate_verbose` - to simulate a design and return the performance and problem specific additional data given some conditions.
     - :meth:`optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.
     - :meth:`reset` - to reset the simulator and numpy random to a given seed. Should be called before each call to `simulate` or `optimize`.
     - :meth:`render` - to render a design in a human-readable format.
@@ -130,8 +142,31 @@ class Problem(Generic[DesignType]):
         """Returns the condition names as a list."""
         return [f.name for f in dataclasses.fields(self.conditions)]
 
+    def simulate_verbose(self, design: DesignType, config: dict[str, Any] | None = None) -> SimulationResult:
+        r"""Launch a simulation on the given design and return the performance.
+
+        Similar to :py:meth:`Problem.simulate()` but usually returns more values, which can lead to
+        an increase of computational intensity when compared to :py:meth:`Problem.simulate()`.
+
+        Implementations returning more than just the objective values should return an instance of a
+        class which is derived from :class:`SimulationResult` and document the additional fields.
+
+        Args:
+            design (DesignType): The design to simulate.
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.
+            **kwargs: Additional keyword arguments.
+
+        Returns:
+            An instance of `SimulationResult` or a derived class.
+        """
+        raise NotImplementedError
+
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None) -> npt.NDArray:
         r"""Launch a simulation on the given design and return the performance.
+
+        The default implementation just calls :py:meth:`Problem.simulate_verbose()` and only returns the objective values.
+        If the problem allows to determine the objective values in a simpler, less computationally intensive way than
+        :py:meth:`Problem.simulate_verbose()`, the default implementation should be overloaded by a custom implementation.
 
         Args:
             design (DesignType): The design to simulate.
@@ -141,7 +176,7 @@ class Problem(Generic[DesignType]):
         Returns:
             np.array: The performance of the design -- each entry corresponds to an objective value.
         """
-        raise NotImplementedError
+        return self.simulate_verbose(design, config).objective_values
 
     def optimize(
         self, starting_point: DesignType, config: dict[str, Any] | None = None

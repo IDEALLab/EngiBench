@@ -16,6 +16,7 @@ import numpy.typing as npt
 
 from engibench.core import ObjectiveDirection
 from engibench.core import Problem
+from engibench.core import SimulationResult
 from engibench.problems.power_electronics.utils.config import Config
 from engibench.problems.power_electronics.utils.netlist_handler import parse_topology
 from engibench.problems.power_electronics.utils.netlist_handler import rewrite_netlist
@@ -88,7 +89,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         )
         self.ngspice_path = ngspice_path
 
-    def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:  # noqa: ARG002
+    def simulate_verbose(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> SimulationResult:  # noqa: ARG002
         """Simulates the performance of a Power Electronics design.
 
         Args:
@@ -103,7 +104,7 @@ class PowerElectronics(Problem[npt.NDArray]):
             config: ignored
 
         Returns:
-            simulation_results: a numpy array containing the simulation results [DcGain, VoltageRipple, Efficiency].
+            An instance of `SimulationResult` containing `objective_values=[DcGain, VoltageRipple]`.
         """
         self.config, rewrite_netlist_str, edge_map, _ = parse_topology(self.config)
         self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
@@ -112,7 +113,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         ngspice = NgSpice(ngspice_windows_path=self.ngspice_path)
         ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
-        return np.array([DcGain, VoltageRipple])
+        return SimulationResult(np.array([DcGain, VoltageRipple]))
 
     def optimize(self, starting_point: npt.NDArray, config: dict[str, Any] | None = None) -> NoReturn:
         """Optimize the design variable. Not applicable for this problem."""

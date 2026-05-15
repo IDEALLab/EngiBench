@@ -52,7 +52,9 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
         for name, member in inspect.getmembers(type(problem))
         if inspect.isfunction(member) and member.__qualname__.startswith(type(problem).__name__ + ".")
     }
-    assert "simulate" in class_methods, f"Problem {problem_class.__name__}: The simulate method should be implemented."
+    assert "simulate_verbose" in class_methods, (
+        f"Problem {problem_class.__name__}: The simulate_verbose method should be implemented."
+    )
     assert "render" in class_methods, f"Problem {problem_class.__name__}: The render method should be implemented."
     assert "random_design" in class_methods, (
         f"Problem {problem_class.__name__}: The random_design method should be implemented."
