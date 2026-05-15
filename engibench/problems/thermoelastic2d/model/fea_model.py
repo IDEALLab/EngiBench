@@ -14,6 +14,7 @@ from engibench.problems.thermoelastic2d.model.fem_matrix_builder import fe_melth
 from engibench.problems.thermoelastic2d.model.fem_setup import fe_mthm_bc
 from engibench.problems.thermoelastic2d.model.mma_subroutine import MMAInputs
 from engibench.problems.thermoelastic2d.model.mma_subroutine import mmasub
+from engibench.problems.thermoelastic2d.model.opti_dataclass import OptiStepUpdate
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
 from engibench.problems.thermoelastic2d.utils import plot_multi_physics
 
@@ -108,6 +109,47 @@ class FeaModel:
 
         return h, hs
 
+    def has_converged(self, change: float, iterr: int) -> bool:
+        """Determines whether the optimization process has converged based on the change in design variables and iteration count.
+
+        Args:
+            change (float): The maximum change in design variables from the previous iteration.
+            iterr (int): The current iteration number.
+
+        Returns:
+            bool: True if the optimization has converged, False otherwise. Convergence is defined as either:
+                - The change in design variables is below a predefined threshold and a minimum number of iterations have been completed.
+                - The maximum number of iterations has been reached.
+        """
+        if iterr >= self.max_iter:
+            return True
+        return change < UPDATE_THRESHOLD and iterr >= MIN_ITERATIONS
+
+    def record_step(self, opti_steps: list[OptiStep], opti_step_update: OptiStepUpdate):
+        """Helper to handle OptiStep creation and updates.
+
+        Args:
+            opti_steps (list): The list of OptiStep objects to be updated in place with the new step information.
+            opti_step_update (OptiStepUpdate): A dataclass encapsulating all input parameters.
+
+        Returns:
+            None. This function updates the opti_steps list in place.
+        """
+        obj_values = opti_step_update.obj_values
+        iterr = opti_step_update.iterr
+        x_curr = opti_step_update.x_curr
+        x_sensitivities = opti_step_update.x_sensitivities
+        x_update = opti_step_update.x_update
+        extra_iter = opti_step_update.extra_iter
+        if extra_iter is False:
+            step = OptiStep(obj_values=obj_values, step=iterr, x=x_curr, x_sensitivities=x_sensitivities, x_update=x_update)
+            opti_steps.append(step)
+
+        if len(opti_steps) > 1:
+            # Targeting the most recent step to update its 'delta'
+            target_idx = -2 if not extra_iter else -1
+            opti_steps[target_idx].obj_values_update = obj_values.copy() - opti_steps[target_idx].obj_values
+
     def run(self, bcs: dict[str, Any], x_init: np.ndarray | None = None) -> dict[str, Any]:  # noqa: PLR0915
         """Run the optimization algorithm for the coupled structural-thermal problem.
 
@@ -119,7 +161,7 @@ class FeaModel:
         Args:
             bcs (dict[str, any]): A dictionary containing boundary conditions and problem parameters.
                 Expected keys include:
-                    - 'volfrac' (float): Target volume fraction.
+                    - 'volume_fraction_target' (float): Target volume fraction.
                     - 'fixed_elements' (np.ndarray): NxN binary array encoding the location of fixed elements.
                     - 'force_elements_x' (np.ndarray): NxN binary array encoding the location of loaded elements in the x direction.
                     - 'force_elements_y' (np.ndarray): NxN binary array encoding the location of loaded elements in the y direction.
@@ -146,18 +188,18 @@ class FeaModel:
         nelx = fe_h - 1
         nely = fe_w - 1
 
-        volfrac = bcs["volfrac"]
+        volfrac = bcs["volume_fraction_target"]
         n = nely * nelx  # Total number of elements
 
         # OptiSteps records
-        opti_steps = []
+        opti_steps: list[OptiStep] = []
 
         # 1. Initial Design
         x = self.get_initial_design(volfrac, nelx, nely) if x_init is None else x_init
 
         # 2. Parameters
         penal = 3  # Penalty term
-        rmin = 1.1  # Filter's radius
+        rmin = 1.5  # Filter's radius
         e = 1.0  # Modulus of elasticity
         nu = 0.3  # Poisson's ratio
         k = 1.0  # Conductivity
@@ -177,6 +219,9 @@ class FeaModel:
         c = 10000 * np.ones((m, 1))
         d = np.zeros((m, 1))
 
+        # Convergence / Iteration Criteria
+        extra_iter = False  # This flag denotes if we are on the final extra iteration (for purpose of gathering gradient information)
+
         # 3. Matrices
         ke, k_eth, c_ethm = self.get_matricies(nu, e, k, alpha)
 
@@ -190,7 +235,7 @@ class FeaModel:
         f0valm = 0.0
         f0valt = 0.0
 
-        while change > UPDATE_THRESHOLD or iterr < MIN_ITERATIONS:
+        while not self.has_converged(change, iterr) or extra_iter is True:
             iterr += 1
             s_time = time.time()
             curr_time = time.time()
@@ -285,12 +330,13 @@ class FeaModel:
                 return {
                     "structural_compliance": f0valm,
                     "thermal_compliance": f0valt,
-                    "volume_fraction": vf_error,
+                    "volume_fraction_error": vf_error,
                 }
+
+            # OptiStep Information
             vf_error = np.abs(np.mean(x) - volfrac)
             obj_values = np.array([f0valm, f0valt, vf_error])
-            opti_step = OptiStep(obj_values=obj_values, step=iterr)
-            opti_steps.append(opti_step)
+            x_curr = x.copy()  # Design variables before the gradient update (nely, nelx)
 
             df0dx = df0dx_mat.reshape(nely * nelx, 1)
             df0dx = (h @ (xval * df0dx)) / hs[:, None] / np.maximum(1e-3, xval)  # Filtered sensitivity
@@ -333,6 +379,21 @@ class FeaModel:
 
             x = xmma.reshape(nely, nelx)
 
+            # Extract the exact gradient update step for OptiStep
+            x_update = x.copy() - x_curr
+
+            # Record the OptiStep
+            df0dx_all = np.stack([df0dx_m, df0dx_t, df0dx_mat, dfdx.reshape(nely, nelx)], axis=0)
+            opti_step_update = OptiStepUpdate(
+                obj_values=obj_values,
+                iterr=iterr,
+                x_curr=x_curr,
+                x_sensitivities=df0dx_all,
+                x_update=x_update,
+                extra_iter=extra_iter,
+            )
+            self.record_step(opti_steps, opti_step_update)
+
             # Print results
             change = np.max(np.abs(xmma - xold1))
             change_evol.append(change)
@@ -342,8 +403,15 @@ class FeaModel:
                 f" It.: {iterr:4d} Obj.: {f0val:10.4f} Vol.: {np.sum(x) / (nelx * nely):6.3f} ch.: {change:6.3f} || t_forward:{t_forward:6.3f} + t_sensitivity:{t_sensitivity:6.3f} + t_sens_calc:{t_sensitivity_calc:6.3f} + t_mma: {t_mma:6.3f} = {t_total:6.3f}"
             )
 
-            if iterr > self.max_iter:
-                break
+            # If extra_iter is True, we just did our last iteration and want to break
+            if extra_iter is True:
+                x = xold1.reshape(nely, nelx)  # Revert to design before the last update (for accurate gradient information)
+                break  # We technically don't have to break here, as the logic is built into the loop condition
+
+            # We know we are not on the extra iteration
+            # Check to see if we have converged. If so, flag our extra iteration
+            if self.has_converged(change, iterr):
+                extra_iter = True
 
         print("Optimization finished...")
         vf_error = np.abs(np.mean(x) - volfrac)
@@ -353,7 +421,7 @@ class FeaModel:
             "bcs": bcs,
             "structural_compliance": f0valm,
             "thermal_compliance": f0valt,
-            "volume_fraction": vf_error,
+            "volume_fraction_error": vf_error,
             "opti_steps": opti_steps,
         }
 
@@ -372,7 +440,7 @@ if __name__ == "__main__":
         "fixed_elements": [lci[21], lci[32], lci[43]],
         "force_elements_y": [bri[31]],
         "heatsink_elements": [lci[31], lci[32], lci[33]],
-        "volfrac": 0.2,
+        "volume_fraction_target": 0.2,
         "rmin": 1.1,
         "weight": 1.0,  # 1.0 for pure structural, 0.0 for pure thermal
     }

@@ -18,7 +18,8 @@ The design space is then defined by a 3D array representing density values (para
 
 ## Objectives
 The objective of this problem is to minimize total compliance C under a volume fraction constraint V by placing a thermally conductive material.
-Total compliance is defined as the sum of thermal compliance and structural compliance.
+Total compliance is defined as a linear combination of thermal compliance and structural compliance.
+The weight configuration parameter defines the relative importance of thermal compliance and structural compliance in the total compliance calculation, where a weight of 1 corresponds to a purely structural problem and a weight of 0 corresponds to a purely thermal problem.
 
 ## Conditions
 

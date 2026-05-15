@@ -24,6 +24,16 @@ class OptiStep:
     obj_values: npt.NDArray
     step: int
 
+    # Additional Gradient Fields
+    x: npt.NDArray | None = None
+    """the current design before the gradient update"""
+    x_sensitivities: npt.NDArray | None = None
+    """the sensitivities of the design variables"""
+    x_update: npt.NDArray | None = None
+    """the gradient update step taken by the optimizer"""
+    obj_values_update: npt.NDArray | None = None
+    """how the objective values change after the update step"""
+
 
 class ObjectiveDirection(Enum):
     """Direction of the objective function."""
