@@ -69,6 +69,7 @@ EngiOpt <https://github.com/IDEALLab/EngiOpt>
 ```
 
 ```{toctree}
+:hidden:
 
 utils/index
 ```
