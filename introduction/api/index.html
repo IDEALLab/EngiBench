@@ -524,6 +524,7 @@
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#methods">Methods</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.check_constraints"><code class="docutils literal notranslate"><span class="pre">Problem.check_constraints()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.simulate"><code class="docutils literal notranslate"><span class="pre">Problem.simulate()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.simulate_verbose"><code class="docutils literal notranslate"><span class="pre">Problem.simulate_verbose()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.optimize"><code class="docutils literal notranslate"><span class="pre">Problem.optimize()</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.OptiStep"><code class="docutils literal notranslate"><span class="pre">Problem.OptiStep</span></code></a></li>
 </ul>
@@ -569,6 +570,7 @@
 <ul class="simple">
 <li><p><a class="reference internal" href="#engibench.core.Problem.check_constraints" title="engibench.core.Problem.check_constraints"><code class="xref py py-meth docutils literal notranslate"><span class="pre">check_constraints()</span></code></a> - to check if a design and conditions violate any constraints.</p></li>
 <li><p><a class="reference internal" href="#engibench.core.Problem.simulate" title="engibench.core.Problem.simulate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">simulate()</span></code></a> - to simulate a design and return the performance given some conditions.</p></li>
+<li><p><a class="reference internal" href="#engibench.core.Problem.simulate_verbose" title="engibench.core.Problem.simulate_verbose"><code class="xref py py-meth docutils literal notranslate"><span class="pre">simulate_verbose()</span></code></a> - to simulate a design and return the performance and problem specific additional data given some conditions.</p></li>
 <li><p><a class="reference internal" href="#engibench.core.Problem.optimize" title="engibench.core.Problem.optimize"><code class="xref py py-meth docutils literal notranslate"><span class="pre">optimize()</span></code></a> - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.</p></li>
 <li><p><a class="reference internal" href="#engibench.core.Problem.reset" title="engibench.core.Problem.reset"><code class="xref py py-meth docutils literal notranslate"><span class="pre">reset()</span></code></a> - to reset the simulator and numpy random to a given seed. Should be called before each call to <cite>simulate</cite> or <cite>optimize</cite>.</p></li>
 <li><p><a class="reference internal" href="#engibench.core.Problem.render" title="engibench.core.Problem.render"><code class="xref py py-meth docutils literal notranslate"><span class="pre">render()</span></code></a> - to render a design in a human-readable format.</p></li>
@@ -626,6 +628,9 @@ the fields of <cite>config</cite> will be used as default values.</p>
 <dt class="sig sig-object py" id="engibench.core.Problem.simulate">
 <span class="sig-prename descclassname"><span class="pre">Problem.</span></span><span class="sig-name descname"><span class="pre">simulate</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">design</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DesignType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">ndarray</span><span class="p"><span class="pre">[</span></span><span class="pre">tuple</span><span class="p"><span class="pre">[</span></span><span class="pre">Any</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="p"><span class="pre">...</span></span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">dtype</span><span class="p"><span class="pre">[</span></span><span class="pre">_ScalarT</span><span class="p"><span class="pre">]</span></span><span class="p"><span class="pre">]</span></span></span></span><a class="reference internal" href="../../_modules/engibench/core/#Problem.simulate"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.core.Problem.simulate" title="Link to this definition">#</a></dt>
 <dd><p>Launch a simulation on the given design and return the performance.</p>
+<p>The default implementation just calls <a class="reference internal" href="#engibench.core.Problem.simulate_verbose" title="engibench.core.Problem.simulate_verbose"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Problem.simulate_verbose()</span></code></a> and only returns the objective values.
+If the problem allows to determine the objective values in a simpler, less computationally intensive way than
+<a class="reference internal" href="#engibench.core.Problem.simulate_verbose" title="engibench.core.Problem.simulate_verbose"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Problem.simulate_verbose()</span></code></a>, the default implementation should be overloaded by a custom implementation.</p>
 <dl class="field-list simple">
 <dt class="field-odd">Parameters<span class="colon">:</span></dt>
 <dd class="field-odd"><ul class="simple">
@@ -636,6 +641,28 @@ the fields of <cite>config</cite> will be used as default values.</p>
 </dd>
 <dt class="field-even">Returns<span class="colon">:</span></dt>
 <dd class="field-even"><p><strong>np.array</strong> – The performance of the design – each entry corresponds to an objective value.</p>
+</dd>
+</dl>
+</dd></dl>
+
+<dl class="py method">
+<dt class="sig sig-object py" id="engibench.core.Problem.simulate_verbose">
+<span class="sig-prename descclassname"><span class="pre">Problem.</span></span><span class="sig-name descname"><span class="pre">simulate_verbose</span></span><span class="sig-paren">(</span><em class="sig-param"><span class="n"><span class="pre">design</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">DesignType</span></span></em>, <em class="sig-param"><span class="n"><span class="pre">config</span></span><span class="p"><span class="pre">:</span></span><span class="w"> </span><span class="n"><span class="pre">dict</span><span class="p"><span class="pre">[</span></span><span class="pre">str</span><span class="p"><span class="pre">,</span></span><span class="w"> </span><span class="pre">Any</span><span class="p"><span class="pre">]</span></span><span class="w"> </span><span class="p"><span class="pre">|</span></span><span class="w"> </span><span class="pre">None</span></span><span class="w"> </span><span class="o"><span class="pre">=</span></span><span class="w"> </span><span class="default_value"><span class="pre">None</span></span></em><span class="sig-paren">)</span> <span class="sig-return"><span class="sig-return-icon">&#x2192;</span> <span class="sig-return-typehint"><span class="pre">SimulationResult</span></span></span><a class="reference internal" href="../../_modules/engibench/core/#Problem.simulate_verbose"><span class="viewcode-link"><span class="pre">[source]</span></span></a><a class="headerlink" href="#engibench.core.Problem.simulate_verbose" title="Link to this definition">#</a></dt>
+<dd><p>Launch a simulation on the given design and return the performance.</p>
+<p>Similar to <a class="reference internal" href="#engibench.core.Problem.simulate" title="engibench.core.Problem.simulate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Problem.simulate()</span></code></a> but usually returns more values, which can lead to
+an increase of computational intensity when compared to <a class="reference internal" href="#engibench.core.Problem.simulate" title="engibench.core.Problem.simulate"><code class="xref py py-meth docutils literal notranslate"><span class="pre">Problem.simulate()</span></code></a>.</p>
+<p>Implementations returning more than just the objective values should return an instance of a
+class which is derived from <code class="xref py py-class docutils literal notranslate"><span class="pre">SimulationResult</span></code> and document the additional fields.</p>
+<dl class="field-list simple">
+<dt class="field-odd">Parameters<span class="colon">:</span></dt>
+<dd class="field-odd"><ul class="simple">
+<li><p><strong>design</strong> (<em>DesignType</em>) – The design to simulate.</p></li>
+<li><p><strong>config</strong> (<em>dict</em>) – A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.</p></li>
+<li><p><strong>**kwargs</strong> – Additional keyword arguments.</p></li>
+</ul>
+</dd>
+<dt class="field-even">Returns<span class="colon">:</span></dt>
+<dd class="field-even"><p><strong>An instance of `SimulationResult` or a derived class.</strong></p>
 </dd>
 </dl>
 </dd></dl>
@@ -838,6 +865,7 @@ the fields of <cite>config</cite> will be used as default values.</p>
 <li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#methods">Methods</a><ul class="nav section-nav flex-column">
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.check_constraints"><code class="docutils literal notranslate"><span class="pre">Problem.check_constraints()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.simulate"><code class="docutils literal notranslate"><span class="pre">Problem.simulate()</span></code></a></li>
+<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.simulate_verbose"><code class="docutils literal notranslate"><span class="pre">Problem.simulate_verbose()</span></code></a></li>
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.optimize"><code class="docutils literal notranslate"><span class="pre">Problem.optimize()</span></code></a><ul class="nav section-nav flex-column">
 <li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.core.Problem.OptiStep"><code class="docutils literal notranslate"><span class="pre">Problem.OptiStep</span></code></a></li>
 </ul>

@@ -500,6 +500,17 @@
     <span class="n">MAXIMIZE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 
 
+<span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
+<span class="k">class</span><span class="w"> </span><span class="nc">SimulationResult</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base type for the return value of `Problem.simulate_with_details()`.</span>
+
+<span class="sd">    Derived problem classes may return instances of derived `SimulationResult` classes, to return more fields.</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="n">objective_values</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span>
+<span class="w">    </span><span class="sd">&quot;&quot;&quot;Performance of the simulated design -- each entry corresponds to an objective value.&quot;&quot;&quot;</span>
+
+
 <div class="viewcode-block" id="Problem">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Problem</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">DesignType</span><span class="p">]):</span>
@@ -514,6 +525,7 @@
 
 <span class="sd">    - :meth:`check_constraints` - to check if a design and conditions violate any constraints.</span>
 <span class="sd">    - :meth:`simulate` - to simulate a design and return the performance given some conditions.</span>
+<span class="sd">    - :meth:`simulate_verbose` - to simulate a design and return the performance and problem specific additional data given some conditions.</span>
 <span class="sd">    - :meth:`optimize` - to optimize a design starting from a given point, e.g., using adjoint solver included inside the simulator.</span>
 <span class="sd">    - :meth:`reset` - to reset the simulator and numpy random to a given seed. Should be called before each call to `simulate` or `optimize`.</span>
 <span class="sd">    - :meth:`render` - to render a design in a human-readable format.</span>
@@ -590,10 +602,36 @@
 <span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the condition names as a list.&quot;&quot;&quot;</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conditions</span><span class="p">)]</span>
 
+<div class="viewcode-block" id="Problem.simulate_verbose">
+<a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.simulate_verbose">[docs]</a>
+    <span class="k">def</span><span class="w"> </span><span class="nf">simulate_verbose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SimulationResult</span><span class="p">:</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Launch a simulation on the given design and return the performance.</span>
+
+<span class="sd">        Similar to :py:meth:`Problem.simulate()` but usually returns more values, which can lead to</span>
+<span class="sd">        an increase of computational intensity when compared to :py:meth:`Problem.simulate()`.</span>
+
+<span class="sd">        Implementations returning more than just the objective values should return an instance of a</span>
+<span class="sd">        class which is derived from :class:`SimulationResult` and document the additional fields.</span>
+
+<span class="sd">        Args:</span>
+<span class="sd">            design (DesignType): The design to simulate.</span>
+<span class="sd">            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the optimization.</span>
+<span class="sd">            **kwargs: Additional keyword arguments.</span>
+
+<span class="sd">        Returns:</span>
+<span class="sd">            An instance of `SimulationResult` or a derived class.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+
+
 <div class="viewcode-block" id="Problem.simulate">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.simulate">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">:</span>
 <span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Launch a simulation on the given design and return the performance.</span>
+
+<span class="sd">        The default implementation just calls :py:meth:`Problem.simulate_verbose()` and only returns the objective values.</span>
+<span class="sd">        If the problem allows to determine the objective values in a simpler, less computationally intensive way than</span>
+<span class="sd">        :py:meth:`Problem.simulate_verbose()`, the default implementation should be overloaded by a custom implementation.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            design (DesignType): The design to simulate.</span>
@@ -603,7 +641,7 @@
 <span class="sd">        Returns:</span>
 <span class="sd">            np.array: The performance of the design -- each entry corresponds to an objective value.</span>
 <span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulate_verbose</span><span class="p">(</span><span class="n">design</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">objective_values</span></div>
 
 
 <div class="viewcode-block" id="Problem.optimize">
