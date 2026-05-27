@@ -19,6 +19,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.core import SimulationResult
 from engibench.problems.thermoelastic2d.model import fea_model
 from engibench.problems.thermoelastic2d.model.fea_model import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
@@ -110,15 +111,15 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         """
         super().reset(seed)
 
-    def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:
-        """Simulates the performance of a design topology.
+    def simulate_verbose(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> SimulationResult:
+        r"""Launch a simulation on the given design topology and return the performance.
 
         Args:
             design (np.ndarray): The design to simulate.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
 
         Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
+            A `SimulationResult` instance.
         """
         boundary_dict = dataclasses.asdict(self.conditions)
         for key, value in (config or {}).items():
@@ -129,7 +130,9 @@ class ThermoElastic2D(Problem[npt.NDArray]):
                     boundary_dict[key] = value
 
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
-        return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction_error"]])
+        return SimulationResult(
+            np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction_error"]])
+        )
 
     def optimize(
         self, starting_point: npt.NDArray, config: dict[str, Any] | None = None
