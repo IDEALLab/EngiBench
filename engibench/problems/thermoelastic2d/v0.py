@@ -3,7 +3,7 @@
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
-from typing import Annotated, Any, ClassVar
+from typing import Annotated, Any
 
 from gymnasium import spaces
 from matplotlib import colors
@@ -19,6 +19,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.core import SimulationResult
 from engibench.problems.thermoelastic2d.model import fea_model
 from engibench.problems.thermoelastic2d.model.fea_model import FeaModel
 from engibench.problems.thermoelastic2d.utils import get_res_bounds
@@ -42,7 +43,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
         ("structural_compliance", ObjectiveDirection.MINIMIZE),
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
-        ("volume_fraction", ObjectiveDirection.MINIMIZE),
+        ("volume_fraction_error", ObjectiveDirection.MINIMIZE),
     )
 
     @dataclass
@@ -65,7 +66,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             default_factory=lambda: HEATSINK_ELEMENTS
         )
         """Binary NxN matrix specifying elements that have a heat sink"""
-        volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
+        volume_fraction_target: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
         """Target volume fraction for the volume fraction constraint"""
         rmin: Annotated[
             float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
@@ -76,15 +77,15 @@ class ThermoElastic2D(Problem[npt.NDArray]):
 
     conditions = Conditions()
     design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY), dtype=np.float32)
-    dataset_id = "IDEALLab/thermoelastic_2d_v0"
+    dataset_id = "IDEALLab/thermoelastic_2d_v1"
     container_id = None
 
     @dataclass
     class Config(Conditions):
         """Structured representation of configuration parameters for a numerical computation."""
 
-        nelx: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
-        nely: ClassVar[Annotated[int, bounded(lower=1).category(THEORY)]] = NELX
+        nelx: Annotated[int, bounded(lower=1).category(THEORY)] = NELX
+        nely: Annotated[int, bounded(lower=1).category(THEORY)] = NELY
         max_iter: int = fea_model.MAX_ITERATIONS
         """Maximal number of iterations for optimize."""
 
@@ -110,15 +111,15 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         """
         super().reset(seed)
 
-    def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> npt.NDArray:
-        """Simulates the performance of a design topology.
+    def simulate_verbose(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> SimulationResult:
+        r"""Launch a simulation on the given design topology and return the performance.
 
         Args:
             design (np.ndarray): The design to simulate.
             config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
 
         Returns:
-            dict: The performance of the design - each entry of the dict corresponds to a named objective value.
+            A `SimulationResult` instance.
         """
         boundary_dict = dataclasses.asdict(self.conditions)
         for key, value in (config or {}).items():
@@ -129,7 +130,9 @@ class ThermoElastic2D(Problem[npt.NDArray]):
                     boundary_dict[key] = value
 
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
-        return np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
+        return SimulationResult(
+            np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction_error"]])
+        )
 
     def optimize(
         self, starting_point: npt.NDArray, config: dict[str, Any] | None = None

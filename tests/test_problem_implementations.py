@@ -52,7 +52,9 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
         for name, member in inspect.getmembers(type(problem))
         if inspect.isfunction(member) and member.__qualname__.startswith(type(problem).__name__ + ".")
     }
-    assert "simulate" in class_methods, f"Problem {problem_class.__name__}: The simulate method should be implemented."
+    assert "simulate_verbose" in class_methods, (
+        f"Problem {problem_class.__name__}: The simulate_verbose method should be implemented."
+    )
     assert "render" in class_methods, f"Problem {problem_class.__name__}: The render method should be implemented."
     assert "random_design" in class_methods, (
         f"Problem {problem_class.__name__}: The random_design method should be implemented."
@@ -102,6 +104,8 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     """
     if problem_class.container_id is not None and not sys.platform.startswith("linux"):
         pytest.skip(f"Skipping containerized problem {problem_class.__name__} on non-linux platform")
+    if problem_class.__module__.startswith("engibench.problems.power_electronics") and sys.platform == "darwin":
+        pytest.skip(f"Skipping {problem_class.__name__} on MacOs")
     print(f"Testing optimization and simulation for {problem_class.__name__}...")
     # Initialize problem and get a random design
     problem = problem_class(seed=1)
@@ -135,7 +139,7 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     try:
         optimal_design, history = problem.optimize(starting_point=design, config=max_iter_config)
     except NotImplementedError:
-        print("Problem class {problem_class.__name__} does not implement optimize - Skipping optimize")
+        print(f"Problem class {problem_class.__name__} does not implement optimize - Skipping optimize")
         return
     if isinstance(problem.design_space, spaces.Box):
         assert np.all(optimal_design >= problem.design_space.low), (

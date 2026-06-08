@@ -19,6 +19,7 @@ A dataset is generally composed of several columns:
 ```{eval-rst}
 .. automethod:: engibench.core.Problem.check_constraints
 .. automethod:: engibench.core.Problem.simulate
+.. automethod:: engibench.core.Problem.simulate_verbose
 .. automethod:: engibench.core.Problem.optimize
 
     Where an OptiStep is defined as:

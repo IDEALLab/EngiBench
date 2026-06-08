@@ -27,6 +27,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.core import SimulationResult
 from engibench.problems.airfoil.pyopt_history import History
 from engibench.problems.airfoil.templates import cli_interface
 from engibench.problems.airfoil.utils import calc_area
@@ -328,9 +329,22 @@ class Airfoil(Problem[DesignType]):
                 with rows ``[x, y, VelocityX, VelocityY, VelocityZ, CoefPressure]``.
 
         Returns:
-            npt.NDArray | tuple[npt.NDArray, npt.NDArray]: ``np.array([drag, lift])`` when
-                ``field_output=False``, or ``(np.array([drag, lift]), surface_fields)`` when
-                ``field_output=True``.
+            Objective values as the performance of the design.
+        """
+        return self.simulate_verbose(design, config, mpicores=mpicores).objective_values
+
+    def simulate_verbose(
+        self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
+    ) -> SimulationResult:
+        """Simulates the performance of an airfoil design.
+
+        Args:
+            design (dict): The design to simulate.
+            config (dict): A dictionary with configuration (e.g., boundary conditions, filenames) for the simulation.
+            mpicores (int): The number of MPI cores to use in the simulation.
+
+        Returns:
+            `SimulationResult` instance containing objective values as the performance of the design.
         """
         if isinstance(design["angle_of_attack"], np.ndarray):
             design["angle_of_attack"] = design["angle_of_attack"][0]
@@ -368,8 +382,7 @@ class Airfoil(Problem[DesignType]):
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
         drag = float(outputs[4])
-
-        return np.array([drag, lift])
+        return SimulationResult(np.array([drag, lift]))
 
     def simulate_field(
         self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4

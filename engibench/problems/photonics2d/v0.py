@@ -37,6 +37,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.core import SimulationResult
 from engibench.problems.photonics2d.backend import epsr_parameterization
 
 # --- EngiBench Problem-Specific Backend ---
@@ -232,7 +233,7 @@ class Photonics2D(Problem[npt.NDArray]):
 
         return epsr, ez1, ez2, source1, source2, probe1, probe2
 
-    def simulate(self, design: npt.NDArray, config: dict[str, Any] | None = None, **kwargs) -> npt.NDArray:  # noqa: ARG002
+    def simulate_verbose(self, design: npt.NDArray, config: dict[str, Any] | None = None, **kwargs) -> SimulationResult:  # noqa: ARG002
         """Simulates the performance of a design, returning the raw objective value.
 
            Stores simulation fields (`Ez1`, `Ez2`, `epsr`) internally in `_last_Ez1`,
@@ -244,7 +245,7 @@ class Photonics2D(Problem[npt.NDArray]):
             **kwargs: Additional keyword arguments (ignored).
 
         Returns:
-            npt.NDArray: 1-element array: [total_overlap - penalty], where higher is better.
+            SimulationResult: Containing an 1-element array: [total_overlap - penalty], where higher is better.
         """
         conditions = self._setup_simulation(config)
 
@@ -267,7 +268,7 @@ class Photonics2D(Problem[npt.NDArray]):
         penalty_weight = conditions.get("penalty_weight", self._penalty_weight_default)
         penalty = penalty_weight * np.linalg.norm(design)
 
-        return np.array([total_overlap - penalty], dtype=np.float64)
+        return SimulationResult(np.array([total_overlap - penalty], dtype=np.float64))
 
     def optimize(  # noqa: PLR0915
         self,

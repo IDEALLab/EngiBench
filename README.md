@@ -43,7 +43,7 @@ pip install "engibench[all]"
 
 <!-- start api -->
 ```python
-from engibench.problems.beams2d.v0 import Beams2D
+from engibench.problems.beams2d.v1 import Beams2D
 
 # Create a problem
 problem = Beams2D(seed=0)

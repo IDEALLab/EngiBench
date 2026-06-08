@@ -1,4 +1,4 @@
-# Heat Conduction 3D
+# HeatConduction3D
 
 ``` {problem:table}
 :lead: Milad Habibi @MIladHB

@@ -14,6 +14,7 @@ from engibench.problems.thermoelastic3d.model.fem_setup import fe_mthm_bc_3d
 from engibench.problems.thermoelastic3d.model.linear_solver import solve_spd_with_amg
 from engibench.problems.thermoelastic3d.model.mma_subroutine import MMAInputs
 from engibench.problems.thermoelastic3d.model.mma_subroutine import mmasub
+from engibench.problems.thermoelastic3d.model.opti_dataclass import OptiStepUpdate
 
 SECOND_ITERATION_THRESHOLD = 2
 FIRST_ITERATION_THRESHOLD = 1
@@ -134,6 +135,47 @@ class FeaModel3D:
         hs = np.array(h.sum(axis=1)).ravel()
         return h, hs
 
+    def has_converged(self, change: float, iterr: int) -> bool:
+        """Determines whether the optimization process has converged based on the change in design variables and iteration count.
+
+        Args:
+            change (float): The maximum change in design variables from the previous iteration.
+            iterr (int): The current iteration number.
+
+        Returns:
+            bool: True if the optimization has converged, False otherwise. Convergence is defined as either:
+            - The change in design variables is below a predefined threshold and a minimum number of iterations have been completed.
+            - The maximum number of iterations has been reached.
+        """
+        if iterr >= self.max_iter:
+            return True
+        return change < UPDATE_THRESHOLD and iterr >= MIN_ITERATIONS
+
+    def record_step(self, opti_steps: list[OptiStep], opti_step_update: OptiStepUpdate):
+        """Helper to handle OptiStep creation and updates.
+
+        Args:
+            opti_steps (list): The list of OptiStep objects to be updated in place with the new step information.
+            opti_step_update (OptiStepUpdate): A dataclass encapsulating all input parameters.
+
+        Returns:
+            None. This function updates the opti_steps list in place.
+        """
+        obj_values = opti_step_update.obj_values
+        iterr = opti_step_update.iterr
+        x_curr = opti_step_update.x_curr
+        x_sensitivities = opti_step_update.x_sensitivities
+        x_update = opti_step_update.x_update
+        extra_iter = opti_step_update.extra_iter
+        if extra_iter is False:
+            step = OptiStep(obj_values=obj_values, step=iterr, x=x_curr, x_sensitivities=x_sensitivities, x_update=x_update)
+            opti_steps.append(step)
+
+        if len(opti_steps) > 1:
+            # Targeting the most recent step to update its 'delta'
+            target_idx = -2 if not extra_iter else -1
+            opti_steps[target_idx].obj_values_update = obj_values.copy() - opti_steps[target_idx].obj_values
+
     def run(self, bcs: dict[str, Any], x_init: np.ndarray | None = None) -> dict[str, Any]:  # noqa: PLR0915, C901
         """Run the optimization algorithm for the coupled structural-thermal problem.
 
@@ -178,7 +220,7 @@ class FeaModel3D:
         volfrac = bcs["volfrac"]
 
         # OptiSteps records
-        opti_steps = []
+        opti_steps: list[OptiStep] = []
 
         # 1. Initial design
         x = self.get_initial_design(volfrac, nelx, nely, nelz) if x_init is None else x_init.copy()
@@ -207,6 +249,9 @@ class FeaModel3D:
         low_vec = None
         upp_vec = None
 
+        # Convergence / Iteration Criteria
+        extra_iter = False  # This flag denotes if we are on the final extra iteration
+
         # 3. Element matrices
         ke, k_eth, c_ethm = self.get_matrices(nu, e, k, alpha)
 
@@ -220,7 +265,7 @@ class FeaModel3D:
         f0valm = 0.0
         f0valt = 0.0
 
-        while change > UPDATE_THRESHOLD or iterr < MIN_ITERATIONS:
+        while not self.has_converged(change, iterr) or extra_iter is True:
             iterr += 1
             t0 = time.time()
             tcur = t0
@@ -337,8 +382,7 @@ class FeaModel3D:
                 }
             vf_error = np.abs(np.mean(x) - volfrac)
             obj_values = np.array([f0valm, f0valt, vf_error])
-            opti_step = OptiStep(obj_values=obj_values, step=iterr)
-            opti_steps.append(opti_step)
+            x_curr = x.copy()
 
             xval = x.reshape(n, 1)
             volconst = np.sum(x) / (volfrac * n) - 1.0
@@ -393,11 +437,27 @@ class FeaModel3D:
             # Update design
             x = xmma.reshape(nely, nelx, nelz)
 
+            # Extract the exact gradient update step for OptiStep
+            x_update = x.copy() - x_curr
+
+            # Record the OptiStep
+            df0dx_all = np.stack(
+                [df0dx_m, df0dx_t, df0dx_mat, dfdx.reshape(nely, nelx, nelz)], axis=0
+            )  # (4, nely, nelx, nelz)
+            opti_step_update = OptiStepUpdate(
+                obj_values=obj_values,
+                iterr=iterr,
+                x_curr=x_curr,
+                x_sensitivities=df0dx_all,
+                x_update=x_update,
+                extra_iter=extra_iter,
+            )
+            self.record_step(opti_steps, opti_step_update)
+
             # Progress
             change = np.max(np.abs(xmma - xold1))
             change_evol.append(change)
             obj_evol.append(f0val)
-
             t_mma = time.time() - tcur
             t_total = time.time() - t0
             print(
@@ -406,8 +466,17 @@ class FeaModel3D:
                 f"|| t_forward:{t_forward:6.3f} + t_adj:{t_adjoints:6.3f} + t_sens:{t_sens:6.3f} + t_mma:{t_mma:6.3f} = {t_total:6.3f}"
             )
 
-            if iterr > self.max_iter:
-                break
+            # If extra_iter is True, we just did our last iteration and want to break
+            if extra_iter is True:
+                x = xold1.reshape(
+                    nely, nelx, nelz
+                )  # Revert to design before the last update (for accurate gradient information)
+                break  # We technically don't have to break here, as the logic is built into the loop condition
+
+            # We know we are not on the extra iteration
+            # Check to see if we have converged. If so, flag our extra iteration
+            if self.has_converged(change, iterr):
+                extra_iter = True
 
         print("3D optimization finished.")
         vf_error = abs(np.mean(x) - volfrac)
