@@ -22,6 +22,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.core import SimulationResult
 from engibench.problems.heatconduction2d.shared import load_float
 from engibench.problems.heatconduction2d.shared import run_container_script
 from engibench.utils import cli
@@ -68,7 +69,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
             int, bounded(lower=1).category(THEORY), bounded(lower=10, upper=1000).warning().category(IMPL)
         ] = 51
         """Resolution of the design space"""
-        max_iter: int = 100
+        max_iter: Annotated[int, bounded(lower=1).category(THEORY)] = 100
         """Maximum number of iterations for the solver in `optimize()`."""
 
     config: Config
@@ -91,15 +92,15 @@ class HeatConduction3D(Problem[npt.NDArray]):
         self.conditions = self.Conditions(self.config.volume, self.config.area)
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(resolution, resolution, resolution), dtype=np.float64)
 
-    def simulate(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> npt.NDArray:
-        """Simulate the design.
+    def simulate_verbose(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> SimulationResult:
+        r"""Launch a simulation on the given design and return the performance.
 
         Args:
             design (Optional[np.ndarray]): The design to simulate.
             config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,area (float): Area constraint,resolution (int): Resolution of the design space) for the simulation.
 
         Returns:
-            float: The thermal compliance of the design.
+            A `SimulationResult` instance containing the thermal compliance of the design.
         """
         config = config or {}
         volume = config.get("volume", self.config.volume)
@@ -118,7 +119,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
             )
         )
 
-        return np.array([float(perf)])
+        return SimulationResult(np.array([float(perf)]))
 
     def optimize(
         self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None

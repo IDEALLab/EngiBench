@@ -3,7 +3,7 @@
 Our API is designed to be simple and easy to use. Here is a basic example of how to use EngiBench to create a problem, get the dataset, and evaluate a design.
 
 ```python
-from engibench.problems.beams2d.v0 import Beams2D
+from engibench.problems.beams2d.v1 import Beams2D
 
 # Create a problem
 problem = Beams2D(seed=0)
