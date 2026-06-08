@@ -543,6 +543,7 @@
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.utils.slurm.JobError"><code class="docutils literal notranslate"><span class="pre">JobError</span></code></a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-airfoil-dataset-generation-submission-script">Example: Airfoil dataset generation submission script</a></li>
 </ul>
             </nav>
         </div>
@@ -795,6 +796,63 @@ Only increase / set to 0 if you want to annoy the HPC team 😈.
 </dd></dl>
 
 </section>
+<section id="example-airfoil-dataset-generation-submission-script">
+<h2>Example: Airfoil dataset generation submission script<a class="headerlink" href="#example-airfoil-dataset-generation-submission-script" title="Link to this heading">#</a></h2>
+<p>Problems that ship with their own dataset-generation entry point (e.g.,
+<code class="docutils literal notranslate"><span class="pre">engibench/problems/airfoil/dataset_slurm_airfoil.py</span></code>) are launched with a
+thin bash wrapper submitted via <code class="docutils literal notranslate"><span class="pre">sbatch</span></code>. An example for the airfoil problem:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="c1">#SBATCH -t 01:00:00</span>
+<span class="c1">#SBATCH -n 1</span>
+<span class="c1">#SBATCH -c 1</span>
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">1</span>
+
+<span class="c1"># Apptainer image cache. Using $HOME keeps the script portable across clusters.</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPTAINER_HOME</span><span class="o">=</span><span class="nv">$HOME</span>/scratch/EngiBench
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPTAINER_CACHEDIR</span><span class="o">=</span><span class="nv">$APPTAINER_HOME</span>/apptainer-cache
+
+<span class="c1"># Load the apptainer module. Note that not all HPC systems require this</span>
+<span class="c1"># and/or the module name may differ. For example, not required on ETH&#39;s Euler cluster,</span>
+<span class="c1"># where apptainer is available by default and no such module exists.</span>
+module<span class="w"> </span>load<span class="w"> </span>apptainer
+
+<span class="c1"># Activate a preconfigured Python environment with EngiBench installed.</span>
+<span class="c1"># Adjust the path to your venv. The convention used by `uv` and most</span>
+<span class="c1"># Python tooling is `.venv`; this example assumes the virtual environment</span>
+<span class="c1"># lives in the parent directory.</span>
+<span class="nb">source</span><span class="w"> </span>../.venv/bin/activate
+
+<span class="c1"># Run the dataset generaiton python file. Note that the CLI exposes</span>
+<span class="c1"># many parameters of the dataset generation, e.g. number of LHS samples</span>
+<span class="c1"># and Mach, Reynolds, and alpha ranges. However, further customization,</span>
+<span class="c1"># e.g. changing the sampling strategy and algorithm, will require</span>
+<span class="c1"># editing of the python file.</span>
+python<span class="w"> </span>../engibench/problems/airfoil/dataset_slurm_airfoil.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-type<span class="w"> </span>simulate<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-account<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$SLURM_JOB_ACCOUNT</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-n_designs<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-n_flows<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-group_size<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-minutes_per_sim<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-n_slurm_array<span class="w"> </span><span class="m">1000</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-min_ma<span class="w"> </span><span class="m">0</span>.25<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-max_ma<span class="w"> </span><span class="m">0</span>.75<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-min_re<span class="w"> </span><span class="m">1</span>.0e6<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-max_re<span class="w"> </span><span class="m">1</span>.0e7<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-min_aoa<span class="w"> </span><span class="m">0</span>.0<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-max_aoa<span class="w"> </span><span class="m">10</span>.0<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>--field_output
+</pre></div>
+</div>
+<p>Submit the script, passing your SLURM account on the command line:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sbatch<span class="w"> </span>-A<span class="w"> </span>&lt;your-account&gt;<span class="w"> </span>dataset_slurm_airfoil.sh
+</pre></div>
+</div>
+<p>The account is exposed inside the job via <code class="docutils literal notranslate"><span class="pre">$SLURM_JOB_ACCOUNT</span></code> and is
+forwarded to <code class="docutils literal notranslate"><span class="pre">dataset_slurm_airfoil.py</span></code> through the <code class="docutils literal notranslate"><span class="pre">-account</span></code> flag, which
+uses it to charge the worker array jobs the script spawns internally.</p>
+</section>
 </section>
 
 
@@ -868,6 +926,7 @@ Only increase / set to 0 if you want to annoy the HPC team 😈.
 <li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#engibench.utils.slurm.JobError"><code class="docutils literal notranslate"><span class="pre">JobError</span></code></a></li>
 </ul>
 </li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#example-airfoil-dataset-generation-submission-script">Example: Airfoil dataset generation submission script</a></li>
 </ul>
   </nav></div>
 
