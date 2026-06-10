@@ -43,8 +43,9 @@ if __name__ == "__main__":
     -max_re,   --max_reynolds_number:   Upper bound for Reynolds number sampling (default: 2.0e7)
     -min_aoa,  --min_angle_of_attack:   Lower bound for angle of attack sampling in degrees (default: 0.0)
     -max_aoa,  --max_angle_of_attack:   Upper bound for angle of attack sampling in degrees (default: 20.0)
-    --field_output:                     Flag to include surface field variables (VelocityX, VelocityY, VelocityZ,
-                                        CoefPressure) in simulation output under the 'surface_fields' key (default: False)
+    --verbose:                          Flag to use the verbose simulation path, including surface field variables
+                                        (VelocityX, VelocityY, VelocityZ, CoefPressure) in simulation output under
+                                        the 'surface_fields' key (default: False)
     """
     # Fetch command line arguments for render and simulate to know whether to run those functions
     parser = ArgumentParser()
@@ -140,10 +141,10 @@ if __name__ == "__main__":
         help="Minimum sampling bound for angle of attack.",
     )
     parser.add_argument(
-        "--field_output",
+        "--verbose",
         action="store_true",
         default=False,
-        help="Include surface field variables (VelocityX, VelocityY, VelocityZ, CoefPressure) in simulation output.",
+        help="Use the verbose simulation path, including surface field variables (VelocityX, VelocityY, VelocityZ, CoefPressure) in simulation output.",
     )
     args = parser.parse_args()
 
@@ -164,8 +165,8 @@ if __name__ == "__main__":
     n_slurm_array = args.num_slurm_array
     minutes_per_sim = args.minutes_per_simulation
 
-    # Field output flag
-    field_output = args.field_output
+    # Verbose simulation flag (include surface fields)
+    verbose = args.verbose
 
     # Flow parameter and angle of attack ranges
     min_ma = args.min_mach_number
@@ -213,7 +214,7 @@ if __name__ == "__main__":
             problem_configuration = {"mach": ma, "reynolds": re, "alpha": alpha}
             config = {"problem_configuration": problem_configuration, "configuration_id": config_id}
             config["design"] = design["coords"]
-            config["field_output"] = field_output
+            config["verbose"] = verbose
             simulate_configs_designs.append(config)
             config_id += 1
 
