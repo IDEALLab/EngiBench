@@ -1,4 +1,4 @@
-# Heat Conduction 2D
+# HeatConduction2D
 
 ``` {problem:table}
 :lead: Milad Habibi @MIladHB

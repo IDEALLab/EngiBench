@@ -24,6 +24,7 @@ from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
+from engibench.core import SimulationResult
 from engibench.problems.beams2d.backend import calc_sensitivity
 from engibench.problems.beams2d.backend import design_to_image
 from engibench.problems.beams2d.backend import image_to_design
@@ -146,7 +147,22 @@ class Beams2D(Problem[npt.NDArray]):
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
 
         Returns:
-            npt.NDArray: The performance of the design in terms of compliance.
+            The performance of the design in terms of compliance.
+        """
+        return self.simulate_verbose(design, config, ce=ce).objective_values
+
+    def simulate_verbose(
+        self, design: npt.NDArray, config: dict[str, Any] | None = None, *, ce: npt.NDArray | None = None
+    ) -> SimulationResult:
+        """Simulates the performance of a beam design.
+
+        Args:
+            design (np.ndarray): The design to simulate.
+            ce: (np.ndarray, optional): If applicable, the pre-calculated sensitivity of the current design.
+            config (dict): A dictionary with configuration (e.g., boundary conditions) for the simulation.
+
+        Returns:
+            SimulationResult: The performance of the design in terms of compliance.
         """
         # This condition is needed to convert user-provided designs (images) to flat arrays. Normally does not apply, i.e., during optimization.
         if len(design.shape) > 1:
@@ -166,7 +182,7 @@ class Beams2D(Problem[npt.NDArray]):
         c = (
             (self.__st.Emin + design**simulate_config.penal * (self.__st.Emax - self.__st.Emin)) * ce
         ).sum()  # compliance (objective)
-        return np.array([c])
+        return SimulationResult(np.array([c]))
 
     def optimize(
         self, starting_point: npt.NDArray | None = None, config: dict[str, Any] | None = None

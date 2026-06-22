@@ -158,3 +158,64 @@ To tweak the arguments passed to sbatch, the `config` argument can be passed to 
 .. autoclass:: engibench.utils.slurm.JobError
    :members:
 ```
+
+## Example: Airfoil dataset generation submission script
+
+Problems that ship with their own dataset-generation entry point (e.g.,
+`engibench/problems/airfoil/dataset_slurm_airfoil.py`) are launched with a
+thin bash wrapper submitted via `sbatch`. An example for the airfoil problem:
+
+```bash
+#!/bin/bash
+#SBATCH -t 01:00:00
+#SBATCH -n 1
+#SBATCH -c 1
+
+export OMP_NUM_THREADS=1
+
+# Apptainer image cache. Using $HOME keeps the script portable across clusters.
+export APPTAINER_HOME=$HOME/scratch/EngiBench
+export APPTAINER_CACHEDIR=$APPTAINER_HOME/apptainer-cache
+
+# Load the apptainer module. Note that not all HPC systems require this
+# and/or the module name may differ. For example, not required on ETH's Euler cluster,
+# where apptainer is available by default and no such module exists.
+module load apptainer
+
+# Activate a preconfigured Python environment with EngiBench installed.
+# Adjust the path to your venv. The convention used by `uv` and most
+# Python tooling is `.venv`; this example assumes the virtual environment
+# lives in the parent directory.
+source ../.venv/bin/activate
+
+# Run the dataset generaiton python file. Note that the CLI exposes
+# many parameters of the dataset generation, e.g. number of LHS samples
+# and Mach, Reynolds, and alpha ranges. However, further customization,
+# e.g. changing the sampling strategy and algorithm, will require
+# editing of the python file.
+python ../engibench/problems/airfoil/dataset_slurm_airfoil.py \
+    -type simulate \
+    -account "$SLURM_JOB_ACCOUNT" \
+    -n_designs 5 \
+    -n_flows 1 \
+    -group_size 1 \
+    -minutes_per_sim 5 \
+    -n_slurm_array 1000 \
+    -min_ma 0.25 \
+    -max_ma 0.75 \
+    -min_re 1.0e6 \
+    -max_re 1.0e7 \
+    -min_aoa 0.0 \
+    -max_aoa 10.0 \
+    --field_output
+```
+
+Submit the script, passing your SLURM account on the command line:
+
+```bash
+sbatch -A <your-account> dataset_slurm_airfoil.sh
+```
+
+The account is exposed inside the job via `$SLURM_JOB_ACCOUNT` and is
+forwarded to `dataset_slurm_airfoil.py` through the `-account` flag, which
+uses it to charge the worker array jobs the script spawns internally.

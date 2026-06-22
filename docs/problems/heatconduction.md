@@ -1,4 +1,4 @@
-# Heat Conduction
+# HeatConduction
 
 These problems represent typical topology optimization problems where the goal is to decide where to place material in the design domain.
 
@@ -13,8 +13,8 @@ These problems represent typical topology optimization problems where the goal i
 
 
 We provide two versions for this problem:
-- [Heat Conduction 2D](./heatconduction2d.md) In this problem, we optimize a 2D slice of an object.
-- [Heat Conduction 3D](./heatconduction3d.md) This version is heavier, we optimize a 3D object.
+- [HeatConduction2D](./heatconduction2d.md) In this problem, we optimize a 2D slice of an object.
+- [HeatConduction3D](./heatconduction3d.md) This version is heavier, we optimize a 3D object.
 
 ```{toctree}
 :hidden:
