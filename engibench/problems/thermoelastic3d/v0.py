@@ -6,7 +6,6 @@ from dataclasses import field
 from typing import Annotated, Any
 
 from gymnasium import spaces
-import napari
 import numpy as np
 import numpy.typing as npt
 
@@ -187,6 +186,8 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         Returns:
             fig (np.ndarray): The rendered design.
         """
+        import napari  # noqa: PLC0415 -- lazy import: optional dependency, only needed for rendering
+
         design = np.array(design)
         design = np.transpose(design, (2, 0, 1))
 
