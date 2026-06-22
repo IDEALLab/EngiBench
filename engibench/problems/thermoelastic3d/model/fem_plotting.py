@@ -1,6 +1,5 @@
 """Module for plotting a 3D thermoelastic design with napari."""
 
-import napari
 import numpy as np
 
 
@@ -19,6 +18,8 @@ def plot_fem_3d(bcs, design) -> None:
     Returns:
         None
     """
+    import napari  # noqa: PLC0415 -- lazy import: optional dependency, only needed for plotting
+
     fixed_elements = bcs.get("fixed_elements", np.zeros_like(design))
 
     force_elements_x = bcs.get("force_elements_x", np.zeros_like(design))
