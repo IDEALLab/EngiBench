@@ -123,12 +123,20 @@ problem and MACH-Aero backend are the same as v0, with the following changes:
 - **Debugging artifacts:** each run additionally produces the full optimization history
   (`opt.hst` with stored sensitivities), per-iteration surface/section files (intermediates tarred,
   baseline + optimized kept loose), the final absolute area (`final_abs_volume.npy`), and the
-  optimizer log (`IPOPT.out`).
+  optimizer log (`IPOPT.out`). The current study's `output/` directory is exposed via the
+  `study_output_dir` property.
+- **Optimization trajectory:** `optimize()` returns the scalar objective trajectory (`optisteps`),
+  and `optimization_trajectory(include_surface=False)` returns the full geometry trajectory of every
+  evaluated design (and, with `include_surface=True`, the per-node surface fields such as `cp`, Mach,
+  skin friction and separation sensors) — rich data for trajectory/multimodal models.
+- **Analysis output:** `simulate` also reports the free-stream residual as a convergence-quality
+  signal in the saved `outputs.npy`.
 
 The area/thickness constraints are unchanged from v0 (the area constraint is scaled against a fixed
 baseline `area_input_design` so optimized areas stay comparable across designs). The dataset is
 hosted at [`IDEALLab/airfoil_v1`](https://huggingface.co/datasets/IDEALLab/airfoil_v1) and is
-generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`.
+generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A runnable tour of
+every v1 feature is in `engibench/problems/airfoil/tutorials/airfoil_v1_tutorial.py`.
 
 ## Citation
 If you use this problem in your research, please cite **both** of the works below.
