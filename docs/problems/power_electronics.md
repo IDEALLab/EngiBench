@@ -77,5 +77,15 @@ Here are the 3 parts:
 2. Random sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Min and max values in each dimension will not be sampled.
 3. Latin hypercube sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Each dimension is split into 10 intervals. Min and max values in each dimension will not be sampled.
 
-## References
-If you use this problem in your research, please cite the following paper:
+## Citation
+This problem is an original contribution to EngiBench and was not refactored from any prior publication. If you use this problem in your research, please cite the EngiBench paper:
+
+```bibtex
+@inproceedings{felten_engibench_2025,
+    title = {{EngiBench}: {A} {Framework} for {Data}-{Driven} {Engineering} {Design} {Research}},
+    url = {https://openreview.net/forum?id=YowD33Q89V},
+    author = {Felten, Florian and Apaza, Gabriel and B\"{a}unlich, Gerhard and Diniz, Cashen and Dong, Xuliang and Drake, Arthur and Habibi, Milad and Hoffman, Nathaniel J. and Keeler, Matthew and Massoudi, Soheyl and VanGessel, Francis G. and Fuge, Mark},
+    booktitle = {Proceedings of the 39th Conference on Neural Information Processing Systems ({NeurIPS} 2025)},
+    year = {2025},
+}
+```
