@@ -98,9 +98,12 @@ class Beams2D(Beams2D_v0):
 
             xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, dataclasses.asdict(base_config))
             # Compute the change by the inf. norm
-            change = np.linalg.norm(  # type: ignore[assignment]
-                xnew.reshape(base_config.nelx * base_config.nely, 1) - x.reshape(base_config.nelx * base_config.nely, 1),
-                np.inf,
+            change = float(
+                np.linalg.norm(
+                    xnew.reshape(base_config.nelx * base_config.nely, 1)
+                    - x.reshape(base_config.nelx * base_config.nely, 1),
+                    np.inf,
+                )
             )
             x = deepcopy(xnew)
 
