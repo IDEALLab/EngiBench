@@ -46,6 +46,11 @@ if find_spec("pyoptsparse") is None:
 DesignType = dict[str, Any]
 
 
+def _cross2d(a: npt.NDArray[np.float64], b: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """Return the z-component of the cross product of 2D vectors a and b."""
+    return a[..., 0] * b[..., 1] - a[..., 1] * b[..., 0]
+
+
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
     """Determines if two segments a and b intersect."""
     # intersection: find t such that (p + t dp - q) x dq = 0 with 0 <= t <= 1
@@ -63,10 +68,10 @@ def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.
         p, dp = curve[i], segments[i]
         end = n - 1 if i == 0 else n
         q, dq = curve[i + 2 : end], segments[i + 2 : end]
-        x = np.cross(dp, dq)
+        x = _cross2d(dp, dq)
         parallel = x == 0.0
-        t = np.cross(q[~parallel] - p, dq[~parallel]) / x[~parallel]
-        s = np.cross(q[~parallel] - p, dp) / x[~parallel]
+        t = _cross2d(q[~parallel] - p, dq[~parallel]) / x[~parallel]
+        s = _cross2d(q[~parallel] - p, dp) / x[~parallel]
         if np.any((t >= 0.0) & (t <= 1.0) & (s >= 0.0) & (s <= 1.0)):
             return i, p, curve[i + 1]
     return None
