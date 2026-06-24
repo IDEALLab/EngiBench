@@ -133,11 +133,33 @@ if __name__ == "__main__":
         help="Maximum sampling bound for angle of attack.",
     )
     parser.add_argument(
+        "-min_temp",
+        "--min_temperature",
+        type=float,
+        default=220.0,
+        help="Minimum sampling bound for freestream temperature [K].",
+    )
+    parser.add_argument(
+        "-max_temp",
+        "--max_temperature",
+        type=float,
+        default=310.0,
+        help="Maximum sampling bound for freestream temperature [K].",
+    )
+    parser.add_argument(
         "-return_history",
         "--return_history",
         action="store_true",
         default=False,
         help="Include optimizer step history (optisteps_history) in results.",
+    )
+    parser.add_argument(
+        "-coords_file",
+        "--coords_file",
+        type=str,
+        default=None,
+        help="Optional path to a local .npy of baseline coordinates to use as starting designs "
+        "(shape (N, P, 2) or (N, 2, P)). If omitted, initial designs are loaded from Hugging Face.",
     )
     parser.add_argument(
         "--extra_args",
@@ -185,18 +207,33 @@ if __name__ == "__main__":
     max_re = args.max_reynolds_number
     min_aoa = args.min_angle_of_attack
     max_aoa = args.max_angle_of_attack
+    min_temp = args.min_temperature
+    max_temp = args.max_temperature
 
     # ============== Problem-specific elements ===================
 
     print(f"Mach number:      {min_ma:.2e} to {max_ma:.2e}")
     print(f"Reynolds number:  {min_re:.2e} to {max_re:.2e}")
     print(f"Angle of attack:  {min_aoa:.1f} to {max_aoa:.1f}")
+    print(f"Temperature [K]:  {min_temp:.1f} to {max_temp:.1f}")
 
     # --- Dataset Loading ---
-    # Use initial designs from the existing dataset as starting points for optimization
-    ds = load_dataset("IDEALLab/airfoil_v0")
-    all_data = concatenate_datasets([ds[split] for split in ds])
-    designs = all_data["initial_design"]
+    # Initial designs (starting points). Either a local .npy of coordinates
+    # (shape (N, P, 2) or (N, 2, P)) via --coords_file, or the Hugging Face dataset.
+    if args.coords_file is not None:
+        raw = np.load(args.coords_file, allow_pickle=True)
+        coords_list = []
+        for entry in raw:
+            arr = np.asarray(entry, dtype=float)
+            # Normalize to (2, P): the per-design array is either (P, 2) or (2, P).
+            if arr.shape[0] != 2:  # noqa: PLR2004
+                arr = arr.T
+            coords_list.append(arr)
+        designs = [{"coords": c} for c in coords_list]
+    else:
+        ds = load_dataset("IDEALLab/airfoil_v0")
+        all_data = concatenate_datasets([ds[split] for split in ds])
+        designs = all_data["initial_design"]
     if n_designs < len(designs):
         designs = designs[:n_designs]
 
@@ -204,20 +241,22 @@ if __name__ == "__main__":
     config_id = 0
     optimize_configs = []
     for design in designs:
-        sampler = qmc.LatinHypercube(d=3)
+        sampler = qmc.LatinHypercube(d=4)
         samples = sampler.random(n=n_conditions)
 
-        bounds = np.array([[min_ma, max_ma], [min_re, max_re], [min_aoa, max_aoa]])
+        bounds = np.array([[min_ma, max_ma], [min_re, max_re], [min_aoa, max_aoa], [min_temp, max_temp]])
         scaled_samples = qmc.scale(samples, bounds[:, 0], bounds[:, 1])
         mach_values = scaled_samples[:, 0]
         reynolds_values = scaled_samples[:, 1]
         aoa_values = scaled_samples[:, 2]
+        temperature_values = scaled_samples[:, 3]
 
         for j in range(n_conditions):
             problem_configuration = {
                 "mach": mach_values[j],
                 "reynolds": reynolds_values[j],
                 "alpha": aoa_values[j],
+                "temperature": temperature_values[j],
             }
             config = {
                 "problem_configuration": problem_configuration,

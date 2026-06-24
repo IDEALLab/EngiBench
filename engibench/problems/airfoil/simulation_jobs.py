@@ -4,7 +4,8 @@ import time
 
 import numpy as np
 
-from engibench.problems.airfoil.v0 import Airfoil
+from engibench.problems.airfoil import Airfoil
+from engibench.problems.airfoil.utils import calc_area
 
 
 def simulate_slurm(problem_configuration: dict, configuration_id: int, design: list) -> dict:
@@ -87,12 +88,17 @@ def optimize_slurm(problem_configuration: dict, configuration_id: int, design: l
     problem.reset(seed=opt_id, cleanup=False)
 
     # Create starting point design (coordinates + angle of attack)
-    starting_point = {"coords": np.array(design), "angle_of_attack": problem_configuration["alpha"]}
+    coords = np.array(design)
+    starting_point = {"coords": coords, "angle_of_attack": problem_configuration["alpha"]}
+
+    # optimize() needs the baseline area for the (baseline-scaled) area constraint. The
+    # baseline is this design, so area_initial == area of the input design.
+    opt_config = {**problem_configuration, "area_initial": calc_area(coords)}
 
     print("Starting `optimize` via SLURM...")
     start_time = time.time()
 
-    optimized_design, optisteps_history = problem.optimize(starting_point, mpicores=1, config=problem_configuration)
+    optimized_design, optisteps_history = problem.optimize(starting_point, mpicores=1, config=opt_config)
     print("Finished `optimize` via SLURM.")
     end_time = time.time()
     elapsed_time = end_time - start_time
