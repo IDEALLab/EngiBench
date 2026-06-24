@@ -135,10 +135,13 @@ def main() -> None:  # noqa: C901, PLR0915
         funcs: dict[str, Any] = {}
         cfd_solver.evalFunctions(ap, funcs)
         cfd_solver.checkSolutionFailure(ap, funcs)
+        # getFreeStreamResidual is a collective call: it MUST run on every rank or the
+        # ranks deadlock. Compute it on all ranks, then write the result on rank 0.
+        res = cfd_solver.getFreeStreamResidual(ap)
         if comm.rank == 0:
             cl = funcs[f"{ap.name}_cl"]
             cd = funcs[f"{ap.name}_cd"]
-            outputs = np.array([mach, reynolds, alpha, cl, cd])
+            outputs = np.array([mach, reynolds, alpha, cl, cd, res])
             np.save(os.path.join(output_dir, "outputs.npy"), outputs)
 
     elif task == Task.POLAR:

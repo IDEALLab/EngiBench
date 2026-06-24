@@ -30,6 +30,7 @@ from dataclasses import field
 import json
 import os
 import re
+import tarfile
 from typing import Annotated, Any
 
 from gymnasium import spaces
@@ -195,32 +196,34 @@ class Airfoil(Airfoil_v0):
         )
         return filename
 
-    def simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
-        """Converts a slice file to a design, robust to the v1 (richer) surface-variable set.
+    @property
+    def study_output_dir(self) -> str:
+        """Local path to the current study's ``output`` directory.
 
-        The v1 solver writes many more surface fields than v0, so the slice/section files have
-        a variable (and column) count that v0's fixed parser cannot read. This parser instead
-        reads the Tecplot FELINESEG ``Nodes``/``Elements`` header, the node-coordinate block, and
-        the connectivity block generically, then reuses ``reorder_coords``.
+        Holds the per-run artifacts (``opt.hst``, ``IPOPT.out``, ``final_abs_volume.npy``,
+        the loose baseline/optimized section files and the tarred intermediates).
+        """
+        return self.__local_study_dir + "/output"
+
+    @staticmethod
+    def _parse_slice_lines(
+        lines: list[str],
+    ) -> tuple[list[str], npt.NDArray[np.float64], npt.NDArray[np.int64]]:
+        """Parse a Tecplot FELINESEG slice file generically (robust to the variable count).
 
         Args:
-            simulator_output (str): Slice filename to read. If None, the latest slice file is used.
+            lines: The lines of a ``fc_*_slices.dat`` file.
 
         Returns:
-            np.ndarray: The reordered (x, y) airfoil coordinates.
+            A tuple ``(var_names, node_data, conn_data)`` where ``node_data`` is
+            ``(n_nodes, n_vars)`` and ``conn_data`` is ``(n_elements, 2)``.
         """
-        output_dir = self.__local_study_dir + "/output"
-        if simulator_output is None:
-            files = [f for f in os.listdir(output_dir) if f.endswith("_slices.dat")]
-            file_numbers = [int(f.split("_")[1]) for f in files]
-            simulator_output = files[file_numbers.index(max(file_numbers))]
-
-        with open(os.path.join(output_dir, simulator_output)) as fh:
-            lines = fh.readlines()
-
+        var_names: list[str] = []
         n_nodes = n_elements = None
         data_start = None
         for i, line in enumerate(lines):
+            if "variables" in line.lower() and '"' in line:
+                var_names = re.findall(r'"([^"]+)"', line)
             match = re.search(r"Nodes\s*=\s*(\d+).*Elements\s*=\s*(\d+)", line)
             if match:
                 n_nodes, n_elements = int(match.group(1)), int(match.group(2))
@@ -228,18 +231,95 @@ class Airfoil(Airfoil_v0):
                 data_start = i + 1
                 break
         if n_nodes is None or n_elements is None or data_start is None:
-            raise ValueError(f"Could not parse slice header in {simulator_output}")
+            raise ValueError("Could not parse slice header (Nodes/Elements/DATAPACKING).")
 
         node_rows = lines[data_start : data_start + n_nodes]
         conn_rows = lines[data_start + n_nodes : data_start + n_nodes + n_elements]
         node_data = np.array([[float(v) for v in row.split()] for row in node_rows])
         conn_data = np.array([[int(float(v)) for v in row.split()] for row in conn_rows])
+        if not var_names or len(var_names) != node_data.shape[1]:
+            var_names = [f"var_{j}" for j in range(node_data.shape[1])]
+        return var_names, node_data, conn_data
 
-        # reorder_coords only needs the (x, y) coordinates and the node connectivity.
+    @staticmethod
+    def _coords_from_parsed(
+        node_data: npt.NDArray[np.float64], conn_data: npt.NDArray[np.int64]
+    ) -> npt.NDArray[np.float32]:
+        """Reorder parsed slice data into clean ``(2, N)`` airfoil coordinates via ``reorder_coords``."""
         slice_df = pd.DataFrame({"CoordinateX": node_data[:, 0], "CoordinateY": node_data[:, 1]})
         nodes_df = pd.DataFrame({"NodeC1": conn_data[:, 0], "NodeC2": conn_data[:, 1]})
-        slice_df = pd.concat([slice_df, nodes_df], axis=1)
-        return reorder_coords(slice_df)
+        return reorder_coords(pd.concat([slice_df, nodes_df], axis=1))
+
+    def simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
+        """Converts a slice file to a design, robust to the v1 (richer) surface-variable set.
+
+        The v1 solver writes many more surface fields than v0, so the slice/section files have
+        a variable (and column) count that v0's fixed parser cannot read. This parser instead
+        reads the Tecplot FELINESEG header, node-coordinate block, and connectivity block
+        generically, then reuses ``reorder_coords``.
+
+        Args:
+            simulator_output (str): Slice filename to read. If None, the latest slice file is used.
+
+        Returns:
+            np.ndarray: The reordered (x, y) airfoil coordinates.
+        """
+        output_dir = self.study_output_dir
+        if simulator_output is None:
+            files = [f for f in os.listdir(output_dir) if f.endswith("_slices.dat")]
+            file_numbers = [int(f.split("_")[1]) for f in files]
+            simulator_output = files[file_numbers.index(max(file_numbers))]
+
+        with open(os.path.join(output_dir, simulator_output)) as fh:
+            _, node_data, conn_data = self._parse_slice_lines(fh.readlines())
+        return self._coords_from_parsed(node_data, conn_data)
+
+    def optimization_trajectory(self, *, include_surface: bool = False) -> list[dict[str, Any]]:
+        """Returns the per-iteration designs (and optionally surface fields) from the last ``optimize()``.
+
+        ``optimize()`` writes one section file per evaluated design: the baseline (``fc_000``) and
+        the optimized design stay loose, while the intermediate ones are bundled in
+        ``fc_intermediate_slices.dat.tar.gz``. This reads all of them (loose + tarred) and returns
+        the full optimization trajectory of geometries -- rich data for trajectory/multimodal models.
+        It complements the scalar objective trajectory returned by ``optimize()`` (``optisteps``).
+
+        Args:
+            include_surface: If True, also include the full per-node surface fields (cp, Mach,
+                skin friction, separation sensors, ...) as a DataFrame in raw slice order.
+
+        Returns:
+            A list (ordered by design index) of dicts with keys ``index`` (int), ``coords``
+            (``(2, N)`` reordered airfoil coordinates) and, if ``include_surface`` is True,
+            ``surface`` (a ``pandas.DataFrame`` of every surface variable in the slice file).
+        """
+        output_dir = self.study_output_dir
+        slices: dict[int, list[str]] = {}
+
+        # Loose slice files (baseline + optimized).
+        for fname in os.listdir(output_dir):
+            if fname.startswith("fc_") and fname.endswith("_slices.dat"):
+                with open(os.path.join(output_dir, fname)) as fh:
+                    slices[int(fname.split("_")[1])] = fh.readlines()
+
+        # Tarred intermediate slice files.
+        tar_path = os.path.join(output_dir, "fc_intermediate_slices.dat.tar.gz")
+        if os.path.exists(tar_path):
+            with tarfile.open(tar_path) as tar:
+                for member in tar.getmembers():
+                    if member.name.endswith("_slices.dat"):
+                        extracted = tar.extractfile(member)
+                        if extracted is not None:
+                            idx = int(os.path.basename(member.name).split("_")[1])
+                            slices[idx] = extracted.read().decode().splitlines(keepends=True)
+
+        trajectory: list[dict[str, Any]] = []
+        for idx in sorted(slices):
+            var_names, node_data, conn_data = self._parse_slice_lines(slices[idx])
+            entry: dict[str, Any] = {"index": idx, "coords": self._coords_from_parsed(node_data, conn_data)}
+            if include_surface:
+                entry["surface"] = pd.DataFrame(node_data, columns=var_names)
+            trajectory.append(entry)
+        return trajectory
 
     def simulate_verbose(
         self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
