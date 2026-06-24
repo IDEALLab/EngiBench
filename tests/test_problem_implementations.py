@@ -1,18 +1,27 @@
 """This file contains tests making sure the implemented problems respect the API."""
 
 import dataclasses
+from dataclasses import dataclass
+from enum import auto
+from enum import Enum
 import inspect
+import json
 import os
+from pathlib import Path
 import sys
-from typing import Any, get_args, get_origin
+from typing import Any, get_args, get_origin, TYPE_CHECKING
 
 import gymnasium
 from gymnasium import spaces
 import numpy as np
+from numpy import typing as npt
 import pytest
 
 from engibench import Problem
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
+
+if TYPE_CHECKING:
+    from typing import Self
 
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
@@ -88,13 +97,19 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done testing {problem_class.__name__}.")
 
 
+def problem_slug(problem_class: type[Problem]) -> str:
+    slug, _ = problem_class.__module__.removeprefix("engibench.problems.").split(".", 1)
+    return slug
+
+
 def problem_id(problem_class: type[Problem]) -> str:
-    id_, _ = problem_class.__module__.removeprefix("engibench.problems.").split(".", 1)
-    return id_
+    return problem_class.__module__.removeprefix("engibench.") + "." + problem_class.__name__
 
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
-def test_python_problem_impl(problem_class: type[Problem]) -> None:
+def test_python_problem_impl(
+    problem_class: type[Problem], subtests: pytest.Subtests, capsys: pytest.CaptureFixture[str]
+) -> None:
     """Check that all problems defined in Python files respect the API.
 
     This test verifies that:
@@ -106,30 +121,27 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
         pytest.skip(f"Skipping containerized problem {problem_class.__name__} on non-linux platform")
     if problem_class.__module__.startswith("engibench.problems.power_electronics") and sys.platform == "darwin":
         pytest.skip(f"Skipping {problem_class.__name__} on MacOs")
-    print(f"Testing optimization and simulation for {problem_class.__name__}...")
+    ref_path = Path(__file__).parent / "reference" / "simulate" / (problem_id(problem_class) + ".json")
+    if RefCreationMode.from_env() == RefCreationMode.Missing and ref_path.is_file():
+        pytest.skip("Reference values already exist. Skipping test.")
     # Initialize problem and get a random design
     problem = problem_class(seed=1)
     design, _ = problem.random_design()
 
-    # Test simulation outputs
-    print(f"Simulating {problem_class.__name__}...")
-    if problem_class.__module__.startswith("engibench.problems.airfoil"):
-        objs = problem.simulate(design, mpicores=1)  # type: ignore[call-arg]
-    else:
-        objs = problem.simulate(design)
-
-    expected_obj_count = len(problem.objectives)
-    assert objs.shape[0] == expected_obj_count, (
-        f"Problem {problem_class.__name__}: Simulation returned {objs.shape[0]} objectives "
-        f"but expected {expected_obj_count}"
+    extra_args: dict[str, Any] = (
+        {"mpicores": 1} if problem_class.__module__.startswith("engibench.problems.airfoil") else {}
     )
-    print(f"Done simulating {problem_class.__name__}.")
-    # Test optimization outputs
-    print(f"Optimizing {problem_class.__name__}...")
+    objs = problem.simulate(design, **extra_args)
+
+    expected = load_ref_values(ref_path, current_values=objs, capsys=capsys, problem_class=problem_class)
+    with subtests.test("verify objective values"):
+        np.testing.assert_allclose(objs, expected.performance, rtol=expected.rtol)
+
     # Skip optimization test for power electronics, airfoil, and heat conduction problems
-    if problem_id(problem_class) == "airfoil":
+    if problem_slug(problem_class) == "airfoil":
         print(f"Skipping optimization test for {problem_class.__name__}")
         return
+
     problem.reset(seed=1)
     default_max_iter = 10
     max_iter = os.environ.get("ENGIBENCH_MAX_ITER", default_max_iter)
@@ -141,27 +153,91 @@ def test_python_problem_impl(problem_class: type[Problem]) -> None:
     except NotImplementedError:
         print(f"Problem class {problem_class.__name__} does not implement optimize - Skipping optimize")
         return
-    if isinstance(problem.design_space, spaces.Box):
-        assert np.all(optimal_design >= problem.design_space.low), (
-            f"Problem {problem_class.__name__}: The optimal design should be within the design space."
-        )
-        assert np.all(optimal_design <= problem.design_space.high), (
-            f"Problem {problem_class.__name__}: The optimal design should be within the design space."
-        )
-        assert optimal_design.shape == problem.design_space.shape, (
-            f"Problem {problem_class.__name__}: The optimal design should have the same shape as the design space."
-        )
-        assert np.can_cast(optimal_design.dtype, problem.design_space.dtype), (
-            f"Problem {problem_class.__name__}: The optimal design should have the same dtype as the design space."
-        )
-    assert problem.design_space.contains(optimal_design), (
-        f"Problem {problem_class.__name__}: The optimal design should be within the design space."
-    )
 
-    # Verify optimization history
-    for step_num, optistep in enumerate(history):
-        assert len(optistep.obj_values) == expected_obj_count, (
-            f"Problem {problem_class.__name__}: Step {step_num} has {len(optistep.obj_values)} objectives "
-            f"but expected {expected_obj_count}"
+    with subtests.test("Validate optimized design"):
+        if isinstance(problem.design_space, spaces.Box):
+            assert np.all(optimal_design >= problem.design_space.low), (
+                f"Problem {problem_class.__name__}: The optimal design should be within the design space."
+            )
+            assert np.all(optimal_design <= problem.design_space.high), (
+                f"Problem {problem_class.__name__}: The optimal design should be within the design space."
+            )
+            assert optimal_design.shape == problem.design_space.shape, (
+                f"Problem {problem_class.__name__}: The optimal design should have the same shape as the design space."
+            )
+            assert np.can_cast(optimal_design.dtype, problem.design_space.dtype), (
+                f"Problem {problem_class.__name__}: The optimal design should have the same dtype as the design space."
+            )
+        assert problem.design_space.contains(optimal_design), (
+            f"Problem {problem_class.__name__}: The optimal design should be within the design space."
         )
-    print(f"Done testing {problem_class.__name__}.")
+
+    with subtests.test("Verify optimization history"):
+        expected_obj_count = len(problem.objectives)
+        for step_num, optistep in enumerate(history):
+            assert len(optistep.obj_values) == expected_obj_count, (
+                f"Problem {problem_class.__name__}: Step {step_num} has {len(optistep.obj_values)} objectives "
+                f"but expected {expected_obj_count}"
+            )
+
+
+@dataclass
+class ReferenceValues:
+    performance: npt.NDArray[np.float64]
+    rtol: float = 1e-7
+
+    @classmethod
+    def load(cls, path: Path) -> "Self":
+        with open(path, "rb") as f:
+            d = json.load(f)
+        return cls(performance=np.array(d.pop("performance")), **d)
+
+    def dump(self, path: Path) -> None:
+        try:
+            values = ReferenceValues(self.performance, ReferenceValues.load(path).rtol)
+        except FileNotFoundError:
+            values = ReferenceValues(self.performance)
+        with open(path, "w") as f:
+            d = dataclasses.asdict(values)
+            json.dump({"performance": d.pop("performance").tolist(), **d}, f, indent=2)
+            f.write("\n")
+
+
+def load_ref_values(
+    path: Path, current_values: npt.NDArray[np.float64], problem_class: type[Problem], capsys: pytest.CaptureFixture[str]
+) -> ReferenceValues:
+    if RefCreationMode.from_env() != RefCreationMode.Off:
+        ReferenceValues(current_values).dump(path)
+        with capsys.disabled():
+            print(f"ℹ️ Dumped current values as reference to `{path}`.\nYou might have to adjust the tolerance.")  # noqa: RUF001
+            raise pytest.skip.Exception("Reference values already dumped. Skipping test.")
+    try:
+        return ReferenceValues.load(path)
+    except FileNotFoundError:
+        raise FileNotFoundError(
+            f"No reference values found for {problem_class.__name__}. Run the tests again, setting the environment variable `{CREATE_REF_FILES}=missing` to save the current values as reference values (use =all to force recreation).",
+        ) from None
+
+
+CREATE_REF_FILES = "CREATE_REF_FILES"
+
+
+class RefCreationMode(Enum):
+    All = auto()
+    """Force recreation of all reference files (preserving tolerance if possible)."""
+    Missing = auto()
+    """Only create reference files for problems not yet having reference values."""
+    Off = auto()
+
+    @classmethod
+    def from_env(cls) -> "Self":
+        mode = os.environ.get(CREATE_REF_FILES)
+        if mode is None:
+            return cls.Off
+        try:
+            return cls[mode.capitalize()]
+        except KeyError:
+            raise ValueError(
+                f"Unexpected value for environment variable {CREATE_REF_FILES}: {mode}. Supported values: "
+                + ", ".join(variant.name.lower() for variant in cls)
+            ) from None

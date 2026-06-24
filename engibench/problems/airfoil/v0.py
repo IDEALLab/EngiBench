@@ -63,13 +63,21 @@ def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.
         p, dp = curve[i], segments[i]
         end = n - 1 if i == 0 else n
         q, dq = curve[i + 2 : end], segments[i + 2 : end]
-        x = np.cross(dp, dq)
+        x = cross2d(dp, dq)
         parallel = x == 0.0
-        t = np.cross(q[~parallel] - p, dq[~parallel]) / x[~parallel]
-        s = np.cross(q[~parallel] - p, dp) / x[~parallel]
+        t = cross2d(q[~parallel] - p, dq[~parallel]) / x[~parallel]
+        s = cross2d(q[~parallel] - p, dp) / x[~parallel]
         if np.any((t >= 0.0) & (t <= 1.0) & (s >= 0.0) & (s <= 1.0)):
             return i, p, curve[i + 1]
     return None
+
+
+def cross2d(x: npt.NDArray[np.float64], y: npt.NDArray[np.float64]) -> npt.NDArray[np.float64]:
+    """2D cross product.
+
+    Required since numpy deprectaded numpy.cross for 2D vectors.
+    """
+    return x[..., 0] * y[..., 1] - x[..., 1] * y[..., 0]
 
 
 @constraint(categories=IMPL)
