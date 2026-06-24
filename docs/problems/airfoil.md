@@ -106,6 +106,30 @@ A dataset, originally described in [5], is integrated within our framework. The 
 | | cl | Coefficient of lift for the selected design |
 | | area_ratio | Area ratio of the selected design |
 
+### v1
+v1 aligns the problem with the updated 2D dataset-collection pipeline. The optimization
+problem and MACH-Aero backend are the same as v0, with the following changes:
+
+- **Optimizer:** IPOPT (gradient-based interior point with adjoint gradients) instead of SLSQP.
+- **Lift constraint:** a one-sided **inequality** `c_l_target <= c_l <= 1.2 * c_l_target`
+  (the drag-min objective pins `c_l` at `c_l_target`), instead of the v0 equality `c_l = c_l_target`.
+- **Shape variables:** widened FFD bounds `-0.10 <= Δy_i <= 0.10` (from `±0.025`).
+- **Conditions:** **temperature** is now a sampled conditioning variable (`temperature` column),
+  in addition to `mach`, `reynolds`, `cl_target`, `area_ratio_min`, `area_initial`.
+- **Solver settings:** the reference ADflow configuration used to collect the dataset (RANS + QCR,
+  an NK finisher, and an internal per-Mach ANK schedule). The CFD tuning is abstracted away from
+  the user; advanced users can override it via the `solver_options` config key and restrict the
+  written surface fields via `surface_variables`.
+- **Debugging artifacts:** each run additionally produces the full optimization history
+  (`opt.hst` with stored sensitivities), per-iteration surface/section files (intermediates tarred,
+  baseline + optimized kept loose), the final absolute area (`final_abs_volume.npy`), and the
+  optimizer log (`IPOPT.out`).
+
+The area/thickness constraints are unchanged from v0 (the area constraint is scaled against a fixed
+baseline `area_input_design` so optimized areas stay comparable across designs). The dataset is
+hosted at [`IDEALLab/airfoil_v1`](https://huggingface.co/datasets/IDEALLab/airfoil_v1) and is
+generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`.
+
 ## Citation
 If you use this problem in your research, please cite **both** of the works below.
 
