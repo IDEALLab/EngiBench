@@ -135,8 +135,8 @@ problem and MACH-Aero backend are the same as v0, with the following changes:
 The area/thickness constraints are unchanged from v0 (the area constraint is scaled against a fixed
 baseline `area_input_design` so optimized areas stay comparable across designs). The dataset is
 hosted at [`IDEALLab/airfoil_v1`](https://huggingface.co/datasets/IDEALLab/airfoil_v1) and is
-generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A runnable tour of
-every v1 feature is in `engibench/problems/airfoil/tutorials/airfoil_v1_tutorial.py`.
+generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A tour of every v1
+feature is in the notebook `engibench/problems/airfoil/tutorials/airfoil_v1_tutorial.ipynb`.
 
 ## Citation
 If you use this problem in your research, please cite **both** of the works below.
