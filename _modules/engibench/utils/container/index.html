@@ -780,6 +780,10 @@
         <span class="c1"># For &quot;mdolab/public:u22-gcc-ompi-stable&quot;, Singularity creates &quot;public_u22-gcc-ompi-stable.sif&quot;</span>
         <span class="n">image_name</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
 
+        <span class="c1"># An untagged image resolves to its implicit &quot;:latest&quot; tag, e.g. &quot;alpine&quot; -&gt; &quot;alpine_latest.sif&quot;</span>
+        <span class="k">if</span> <span class="s2">&quot;:&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image_name</span><span class="p">:</span>
+            <span class="n">image_name</span> <span class="o">+=</span> <span class="s2">&quot;:latest&quot;</span>
+
         <span class="c1"># Replace &quot;:&quot; with &quot;_&quot; in the image name</span>
         <span class="k">return</span> <span class="n">image_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.sif&quot;</span>
 
