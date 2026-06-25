@@ -31,9 +31,12 @@ import json
 import os
 import re
 import tarfile
-from typing import Annotated, Any
+from typing import Annotated, Any, ClassVar
 
+from datasets import load_dataset
 from gymnasium import spaces
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 import pandas as pd
@@ -50,7 +53,6 @@ from engibench.problems.airfoil.templates_v1 import cli_interface
 from engibench.problems.airfoil.utils import calc_area
 from engibench.problems.airfoil.utils import calc_off_wall_distance
 from engibench.problems.airfoil.utils import reorder_coords
-from engibench.problems.airfoil.utils import scale_coords
 from engibench.problems.airfoil.v0 import Airfoil as Airfoil_v0
 from engibench.utils import container
 from engibench.utils.files import clone_dir
@@ -73,13 +75,22 @@ class Airfoil(Airfoil_v0):
         ("cl", ObjectiveDirection.MAXIMIZE),
     )
 
+    # Coordinates follow the dataset convention: 192 points (x/c, y/c) ordered
+    # TE -> upper -> LE -> lower -> TE, i.e. shape (192, 2).
     design_space = spaces.Dict(
         {
-            "coords": spaces.Box(low=-1.0, high=1.0, shape=(2, 207), dtype=np.float32),
+            "coords": spaces.Box(low=-1.0, high=1.0, shape=(192, 2), dtype=np.float32),
             "angle_of_attack": spaces.Box(low=-1.0, high=10.0, shape=(1,), dtype=np.float32),
         }
     )
-    dataset_id = "IDEALLab/airfoil_v1"
+    # The three released dataset tiers share the same case ids / conditions / objectives.
+    # ``dataset_id`` (the basic tier) drives ``self.dataset``; ``load_variant`` loads the others.
+    dataset_variants: ClassVar[dict[str, str]] = {
+        "basic": "Cashen/optiwing-airfoil-2d-v0",
+        "surface": "Cashen/optiwing-airfoil-2d-surface-v0",
+        "full": "Cashen/optiwing-airfoil-2d-full-v0",
+    }
+    dataset_id = dataset_variants["basic"]
 
     @dataclass
     class Conditions:
@@ -150,6 +161,55 @@ class Airfoil(Airfoil_v0):
         # are named ``Airfoil`` so the name-mangled attribute target is identical.
         self.__local_template_dir = os.path.dirname(os.path.abspath(__file__)) + "/templates_v1"
 
+    def load_variant(self, variant: str = "basic", **load_kwargs: Any) -> Any:
+        """Load one of the released v1 dataset tiers from the Hugging Face Hub.
+
+        The three tiers share the same ``case_id`` key, conditions and scalar objectives:
+
+        - ``"basic"`` -- initial/optimal geometry + conditions + scalar objectives (this is also
+          ``self.dataset``);
+        - ``"surface"`` -- adds per-surface-node flow fields (cp, pressure, skin friction, ...) on
+          the initial and optimal designs;
+        - ``"full"`` -- the complete optimization record: every iteration with full surface fields
+          and the adjoint shape/AoA sensitivities (large, ~3.6 GB).
+
+        Args:
+            variant: One of ``"basic"``, ``"surface"``, ``"full"``.
+            **load_kwargs: Forwarded to ``datasets.load_dataset`` (e.g. ``split=...``, ``streaming=True``).
+
+        Returns:
+            The loaded Hugging Face dataset.
+        """
+        if variant not in self.dataset_variants:
+            raise ValueError(f"Unknown dataset variant {variant!r}; choose from {sorted(self.dataset_variants)}.")
+        return load_dataset(self.dataset_variants[variant], **load_kwargs)
+
+    @staticmethod
+    def _coords_2xn(coords: npt.ArrayLike) -> npt.NDArray[np.float64]:
+        """Return airfoil coordinates as a ``(2, N)`` array (x row, y row).
+
+        Accepts either the dataset ``(N, 2)`` convention or an already-``(2, N)`` array.
+        """
+        arr = np.asarray(coords, dtype=float)
+        return arr if arr.shape[0] == 2 else arr.T  # noqa: PLR2004  -- 2 rows == (2, N)
+
+    @staticmethod
+    def _prep_coords_for_mesh(coords: npt.ArrayLike, tol: float = 1e-9) -> npt.NDArray[np.float64]:
+        """Return a mesh-ready ``(2, N)`` open contour from any airfoil coordinate array.
+
+        The released dataset stores each section as a *closed* contour (first point repeated
+        at the end) on a 192-point cosine grid; such coincident points make prefoil's spline
+        fit singular. This removes coincident consecutive points and any closing duplicate so
+        the section can be re-meshed, while preserving the geometry (no rescaling / shifting).
+        """
+        pts = Airfoil._coords_2xn(coords).T  # (N, 2)
+        seg = np.hypot(np.diff(pts[:, 0]), np.diff(pts[:, 1]))
+        keep = np.concatenate(([True], seg > tol))  # drop points coincident with the previous one
+        pts = pts[keep]
+        if len(pts) > 1 and np.hypot(*(pts[0] - pts[-1])) <= tol:
+            pts = pts[:-1]  # drop a closing duplicate (open the contour)
+        return pts.T
+
     def __design_to_simulator_input(
         self, design: DesignType, mach: float, reynolds: float, temperature: float, filename: str = "design"
     ) -> str:
@@ -168,18 +228,21 @@ class Airfoil(Airfoil_v0):
         tmp = os.path.join(self.__docker_study_dir, "tmp")
         s0 = calc_off_wall_distance(mach=mach, reynolds=reynolds, freestreamTemp=temperature)
 
-        # The v1 baselines are already blunt (x in [0, 0.98]); feed them through directly.
-        scaled_design, input_blunted = scale_coords(design["coords"], blunted=True, xcut=0.98)
+        # Coords arrive in the dataset (N, 2) convention (a closed contour). Open it and remove
+        # coincident points so prefoil can build the section spline. The section is already
+        # chord-normalized/blunt, so pre_process feeds it directly without re-blunting
+        # (input_blunted=True) -- this best reproduces the stored aerodynamics.
+        prepped = self._prep_coords_for_mesh(design["coords"])
         args = cli_interface.PreprocessParameters(
             design_fname=f"{self.__docker_study_dir}/{filename}.dat",
             tmp_xyz_fname=tmp,
             mesh_fname=self.__docker_study_dir + "/" + filename + ".cgns",
             ffd_fname=self.__docker_study_dir + "/" + filename + "_ffd",
             s0=s0,
-            input_blunted=input_blunted,
+            input_blunted=True,
         )
 
-        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", scaled_design.transpose())
+        np.savetxt(self.__local_study_dir + "/" + filename + ".dat", prepped.transpose())
 
         bash_command = (
             f"source /home/mdolabuser/.bashrc_mdolab && cd {self.__docker_base_dir} && "
@@ -245,10 +308,10 @@ class Airfoil(Airfoil_v0):
     def _coords_from_parsed(
         node_data: npt.NDArray[np.float64], conn_data: npt.NDArray[np.int64]
     ) -> npt.NDArray[np.float32]:
-        """Reorder parsed slice data into clean ``(2, N)`` airfoil coordinates via ``reorder_coords``."""
+        """Reorder parsed slice data into clean ``(N, 2)`` airfoil coordinates (dataset convention)."""
         slice_df = pd.DataFrame({"CoordinateX": node_data[:, 0], "CoordinateY": node_data[:, 1]})
         nodes_df = pd.DataFrame({"NodeC1": conn_data[:, 0], "NodeC2": conn_data[:, 1]})
-        return reorder_coords(pd.concat([slice_df, nodes_df], axis=1))
+        return reorder_coords(pd.concat([slice_df, nodes_df], axis=1)).T  # reorder_coords gives (2, N)
 
     def simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
         """Converts a slice file to a design, robust to the v1 (richer) surface-variable set.
@@ -262,7 +325,7 @@ class Airfoil(Airfoil_v0):
             simulator_output (str): Slice filename to read. If None, the latest slice file is used.
 
         Returns:
-            np.ndarray: The reordered (x, y) airfoil coordinates.
+            np.ndarray: The reordered ``(N, 2)`` airfoil coordinates (dataset convention).
         """
         output_dir = self.study_output_dir
         if simulator_output is None:
@@ -289,8 +352,9 @@ class Airfoil(Airfoil_v0):
 
         Returns:
             A list (ordered by design index) of dicts with keys ``index`` (int), ``coords``
-            (``(2, N)`` reordered airfoil coordinates) and, if ``include_surface`` is True,
-            ``surface`` (a ``pandas.DataFrame`` of every surface variable in the slice file).
+            (``(N, 2)`` reordered airfoil coordinates, dataset convention) and, if
+            ``include_surface`` is True, ``surface`` (a ``pandas.DataFrame`` of every surface
+            variable in the slice file).
         """
         output_dir = self.study_output_dir
         slices: dict[int, list[str]] = {}
@@ -409,7 +473,7 @@ class Airfoil(Airfoil_v0):
                 "output_dir": self.__docker_study_dir + "/output",
                 "ffd_fname": self.__docker_study_dir + "/" + filename + "_ffd.xyz",
                 "mesh_fname": self.__docker_study_dir + "/" + filename + ".cgns",
-                "area_input_design": calc_area(starting_point["coords"]),
+                "area_input_design": calc_area(self._coords_2xn(starting_point["coords"]).astype(np.float32)),
                 **config,
             },
         )
@@ -458,6 +522,32 @@ class Airfoil(Airfoil_v0):
 
         opt_coords = self.simulator_output_to_design()
         return {"coords": opt_coords, "angle_of_attack": opt_alpha}, optisteps_history
+
+    def render(self, design: DesignType, *, open_window: bool = False, save: bool = False) -> Figure:
+        """Renders an airfoil design (handles the dataset ``(N, 2)`` coordinate convention).
+
+        Args:
+            design (dict): The design to render.
+            open_window (bool): If True, opens a window with the rendered design.
+            save (bool): If True, saves the rendered design under the study directory.
+
+        Returns:
+            Figure: The rendered design.
+        """
+        fig, ax = plt.subplots()
+        coords = self._coords_2xn(design["coords"])
+        alpha = float(np.asarray(design["angle_of_attack"]).ravel()[0])
+        ax.plot(coords[0], coords[1], lw=1)
+        ax.set_title(r"$\alpha$=" + str(np.round(alpha, 2)) + r"$^\circ$")
+        ax.axis("equal")
+        ax.axis("off")
+        ax.set_xlim((-0.005, 1.005))
+        if open_window:
+            plt.show()
+        if save:
+            plt.savefig(self.__local_study_dir + "/airfoil.png", dpi=300, bbox_inches="tight")
+        plt.close(fig)
+        return fig
 
 
 if __name__ == "__main__":

@@ -116,6 +116,9 @@ problem and MACH-Aero backend are the same as v0, with the following changes:
 - **Shape variables:** widened FFD bounds `-0.10 <= Δy_i <= 0.10` (from `±0.025`).
 - **Conditions:** **temperature** is now a sampled conditioning variable (`temperature` column),
   in addition to `mach`, `reynolds`, `cl_target`, `area_ratio_min`, `area_initial`.
+- **Coordinates:** designs use the dataset convention — `(192, 2)` arrays of `(x/c, y/c)` ordered
+  TE → upper → LE → lower → TE (v0 used `(2, 192)`). `random_design`, `optimize` and
+  `simulate` all accept/return this layout.
 - **Solver settings:** the reference ADflow configuration used to collect the dataset (RANS + QCR,
   an NK finisher, and an internal per-Mach ANK schedule). The CFD tuning is abstracted away from
   the user; advanced users can override it via the `solver_options` config key and restrict the
@@ -133,10 +136,31 @@ problem and MACH-Aero backend are the same as v0, with the following changes:
   signal in the saved `outputs.npy`.
 
 The area/thickness constraints are unchanged from v0 (the area constraint is scaled against a fixed
-baseline `area_input_design` so optimized areas stay comparable across designs). The dataset is
-hosted at [`IDEALLab/airfoil_v1`](https://huggingface.co/datasets/IDEALLab/airfoil_v1) and is
-generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A tour of every v1
-feature is in the notebook `engibench/problems/airfoil/tutorials/airfoil_v1_tutorial.ipynb`.
+baseline `area_input_design` so optimized areas stay comparable across designs).
+
+#### Datasets
+v1 ships in three tiers (train 878 / val 49 / test 107, sharing `case_id`, conditions and scalar
+objectives `cd`, `cl`, `cl_con_violation`, `area_ratio`):
+
+- [`Cashen/optiwing-airfoil-2d-v0`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-v0) —
+  **basic** (the default `self.dataset`): `initial_design` / `optimal_design` geometry + conditions
+  + scalar objectives.
+- [`Cashen/optiwing-airfoil-2d-surface-v0`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-surface-v0) —
+  **surface**: adds per-surface-node flow fields (cp, pressure, skin friction, …) on the initial and
+  optimal designs.
+- [`Cashen/optiwing-airfoil-2d-full-v0`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-full-v0) —
+  **full**: every optimizer iteration with full surface fields and the adjoint shape/AoA
+  sensitivities (~3.6 GB).
+
+Load the non-default tiers with `problem.load_variant("surface")` / `problem.load_variant("full")`.
+New datasets are generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A tour
+of every v1 feature is in `engibench/problems/airfoil/tutorials/airfoil_v1_tutorial.ipynb`.
+
+> **Reproducibility.** Re-running the EngiBench pipeline on a dataset case reproduces its stored
+> aerodynamics closely — across sampled subsonic/transonic/supersonic cases, `cd`/`cl` matched the
+> stored values to ≈0.5–1% (subsonic) and ≈2% (supersonic). The small residual differences come from
+> the IPOPT linear solver (EngiBench uses MUMPS vs. SPRAL in the original run), the chord
+> normalization, and the section re-meshing.
 
 ## Citation
 If you use this problem in your research, please cite **both** of the works below.

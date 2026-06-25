@@ -13,6 +13,7 @@ from datasets import load_dataset
 import numpy as np
 from scipy.stats import qmc
 
+from engibench.problems.airfoil import Airfoil
 from engibench.problems.airfoil.simulation_jobs import optimize_slurm
 from engibench.utils import slurm
 
@@ -231,7 +232,7 @@ if __name__ == "__main__":
             coords_list.append(arr)
         designs = [{"coords": c} for c in coords_list]
     else:
-        ds = load_dataset("IDEALLab/airfoil_v0")
+        ds = load_dataset(Airfoil.dataset_id)  # the registered (v1) airfoil dataset
         all_data = concatenate_datasets([ds[split] for split in ds])
         designs = all_data["initial_design"]
     if n_designs < len(designs):
