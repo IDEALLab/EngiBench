@@ -220,6 +220,7 @@ class Airfoil(Problem[DesignType]):
         """
         # Creates the study directory
         clone_dir(source_dir=self.__local_template_dir, target_dir=self.__local_study_dir)
+        os.makedirs(os.path.join(self.__local_study_dir, "mpi_tmp"), exist_ok=True)
 
         tmp = os.path.join(self.__docker_study_dir, "tmp")
 
@@ -263,6 +264,7 @@ class Airfoil(Problem[DesignType]):
             image=self.container_id,
             name="machaero",
             mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
             sync_uid=True,
         )
 
@@ -371,6 +373,7 @@ class Airfoil(Problem[DesignType]):
             image=self.container_id,
             name="machaero",
             mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
             sync_uid=True,
         )
 
@@ -422,7 +425,7 @@ class Airfoil(Problem[DesignType]):
             },
         )
         self.__design_to_simulator_input(
-            starting_point, reynolds=args.reynolds, mach=args.reynolds, temperature=args.temperature, filename=filename
+            starting_point, reynolds=args.reynolds, mach=args.mach, temperature=args.temperature, filename=filename
         )
 
         # Launches a docker container with the optimize_airfoil.py script
@@ -434,6 +437,7 @@ class Airfoil(Problem[DesignType]):
             image=self.container_id,
             name="machaero",
             mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+            env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
             sync_uid=True,
         )
 
@@ -455,11 +459,18 @@ class Airfoil(Problem[DesignType]):
                         obj_np = obj_np.flatten()
                     optisteps_history.append(OptiStep(obj_values=obj_np, step=vals["iter"]))
 
+        opt_alpha_values = history.getValues(names=["alpha_fc"], callCounters=["last"], major=True)
+        opt_alpha = (
+            float(opt_alpha_values["alpha_fc"].flatten()[0])
+            if opt_alpha_values and "alpha_fc" in opt_alpha_values and len(opt_alpha_values["alpha_fc"]) > 0
+            else starting_point["angle_of_attack"]
+        )
+
         history.close()
 
         opt_coords = self.simulator_output_to_design()
 
-        return {"coords": opt_coords, "angle_of_attack": starting_point["angle_of_attack"]}, optisteps_history
+        return {"coords": opt_coords, "angle_of_attack": opt_alpha}, optisteps_history
 
     def render(self, design: DesignType, *, open_window: bool = False, save: bool = False) -> Figure:
         """Renders the design in a human-readable format.
