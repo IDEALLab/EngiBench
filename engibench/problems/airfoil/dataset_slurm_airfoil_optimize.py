@@ -280,7 +280,7 @@ if __name__ == "__main__":
         runtime=calculate_runtime(group_size, minutes_per_opt=minutes_per_opt),
         account=hpc_account,
         ntasks=1,
-        cpus_per_task=1,
+        cpus_per_task=8,
         log_dir="./opt_logs/",
         extra_args=extra_args,
     )

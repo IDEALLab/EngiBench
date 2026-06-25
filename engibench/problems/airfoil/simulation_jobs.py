@@ -42,7 +42,7 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
     print("Starting `simulate` via SLURM...")
     start_time = time.time()
 
-    performance = problem.simulate(my_design, mpicores=1, config=problem_configuration)
+    performance = problem.simulate(my_design, mpicores=8, config=problem_configuration)
     performance_dict = {"drag": performance[0], "lift": performance[1]}
     print("Finished `simulate` via SLURM.")
     end_time = time.time()
@@ -92,20 +92,21 @@ def optimize_slurm(problem_configuration: dict, configuration_id: int, design: l
     starting_point = {"coords": coords, "angle_of_attack": problem_configuration["alpha"]}
 
     # optimize() needs the baseline area for the (baseline-scaled) area constraint. The
-    # baseline is this design, so area_initial == area of the input design.
-    opt_config = {**problem_configuration, "area_initial": calc_area(coords)}
+    # baseline is this design, so area_initial == area of the input design. coords follow the
+    # dataset (N, 2) convention, so convert to (2, N) for calc_area.
+    opt_config = {**problem_configuration, "area_initial": calc_area(Airfoil._coords_2xn(coords).astype(np.float32))}  # noqa: SLF001
 
     print("Starting `optimize` via SLURM...")
     start_time = time.time()
 
-    optimized_design, optisteps_history = problem.optimize(starting_point, mpicores=1, config=opt_config)
+    optimized_design, optisteps_history = problem.optimize(starting_point, mpicores=8, config=opt_config)
     print("Finished `optimize` via SLURM.")
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Elapsed time for `optimize`: {elapsed_time:.2f} seconds")
 
     # Simulate the optimized design to get its aerodynamic performance
-    performance = problem.simulate(optimized_design, mpicores=1, config=problem_configuration)
+    performance = problem.simulate(optimized_design, mpicores=8, config=problem_configuration)
     performance_dict = {"drag": performance[0], "lift": performance[1]}
 
     optimized_configuration = {
