@@ -195,20 +195,18 @@ class Airfoil(Airfoil_v0):
 
     @staticmethod
     def _prep_coords_for_mesh(coords: npt.ArrayLike, tol: float = 1e-9) -> npt.NDArray[np.float64]:
-        """Return a mesh-ready ``(2, N)`` open contour from any airfoil coordinate array.
+        """Return a mesh-ready ``(2, N)`` contour from any airfoil coordinate array.
 
-        The released dataset stores each section as a *closed* contour (first point repeated
-        at the end) on a 192-point cosine grid; such coincident points make prefoil's spline
-        fit singular. This removes coincident consecutive points and any closing duplicate so
-        the section can be re-meshed, while preserving the geometry (no rescaling / shifting).
+        The released dataset doubles the leading-edge point (an interior zero-length segment),
+        which makes prefoil's pyspline fit singular. A *closed* contour (first point repeated at
+        the end) is fine for prefoil -- the reference ``case_coords.dat`` is closed too -- so the
+        contour is left exactly as-is except for dropping interior consecutive duplicates. The
+        geometry is otherwise untouched (no rescaling / shifting / re-closing).
         """
         pts = Airfoil._coords_2xn(coords).T  # (N, 2)
         seg = np.hypot(np.diff(pts[:, 0]), np.diff(pts[:, 1]))
         keep = np.concatenate(([True], seg > tol))  # drop points coincident with the previous one
-        pts = pts[keep]
-        if len(pts) > 1 and np.hypot(*(pts[0] - pts[-1])) <= tol:
-            pts = pts[:-1]  # drop a closing duplicate (open the contour)
-        return pts.T
+        return pts[keep].T
 
     def __design_to_simulator_input(
         self, design: DesignType, mach: float, reynolds: float, temperature: float, filename: str = "design"
