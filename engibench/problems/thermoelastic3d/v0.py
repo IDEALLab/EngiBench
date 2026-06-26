@@ -20,6 +20,7 @@ from engibench.core import Problem
 from engibench.core import SimulationResult
 from engibench.problems.thermoelastic3d.model import fem_model
 from engibench.problems.thermoelastic3d.model.fem_model import FeaModel3D
+from engibench.utils.upcast import upcast
 
 NELX = NELY = NELZ = 16
 FIXED_ELEMENTS = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
@@ -133,6 +134,20 @@ class ThermoElastic3D(Problem[npt.NDArray]):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
         """
         super().reset(seed)
+
+    def __init__(self, seed: int = 0, config: dict[str, Any] | None = None) -> None:
+        """Initialize the problem, sizing default masks and design space to the grid."""
+        super().__init__(seed=seed)
+        raw_config: dict[str, Any] = {
+            key: (np.asarray(value) if isinstance(value, list) else value) for key, value in (config or {}).items()
+        }
+        self.config = self.Config(**raw_config)
+
+        self.conditions = upcast(self.config)
+        self.nelx, self.nely, self.nelz = self.config.nelx, self.config.nely, self.config.nelz
+        self.max_iter = self.config.max_iter
+        # Note: nely before nelx, as the solver stores it:
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx, self.nelz), dtype=np.float32)
 
     def simulate_verbose(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> SimulationResult:
         r"""Launch a simulation on the given design topology and return the performance.
