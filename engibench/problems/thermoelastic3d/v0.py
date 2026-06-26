@@ -209,9 +209,10 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         viewer = napari.Viewer()
         viewer.add_image(design, name="rho", rendering="attenuated_mip")
         viewer.dims.ndisplay = 3  # switch to 3D view
+        export = viewer.export_figure(flash=False)
         if open_window is True:
             napari.run()
-        return viewer.export_figure(flash=False)
+        return export
 
     def random_design(self, dataset_split: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
