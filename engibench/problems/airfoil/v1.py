@@ -64,6 +64,10 @@ _YPLUS_HIGH_RE = 4.0
 _SONIC_MACH = 1.0
 _SUPERSONIC_YPLUS_FACTOR = 2.0
 
+# Blunt-TE chord the dataset meshed/simulated at (raw case_coords.dat span x in [0, 0.98]).
+# Input coords are uniformly rescaled to this chord before meshing (see _prep_coords_for_mesh).
+_MESH_CHORD = 0.98
+
 
 class Airfoil(Airfoil_v0):
     r"""Airfoil 2D shape optimization problem - Version 1 (v1).
@@ -202,16 +206,29 @@ class Airfoil(Airfoil_v0):
     def _prep_coords_for_mesh(coords: npt.ArrayLike, tol: float = 1e-9) -> npt.NDArray[np.float64]:
         """Return a mesh-ready ``(2, N)`` contour from any airfoil coordinate array.
 
-        The released dataset doubles the leading-edge point (an interior zero-length segment),
-        which makes prefoil's pyspline fit singular. A *closed* contour (first point repeated at
-        the end) is fine for prefoil -- the reference ``case_coords.dat`` is closed too -- so the
-        contour is left exactly as-is except for dropping interior consecutive duplicates. The
-        geometry is otherwise untouched (no rescaling / shifting / re-closing).
+        Two normalizations are applied so the meshed geometry matches what the dataset actually
+        simulated:
+
+        1. Drop interior consecutive duplicate points (the released dataset doubles the
+           leading-edge point, which makes prefoil's pyspline fit singular). The closed contour
+           (first point repeated at the end) is otherwise kept as-is.
+        2. Uniformly rescale to the dataset's blunt-TE chord (``x`` in ``[0, _MESH_CHORD]``). Every
+           dataset case was meshed/simulated at chord 0.98 (see ``coords.npy`` / ``case_coords.dat``),
+           but the released ``initial_design``/``optimal_design`` coords are stored unit-chord
+           (``x`` in ``[0, 1]``) -- a uniform 1/0.98 upscale. Rescaling back to 0.98 here makes
+           EngiBench mesh the identical geometry and reproduces the stored aerodynamics exactly;
+           coords already at chord 0.98 (the raw contour) are left unchanged.
         """
         pts = Airfoil._coords_2xn(coords).T  # (N, 2)
         seg = np.hypot(np.diff(pts[:, 0]), np.diff(pts[:, 1]))
         keep = np.concatenate(([True], seg > tol))  # drop points coincident with the previous one
-        return pts[keep].T
+        pts = pts[keep]
+        x0 = pts[:, 0].min()
+        chord = pts[:, 0].max() - x0
+        if chord > 0:
+            scale = _MESH_CHORD / chord  # uniform scale -> chord exactly _MESH_CHORD (no-op if already 0.98)
+            pts = np.column_stack(((pts[:, 0] - x0) * scale, pts[:, 1] * scale))
+        return pts.T
 
     @staticmethod
     def _off_wall_distance(mach: float, reynolds: float, temperature: float) -> float:
