@@ -15,9 +15,10 @@ collect the v1 dataset. Relative to the v0 ``airfoil_opt.py`` this:
   first+last kept loose), the final absolute area (``final_abs_volume.npy``), and the
   IPOPT log (``IPOPT.out``).
 
-The volume/area and thickness constraints are intentionally kept identical to v0 (the
-constraint is scaled against a fixed baseline ``area_input_design`` so optimized areas
-stay comparable across designs).
+The geometric constraints match the reference: a baseline-scaled area constraint
+(``area_ratio_min <= area/area_init <= 3.5``) and a 2D thickness floor. On a failed
+attempt the optimizer re-runs with a progressively more conservative ANK schedule
+(read from ``n_main_only_restart.dat``), mirroring the reference restart/retune logic.
 """
 
 import glob
@@ -46,13 +47,15 @@ _MACH_TRANSONIC_HI = 0.8
 _MACH_SONIC = 1.0
 
 
-def ank_schedule(mach: float) -> dict:
+def ank_schedule(mach: float, restart_count: int = 0) -> dict:
     """Per-Mach ANK/NK solver schedule (abstracts CFD-solver tuning from the user).
 
     A pure pseudo-transient (ANK) scheme stalls in the last few orders on the tiny 2D
     O-mesh, which corrupts the adjoint and fails the optimizer; the schedule below was
     tuned (alongside the NK finisher) across the Mach range so transonic/supersonic
-    cases still converge. Returns the Mach-dependent ADflow options.
+    cases still converge. On a failed attempt ``optimize()`` re-runs with an incremented
+    ``restart_count`` and the schedule is re-tuned more conservatively (this mirrors the
+    reference ``n_main_only_restart`` retune). Returns the Mach-dependent ADflow options.
     """
     ank_physical_ls_tol = 0.2
     cfl = 1.0
@@ -70,6 +73,21 @@ def ank_schedule(mach: float) -> dict:
         ank_second_ord_switch_tol = 1e-5
         ank_physical_ls_tol = 0.4
         cfl = 0.75
+
+    # Progressively more conservative on restart (reference n_main_only_restart retune).
+    if restart_count == 1:
+        ank_cfl_cutback = 0.10
+        ank_second_ord_switch_tol = 1e-6
+    elif restart_count >= 2:  # noqa: PLR2004
+        cfl *= 0.75
+        ank_second_ord_switch_tol = 1e-7
+        if mach < _MACH_TRANSONIC_HI:
+            ank_physical_ls_tol = 0.2
+        elif mach < _MACH_SONIC:
+            ank_physical_ls_tol = 0.3
+        else:
+            ank_physical_ls_tol = 0.4
+            ank_second_ord_switch_tol = 1e-5
 
     return {
         "nCycles": n_cycles,
@@ -143,13 +161,18 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     temperature = args.temperature
     use_altitude = args.use_altitude
     reynolds_length = 1.0
-    # Area constraint (kept identical to v0: scaled against a fixed baseline)
+    # Minimum area as a fraction of the baseline (scaled against the section at setup time).
     area_ratio_min = args.area_ratio_min
-    area_initial = args.area_initial
-    area_input_design = args.area_input_design
 
     opt = args.opt
     surface_variables = args.surface_variables if args.surface_variables is not None else DEFAULT_SURFACE_VARIABLES
+
+    # On a restart, optimize() writes the attempt number here so the solver schedule re-tunes.
+    restart_count = 0
+    restart_file = os.path.join(args.output_dir, "n_main_only_restart.dat")
+    if os.path.exists(restart_file):
+        with open(restart_file) as fh:
+            restart_count = int(fh.read().strip())
 
     # ======================================================================
     #         Create multipoint communication object
@@ -197,8 +220,8 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
         "ILUFill": 3,
         "useQCR": True,
     }
-    # Internal per-Mach schedule (CFL, nCycles, ANK tolerances), then user overrides.
-    aero_options.update(ank_schedule(mach))
+    # Internal per-Mach schedule (CFL, nCycles, ANK tolerances; re-tuned on restart), then user overrides.
+    aero_options.update(ank_schedule(mach, restart_count))
     if args.solver_options:
         aero_options.update(args.solver_options)
 
@@ -288,18 +311,8 @@ def main() -> None:  # noqa: C901, PLR0912, PLR0915
     le_list = [[0.01, 0, z_off], [0.01, 0, span - z_off]]
     te_list = [[te_stop, 0, z_off], [te_stop, 0, span - z_off]]
 
-    dv_con.addVolumeConstraint(
-        le_list,
-        te_list,
-        2,
-        100,
-        lower=area_ratio_min * area_initial / area_input_design,
-        upper=1.2 * area_initial / area_input_design,
-        scaled=True,
-    )
+    dv_con.addVolumeConstraint(le_list, te_list, 2, 100, lower=area_ratio_min, upper=3.5, scaled=True)
     dv_con.addThicknessConstraints2D(le_list, te_list, 2, 100, lower=0.15, upper=3.0)
-    # Keep TE thickness at original or greater.
-    dv_con.addThicknessConstraints1D(ptList=te_list, nCon=2, axis=[0, 1, 0], lower=1.0, scaled=True)
 
     if comm.rank == 0:
         dv_con.writeTecplot(os.path.join(args.output_dir, "constraints.dat"))

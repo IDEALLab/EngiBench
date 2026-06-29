@@ -15,18 +15,17 @@ pipeline. Relative to v0 it:
 - emits richer debugging artifacts (full ``opt.hst`` with stored sensitivities,
   per-iteration surface/section files, ``final_abs_volume.npy``, ``IPOPT.out``).
 
-The geometric area / thickness constraints are kept identical to v0 (the volume
-constraint is scaled against a fixed baseline ``area_input_design`` so optimized areas
-stay comparable across designs).
-
-Note: the reference pipeline's automatic restart/retune logic is coupled to its external
-Slurm harness and has no analog in EngiBench's single-shot container model, so it is not
-ported here.
+The geometric constraints match the reference template that generated the dataset: a
+baseline-scaled area constraint (``area_ratio_min <= area/area_init <= 3.5``) and a 2D
+thickness floor. The reference automatic restart/retune logic is ported in-process:
+``optimize()`` retries a failed solve with a progressively more conservative ANK
+schedule (see ``max_restarts``).
 """
 
 import dataclasses
 from dataclasses import dataclass
 from dataclasses import field
+import glob
 import json
 import os
 import re
@@ -267,6 +266,15 @@ class Airfoil(Airfoil_v0):
         return self.__local_study_dir + "/output"
 
     @staticmethod
+    def _ipopt_succeeded(ipopt_out_path: str) -> bool:
+        """Return True if the IPOPT log reports an optimal/acceptable exit."""
+        if not os.path.exists(ipopt_out_path):
+            return False
+        with open(ipopt_out_path) as fh:
+            text = fh.read()
+        return "EXIT: Optimal Solution Found" in text or "EXIT: Solved To Acceptable Level" in text
+
+    @staticmethod
     def _parse_slice_lines(
         lines: list[str],
     ) -> tuple[list[str], npt.NDArray[np.float64], npt.NDArray[np.int64]]:
@@ -436,15 +444,25 @@ class Airfoil(Airfoil_v0):
         drag = float(outputs[4])
         return SimulationResult(np.array([drag, lift]))
 
-    def optimize(
-        self, starting_point: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
+    def optimize(  # noqa: C901
+        self,
+        starting_point: DesignType,
+        config: dict[str, Any] | None = None,
+        mpicores: int = 4,
+        max_restarts: int = 2,
     ) -> tuple[DesignType, list[OptiStep]]:
         """Optimizes the design of an airfoil with IPOPT and the v1 solver settings.
+
+        If an attempt fails (IPOPT does not reach an optimal/acceptable exit, e.g. the CFD
+        stalls), the optimization is re-run from scratch with a progressively more
+        conservative ANK schedule (mirrors the reference ``n_main_only_restart`` retune),
+        up to ``max_restarts`` times.
 
         Args:
             starting_point (dict): The starting point for the optimization.
             config (dict): Boundary conditions / filenames for the optimization.
             mpicores (int): The number of MPI cores to use.
+            max_restarts (int): Max automatic restarts with a re-tuned solver on failure.
 
         Returns:
             tuple[dict[str, Any], list[OptiStep]]: The optimized design and its history.
@@ -485,14 +503,27 @@ class Airfoil(Airfoil_v0):
             f"'{json.dumps(args.to_dict())}'"
         )
         assert self.container_id is not None, "Container ID is not set"
-        container.run(
-            command=["/bin/bash", "-c", bash_command],
-            image=self.container_id,
-            name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-            env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
-            sync_uid=True,
-        )
+        output_local = self.study_output_dir
+        for attempt in range(max_restarts + 1):
+            if attempt > 0:
+                # Signal the container to re-tune the solver, and clear the failed attempt's
+                # artifacts so post-processing reads only this attempt.
+                os.makedirs(output_local, exist_ok=True)
+                with open(os.path.join(output_local, "n_main_only_restart.dat"), "w") as fh:
+                    fh.write(str(attempt))
+                for pattern in ("fc_*", "opt.hst", "IPOPT.out"):
+                    for stale in glob.glob(os.path.join(output_local, pattern)):
+                        os.remove(stale)
+            container.run(
+                command=["/bin/bash", "-c", bash_command],
+                image=self.container_id,
+                name="machaero",
+                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
+                sync_uid=True,
+            )
+            if self._ipopt_succeeded(os.path.join(output_local, "IPOPT.out")):
+                break
 
         # Post-process: extract the optimization history and optimized shape.
         optisteps_history = []
