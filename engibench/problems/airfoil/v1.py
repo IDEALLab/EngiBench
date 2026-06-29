@@ -444,7 +444,7 @@ class Airfoil(Airfoil_v0):
         drag = float(outputs[4])
         return SimulationResult(np.array([drag, lift]))
 
-    def optimize(  # noqa: C901
+    def optimize(  # noqa: C901, PLR0912
         self,
         starting_point: DesignType,
         config: dict[str, Any] | None = None,
@@ -504,6 +504,7 @@ class Airfoil(Airfoil_v0):
         )
         assert self.container_id is not None, "Container ID is not set"
         output_local = self.study_output_dir
+        last_error: Exception | None = None
         for attempt in range(max_restarts + 1):
             if attempt > 0:
                 # Signal the container to re-tune the solver, and clear the failed attempt's
@@ -514,16 +515,24 @@ class Airfoil(Airfoil_v0):
                 for pattern in ("fc_*", "opt.hst", "IPOPT.out"):
                     for stale in glob.glob(os.path.join(output_local, pattern)):
                         os.remove(stale)
-            container.run(
-                command=["/bin/bash", "-c", bash_command],
-                image=self.container_id,
-                name="machaero",
-                mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-                env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
-                sync_uid=True,
-            )
+            try:
+                container.run(
+                    command=["/bin/bash", "-c", bash_command],
+                    image=self.container_id,
+                    name="machaero",
+                    mounts=[(self.__local_base_directory, self.__docker_base_dir)],
+                    env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
+                    sync_uid=True,
+                )
+            except Exception as err:  # noqa: BLE001  -- the container can hard-abort (e.g. MPI_ABORT on a mesh-warp failure)
+                last_error = err
+                continue  # treat a crash as a failed attempt and restart with a re-tuned solver
             if self._ipopt_succeeded(os.path.join(output_local, "IPOPT.out")):
                 break
+
+        # Every attempt crashed and left no history to recover -> surface the failure.
+        if last_error is not None and not os.path.exists(os.path.join(output_local, "opt.hst")):
+            raise last_error
 
         # Post-process: extract the optimization history and optimized shape.
         optisteps_history = []
