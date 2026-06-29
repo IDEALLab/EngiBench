@@ -58,6 +58,12 @@ from engibench.utils.files import clone_dir
 
 DesignType = dict[str, Any]
 
+# Off-wall (first-cell height) y+ schedule matching the reference 2D dataset's mesh sampler.
+_YPLUS_RE_BANDS: tuple[tuple[float, float], ...] = ((1e6, 1.0), (1e7, 1.2), (5e7, 2.0), (1e8, 3.0))
+_YPLUS_HIGH_RE = 4.0
+_SONIC_MACH = 1.0
+_SUPERSONIC_YPLUS_FACTOR = 2.0
+
 
 class Airfoil(Airfoil_v0):
     r"""Airfoil 2D shape optimization problem - Version 1 (v1).
@@ -207,6 +213,26 @@ class Airfoil(Airfoil_v0):
         keep = np.concatenate(([True], seg > tol))  # drop points coincident with the previous one
         return pts[keep].T
 
+    @staticmethod
+    def _off_wall_distance(mach: float, reynolds: float, temperature: float) -> float:
+        """First-cell height matching the reference 2D dataset's off-wall sampler.
+
+        The dataset targets a Reynolds-banded y+ (and a looser y+ for supersonic flow) rather
+        than a fixed y+=1, which materially changes the boundary-layer first-cell height (and so
+        the drag) at high Re / supersonic conditions. The shared ``calc_off_wall_distance`` formula
+        is reused with that banded y+; the 5e-6 floor is applied downstream in pre_process.
+        """
+        # (Reynolds upper bound, y+) bands from the reference off-wall sampler; above the last
+        # band y+ is _YPLUS_HIGH_RE, and supersonic flow loosens it by _SUPERSONIC_YPLUS_FACTOR.
+        yplus = _YPLUS_HIGH_RE
+        for re_max, band_yplus in _YPLUS_RE_BANDS:
+            if reynolds < re_max:
+                yplus = band_yplus
+                break
+        if mach > _SONIC_MACH:
+            yplus *= _SUPERSONIC_YPLUS_FACTOR
+        return calc_off_wall_distance(mach=mach, reynolds=reynolds, freestreamTemp=temperature, yplus=yplus)
+
     def __design_to_simulator_input(
         self, design: DesignType, mach: float, reynolds: float, temperature: float, filename: str = "design"
     ) -> str:
@@ -223,7 +249,7 @@ class Airfoil(Airfoil_v0):
         os.makedirs(os.path.join(self.__local_study_dir, "mpi_tmp"), exist_ok=True)
 
         tmp = os.path.join(self.__docker_study_dir, "tmp")
-        s0 = calc_off_wall_distance(mach=mach, reynolds=reynolds, freestreamTemp=temperature)
+        s0 = self._off_wall_distance(mach, reynolds, temperature)
 
         # Coords arrive in the dataset (N, 2) convention (a closed contour). Open it and remove
         # coincident points so prefoil can build the section spline. The section is already
