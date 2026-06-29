@@ -118,7 +118,9 @@ problem and MACH-Aero backend are the same as v0, with the following changes:
   in addition to `mach`, `reynolds`, `cl_target`, `area_ratio_min`, `area_initial`.
 - **Coordinates:** designs use the dataset convention — `(192, 2)` arrays of `(x/c, y/c)` ordered
   TE → upper → LE → lower → TE (v0 used `(2, 192)`). `random_design`, `optimize` and
-  `simulate` all accept/return this layout.
+  `simulate` all accept/return this layout. Designs are meshed at the dataset's blunt-TE chord
+  (`x ∈ [0, 0.98]`); inputs supplied at unit chord (the stored representation) are uniformly
+  rescaled to 0.98 before meshing so the simulated geometry matches what the dataset ran.
 - **Solver settings:** the reference ADflow configuration used to collect the dataset (RANS + QCR,
   an NK finisher, and an internal per-Mach ANK schedule). The CFD tuning is abstracted away from
   the user; advanced users can override it via the `solver_options` config key and restrict the
@@ -156,11 +158,15 @@ Load the non-default tiers with `problem.load_variant("surface")` / `problem.loa
 New datasets are generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A tour
 of every v1 feature is in `engibench/problems/airfoil/tutorials/airfoil_v1_tutorial.ipynb`.
 
-> **Reproducibility.** Re-running the EngiBench pipeline on a dataset case reproduces its stored
-> aerodynamics closely — across sampled subsonic/transonic/supersonic cases, `cd`/`cl` matched the
-> stored values to ≈0.5–1% (subsonic) and ≈2% (supersonic). The small residual differences come from
-> the IPOPT linear solver (EngiBench uses MUMPS vs. SPRAL in the original run), the chord
-> normalization, and the section re-meshing.
+> **Reproducibility.** Every solver and mesh setting matches the reference dataset-collection
+> scripts (verified block-by-block — ADflow/ANK schedule, pyHyp mesh incl. the `zSymm` BC and the
+> Reynolds-banded off-wall spacing, constraints, IPOPT options, and the MUMPS linear solver).
+> Given the geometry the dataset actually meshed (the raw chord-0.98, 207-point contour), the
+> pipeline reproduces the stored `cd`/`cl` **bit-exactly (≈0.00%)** across subsonic → supersonic.
+> Optimizing instead from the stored unit-chord `initial_design` coords, EngiBench rescales to the
+> 0.98 meshed chord and reproduces `cd` to **≈0.2% (median)**; the small residual comes only from
+> the 192-point leading-edge resampling of the stored coords (publishing the raw 207-point contour
+> removes it). MPI core count does not affect the converged optimum.
 
 ## Citation
 If you use this problem in your research, please cite **both** of the works below.
