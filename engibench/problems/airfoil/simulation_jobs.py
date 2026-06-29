@@ -1,11 +1,17 @@
 """Dataset Generator for the Airfoil problem using the SLURM API."""
 
+import os
 import time
 
 import numpy as np
 
 from engibench.problems.airfoil import Airfoil
 from engibench.problems.airfoil.utils import calc_area
+
+# Where per-case study directories (meshes, CGNS, tarred iterations) are written. Set this
+# to a scratch/work filesystem (e.g. $HWORK) so dataset generation does not fill $HOME.
+# Unset -> the current working directory (the previous behavior).
+STUDY_BASE_DIR = os.environ.get("ENGIBENCH_STUDY_BASE")
 
 
 def simulate_slurm(problem_configuration: dict, configuration_id: int, design: list) -> dict:
@@ -28,7 +34,7 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
         "configuration_id": Identifier for specific simulation configurations
     """
     # Instantiate problem
-    problem = Airfoil()
+    problem = Airfoil(base_directory=STUDY_BASE_DIR)
 
     # Set simulation ID
     sim_id = configuration_id + 1
@@ -79,7 +85,7 @@ def optimize_slurm(problem_configuration: dict, configuration_id: int, design: l
         "optisteps_history": (only if return_history=True) List of OptiStep objects tracking convergence.
     """
     # Instantiate problem
-    problem = Airfoil()
+    problem = Airfoil(base_directory=STUDY_BASE_DIR)
 
     # Set optimization ID
     opt_id = configuration_id + 1
