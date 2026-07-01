@@ -29,9 +29,12 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
             the time taken for dataset generation.
         "problem_configuration": Problem configuration parameters
         "configuration_id": Identifier for specific simulation configurations
-        "surface_fields": Array of shape ``(6, N)`` with rows
-            ``[CoordinateX, CoordinateY, VelocityX, VelocityY, VelocityZ, CoefPressure]`` (only present
+        "coords": Array of shape ``(2, N)`` with rows ``[CoordinateX, CoordinateY]`` (only present
             when ``verbose=True``).
+        "velocity": Array of shape ``(3, N)`` with rows ``[VelocityX, VelocityY, VelocityZ]`` (only
+            present when ``verbose=True``).
+        "pressure_coeff": Array of shape ``(1, N)`` with row ``[CoefPressure]`` (only present when
+            ``verbose=True``).
     """
     # Instantiate problem
     problem = Airfoil()
@@ -50,25 +53,27 @@ def simulate_slurm(problem_configuration: dict, configuration_id: int, design: l
 
     if verbose:
         result = problem.simulate_verbose(my_design, mpicores=1, config=problem_configuration)
-        performance = result.objective_values
+        performance_values = result.objective_values
         surface_fields = result.surface_fields
-        performance_dict = {"drag": performance[0], "lift": performance[1], "surface_fields": surface_fields}
     else:
-        performance = problem.simulate(my_design, mpicores=1, config=problem_configuration)
-        performance_dict = {"drag": performance[0], "lift": performance[1]}
+        performance_values = problem.simulate(my_design, mpicores=1, config=problem_configuration)
+    performance = dict(zip(("drag", "lift"), performance_values, strict=True))
     print("Finished `simulate` via SLURM.")
     end_time = time.time()
     elapsed_time = end_time - start_time
     print(f"Elapsed time for `simulate`: {elapsed_time:.2f} seconds")
 
     job_result = {
-        "performance_dict": performance_dict,
+        "performance": performance,
         "simulate_time": elapsed_time,
         "problem_configuration": problem_configuration,
         "configuration_id": configuration_id,
     }
+
     if verbose:
-        job_result["surface_fields"] = surface_fields
+        job_result["coords"] = surface_fields[:2, :]
+        job_result["velocity"] = surface_fields[2:5, :]
+        job_result["pressure_coeff"] = surface_fields[5:6, :]
     return job_result
 
 
