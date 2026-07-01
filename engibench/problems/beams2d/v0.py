@@ -248,7 +248,7 @@ class Beams2D(Problem[npt.NDArray]):
 
             xnew, xPhys, xPrint = inner_opt(x, self.__st, dc, dv, dataclasses.asdict(base_config))
             # Compute the change by the inf. norm
-            change = np.linalg.norm(  # type: ignore[assignment]
+            change = np.linalg.norm(
                 xnew.reshape(base_config.nelx * base_config.nely, 1) - x.reshape(base_config.nelx * base_config.nely, 1),
                 np.inf,
             )

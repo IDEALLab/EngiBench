@@ -9,9 +9,15 @@ experiment/engibench_studies/
 apptainer-cache/
 engibench/problems/airfoil/device_dataset_slurm_airfoil.py
 engibench/problems/airfoil/test_imports.py
+engibench/problems/airfoil/input_data/
 experiment/
 singularity-cache/
 scratch/
+
+# Local run outputs (regenerated when running problems from the repo root)
+/templates/
+/data/
+slurm-*.out
 
 
 # C extensions
@@ -170,5 +176,5 @@ cython_debug/
 .idea/
 .vscode/
 
-# Local Claude Code guidance (not tracked)
-CLAUDE.md
+# Singularity / Apptainer
+*.sif

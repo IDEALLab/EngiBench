@@ -296,6 +296,10 @@ class Apptainer(ContainerRuntime):
         # For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"
         image_name = image.rsplit("/", 1)[-1] if "/" in image else image
 
+        # An untagged image resolves to its implicit ":latest" tag, e.g. "alpine" -> "alpine_latest.sif"
+        if ":" not in image_name:
+            image_name += ":latest"
+
         # Replace ":" with "_" in the image name
         return image_name.replace(":", "_") + ".sif"
 
