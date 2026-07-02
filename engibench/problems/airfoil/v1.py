@@ -579,6 +579,7 @@ class Airfoil(Airfoil_v0):
 
         # Post-process: extract the optimization history and optimized shape.
         optisteps_history = []
+        opt_alpha = float(starting_point["angle_of_attack"])  # fallback: the starting AoA
         history = History(self.__local_study_dir + "/output/opt.hst")
         call_counters = history.getCallCounters()
         iters = list(map(int, call_counters)) if call_counters is not None else []
@@ -592,13 +593,14 @@ class Airfoil(Airfoil_v0):
                     if obj_np.ndim > 1:
                         obj_np = obj_np.flatten()
                     optisteps_history.append(OptiStep(obj_values=obj_np, step=vals["iter"]))
+                # Capture the AoA design variable at this (last valid) major iteration. Reading it
+                # from each valid function evaluation avoids getValues(callCounters=["last"]), which
+                # can land on a gradient step (no funcs) and silently fall back to the *initial* AoA
+                # -- which would pair the optimized coords with the wrong angle of attack.
+                xuser = vals.get("xuser") or {}
+                if "alpha_fc" in xuser:
+                    opt_alpha = float(np.ravel(xuser["alpha_fc"])[0])
 
-        opt_alpha_values = history.getValues(names=["alpha_fc"], callCounters=["last"], major=True)
-        opt_alpha = (
-            float(opt_alpha_values["alpha_fc"].flatten()[0])
-            if opt_alpha_values and "alpha_fc" in opt_alpha_values and len(opt_alpha_values["alpha_fc"]) > 0
-            else starting_point["angle_of_attack"]
-        )
         history.close()
 
         opt_coords = self.simulator_output_to_design()
