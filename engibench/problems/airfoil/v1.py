@@ -67,6 +67,9 @@ _SUPERSONIC_YPLUS_FACTOR = 2.0
 # Blunt-TE chord the dataset meshed/simulated at (raw case_coords.dat span x in [0, 0.98]).
 # Input coords are uniformly rescaled to this chord before meshing (see _prep_coords_for_mesh).
 _MESH_CHORD = 0.98
+# Only rescale when the chord is off by more than this: unit-chord (v0) inputs are 2% off and DO
+# rescale; sampled CFD surfaces overshoot 0.98 by ~1e-4 at the blunt-TE corner and must NOT.
+_CHORD_RESCALE_TOL = 0.01
 
 
 class Airfoil(Airfoil_v0):
@@ -206,18 +209,29 @@ class Airfoil(Airfoil_v0):
     def _prep_coords_for_mesh(coords: npt.ArrayLike, tol: float = 1e-9) -> npt.NDArray[np.float64]:
         """Return a mesh-ready ``(2, N)`` contour from any airfoil coordinate array.
 
-        Two normalizations are applied so the meshed geometry matches what the dataset actually
+        Three normalizations are applied so the meshed geometry matches what the dataset actually
         simulated:
 
         1. Drop interior consecutive duplicate points (the released dataset doubles the
-           leading-edge point, which makes prefoil's pyspline fit singular). The closed contour
-           (first point repeated at the end) is otherwise kept as-is.
+           leading-edge point, which makes prefoil's pyspline fit singular).
         2. Uniformly rescale to the dataset's blunt-TE chord (``x`` in ``[0, _MESH_CHORD]``). Every
            dataset case was meshed/simulated at chord 0.98 (see ``coords.npy`` / ``case_coords.dat``),
-           but the released ``initial_design``/``optimal_design`` coords are stored unit-chord
-           (``x`` in ``[0, 1]``) -- a uniform 1/0.98 upscale. Rescaling back to 0.98 here makes
-           EngiBench mesh the identical geometry and reproduces the stored aerodynamics exactly;
-           coords already at chord 0.98 (the raw contour) are left unchanged.
+           but v0's released ``initial_design``/``optimal_design`` coords are stored unit-chord
+           (``x`` in ``[0, 1]``) -- a uniform 1/0.98 upscale. Rescaling back to 0.98 makes EngiBench
+           mesh the identical geometry. The rescale only fires when the chord is off by more than
+           ``_CHORD_RESCALE_TOL``: a sampled CFD surface legitimately overshoots x=0.98 by ~1e-4 at
+           the blunt-TE corner (its x-extent is NOT the chord), and "correcting" it would shrink the
+           whole airfoil relative to the geometry the dataset actually simulated.
+        3. Normalize the loop seam to the UPPER trailing-edge corner with the blunt face traversed
+           last, then close the contour. prefoil anchors its spline parametrization (and therefore
+           the conical sampling, the blunt-face reconstruction, and the O-grid wake seam) at the
+           first input point, and the reference pipeline always fed it upper-corner-first contours
+           (``case_coords.dat``). Slice-extracted contours -- the released datasets AND
+           ``simulator_output_to_design`` outputs -- are the same loop rotated to start mid-face
+           (see ``_align_coordinates``), which silently smears the blunt face, moves the wake seam
+           to the lower corner, and shifts every sampled mesh node; razor-edge cases then fail to
+           converge. prefoil also samples an OPEN loop onto a different topology entirely (206
+           instead of 201 points), so the contour is closed after the rotation.
         """
         pts = Airfoil._coords_2xn(coords).T  # (N, 2)
         seg = np.hypot(np.diff(pts[:, 0]), np.diff(pts[:, 1]))
@@ -225,9 +239,35 @@ class Airfoil(Airfoil_v0):
         pts = pts[keep]
         x0 = pts[:, 0].min()
         chord = pts[:, 0].max() - x0
-        if chord > 0:
-            scale = _MESH_CHORD / chord  # uniform scale -> chord exactly _MESH_CHORD (no-op if already 0.98)
+        if chord > 0 and abs(chord - _MESH_CHORD) > _CHORD_RESCALE_TOL:
+            scale = _MESH_CHORD / chord  # uniform scale -> chord exactly _MESH_CHORD
             pts = np.column_stack(((pts[:, 0] - x0) * scale, pts[:, 1] * scale))
+        if np.allclose(pts[0], pts[-1], rtol=0.0, atol=tol):
+            pts = pts[:-1]  # temporarily open the loop to rotate it
+        n = len(pts)
+
+        def steep(i: int, j: int) -> bool:
+            # Near-vertical segment: part of the blunt trailing-edge face, not the surface.
+            return abs(pts[j, 1] - pts[i, 1]) >= abs(pts[j, 0] - pts[i, 0])
+
+        # Walk outward from the max-x point along near-vertical segments to find the blunt face;
+        # its endpoints are the TE corners (for a sharp TE the chain is the single max-x point).
+        i_max = int(np.argmax(pts[:, 0]))
+        lo = i_max
+        for _ in range(n):
+            if not steep((lo - 1) % n, lo):
+                break
+            lo = (lo - 1) % n
+        hi = i_max
+        for _ in range(n):
+            if not steep(hi, (hi + 1) % n):
+                break
+            hi = (hi + 1) % n
+        seam = lo if pts[lo, 1] >= pts[hi, 1] else hi  # upper corner
+        pts = np.roll(pts, -seam, axis=0)
+        if steep(0, 1):  # first segment dives into the face -> reverse so the face comes last
+            pts = np.roll(pts[::-1], 1, axis=0)
+        pts = np.vstack([pts, pts[0]])  # close the loop for prefoil
         return pts.T
 
     @staticmethod
