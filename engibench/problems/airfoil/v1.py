@@ -253,8 +253,10 @@ class Airfoil(Airfoil_v0):
         n = len(pts)
 
         def steep(i: int, j: int) -> bool:
-            # Near-vertical segment: part of the blunt trailing-edge face, not the surface.
-            return abs(pts[j, 1] - pts[i, 1]) >= abs(pts[j, 0] - pts[i, 0])
+            # Near-vertical segment: part of the blunt trailing-edge face, not the surface. The
+            # 2:1 slope floor keeps the walk from overshooting a rounded corner onto the surface
+            # (a 45-deg corner-adjacent segment on very blunt sections would otherwise qualify).
+            return abs(pts[j, 1] - pts[i, 1]) >= 2.0 * abs(pts[j, 0] - pts[i, 0])
 
         # Walk outward from the max-x point along near-vertical segments to find the blunt face;
         # its endpoints are the TE corners (for a sharp TE the chain is the single max-x point).
