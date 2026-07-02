@@ -30,6 +30,7 @@ import json
 import os
 import re
 import tarfile
+import tempfile
 from typing import Annotated, Any, ClassVar
 
 from datasets import load_dataset
@@ -70,6 +71,11 @@ _MESH_CHORD = 0.98
 # Only rescale when the chord is off by more than this: unit-chord (v0) inputs are 2% off and DO
 # rescale; sampled CFD surfaces overshoot 0.98 by ~1e-4 at the blunt-TE corner and must NOT.
 _CHORD_RESCALE_TOL = 0.01
+# The container's TMPDIR must be node-local: OpenMPI session files and IDWarp's MExt module
+# loader (which copies .so files to TMPDIR and imports them) intermittently fail on a parallel
+# filesystem, and the --compat tmpfs /tmp is too small for them. The host's $TMPDIR (node-local
+# scratch under SLURM) is bind-mounted at this path inside the container.
+_DOCKER_TMPDIR = "/tmp/engibench"  # noqa: S108  -- container-internal bind target, not a host temp path
 
 
 class Airfoil(Airfoil_v0):
@@ -290,6 +296,15 @@ class Airfoil(Airfoil_v0):
             yplus *= _SUPERSONIC_YPLUS_FACTOR
         return calc_off_wall_distance(mach=mach, reynolds=reynolds, freestreamTemp=temperature, yplus=yplus)
 
+    def _container_run_kwargs(self) -> dict[str, Any]:
+        """Shared mounts/env for container runs: the study tree plus a node-local TMPDIR."""
+        host_tmp = os.path.join(os.environ.get("TMPDIR", tempfile.gettempdir()), "engibench_tmp")
+        os.makedirs(host_tmp, exist_ok=True)
+        return {
+            "mounts": [(self.__local_base_directory, self.__docker_base_dir), (host_tmp, _DOCKER_TMPDIR)],
+            "env": {"TMPDIR": _DOCKER_TMPDIR},
+        }
+
     def __design_to_simulator_input(
         self, design: DesignType, mach: float, reynolds: float, temperature: float, filename: str = "design"
     ) -> str:
@@ -333,8 +348,7 @@ class Airfoil(Airfoil_v0):
             command=["/bin/bash", "-c", bash_command],
             image=self.container_id,
             name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-            env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
+            **self._container_run_kwargs(),
             sync_uid=True,
         )
         return filename
@@ -517,8 +531,7 @@ class Airfoil(Airfoil_v0):
             command=["/bin/bash", "-c", bash_command],
             image=self.container_id,
             name="machaero",
-            mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-            env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
+            **self._container_run_kwargs(),
             sync_uid=True,
         )
 
@@ -603,8 +616,7 @@ class Airfoil(Airfoil_v0):
                     command=["/bin/bash", "-c", bash_command],
                     image=self.container_id,
                     name="machaero",
-                    mounts=[(self.__local_base_directory, self.__docker_base_dir)],
-                    env={"TMPDIR": os.path.join(self.__docker_study_dir, "mpi_tmp")},
+                    **self._container_run_kwargs(),
                     sync_uid=True,
                 )
             except Exception as err:  # noqa: BLE001  -- the container can hard-abort (e.g. MPI_ABORT on a mesh-warp failure)
