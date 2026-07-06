@@ -116,11 +116,15 @@ problem and MACH-Aero backend are the same as v0, with the following changes:
 - **Shape variables:** widened FFD bounds `-0.10 <= Δy_i <= 0.10` (from `±0.025`).
 - **Conditions:** **temperature** is now a sampled conditioning variable (`temperature` column),
   in addition to `mach`, `reynolds`, `cl_target`, `area_ratio_min`, `area_initial`.
-- **Coordinates:** designs use the dataset convention — `(192, 2)` arrays of `(x/c, y/c)` ordered
-  TE → upper → LE → lower → TE (v0 used `(2, 192)`). `random_design`, `optimize` and
-  `simulate` all accept/return this layout. Designs are meshed at the dataset's blunt-TE chord
-  (`x ∈ [0, 0.98]`); inputs supplied at unit chord (the stored representation) are uniformly
-  rescaled to 0.98 before meshing so the simulated geometry matches what the dataset ran.
+- **Coordinates:** designs are `(N, 2)` arrays of `(x/c, y/c)` on a closed blunt-TE contour
+  (the v1 dataset stores the ~200-point sampled CFD surface; v0 stored a lossy 192-point re-grid).
+  `random_design`, `optimize` and `simulate` all accept/return this layout, and inputs are
+  normalized before meshing so the simulated geometry matches what the dataset ran: the loop is
+  closed if it arrives open, rotated so the spline seam sits at the upper trailing-edge corner
+  with the blunt face traversed last (slice-extracted contours arrive rotated mid-face), and
+  uniformly rescaled to the meshed blunt-TE chord (`x ∈ [0, 0.98]`) when supplied at unit chord.
+  Contours already at the meshed chord — including the reference raw contours — pass through
+  bit-exactly.
 - **Solver settings:** the reference ADflow configuration used to collect the dataset (RANS + QCR,
   an NK finisher, and an internal per-Mach ANK schedule). The CFD tuning is abstracted away from
   the user; advanced users can override it via the `solver_options` config key and restrict the
@@ -144,15 +148,20 @@ baseline `area_input_design` so optimized areas stay comparable across designs).
 v1 ships in three tiers (train 878 / val 49 / test 107, sharing `case_id`, conditions and scalar
 objectives `cd`, `cl`, `cl_con_violation`, `area_ratio`):
 
-- [`Cashen/optiwing-airfoil-2d-v0`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-v0) —
+- [`Cashen/optiwing-airfoil-2d-v1`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-v1) —
   **basic** (the default `self.dataset`): `initial_design` / `optimal_design` geometry + conditions
-  + scalar objectives.
-- [`Cashen/optiwing-airfoil-2d-surface-v0`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-surface-v0) —
+  + scalar objectives. Coordinates are the exact sampled CFD surfaces the reference pipeline
+  meshed (raw fidelity), unlike the re-gridded v0 tier.
+- [`Cashen/optiwing-airfoil-2d-surface-v1`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-surface-v1) —
   **surface**: adds per-surface-node flow fields (cp, pressure, skin friction, …) on the initial and
   optimal designs.
-- [`Cashen/optiwing-airfoil-2d-full-v0`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-full-v0) —
+- [`Cashen/optiwing-airfoil-2d-full-v1`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-full-v1) —
   **full**: every optimizer iteration with full surface fields and the adjoint shape/AoA
   sensitivities (~3.6 GB).
+
+One dataset caveat: `case_id` 255 stores a *failed* optimization — its target lift is physically
+unreachable (the AoA design variable saturates its bound), so its `optimal_design` is not a
+converged optimum. Exclude it from reproduction or warm-start studies.
 
 Load the non-default tiers with `problem.load_variant("surface")` / `problem.load_variant("full")`.
 New datasets are generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A tour
@@ -160,13 +169,16 @@ of every v1 feature is in `engibench/problems/airfoil/tutorials/airfoil_v1_tutor
 
 > **Reproducibility.** Every solver and mesh setting matches the reference dataset-collection
 > scripts (verified block-by-block — ADflow/ANK schedule, pyHyp mesh incl. the `zSymm` BC and the
-> Reynolds-banded off-wall spacing, constraints, IPOPT options, and the MUMPS linear solver).
-> Given the geometry the dataset actually meshed (the raw chord-0.98, 207-point contour), the
-> pipeline reproduces the stored `cd`/`cl` **bit-exactly (≈0.00%)** across subsonic → supersonic.
-> Optimizing instead from the stored unit-chord `initial_design` coords, EngiBench rescales to the
-> 0.98 meshed chord and reproduces `cd` to **≈0.2% (median)**; the small residual comes only from
-> the 192-point leading-edge resampling of the stored coords (publishing the raw 207-point contour
-> removes it). MPI core count does not affect the converged optimum.
+> Reynolds-banded off-wall spacing validated against all 1,433 reference cases, constraints, IPOPT
+> options, and the MUMPS linear solver). Given the geometry the dataset actually meshed (the raw
+> chord-0.98 contour), the pipeline reproduces the stored `cd`/`cl` **bit-exactly (≈0.00%)** across
+> subsonic → supersonic. Re-optimizing from the stored v1 `initial_design` coords reproduces the
+> stored optima to **0.08% median Δcd** (re-simulating initial designs: 0.09% median) on a 50-case
+> Mach-spanning sweep; cases beyond ~2% are converged *alternate local optima* (lift exactly on
+> target), i.e. genuine multimodality rather than reproduction error. The lossy 192-point v0 tier
+> reproduces to ≈0.4% median with a fat tail — prefer v1. For strict reference parity run
+> `mpicores=4` (the dataset was collected on 4 MPI ranks; a rare knife-edge supersonic case can
+> fail to converge under a different domain decomposition).
 
 ## Citation
 If you use this problem in your research, please cite **both** of the works below.

@@ -104,9 +104,9 @@ class Airfoil(Airfoil_v0):
     # The three released dataset tiers share the same case ids / conditions / objectives.
     # ``dataset_id`` (the basic tier) drives ``self.dataset``; ``load_variant`` loads the others.
     dataset_variants: ClassVar[dict[str, str]] = {
-        "basic": "Cashen/optiwing-airfoil-2d-v0",
-        "surface": "Cashen/optiwing-airfoil-2d-surface-v0",
-        "full": "Cashen/optiwing-airfoil-2d-full-v0",
+        "basic": "Cashen/optiwing-airfoil-2d-v1",
+        "surface": "Cashen/optiwing-airfoil-2d-surface-v1",
+        "full": "Cashen/optiwing-airfoil-2d-full-v1",
     }
     dataset_id = dataset_variants["basic"]
 
