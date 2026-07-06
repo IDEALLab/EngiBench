@@ -93,11 +93,13 @@ class Airfoil(Airfoil_v0):
         ("cl", ObjectiveDirection.MAXIMIZE),
     )
 
-    # Coordinates follow the dataset convention: 192 points (x/c, y/c) ordered
-    # TE -> upper -> LE -> lower -> TE, i.e. shape (192, 2).
+    # Coordinates follow the v1 dataset convention: the sampled CFD surface as (N, 2) points of
+    # (x/c, y/c) ordered around the closed blunt-TE contour. The nominal N below matches the
+    # dataset (199-201 points depending on the case); any point count is accepted -- inputs are
+    # normalized (closure/seam/chord) before meshing. The legacy v0 tier stored a 192-point re-grid.
     design_space = spaces.Dict(
         {
-            "coords": spaces.Box(low=-1.0, high=1.0, shape=(192, 2), dtype=np.float32),
+            "coords": spaces.Box(low=-1.0, high=1.0, shape=(200, 2), dtype=np.float32),
             "angle_of_attack": spaces.Box(low=-1.0, high=10.0, shape=(1,), dtype=np.float32),
         }
     )

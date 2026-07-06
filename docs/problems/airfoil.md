@@ -163,6 +163,29 @@ One dataset caveat: `case_id` 255 stores a *failed* optimization — its target 
 unreachable (the AoA design variable saturates its bound), so its `optimal_design` is not a
 converged optimum. Exclude it from reproduction or warm-start studies.
 
+The `design_space` declares a nominal `(200, 2)` coordinate array (the v1 tiers store the sampled
+CFD surface, 199–201 points depending on the case); any point count is accepted, since inputs are
+normalized (closure, seam, chord) before meshing.
+
+##### Using the legacy v0 dataset tiers
+The re-gridded 192-point v0 tiers remain published for backward-compatible studies
+([`Cashen/optiwing-airfoil-2d-v0`](https://huggingface.co/datasets/Cashen/optiwing-airfoil-2d-v0),
+`-surface-v0`, `-full-v0`). Load them directly with `datasets.load_dataset(...)`, or point the
+problem at them before instantiation:
+
+```python
+from engibench.problems.airfoil.v1 import Airfoil
+
+Airfoil.dataset_variants = {**Airfoil.dataset_variants, "basic": "Cashen/optiwing-airfoil-2d-v0"}
+Airfoil.dataset_id = Airfoil.dataset_variants["basic"]
+problem = Airfoil()
+```
+
+Expectation management: the v0 coordinates are a lossy re-grid of the meshed geometry, so
+re-optimizing from them reproduces stored optima to only ≈0.4% median Δcd with a fat tail
+(including a handful of knife-edge failures that no preprocessing can fix). Prefer the v1 tiers
+for anything quantitative; keep v0 for legacy comparisons only.
+
 Load the non-default tiers with `problem.load_variant("surface")` / `problem.load_variant("full")`.
 New datasets are generated with `engibench/problems/airfoil/dataset_slurm_airfoil_optimize.py`. A tour
 of every v1 feature is in `engibench/problems/airfoil/tutorials/airfoil_v1_tutorial.ipynb`.
