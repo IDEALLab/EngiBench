@@ -55,8 +55,7 @@ python ../engibench/problems/airfoil/dataset_slurm_airfoil.py \
     -min_re 1.0e6 \
     -max_re 1.0e7 \
     -min_aoa 0.0 \
-    -max_aoa 10.0 \
-    --field_output
+    -max_aoa 10.0
 ```
 
 ## Submit the job
