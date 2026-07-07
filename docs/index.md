@@ -45,6 +45,7 @@ lastpage:
 
 introduction/install
 introduction/basic_usage
+Data Generation (Slurm) <introduction/dataset_generation_slurm>
 introduction/api
 ```
 
