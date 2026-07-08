@@ -5,7 +5,6 @@ from numpy.typing import NDArray
 import pyamg
 from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import cg
-from scipy.sparse.linalg import spsolve
 
 
 def solve_spd_with_amg(
@@ -41,20 +40,3 @@ def solve_spd_with_amg(
         raise RuntimeError(f"Linear solver failed: solution contains non-finite values: {info}")
 
     return x
-
-
-def solve_with_spsolve(a: csr_matrix, b: NDArray[np.float64]) -> NDArray[np.float64]:
-    """Solves a sparse linear system using SciPy's direct sparse solver.
-
-    This function computes the solution of a sparse linear system using a direct
-    factorization method (SuperLU via SciPy). It supports general sparse matrices,
-    including non-symmetric or indefinite systems.
-
-    Args:
-        a (csr_matrix): Sparse system matrix in CSR format.
-        b (np.ndarray): Right-hand-side vector of shape (n,).
-
-    Returns:
-        np.ndarray: The computed solution vector of shape (n,).
-    """
-    return spsolve(a, b)

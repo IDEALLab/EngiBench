@@ -114,7 +114,7 @@ the existing 3D problem implementation.
 | `model/__init__.py` | yes | yes | Package marker. |
 | `model/fem_matrix_builder.py` | yes | yes | Beams3D builds only structural Hex8 stiffness; Thermoelastic3D builds structural, thermal, and coupling matrices. |
 | `model/fem_model.py` | yes | yes | Beams3D runs structural-only optimization; Thermoelastic3D runs coupled thermoelastic optimization. |
-| `model/fem_plotting.py` | yes | yes | Beams3D plots density and mechanical BCs; Thermoelastic3D also plots heatsink information. |
+| `model/fem_plotting.py` | no | yes | Beams3D uses the lightweight Matplotlib `render()` method in `v0.py`; Thermoelastic3D keeps a separate debug plotter. |
 | `model/fem_setup.py` | compatibility exports | full coupled setup | Beams3D keeps a compatibility export and moves structural assembly to `fem_structural_setup.py`. |
 | `model/fem_structural_setup.py` | yes | no | Beams3D-specific structural-only cached setup and solve path. |
 | `model/linear_solver.py` | yes | yes | Same AMG-preconditioned sparse-solver role. |

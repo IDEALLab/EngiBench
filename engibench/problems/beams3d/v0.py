@@ -192,7 +192,7 @@ class Beams3D(Problem[npt.NDArray]):
     def simulate_verbose(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> SimulationResult:
         """Simulate structural compliance for a design."""
         boundary_dict = self._boundary_conditions(config)
-        results = FeaModel3D(plot=False, eval_only=True).run(boundary_dict, x_init=design)
+        results = FeaModel3D(eval_only=True).run(boundary_dict, x_init=design)
         return SimulationResult(np.array([results["structural_compliance"]]))
 
     def optimize(
@@ -201,7 +201,7 @@ class Beams3D(Problem[npt.NDArray]):
         """Optimize a 3D beam topology from a starting density field."""
         boundary_dict = self._boundary_conditions(config)
         max_iter = int((config or {}).get("max_iter", self.max_iter))
-        results = FeaModel3D(plot=False, eval_only=False, max_iter=max_iter).run(boundary_dict, x_init=starting_point)
+        results = FeaModel3D(eval_only=False, max_iter=max_iter).run(boundary_dict, x_init=starting_point)
         design = np.array(results["design"]).astype(np.float32)
         return design, results["opti_steps"]
 

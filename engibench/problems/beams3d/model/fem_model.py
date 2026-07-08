@@ -1,11 +1,11 @@
 """Structural-only Python implementation of the Beams 3D problem."""
 
 from dataclasses import dataclass
-from math import ceil
 import time
 from typing import Any
 
 import numpy as np
+import numpy.typing as npt
 
 from engibench.core import OptiStep
 from engibench.problems.beams3d.model.fem_matrix_builder import fe_mech_3d
@@ -22,18 +22,23 @@ UPDATE_THRESHOLD = 0.01
 
 
 def _filter_offsets(rmin: float) -> list[tuple[int, int, int, float]]:
-    offsets = []
-    rceil = ceil(rmin) - 1
+    rceil = int(np.ceil(rmin)) - 1
+    deltas = np.arange(-rceil, rceil + 1)
+    dx_grid, dy_grid, dz_grid = np.meshgrid(deltas, deltas, deltas, indexing="ij")
+    distances = np.linalg.norm(np.stack((dx_grid, dy_grid, dz_grid), axis=-1), axis=-1)
+    weights = rmin - distances
+    active = weights > 0.0
 
-    for dx in range(-rceil, rceil + 1):
-        for dy in range(-rceil, rceil + 1):
-            for dz in range(-rceil, rceil + 1):
-                dist = (dx * dx + dy * dy + dz * dz) ** 0.5
-                weight = rmin - dist
-                if weight > 0.0:
-                    offsets.append((dx, dy, dz, weight))
-
-    return offsets
+    return [
+        (int(dx), int(dy), int(dz), float(weight))
+        for dx, dy, dz, weight in zip(
+            dx_grid[active],
+            dy_grid[active],
+            dz_grid[active],
+            weights[active],
+            strict=True,
+        )
+    ]
 
 
 def _valid_filter_offset(shape: tuple[int, int, int], offset: tuple[int, int, int, float]) -> bool:
@@ -52,7 +57,7 @@ class SensitivityFilter3D:
     """Matrix-free cone-filter data."""
 
     offsets: tuple[tuple[int, int, int, float], ...]
-    hs: np.ndarray
+    hs: npt.NDArray[np.float64]
     shape: tuple[int, int, int]
 
 
@@ -63,9 +68,9 @@ def _offset_slices(size: int, delta: int) -> tuple[slice, slice]:
 
 
 def _apply_filter(
-    values: np.ndarray,
+    values: npt.NDArray[np.float64],
     sensitivity_filter: SensitivityFilter3D,
-) -> np.ndarray:
+) -> npt.NDArray[np.float64]:
     axis0, axis1, axis2 = sensitivity_filter.shape
     values_3d = values.reshape(axis0, axis1, axis2)
     filtered = np.zeros_like(values_3d, dtype=np.float64)
@@ -82,15 +87,13 @@ def _apply_filter(
 class FeaModel3D:
     """Finite Element Analysis model for structural 3D topology optimization."""
 
-    def __init__(self, *, plot: bool = False, eval_only: bool = False, max_iter: int = MAX_ITERATIONS) -> None:
+    def __init__(self, *, eval_only: bool = False, max_iter: int = MAX_ITERATIONS) -> None:
         """Instantiates a new structural 3D model.
 
         Args:
-            plot: If True, you can hook in your own plotting / volume rendering each iteration.
             eval_only: If True, evaluate the given design once and return objective components only.
             max_iter: Maximal number of iterations for the `run` method.
         """
-        self.plot = plot
         self.eval_only = eval_only
         self.max_iter = max_iter
 
@@ -158,7 +161,7 @@ class FeaModel3D:
         hs = hs_3d.reshape(n)
         return SensitivityFilter3D(offsets=offsets, hs=hs, shape=filter_shape)
 
-    def run(  # noqa: C901, PLR0915
+    def run(  # noqa: PLR0915
         self,
         bcs: dict[str, Any],
         x_init: np.ndarray | None = None,
@@ -215,11 +218,6 @@ class FeaModel3D:
 
             res = fe_structural_bc_3d(nely, nelx, nelz, penal, x, ke, bcs, context=context)
             um = res.um
-
-            if self.plot is True and (iterr % 50 == 0):
-                from engibench.problems.beams3d.model.fem_plotting import plot_fem_3d  # noqa: PLC0415
-
-                plot_fem_3d(bcs, x)
 
             t_forward = time.time() - tcur
             tcur = time.time()
