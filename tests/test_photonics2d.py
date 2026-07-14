@@ -80,9 +80,7 @@ def test_simulate_does_not_project(problem: Photonics2D) -> None:
     """simulate must translate density -> permittivity by scaling only (no blur/projection)."""
     design = np.full((NUM_X, NUM_Y), 0.5, dtype=np.float64)
     problem.simulate(design)  # populates problem._last_epsr and the domain geometry
-    expected_epsr = design_to_epsr(
-        design, problem._bg_rho, problem._design_region, problem._epsr_min, problem._epsr_max
-    )
+    expected_epsr = design_to_epsr(design, problem._bg_rho, problem._design_region, problem._epsr_min, problem._epsr_max)
     np.testing.assert_allclose(problem._last_epsr, expected_epsr)
 
 

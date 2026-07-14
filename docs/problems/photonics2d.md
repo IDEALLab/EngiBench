@@ -136,6 +136,11 @@ Regenerated under the consistent `simulate`/`optimize` contract (see [Versions](
 the same boundary conditions as v0 so the two are directly comparable. The stored objective
 (`total_overlap`) is reproducible via `Photonics2D.simulate(optimal_design)`.
 
+Each design was optimized from the same warm start: `Photonics2D().random_design(noise=0.001)` with
+the default `seed=0`, i.e. a uniform density of 0.5 in the design region plus small Gaussian noise.
+Because the seed is fixed, this starting field is identical across all rows; only the boundary
+conditions differ. The starting design is therefore not stored as a dataset column.
+
 #### Fields
 Each dataset contains:
 - `lambda1`: The first input wavelength in μm.

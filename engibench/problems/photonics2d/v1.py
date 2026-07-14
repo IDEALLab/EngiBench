@@ -2,24 +2,30 @@
 
 ## v1
 
-This version makes ``simulate`` and ``optimize`` mutually consistent. In v0 the density projection
-(blur + tanh smoothed-Heaviside) was applied inside both ``simulate`` and ``optimize`` at differing
-projection strengths, so an optimized design did not reproduce its reported objective when passed
-back to ``simulate``. v1 confines filtering and projection to ``optimize`` and evaluates designs
-as-is everywhere else:
+v1 makes ``simulate`` and ``optimize`` return consistent values for the same design.
 
-* A *design* is a physical density field ``rho`` in [0, 1].
-* ``simulate(design)`` validates ``rho`` in [0, 1] (via :meth:`check_constraints`) and translates
-  density to permittivity by scaling only (:func:`design_to_epsr`) -- no blur, no projection --
-  before solving FDFD.
-* ``optimize(starting_point)`` records step 0 as the unfiltered starting point (so it equals
-  ``simulate(starting_point)``), then for steps 1..N applies blur + tanh projection with ``beta``
-  continuation inside an explicit Adam loop (clipping ``rho`` to [0, 1] each step). It returns the
-  physical (projected) density at ``max_beta``, so ``simulate(optimize(x)[0]) == history[-1]``.
+Background: a design is a continuous density field ``rho`` (values in [0, 1]) that is mapped to a
+permittivity image and scored with an FDFD solve. During optimization two operations shape ``rho``:
+a *blur* (which enforces a minimum feature size) and a *projection* (a tanh "soft step" that pushes
+values toward 0 or 1 so the final design is nearly binary; its sharpness is controlled by ``beta``,
+which is increased over the run -- a schedule known as "continuation").
 
-The tanh projection (:func:`operator_proj`) is the canonical smoothed-Heaviside operator and maps
-[0, 1] -> [0, 1] exactly; the optimizer therefore keeps ``rho`` clipped to [0, 1] rather than
-adopting a sigmoid parameterization.
+In v0 the blur and projection were applied inside **both** ``simulate`` and ``optimize``, at
+different strengths, so an optimized design did not reproduce its reported score when passed back to
+``simulate``. v1 confines blur and projection to ``optimize`` and evaluates designs as-is everywhere
+else:
+
+* A *design* is a physical density ``rho`` in [0, 1] (already blurred/projected).
+* ``simulate(design)`` checks ``rho`` is in [0, 1] (via :meth:`check_constraints`) and maps it to
+  permittivity by scaling only (:func:`design_to_epsr`) -- no blur, no projection -- then runs FDFD.
+* ``optimize(starting_point)`` records step 0 as the raw starting point (so it equals
+  ``simulate(starting_point)``), then for steps 1..N applies blur + projection with ``beta`` ramping
+  from ``initial_beta`` to ``max_beta`` inside an explicit Adam loop (clipping ``rho`` to [0, 1]
+  each step). It returns the projected density at ``max_beta``, so ``simulate(optimize(x)[0])``
+  reproduces ``history[-1]``.
+
+The projection (:func:`operator_proj`) is the standard tanh operator, which already maps
+[0, 1] -> [0, 1]; keeping ``rho`` clipped to [0, 1] is why a sigmoid reparameterization is not needed.
 
 Based on the v0 implementation by Mark Fuge @markfuge.
 """
@@ -31,7 +37,6 @@ import pprint
 from typing import Annotated, Any
 
 import autograd.numpy as npa
-from autograd.numpy.numpy_boxes import ArrayBox
 import ceviche
 from ceviche import fdfd_ez
 from ceviche import jacobian
@@ -137,18 +142,19 @@ class Photonics2D(Photonics2D_v0):
 
     def _objective_from_fields(  # noqa: PLR0913
         self,
-        ez1: npt.NDArray | ArrayBox,
-        ez2: npt.NDArray | ArrayBox,
+        ez1: Any,
+        ez2: Any,
         probe1: npt.NDArray,
         probe2: npt.NDArray,
-        rho_phys: npt.NDArray | ArrayBox,
+        rho_phys: Any,
         penalty_weight: float,
-    ) -> float | ArrayBox:
-        """Single shared objective ``total_overlap - penalty`` used by both simulate and optimize.
+    ) -> Any:
+        """Compute the objective ``total_overlap - penalty`` shared by ``simulate`` and ``optimize``.
 
-        Routing both paths through this (autograd-compatible) function is what guarantees they
-        cannot numerically diverge. The penalty is computed on the *physical* density so the
-        round-trip ``simulate(optimize(x)[0]) == history[-1]`` holds.
+        Both paths call this one function so they cannot drift apart numerically. It is written with
+        ``autograd.numpy`` so it also works on the traced values that flow through the optimizer's
+        gradient (hence the ``Any`` field types). The penalty uses the *physical* density, which is
+        what makes ``simulate(optimize(x)[0]) == history[-1]`` hold.
         """
         overlap1 = mode_overlap(ez1, probe1)
         overlap2 = mode_overlap(ez2, probe2)
@@ -247,7 +253,7 @@ class Photonics2D(Photonics2D_v0):
         # --- Autograd objective for steps 1..N (reads the current beta from the closure) ---
         beta_state = {"beta": initial_beta}
 
-        def objective(rho_flat: npt.NDArray | ArrayBox) -> float | ArrayBox:
+        def objective(rho_flat: Any) -> Any:
             rho = rho_flat.reshape((nx, ny))
             rho_phys = filter_and_project(rho, bg_rho, design_region, blur_radius, beta_state["beta"], eta)
             epsr = epsr_min + (epsr_max - epsr_min) * rho_phys
@@ -306,9 +312,7 @@ class Photonics2D(Photonics2D_v0):
 
     # ------------------------------------------------------------------ render
 
-    def render(
-        self, design: npt.NDArray, config: dict[str, Any] | None = None, *, open_window: bool = False
-    ) -> Figure:
+    def render(self, design: npt.NDArray, config: dict[str, Any] | None = None, *, open_window: bool = False) -> Figure:
         """Render the design (as-is) and the resulting E-field magnitudes.
 
         Like ``simulate``, this runs the design verbatim (scale -> permittivity, no projection)
