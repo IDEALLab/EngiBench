@@ -106,8 +106,10 @@ A dataset, originally described in [5], is integrated within our framework. The 
 | | cl | Coefficient of lift for the selected design |
 | | area_ratio | Area ratio of the selected design |
 
-## References
-If you use this problem in your research, please cite the following paper:
+## Citation
+If you use this problem in your research, please cite **both** of the works below.
+
+First, this problem and its dataset were originally introduced by Diniz and Fuge [5]:
 ```bibtex
 @inproceedings{diniz2024optimizing,
   author = {Diniz, C. and Fuge, M.},
@@ -117,6 +119,21 @@ If you use this problem in your research, please cite the following paper:
   doi = {10.2514/6.2024-2013}
 }
 ```
+
+Second, the simulation and optimization pipeline is built on the MACH-Aero framework and its
+ADflow solver, developed by the MDO Lab (J. R. R. A. Martins and collaborators) [6,7]. Please also
+cite the ADflow paper:
+```bibtex
+@article{mader2020adflow,
+  author = {Mader, Charles A. and Kenway, Gaetan K. W. and Yildirim, Anil and Martins, Joaquim R. R. A.},
+  title = {{ADflow}: An Open-Source Computational Fluid Dynamics Solver for Aerodynamic and Multidisciplinary Optimization},
+  journal = {Journal of Aerospace Information Systems},
+  year = {2020},
+  doi = {10.2514/1.I010796}
+}
+```
+
+The full bibliography for the references cited above is listed below.
 <a id="1">[1]</a>
 Martins, J. R. R. A. and Ning, A. (2022).
 Engineering Design Optimization.
