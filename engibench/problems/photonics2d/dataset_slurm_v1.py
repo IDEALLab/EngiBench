@@ -131,6 +131,7 @@ def submit(args: Any) -> None:
         args=parameter_space,
         slurm_args=slurm_config,
         group_size=args.group_size,
+        work_dir=args.work_dir,
     )
     # Designs are large (120x120 each), so .save() to disk rather than .reduce() on the login node.
     job_array.save(args.out, slurm_args=slurm_config)
@@ -192,7 +193,14 @@ def main() -> None:
     )
     gen.add_argument("--steps", type=int, default=200, help="num_optimization_steps.")
     gen.add_argument("--seed", type=int, default=42, help="Seed for --sample grid.")
-    gen.add_argument("--out", default="photonics_v1_results.pkl", help="Output pickle path.")
+    gen.add_argument("--out", default="photonics_v1_results.pkl", help="Output pickle path (use persistent storage).")
+    gen.add_argument(
+        "--work-dir",
+        dest="work_dir",
+        default=None,
+        help="Directory for intermediate job/result files (default: a temp dir under $SCRATCH). "
+        "Point at persistent storage (e.g. $HOME/...) so a delayed run survives scratch purges.",
+    )
     gen.set_defaults(func=submit)
 
     asm = sub.add_parser("assemble", help="Build the dataset from results and push to the Hub.")
