@@ -266,10 +266,15 @@ def epsr_parameterization(  # noqa: PLR0913
     epsr_min: float,
     epsr_max: float,
 ) -> npt.NDArray:
-    """Applies filtering and projection to rho and converts to permittivity.
+    """Applies filtering and projection to rho and converts to permittivity (v0, frozen).
 
     Implements the standard rho -> blur -> project -> mask -> eps_r
     parameterization chain using differentiable operators (autograd compatible).
+
+    Used only by the frozen v0 problem (`v0.Photonics2D`), which applies blur + projection inside
+    this single all-in-one chain. Do not change its behavior -- it backs published v0
+    results/datasets. The v1 problem uses the split `design_to_epsr` / `filter_and_project`
+    functions below instead.
 
     Args:
         rho: Input design density (typically 0-1).
@@ -303,6 +308,76 @@ def epsr_parameterization(  # noqa: PLR0913
 
     # Convert final density to permittivity using linear interpolation
     return epsr_min + (epsr_max - epsr_min) * rho_final
+
+
+def design_to_epsr(
+    rho: npt.NDArray,
+    bg_rho: npt.NDArray,
+    design_region: npt.NDArray,
+    epsr_min: float,
+    epsr_max: float,
+) -> npt.NDArray:
+    """Translate a density field to permittivity by scaling only -- no blur, no projection.
+
+    This is the "run the design as-is" path used by the v1 problem's ``simulate`` / ``render``:
+    the design ``rho`` is taken verbatim (it must already be a physical density in [0, 1]),
+    combined with the fixed background (waveguides) and linearly mapped into [epsr_min, epsr_max].
+
+    This is one half of the v1 split of v0's all-in-one `epsr_parameterization`; the blur +
+    projection half is `filter_and_project`, used only inside ``optimize``. Keeping the two apart is
+    what makes v1's ``simulate`` and ``optimize`` mutually consistent.
+
+    Args:
+        rho: Input design density in [0, 1].
+        bg_rho: Background density (waveguides).
+        design_region: Design region mask.
+        epsr_min: Minimum relative permittivity.
+        epsr_max: Maximum relative permittivity.
+
+    Returns:
+        The relative permittivity distribution array (eps_r).
+    """
+    rho_combined = mask_combine_rho(rho, bg_rho, design_region)
+    return epsr_min + (epsr_max - epsr_min) * rho_combined
+
+
+def filter_and_project(  # noqa: PLR0913
+    rho: npt.NDArray,
+    bg_rho: npt.NDArray,
+    design_region: npt.NDArray,
+    radius: int,
+    beta: float,
+    eta: float,
+) -> npt.NDArray:
+    """Topology-optimization filter + projection chain returning a *physical density* in [0, 1].
+
+    Used by the v1 problem inside ``optimize`` to produce a manufacturable density. Implements the
+    rho -> mask -> blur -> project -> mask chain with differentiable operators (autograd compatible).
+    The blur and projection are each applied once (no stacking); sharpness is controlled by ``beta``.
+
+    This is one half of the v1 split of v0's all-in-one `epsr_parameterization`; the scale-only half
+    is `design_to_epsr`, used by ``simulate`` / ``render``. Because this chain runs only while
+    searching for a design -- never while scoring a finished one -- v1's ``simulate`` reproduces the
+    objective ``optimize`` reports.
+
+    Args:
+        rho: Raw design density in [0, 1].
+        bg_rho: Background density (waveguides).
+        design_region: Design region mask.
+        radius: Blur kernel radius.
+        beta: Projection strength.
+        eta: Projection center.
+
+    Returns:
+        The physical (filtered + projected) density in [0, 1].
+    """
+    # Combine rho and bg_rho so blurring sees the combined structure initially.
+    rho_combined = mask_combine_rho(rho, bg_rho, design_region)
+    rho_blurred = operator_blur(rho_combined, radius=radius)
+    rho_projected = operator_proj(rho_blurred, eta=eta, beta=beta)
+    # Restore the exact background structure: blur/projection artifacts must not affect the
+    # fixed background parts (like the waveguides).
+    return mask_combine_rho(rho_projected, bg_rho, design_region)
 
 
 # --- Simulation Utilities ---
