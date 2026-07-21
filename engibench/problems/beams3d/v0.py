@@ -45,12 +45,11 @@ def _force_elements_z_from_forcedist(
     return force_elements_z
 
 
-# Default fixed elements: clamp the four bottom corners.
-FIXED_ELEMENTS = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=np.int64)
-FIXED_ELEMENTS[0, 0, 0] = FIXED_ELEMENTS[-1, 0, 0] = FIXED_ELEMENTS[0, -1, 0] = FIXED_ELEMENTS[-1, -1, 0] = 1
-
-# Default force: a single vertical (z) load at the center of the top face (forcedist 0.5, 0.5).
-FORCE_ELEMENTS_Z = _force_elements_z_from_forcedist(NELX, NELY, NELZ, 0.5, 0.5)
+def _fixed_elements(nelx: int, nely: int, nelz: int) -> npt.NDArray[np.int64]:
+    """Default fixed elements: clamp the four bottom corners."""
+    out = np.zeros((nelx + 1, nely + 1, nelz + 1), dtype=np.int64)
+    out[0, 0, 0] = out[-1, 0, 0] = out[0, -1, 0] = out[-1, -1, 0] = 1
+    return out
 
 
 class Beams3D(Problem[npt.NDArray]):
@@ -85,12 +84,12 @@ class Beams3D(Problem[npt.NDArray]):
         """Structured representation of configuration parameters for a numerical computation."""
 
         fixed_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
-            default_factory=FIXED_ELEMENTS.copy
+            default_factory=lambda: np.array([])
         )
         """Binary node mask with shape (nelx + 1, nely + 1, nelz + 1), indexed [x, y, z]."""
 
         force_elements_z: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
-            default_factory=FORCE_ELEMENTS_Z.copy
+            default_factory=lambda: np.array([])
         )
         """Binary node mask for vertical z-loads, with shape (nelx + 1, nely + 1, nelz + 1)."""
 
@@ -125,36 +124,25 @@ class Beams3D(Problem[npt.NDArray]):
             assert np.any(fixed_elements), "Params.fixed_elements must contain at least one fixed node."
             assert np.any(force_elements_z), "Params.force_elements_z must contain at least one loaded node."
 
+        def __post_init__(self) -> None:
+            if not self.fixed_elements.size:
+                self.fixed_elements = _fixed_elements(self.nelx, self.nely, self.nelz)
+            if not self.force_elements_z.size:
+                self.force_elements_z = _force_elements_z_from_forcedist(
+                    self.nelx, self.nely, self.nelz, self.forcedist_x, self.forcedist_y
+                )
+
     def __init__(self, seed: int = 0, config: dict[str, Any] | None = None) -> None:
         """Initialize the Beams3D problem, sizing default masks and design space to the grid."""
         config = {key: (np.asarray(value) if isinstance(value, list) else value) for key, value in (config or {}).items()}
-        nelx = int(config.get("nelx", NELX))
-        nely = int(config.get("nely", NELY))
-        nelz = int(config.get("nelz", NELZ))
-        node_shape = (nelx + 1, nely + 1, nelz + 1)
-
-        # Generate default boundary-condition masks sized to the configured grid.
-        if "fixed_elements" not in config:
-            fixed_elements = np.zeros(node_shape, dtype=np.int64)
-            fixed_elements[0, 0, 0] = fixed_elements[-1, 0, 0] = fixed_elements[0, -1, 0] = fixed_elements[-1, -1, 0] = 1
-            config["fixed_elements"] = fixed_elements
-        if "force_elements_z" not in config:
-            config["force_elements_z"] = _force_elements_z_from_forcedist(
-                nelx,
-                nely,
-                nelz,
-                float(config.get("forcedist_x", self.Conditions.forcedist_x)),
-                float(config.get("forcedist_y", self.Conditions.forcedist_y)),
-            )
-
         super().__init__(seed=seed)
         self.config = self.Config(**config)
         self.conditions = upcast(self.config)
-        self.nelx, self.nely, self.nelz = nelx, nely, nelz
+        self.nelx, self.nely, self.nelz = self.config.nelx, self.config.nely, self.config.nelz
         self.max_iter = self.config.max_iter
-        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(nely, nelx, nelz), dtype=np.float32)
-        cubic = nelx == nely == nelz and nelx in SUPPORTED_DATASET_RESOLUTIONS
-        self.dataset_id = f"IDEALLab/beams_3d_{nelx}_v0" if cubic else ""
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx, self.nelz), dtype=np.float32)
+        cubic = self.nelx == self.nely == self.nelz and self.nelx in SUPPORTED_DATASET_RESOLUTIONS
+        self.dataset_id = f"IDEALLab/beams_3d_{self.nelx}_v0" if cubic else ""
 
     def reset(self, seed: int | None = None) -> None:
         """Reset numpy random to a given seed."""
