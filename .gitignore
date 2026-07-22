@@ -178,3 +178,16 @@ cython_debug/
 
 # Singularity / Apptainer
 *.sif
+
+# Generated datasets, archives, and HPC outputs
+dataset_output/
+*.arrow
+*.npz
+*.tar.gz
+*.tgz
+*.zip
+*.ipynb
+*.code-workspace
+comparison_results_*.csv
+log_out_*.txt
+log_err_*.txt
