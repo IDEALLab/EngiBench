@@ -17,6 +17,10 @@ from typing import Literal, TYPE_CHECKING
 import numpy as np
 import numpy.typing as npt
 
+from engibench.problems.mto2d.model.design_io import DESIGN_CELL_COUNT
+from engibench.problems.mto2d.model.design_io import FIXED_CELL_COUNT
+from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
+from engibench.problems.mto2d.model.design_io import parse_internal_field
 from engibench.problems.mto2d.model.design_io import read_half_design
 from engibench.problems.mto2d.model.design_io import write_half_design
 from engibench.utils import container
@@ -31,8 +35,24 @@ Backend = Literal["local", "container", "command"]
 POWER_BOUND_DECREMENT_PER_ITERATION = 0.2
 """Hard-coded legacy decrease from ``D0`` toward ``D1`` each iteration."""
 
-FROZEN_GAMMA_ABSOLUTE_TOLERANCE = 6e-5
-"""Rounding tolerance for an unchanged field written with four significant digits."""
+FROZEN_GAMMA_ABSOLUTE_TOLERANCE = 1e-7
+"""Absolute tolerance used to verify that frozen evaluation preserves gamma."""
+
+_EXPECTED_BLOCK_MESH_LAYOUT = (
+    (None, (160, 400, 1)),
+    ("zone_test", (40, 400, 1)),
+    ("zone_fluid", (40, 80, 1)),
+    ("zone_fluid", (40, 80, 1)),
+)
+"""Ordered mesh blocks that place design cells before the fixed-fluid tail."""
+
+_EXPECTED_TRANSPORT_SCALARS = {
+    "solid_area": 0.0,
+    "fluid_area": 1.0,
+    "test_PD": 0.0,
+    "D_normalization": 1.57572e-7,
+}
+"""Template switches and normalization required by the MTO2D API semantics."""
 
 HISTORY_FILES = {
     "mean_temperature": "meanT.txt",
@@ -104,6 +124,15 @@ class SolverRunError(RuntimeError):
         suffix = f"\nSolver artifacts retained at: {artifacts_path}" if artifacts_path is not None else ""
         super().__init__(message + suffix)
         self.artifacts_path = artifacts_path
+
+
+def _mask_foam_comments(text: str) -> str:
+    """Replace OpenFOAM comments with whitespace while preserving indices."""
+
+    def mask(match: re.Match[str]) -> str:
+        return re.sub(r"[^\r\n]", " ", match.group(0))
+
+    return re.sub(r"/\*.*?\*/|//[^\r\n]*", mask, text, flags=re.DOTALL)
 
 
 class MTO2DRunner:
@@ -214,7 +243,64 @@ class MTO2DRunner:
         path = Path(configured).expanduser().resolve()
         if not (path / "app").is_dir() or not (path / "src_TF").is_dir():
             raise FileNotFoundError(f"MTO2D case template must contain app/ and src_TF/: {path}")
+        MTO2DRunner._validate_case_template(path)
         return path
+
+    @staticmethod
+    def _validate_case_template(case_template: Path) -> None:
+        """Require the mesh, area switches, and gamma tail assumed by the API mapping."""
+        app = case_template / "app"
+        gamma_path = MTO2DRunner._gamma_template(app)
+        gamma = parse_internal_field(gamma_path.read_text(encoding="ascii"), expected_count=GAMMA_CELL_COUNT)
+        if np.any((gamma < 0.0) | (gamma > 1.0)):
+            raise ValueError(f"MTO2D gamma template values must lie in [0, 1]: {gamma_path}")
+        fixed_tail = gamma[DESIGN_CELL_COUNT:]
+        if fixed_tail.size != FIXED_CELL_COUNT or not np.all(fixed_tail == 1.0):
+            tail_min = float(np.min(fixed_tail)) if fixed_tail.size else math.nan
+            tail_max = float(np.max(fixed_tail)) if fixed_tail.size else math.nan
+            raise ValueError(
+                "MTO2D requires the final 6,400 gamma cells to be the fixed-fluid region "
+                f"(all gamma=1); got count={fixed_tail.size}, min={tail_min:.8g}, max={tail_max:.8g} "
+                f"in {gamma_path}"
+            )
+
+        transport = app / "constant" / "transportProperties"
+        transport_text = _mask_foam_comments(transport.read_text(encoding="utf-8"))
+        for key, expected in _EXPECTED_TRANSPORT_SCALARS.items():
+            matches = re.findall(rf"(?m)^\s*{re.escape(key)}\s+([^;]+?)\s*;", transport_text)
+            if len(matches) != 1:
+                raise ValueError(f"MTO2D requires exactly one {key!r} entry in {transport}")
+            try:
+                actual = float(matches[0])
+            except ValueError as error:
+                raise ValueError(f"MTO2D requires a numeric {key!r} entry in {transport}") from error
+            if actual != expected:
+                raise ValueError(f"MTO2D requires {key}={expected:g} in {transport}; got {actual:g}")
+
+        block_mesh = app / "system" / "blockMeshDict"
+        block_text = _mask_foam_comments(block_mesh.read_text(encoding="utf-8"))
+        pattern = re.compile(
+            r"\bhex\s*\([^()]*\)\s*"
+            r"(?:(?P<zone>[A-Za-z_][A-Za-z0-9_]*)\s+)?"
+            r"\(\s*(?P<nx>[0-9]+)\s+(?P<ny>[0-9]+)\s+(?P<nz>[0-9]+)\s*\)"
+        )
+        actual_layout = tuple(
+            (
+                match.group("zone"),
+                (int(match.group("nx")), int(match.group("ny")), int(match.group("nz"))),
+            )
+            for match in pattern.finditer(block_text)
+        )
+        total_cells = sum(math.prod(dimensions) for _zone, dimensions in actual_layout)
+        if total_cells != GAMMA_CELL_COUNT:
+            raise ValueError(
+                f"MTO2D blockMesh must define exactly {GAMMA_CELL_COUNT:,} cells; parsed {total_cells:,} from {block_mesh}"
+            )
+        if actual_layout != _EXPECTED_BLOCK_MESH_LAYOUT:
+            raise ValueError(
+                "MTO2D blockMesh must contain the ordered 80,000-cell design region followed by "
+                f"the 6,400-cell zone_fluid region; got {actual_layout!r} in {block_mesh}"
+            )
 
     def _prepare_case(
         self,
@@ -273,6 +359,7 @@ class MTO2DRunner:
         self._replace_dictionary_value(transport, "alphamax", alpha_start)
         self._replace_dictionary_value(control, "endTime", iteration_count)
         self._replace_dictionary_value(control, "writeInterval", iteration_count)
+        self._replace_dictionary_value(control, "writePrecision", 12)
         self._write_continuation(
             app / "constant" / "continuationProperties",
             ContinuationSettings(
@@ -351,22 +438,40 @@ class MTO2DRunner:
     @staticmethod
     def _write_inlet_velocity(path: Path, inlet_velocity: float) -> None:
         text = path.read_text(encoding="utf-8")
-        inlet_match = re.search(r"\binlet\s*\{", text)
-        if inlet_match is None:
-            raise ValueError(f"Could not find inlet boundary in {path}")
+        masked_text = _mask_foam_comments(text)
+        inlet_matches = list(re.finditer(r"(?m)^\s*inlet\s*\{", masked_text))
+        if len(inlet_matches) != 1:
+            raise ValueError(f"MTO2D requires exactly one inlet boundary in {path}; found {len(inlet_matches)}")
+        inlet_match = inlet_matches[0]
         start = inlet_match.end()
         depth = 1
         end = start
-        while end < len(text) and depth:
-            depth += (text[end] == "{") - (text[end] == "}")
+        while end < len(masked_text) and depth:
+            depth += (masked_text[end] == "{") - (masked_text[end] == "}")
             end += 1
         if depth:
             raise ValueError(f"Unbalanced inlet boundary block in {path}")
         block = text[start : end - 1]
+        masked_block = masked_text[start : end - 1]
+        type_entries = [
+            entry.strip()
+            for entry in re.findall(
+                r"(?m)^\s*type\s+([^;]+?)\s*;",
+                masked_block,
+            )
+        ]
+        if type_entries != ["fixedValue"]:
+            raise ValueError(
+                f"MTO2D requires exactly one 'type fixedValue;' entry in the inlet boundary of {path}; "
+                f"found {type_entries!r}"
+            )
         pattern = re.compile(r"(?m)^(\s*value\s+uniform\s+)\([^)]*\)(\s*;)")
-        block, count = pattern.subn(rf"\g<1>(0 {inlet_velocity:.12g} 0)\g<2>", block, count=1)
-        if count != 1:
-            raise ValueError(f"Could not find inlet uniform value in {path}")
+        value_entries = list(pattern.finditer(masked_block))
+        if len(value_entries) != 1:
+            raise ValueError(f"MTO2D requires exactly one uniform inlet value in {path}; found {len(value_entries)}")
+        value_entry = value_entries[0]
+        replacement = f"{value_entry.group(1)}(0 {inlet_velocity:.12g} 0){value_entry.group(2)}"
+        block = block[: value_entry.start()] + replacement + block[value_entry.end() :]
         path.write_text(text[:start] + block + text[end - 1 :], encoding="utf-8")
 
     @staticmethod

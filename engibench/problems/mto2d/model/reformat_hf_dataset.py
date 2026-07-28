@@ -22,9 +22,13 @@ from pathlib import Path
 from typing import Any
 
 from engibench.problems.mto2d.model.dataset import convert_raw_arrays
-from engibench.problems.mto2d.model.dataset import DEFAULT_SPLIT_FRACTIONS
+from engibench.problems.mto2d.model.dataset import DEFAULT_SPLIT_SEED
 from engibench.problems.mto2d.model.dataset import DEFAULT_WRITER_BATCH_SIZE
 from engibench.problems.mto2d.model.dataset import download_raw_files
+from engibench.problems.mto2d.model.dataset import LEGACY_SPLIT_ALGORITHM
+from engibench.problems.mto2d.model.dataset import LEGACY_SPLIT_FRACTIONS
+from engibench.problems.mto2d.model.dataset import legacy_split_indices
+from engibench.problems.mto2d.model.dataset import LEGACY_SPLIT_POLICY
 from engibench.problems.mto2d.model.dataset import raw_file_paths
 from engibench.problems.mto2d.model.dataset import RAW_REPOSITORY
 from engibench.problems.mto2d.model.dataset import RAW_REVISION
@@ -40,7 +44,12 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument("--repo-id", default=RAW_REPOSITORY)
     parser.add_argument("--revision", default=RAW_REVISION)
     parser.add_argument("--cache-dir", type=Path)
-    parser.add_argument("--seed", type=int, default=1)
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=DEFAULT_SPLIT_SEED,
+        help="paper-compatible PyTorch random_split seed (default: 1)",
+    )
     parser.add_argument("--writer-batch-size", type=int, default=DEFAULT_WRITER_BATCH_SIZE)
     parser.add_argument(
         "--verify-hashes",
@@ -123,9 +132,10 @@ def main(argv: list[str] | None = None) -> None:
             "published legacy cold-start source labels; not evaluated on the "
             "reconstructed design or with strict final Brinkman/RAMP parameters"
         ),
-        "split_fractions": list(DEFAULT_SPLIT_FRACTIONS),
+        "split_policy": LEGACY_SPLIT_POLICY,
+        "split_fractions": list(LEGACY_SPLIT_FRACTIONS),
         "split_seed": args.seed,
-        "split_algorithm": "NumPy PCG64 permutation; floor train; split held-out remainder into val/test",
+        "split_algorithm": LEGACY_SPLIT_ALGORITHM,
         "split_sizes": sizes,
         "transform": (
             "legacy 256x256 whole left half -> mirror to 256x512 -> "
@@ -227,6 +237,12 @@ def _manifest_validation_settings(manifest: Mapping[str, Any]) -> tuple[int, int
         raise ValueError("conversion manifest has an unexpected native design shape")
     if manifest.get("stored_design_shape") != [int(HALF_DESIGN_SHAPE[0] * HALF_DESIGN_SHAPE[1])]:
         raise ValueError("conversion manifest has an unexpected stored design shape")
+    if manifest.get("split_policy") != LEGACY_SPLIT_POLICY:
+        raise ValueError(
+            "conversion manifest does not use the paper-compatible legacy split policy; regenerate the converted dataset"
+        )
+    if manifest.get("split_fractions") != list(LEGACY_SPLIT_FRACTIONS):
+        raise ValueError("conversion manifest has unexpected legacy split fractions")
 
     split_sizes = manifest.get("split_sizes")
     if not isinstance(split_sizes, dict) or set(split_sizes) != {"train", "val", "test"}:
@@ -240,11 +256,15 @@ def _manifest_validation_settings(manifest: Mapping[str, Any]) -> tuple[int, int
         raise ValueError("conversion manifest contains invalid validation settings") from error
     if row_count != sum(int(value) for value in split_sizes.values()):
         raise ValueError("conversion manifest row count does not equal its split sizes")
+    expected_sizes = {name: len(indices) for name, indices in legacy_split_indices(row_count, seed=seed).items()}
+    if {name: int(value) for name, value in split_sizes.items()} != expected_sizes:
+        raise ValueError("conversion manifest split sizes do not match the paper-compatible legacy split policy")
     return row_count, seed, source_dataset, source_revision
 
 
 def _write_dataset_card(output: Path, manifest: Mapping[str, Any]) -> None:
     sizes = manifest["split_sizes"]
+    split_seed = manifest["split_seed"]
     source_dataset = manifest["source_dataset"]
     source_revision = manifest["source_revision"]
     tolerance_note = ""
@@ -271,6 +291,8 @@ EngiBench-compatible conversion of
 `{source_revision}`.
 
 - Splits: train {sizes["train"]:,}, validation {sizes["val"]:,}, test {sizes["test"]:,}.
+- Split policy: paper/VQGAN-TO 75/5/20 with PyTorch CPU
+  `random_split`-compatible membership and order (seed `{split_seed}`).
 - `optimal_design` is a flat C-order `list<float32>` of length 80,000 and reshapes to `(400, 200)`.
 - Conditions are `float64`; mean temperature and power dissipation are `float32`.
 

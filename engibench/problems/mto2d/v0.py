@@ -39,9 +39,6 @@ from engibench.problems.mto2d.model.runner import RunnerSettings
 from engibench.problems.mto2d.model.runner import SolverRun
 from engibench.utils.upcast import upcast
 
-J1 = 1.58e-7
-"""Published reference scale for normalized fluid power dissipation."""
-
 MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 """Smallest feasible all-cell volume fraction when the design domain is solid."""
 
@@ -80,7 +77,7 @@ class MTO2DSimulationResult(SimulationResult):
 
 @dataclass
 class MTO2DOptimizationResult:
-    """Detailed result used by :meth:`MTO2D.optimize_verbose`."""
+    """Detailed result for the MTO2D-specific :meth:`MTO2D.optimize_verbose` extension."""
 
     design: npt.NDArray[np.float32]
     history: list[OptiStep]
@@ -126,7 +123,12 @@ class MTO2D(Problem[npt.NDArray]):
             greater_than(0.0).category(THEORY),
             bounded(lower=50.0, upper=75.0).warning().category(IMPL),
         ] = 63.1
-        """Power-dissipation bound as a multiple of ``J1``."""
+        """Dimensionless normalized power-dissipation bound.
+
+        The retained solver divides physical dissipation by its exact
+        ``D_normalization = 1.57572e-7``. The paper denotes the rounded
+        reference scale ``J1 ≈ 1.58e-7``.
+        """
 
         volume_fraction: Annotated[
             float,
@@ -262,7 +264,7 @@ class MTO2D(Problem[npt.NDArray]):
         starting_point: npt.NDArray,
         config: dict[str, Any] | None = None,
     ) -> MTO2DOptimizationResult:
-        """Optimize and also return volume/time histories and artifact location.
+        """Optimize and return MTO2D-specific constraint and runtime details.
 
         Solver history row ``k`` describes the pre-update design evaluated in
         iteration ``k``. The returned final gamma is the subsequent MMA update,

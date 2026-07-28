@@ -11,6 +11,9 @@ by 6,400 fixed/non-design cells:
 The solver blocks are vertically flipped to obtain the visual orientation used
 by EngiBench. Each legacy published ``(256, 256)`` array is the entire native
 half-domain anisotropically resized to a square, not a full mirrored image.
+The legacy ``gamma_npy.py`` helper separately mirrors that half-domain into a
+``(400, 400)`` tensor for visualization and conversion; its returned tensor is
+not the storage convention of the published ``256 x 256`` NumPy designs.
 Conversions involving that format reproduce PyTorch's non-antialiased Keys
 bicubic interpolation and are explicitly lossy; they must not be used on the
 simulator path when exact reproduction is required.

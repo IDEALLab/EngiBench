@@ -1,3 +1,4 @@
+import hashlib
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -16,6 +17,10 @@ from engibench.problems.mto2d.model.dataset import deterministic_split_indices
 from engibench.problems.mto2d.model.dataset import GENERATED_PROVENANCE
 from engibench.problems.mto2d.model.dataset import generation_jobs
 from engibench.problems.mto2d.model.dataset import legacy_row
+from engibench.problems.mto2d.model.dataset import LEGACY_SPLIT_ALGORITHM
+from engibench.problems.mto2d.model.dataset import LEGACY_SPLIT_FRACTIONS
+from engibench.problems.mto2d.model.dataset import legacy_split_indices
+from engibench.problems.mto2d.model.dataset import LEGACY_SPLIT_POLICY
 from engibench.problems.mto2d.model.dataset import RAW_FILENAMES
 from engibench.problems.mto2d.model.dataset import RAW_ROW_COUNT
 from engibench.problems.mto2d.model.dataset import run_optimization_case
@@ -57,6 +62,36 @@ def test_engibench_split_has_requested_sizes_and_is_deterministic() -> None:
     combined = np.concatenate(tuple(first.values()))
     np.testing.assert_array_equal(np.sort(combined), np.arange(RAW_ROW_COUNT))
     assert len(np.unique(combined)) == RAW_ROW_COUNT
+
+
+def test_legacy_split_reproduces_pytorch_random_split_membership() -> None:
+    splits = legacy_split_indices(RAW_ROW_COUNT, seed=1)
+
+    assert {name: len(indices) for name, indices in splits.items()} == {
+        "train": 4_249,
+        "val": 283,
+        "test": 1_134,
+    }
+    expected_heads = {
+        "train": [5253, 180, 2702, 5046, 4335, 1491, 2617, 142, 4909, 5476],
+        "val": [3888, 5385, 2067, 2506, 3217, 1411, 481, 4120, 3412, 3098],
+        "test": [1257, 1465, 3322, 1684, 1907, 3818, 2606, 581, 652, 642],
+    }
+    expected_hashes = {
+        "train": "e50e754f47ed8226a8e67149568dd7246cf8ea305a351c6ab244295157e4ffb8",
+        "val": "c01d89ef9a1fe65fde498db3c5c2906de119f53b13b932083fa68bd5e22d3cf2",
+        "test": "bb150a46f29f272cc3e0bd11a8518f523bff0ca9113ea81e6d9abb708e7e3f76",
+    }
+    for name, indices in splits.items():
+        np.testing.assert_array_equal(indices[:10], expected_heads[name])
+        assert hashlib.sha256(np.asarray(indices, dtype="<i8").tobytes()).hexdigest() == expected_hashes[name]
+
+    combined = np.concatenate(tuple(splits.values()))
+    assert (
+        hashlib.sha256(np.asarray(combined, dtype="<i8").tobytes()).hexdigest()
+        == "a556383d7066db01cfee74d0269aba250db55d65d7aee8aed4d800efa5544131"
+    )
+    np.testing.assert_array_equal(np.sort(combined), np.arange(RAW_ROW_COUNT))
 
 
 def test_generation_jobs_selects_grid_rows_without_large_payloads(tmp_path: Path) -> None:
@@ -181,7 +216,7 @@ def test_raw_conversion_streams_expected_schema_and_splits(tmp_path: Path) -> No
     row_count = 20
     raw_dir = tmp_path / "raw"
     raw_dir.mkdir()
-    raw_arrays = {
+    raw_arrays: dict[str, np.ndarray] = {
         "design": np.linspace(0.0, 1.0, row_count, dtype=np.float32)[:, None, None]
         * np.ones((row_count, 256, 256), dtype=np.float32),
         "conditions": np.column_stack(
@@ -195,7 +230,7 @@ def test_raw_conversion_streams_expected_schema_and_splits(tmp_path: Path) -> No
         "power_dissipation": np.linspace(49.5, 74.5, row_count),
         "source_case_id": np.arange(100, 100 + row_count, dtype=np.int64),
     }
-    paths = {}
+    paths: dict[str, Path] = {}
     for name, filename in RAW_FILENAMES.items():
         path = raw_dir / filename
         np.save(path, raw_arrays[name])
@@ -209,7 +244,7 @@ def test_raw_conversion_streams_expected_schema_and_splits(tmp_path: Path) -> No
         source_revision="fixture",
     )
 
-    assert {name: len(split) for name, split in converted.items()} == {"train": 16, "val": 3, "test": 1}
+    assert {name: len(split) for name, split in converted.items()} == {"train": 15, "val": 1, "test": 4}
     assert converted["train"].features == dataset_features()
     row = converted["train"][0]
     assert np.asarray(row["optimal_design"]).shape == (int(np.prod(HALF_DESIGN_SHAPE)),)
@@ -295,7 +330,7 @@ def _custom_legacy_dataset():
         rows[-1]["optimal_design"] = flat_design
 
     complete = Dataset.from_list(rows, features=dataset_features())
-    indices = deterministic_split_indices(row_count, seed=7)
+    indices = legacy_split_indices(row_count, seed=7)
     return (
         DatasetDict({name: complete.select(positions) for name, positions in indices.items()}),
         source_dataset,
@@ -314,7 +349,7 @@ def test_validate_legacy_dataset_accepts_custom_provenance() -> None:
         source_revision=source_revision,
     )
 
-    assert sizes == {"train": 16, "val": 3, "test": 1}
+    assert sizes == {"train": 15, "val": 1, "test": 4}
 
 
 def test_validate_legacy_dataset_rejects_schema_corruption() -> None:
@@ -355,7 +390,7 @@ def test_validate_legacy_dataset_rejects_split_order_corruption() -> None:
     order = [1, 0, *range(2, len(dataset["train"]))]
     corrupted["train"] = dataset["train"].select(order)
 
-    with pytest.raises(ValueError, match="deterministic split membership and order"):
+    with pytest.raises(ValueError, match="paper-compatible legacy split membership and order"):
         validate_legacy_dataset(
             corrupted,
             row_count=20,
@@ -374,7 +409,7 @@ def test_validate_legacy_dataset_rejects_split_membership_corruption() -> None:
     corrupted["train"] = Dataset.from_list(train_rows, features=dataset_features())
     corrupted["val"] = Dataset.from_list(val_rows, features=dataset_features())
 
-    with pytest.raises(ValueError, match="deterministic split membership and order"):
+    with pytest.raises(ValueError, match="paper-compatible legacy split membership and order"):
         validate_legacy_dataset(
             corrupted,
             row_count=20,
@@ -430,8 +465,11 @@ def test_conversion_manifest_drives_existing_publish_validation_and_card(tmp_pat
         "row_count": 20,
         "native_design_shape": [400, 200],
         "stored_design_shape": [80_000],
+        "split_policy": LEGACY_SPLIT_POLICY,
+        "split_fractions": list(LEGACY_SPLIT_FRACTIONS),
         "split_seed": 7,
-        "split_sizes": {"train": 16, "val": 3, "test": 1},
+        "split_algorithm": LEGACY_SPLIT_ALGORITHM,
+        "split_sizes": {"train": 15, "val": 1, "test": 4},
     }
 
     settings = reformat_hf_dataset._manifest_validation_settings(manifest)  # noqa: SLF001
@@ -440,6 +478,24 @@ def test_conversion_manifest_drives_existing_publish_validation_and_card(tmp_pat
     assert settings == (20, 7, "test/source", "fixture-revision")
     card = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "license: mit" in card
+    assert "paper/VQGAN-TO 75/5/20" in card
     assert "Stored objective values belong" in card
     assert "strict final Brinkman/RAMP parameters" in card
     assert "https://doi.org/10.1115/1.4071440" in card
+
+
+def test_conversion_manifest_rejects_obsolete_native_split_policy() -> None:
+    manifest = {
+        "schema": "engibench-mto2d-v0-beams3d-compatible-flat-design",
+        "source_dataset": "test/source",
+        "source_revision": "fixture-revision",
+        "row_count": 20,
+        "native_design_shape": [400, 200],
+        "stored_design_shape": [80_000],
+        "split_fractions": [0.8, 0.15, 0.05],
+        "split_seed": 7,
+        "split_sizes": {"train": 16, "val": 3, "test": 1},
+    }
+
+    with pytest.raises(ValueError, match="regenerate the converted dataset"):
+        reformat_hf_dataset._manifest_validation_settings(manifest)  # noqa: SLF001

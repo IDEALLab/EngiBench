@@ -98,6 +98,10 @@ def _make_case_template(root: Path) -> Path:
 alphamax alphamax [0 0 -1 0 0 0 0] 2.5e3;
 movlim 0.4;
 voluse 0.5;
+solid_area 0;
+fluid_area 1;
+test_PD 0;
+D_normalization 1.57572e-7;
 D0 90;
 D1 50;
 qu 0.005;
@@ -105,7 +109,32 @@ qu 0.005;
         encoding="utf-8",
     )
     (app / "system" / "controlDict").write_text(
-        "endTime 200;\nwriteInterval 200;\n",
+        "endTime 200;\nwriteInterval 200;\nwritePrecision 4;\n",
+        encoding="utf-8",
+    )
+    (app / "system" / "blockMeshDict").write_text(
+        """blocks
+(
+    hex (0 7 6 3 10 17 16 13)
+    (160 400 1)
+    simpleGrading (1 1 1)
+
+    hex (7 1 2 6 17 11 12 16)
+    zone_test
+    (40 400 1)
+    simpleGrading (1 1 1)
+
+    hex (6 2 4 5 16 12 14 15)
+    zone_fluid
+    (40 80 1)
+    simpleGrading (1 1 1)
+
+    hex (1 7 8 9 11 17 18 19)
+    zone_fluid
+    (40 80 1)
+    simpleGrading (1 1 1)
+);
+""",
         encoding="utf-8",
     )
     (app / "system" / "decomposeParDict").write_text(
@@ -281,6 +310,8 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
     decomposition = (prepared / "system" / "decomposeParDict").read_text(encoding="utf-8")
     assert "numberOfSubdomains 6;" in decomposition
     assert "n (2 3 1);" in decomposition
+    control = (prepared / "system" / "controlDict").read_text(encoding="utf-8")
+    assert "writePrecision 12;" in control
     continuation = (prepared / "constant" / "continuationProperties").read_text(encoding="utf-8")
     assert "n_steps         1;" in continuation
     assert continuation.count("from           0.019;") == 1
@@ -294,6 +325,128 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
         expected_count=GAMMA_CELL_COUNT,
     )
     np.testing.assert_array_equal(prepared_gamma[DESIGN_CELL_COUNT:], 1.0)
+
+
+@pytest.mark.parametrize(
+    ("replacement", "message"),
+    [
+        ("type groovyBC;", "exactly one 'type fixedValue;'"),
+        ("type fixedValue;\n        type fixedValue;", "exactly one 'type fixedValue;'"),
+    ],
+)
+def test_inlet_velocity_requires_one_fixed_value_type(
+    tmp_path: Path,
+    replacement: str,
+    message: str,
+) -> None:
+    template = _make_case_template(tmp_path)
+    inlet = template / "app" / "0" / "U"
+    inlet.write_text(
+        inlet.read_text(encoding="utf-8").replace("type fixedValue;", replacement),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=message):
+        MTO2DRunner._write_inlet_velocity(inlet, -0.074)  # noqa: SLF001
+
+
+def test_inlet_velocity_rejects_duplicate_inlet_boundaries(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    inlet = template / "app" / "0" / "U"
+    inlet.write_text(
+        inlet.read_text(encoding="utf-8")
+        + """
+inlet
+{
+    type fixedValue;
+    value uniform (0 -0.025 0);
+}
+""",
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="exactly one inlet boundary"):
+        MTO2DRunner._write_inlet_velocity(inlet, -0.074)  # noqa: SLF001
+
+
+def test_case_template_rejects_wrong_gamma_cell_count(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    values = np.concatenate(
+        (
+            np.zeros(DESIGN_CELL_COUNT, dtype=np.float64),
+            np.ones(GAMMA_CELL_COUNT - DESIGN_CELL_COUNT - 1, dtype=np.float64),
+        )
+    )
+    (template / "app" / "0" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
+
+    with pytest.raises(ValueError, match="expected 86400"):
+        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+
+
+def test_case_template_rejects_nonfluid_gamma_tail(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    values = np.concatenate(
+        (
+            np.zeros(DESIGN_CELL_COUNT, dtype=np.float64),
+            np.ones(GAMMA_CELL_COUNT - DESIGN_CELL_COUNT, dtype=np.float64),
+        )
+    )
+    values[-1] = 0.0
+    (template / "app" / "0" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
+
+    with pytest.raises(ValueError, match="final 6,400 gamma cells"):
+        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+
+
+def test_case_template_rejects_incompatible_area_switch(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    transport = template / "app" / "constant" / "transportProperties"
+    transport.write_text(
+        transport.read_text(encoding="utf-8").replace("fluid_area 1;", "fluid_area 0;"),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="requires fluid_area=1"):
+        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+
+
+def test_case_template_rejects_wrong_power_normalization(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    transport = template / "app" / "constant" / "transportProperties"
+    transport.write_text(
+        transport.read_text(encoding="utf-8").replace(
+            "D_normalization 1.57572e-7;",
+            "D_normalization 1.58e-7;",
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match=r"requires D_normalization=1\.57572e-07"):
+        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+
+
+def test_case_template_rejects_wrong_fixed_fluid_zone(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    block_mesh = template / "app" / "system" / "blockMeshDict"
+    block_mesh.write_text(
+        block_mesh.read_text(encoding="utf-8").replace("zone_fluid", "zone_solid", 1),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="ordered 80,000-cell design region"):
+        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+
+
+def test_case_template_rejects_wrong_block_mesh_cell_count(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    block_mesh = template / "app" / "system" / "blockMeshDict"
+    block_mesh.write_text(
+        block_mesh.read_text(encoding="utf-8").replace("(40 80 1)", "(40 79 1)", 1),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(ValueError, match="exactly 86,400 cells"):
+        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
 
 
 def test_update_design_dictionary_value_is_replaced_without_duplication(tmp_path: Path) -> None:
@@ -466,7 +619,7 @@ def test_frozen_output_validation_rejects_finite_design_change(tmp_path: Path) -
     app = tmp_path / "app"
     (app / "1").mkdir(parents=True)
     values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
-    values[0] = 0.1
+    values[0] = 2e-7
     (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
 
     with pytest.raises(ValueError, match="changed the design"):

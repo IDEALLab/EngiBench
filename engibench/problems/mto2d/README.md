@@ -53,6 +53,12 @@ dataset is a `(256, 256)` image of the **whole left half-domain**. It is not a
 full symmetric design and not one quadrant. The native `(400, 200)` half was
 anisotropically and lossily resized to that square representation.
 
+The legacy `gamma_npy.py` helper can look contradictory because it mirrors the
+solver-native half and returns a `(400, 400)` tensor. That tensor is a full
+visualization/conversion representation; it is not the representation stored
+by the published `(256, 256)` NumPy dataset and is not accepted directly by the
+simulator.
+
 The converter reconstructs a native-shaped array with the corresponding
 non-antialiased bicubic transform and records `design_is_exact = False`.
 Resizing cannot recover the original cell values, so the stored objective
@@ -100,8 +106,10 @@ The public conditions are:
 
 - `inlet_velocity`: signed inlet velocity, nominally from `-0.095` to
   `-0.025` m/s.
-- `max_power_dissipation`: power-dissipation limit as a multiple of the
-  published reference scale `J1`, nominally from `50` to `75`.
+- `max_power_dissipation`: dimensionless normalized power-dissipation limit,
+  nominally from `50` to `75`. The retained solver uses the exact
+  `D_normalization = 1.57572e-7`; the paper calls the rounded
+  `J1 ≈ 1.58e-7` reference scale.
 - `volume_fraction`: maximum all-cell fluid fraction, nominally from `0.25` to
   `0.70`.
 
@@ -179,6 +187,11 @@ warns in that situation and returns both `active_power_bounds` and residuals
 against those bounds. Its `power_constraint_residuals` always use the requested
 final bound.
 
+That legacy-parity statement applies only to the active power bound. The
+`qu`, `alphaMax`, and Heaviside continuations are independently configurable,
+and the current cold defaults do not reproduce the dataset-generating legacy
+schedules.
+
 Warm mode defaults to the requested power bound from its first iteration.
 This is important because the legacy warm-start scripts reset their iteration
 counter and otherwise restart the loose bound near `90`. Set
@@ -203,6 +216,10 @@ if final_evaluation.power_constraint_residual > 0:
     )
     final_evaluation = problem.simulate_verbose(optimized_design)
 ```
+
+`optimize_verbose()` is a deliberate MTO2D-specific extension, not a method on
+EngiBench's base `Problem` API. It preserves the standard `optimize()` return
+contract while additionally exposing constraint and elapsed-time histories.
 
 Every `OptiStep.obj_values` follows the two-objective order documented above.
 One legacy-solver detail matters: iteration row `k` describes the field
@@ -388,8 +405,13 @@ python -m engibench.problems.mto2d.model.reformat_hf_dataset \
 ```
 
 Nothing is downloaded merely by importing MTO2D, and the converter never
-downloads the source when `--raw-dir` is supplied. The default 80/15/5 split
-contains 4,532 training, 850 validation, and 284 test rows.
+downloads the source when `--raw-dir` is supplied. The published-data
+converter reproduces the paper and released VQGAN-TO code: it uses
+`int(0.75 * n)` training rows, `int(0.05 * n)` validation rows, assigns the
+remainder to test, and reproduces seeded PyTorch `random_split` membership and
+order (default seed 1). For 5,666 rows, that is 4,249 training, 283 validation,
+and 1,134 test rows. This legacy policy is intentionally distinct from the
+80/15/5 policy used above for future native solver-generated datasets.
 
 For the pinned source revision, conversion verifies the SHA-256 digest of all
 five NumPy files by default. It then validates the Arrow schema, split sizes,
@@ -427,7 +449,7 @@ from engibench.problems.mto2d.model.dataset import validate_legacy_dataset
 
 dataset = load_from_disk("dataset_output/mto_2d_v0")
 print(validate_legacy_dataset(dataset))
-# {'train': 4532, 'val': 850, 'test': 284}
+# {'train': 4249, 'val': 283, 'test': 1134}
 ```
 
 The problem's `dataset_id` is provisionally `IDEALLab/mto_2d_v0`. Until that
