@@ -125,7 +125,7 @@ class MTO2DRunner:
         try:
             shutil.copytree(case_template, case_dir)
             self._prepare_case(case_dir, design, settings, kind)
-            self._execute(case_dir, settings)
+            self._execute(case_dir, settings, kind)
             histories = self._read_histories(
                 case_dir / "app", expected_steps=1 if kind == "simulate" else settings.max_iter
             )
@@ -401,21 +401,22 @@ Heaviside
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
-    def _execute(self, case_dir: Path, settings: RunnerSettings) -> None:
+    def _execute(self, case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
         if settings.backend == "command":
-            self._run_driver(case_dir, settings)
+            self._run_driver(case_dir, settings, kind)
             return
         if settings.backend == "container":
-            self._run_container(case_dir, settings)
+            self._run_container(case_dir, settings, kind)
             return
-        self._run_local(case_dir, settings)
+        self._run_local(case_dir, settings, kind)
 
     @staticmethod
-    def _run_driver(case_dir: Path, settings: RunnerSettings) -> None:
+    def _run_driver(case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
         env = {
             **os.environ,
             "MTO2D_CASE_DIR": str(case_dir),
             "MTO2D_MPI_CORES": str(settings.mpi_cores),
+            "MTO2D_RUN_KIND": kind,
             "MTO2D_SOLVER_EXECUTABLE": settings.solver_executable,
         }
         with (case_dir / "run.log").open("wb") as log:
@@ -430,7 +431,7 @@ Heaviside
             )
 
     @staticmethod
-    def _run_local(case_dir: Path, settings: RunnerSettings) -> None:
+    def _run_local(case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
         started = time.monotonic()
         commands: list[tuple[Sequence[str], Path]] = []
         if settings.build_solver:
@@ -450,9 +451,10 @@ Heaviside
                     ),
                     app,
                 ),
-                (("reconstructPar", "-latestTime"), app),
             ]
         )
+        if kind == "optimize":
+            commands.append((("reconstructPar", "-latestTime"), app))
         with (case_dir / "run.log").open("wb") as log:
             for command, cwd in commands:
                 remaining = None
@@ -470,8 +472,12 @@ Heaviside
                 )
 
     @staticmethod
-    def _run_container(case_dir: Path, settings: RunnerSettings) -> None:
+    def _run_container(case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
         assert settings.container_image is not None
+        container_home = case_dir.parent / "container-home"
+        container_tmp = case_dir.parent / "container-tmp"
+        container_home.mkdir(exist_ok=True)
+        container_tmp.mkdir(exist_ok=True)
         build = "cd /work/case/src_TF && wmake && " if settings.build_solver else ""
         command = (
             "set -eu; "
@@ -480,13 +486,15 @@ Heaviside
             "cd /work/case/app; "
             "blockMesh; "
             "decomposePar; "
-            f"mpirun -np {settings.mpi_cores} {shlex.quote(settings.solver_executable)} -parallel; "
-            "reconstructPar -latestTime"
+            f"mpirun -np {settings.mpi_cores} {shlex.quote(settings.solver_executable)} -parallel"
         )
+        if kind == "optimize":
+            command += "; reconstructPar -latestTime"
         container.run(
             ["bash", "-lc", command],
             settings.container_image,
             mounts=((str(case_dir.parent), "/work"),),
+            env={"HOME": "/work/container-home", "TMPDIR": "/work/container-tmp"},
             sync_uid=True,
         )
 

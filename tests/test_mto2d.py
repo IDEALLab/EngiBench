@@ -14,6 +14,7 @@ from engibench.problems.mto2d.model.design_io import DESIGN_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import parse_internal_field
+from engibench.problems.mto2d.model.runner import MTO2DRunner
 from engibench.problems.mto2d.model.runner import RunnerSettings
 from engibench.problems.mto2d.model.runner import SolverRun
 from engibench.problems.mto2d.model.runner import SolverRunError
@@ -280,6 +281,70 @@ def test_command_backend_one_step_optimization_smoke(tmp_path: Path) -> None:
     np.testing.assert_array_equal(optimized_design, starting_design)
     assert len(history) == 1
     np.testing.assert_allclose(history[0].obj_values, [9.45825, 62.2588])
+
+
+def test_container_backend_uses_isolated_writable_home(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = tmp_path / "case"
+    (case / "app").mkdir(parents=True)
+    (case / "src_TF").mkdir()
+    captured: dict[str, Any] = {}
+
+    def fake_container_run(*args: Any, **kwargs: Any) -> None:
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+
+    monkeypatch.setattr("engibench.problems.mto2d.model.runner.container.run", fake_container_run)
+    settings = RunnerSettings(
+        case_template=str(case),
+        inlet_velocity=-0.074,
+        max_power_dissipation=63.1,
+        volume_fraction=0.61,
+        backend="container",
+        container_image="engibench-mto2d:test",
+    )
+
+    MTO2DRunner._run_container(case, settings, "simulate")  # noqa: SLF001
+
+    assert (tmp_path / "container-home").is_dir()
+    assert (tmp_path / "container-tmp").is_dir()
+    assert "reconstructPar" not in captured["args"][0][-1]
+    assert captured["kwargs"]["mounts"] == ((str(tmp_path), "/work"),)
+    assert captured["kwargs"]["env"] == {
+        "HOME": "/work/container-home",
+        "TMPDIR": "/work/container-tmp",
+    }
+    assert captured["kwargs"]["sync_uid"] is True
+
+
+def test_local_backend_reconstructs_only_optimization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    case = tmp_path / "case"
+    (case / "app").mkdir(parents=True)
+    (case / "src_TF").mkdir()
+    commands: list[list[str]] = []
+
+    def fake_subprocess_run(command: list[str], **kwargs: Any) -> None:
+        commands.append(command)
+
+    monkeypatch.setattr("engibench.problems.mto2d.model.runner.subprocess.run", fake_subprocess_run)
+    settings = RunnerSettings(
+        case_template=str(case),
+        inlet_velocity=-0.074,
+        max_power_dissipation=63.1,
+        volume_fraction=0.61,
+    )
+
+    MTO2DRunner._run_local(case, settings, "simulate")  # noqa: SLF001
+    assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun"]
+
+    commands.clear()
+    MTO2DRunner._run_local(case, settings, "optimize")  # noqa: SLF001
+    assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun", "reconstructPar"]
 
 
 def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:

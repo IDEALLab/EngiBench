@@ -104,13 +104,15 @@ The runner:
 2. copies a pristine external OpenFOAM case into a unique temporary directory;
 3. writes the design and the three physical conditions;
 4. sets the final physical parameters and freezes MMA movement;
-5. runs `blockMesh`, `decomposePar`, the parallel solver, and
-   `reconstructPar`;
+5. runs `blockMesh`, `decomposePar`, and the parallel solver;
 6. reads the final temperature, power, volume-residual, and timing values; and
 7. removes temporary artifacts unless retention was requested.
 
 The freeze uses one solver step with `qu = 0.019`,
 `alphaMax = 5.0252e6`, `Heaviside = 59.8`, and movement limit `0`.
+The simulation does not reconstruct the solver's post-MMA `gamma`: the
+evaluated input design is already known, and some legacy frozen updates contain
+`nan` values even though their pre-update physical objectives are valid.
 `simulate()` returns only
 `[mean_temperature, power_dissipation]`. `simulate_verbose()` returns those
 same objectives plus constraint residuals, elapsed time, status, and an
@@ -191,6 +193,29 @@ state. Set `retain_artifacts=True` to keep a successful run. By default,
 `SolverRunError` gives the retained path. The container backend currently
 cannot enforce the API timeout; use the `command` backend when a hard timeout
 is required.
+
+### Local Docker parity image
+
+EngiBench's HeatConduction2D, HeatConduction3D, and Airfoil problems use
+externally published OCI images through the same container abstraction.
+MTO2D follows the Airfoil pattern: it mounts one isolated case directory and
+runs MPI inside the container.
+
+Until a licensed, source-built image can be published, the scripts in
+[`model/runtime`](model/runtime/README.md) can convert the exact retained
+`MTO_GEN.sif` into a private `linux/amd64` Docker image:
+
+```bash
+./engibench/problems/mto2d/model/runtime/convert_sif.sh \
+  /path/to/MTO_GEN.sif \
+  engibench-mto2d:sif-parity
+```
+
+This conversion is a numerical-parity tool, not a reproducible release
+artifact. The helper verifies the original SIF's size and SHA-256, extracts
+the root filesystem inside Docker, and restores the OpenFOAM/OpenMPI/PETSc
+environment. On ARM hosts, set
+`DOCKER_DEFAULT_PLATFORM=linux/amd64`; execution uses emulation.
 
 ### Reference case
 
