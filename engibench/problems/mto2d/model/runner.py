@@ -447,23 +447,26 @@ Heaviside
         if settings.build_solver:
             commands.append((("wmake",), case_dir / "src_TF"))
         app = case_dir / "app"
-        commands.extend(
-            [
-                (("blockMesh",), app),
-                (("decomposePar",), app),
-                (
+        commands.append((("blockMesh",), app))
+        if settings.mpi_cores == 1:
+            commands.append(((settings.solver_executable,), app))
+        else:
+            commands.extend(
+                [
+                    (("decomposePar",), app),
                     (
-                        "mpirun",
-                        "-np",
-                        str(settings.mpi_cores),
-                        settings.solver_executable,
-                        "-parallel",
+                        (
+                            "mpirun",
+                            "-np",
+                            str(settings.mpi_cores),
+                            settings.solver_executable,
+                            "-parallel",
+                        ),
+                        app,
                     ),
-                    app,
-                ),
-            ]
-        )
-        if kind == "optimize":
+                ]
+            )
+        if kind == "optimize" and settings.mpi_cores > 1:
             commands.append((("reconstructPar", "-latestTime"), app))
         with (case_dir / "run.log").open("wb") as log:
             for command, cwd in commands:
@@ -489,16 +492,20 @@ Heaviside
         container_home.mkdir(exist_ok=True)
         container_tmp.mkdir(exist_ok=True)
         build = "cd /work/case/src_TF && wmake && " if settings.build_solver else ""
+        executable = shlex.quote(settings.solver_executable)
+        if settings.mpi_cores == 1:
+            solve = executable
+        else:
+            solve = f"decomposePar; mpirun -np {settings.mpi_cores} {executable} -parallel"
         command = (
             "set -eu; "
             "exec > /work/case/run.log 2>&1; "
             f"{build}"
             "cd /work/case/app; "
             "blockMesh; "
-            "decomposePar; "
-            f"mpirun -np {settings.mpi_cores} {shlex.quote(settings.solver_executable)} -parallel"
+            f"{solve}"
         )
-        if kind == "optimize":
+        if kind == "optimize" and settings.mpi_cores > 1:
             command += "; reconstructPar -latestTime"
         container.run(
             ["bash", "-lc", command],

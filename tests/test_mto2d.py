@@ -1,5 +1,6 @@
 """Tests for the MTO2D problem API and isolated runner."""
 
+from dataclasses import replace
 from pathlib import Path
 import re
 import sys
@@ -366,7 +367,12 @@ def test_container_backend_uses_isolated_writable_home(
 
     assert (tmp_path / "container-home").is_dir()
     assert (tmp_path / "container-tmp").is_dir()
-    assert "reconstructPar" not in captured["args"][0][-1]
+    serial_command = captured["args"][0][-1]
+    assert "../src_TF/EXEC" in serial_command
+    assert "decomposePar" not in serial_command
+    assert "mpirun" not in serial_command
+    assert "-parallel" not in serial_command
+    assert "reconstructPar" not in serial_command
     assert captured["kwargs"]["mounts"] == ((str(tmp_path), "/work"),)
     assert captured["kwargs"]["env"] == {
         "HOME": "/work/container-home",
@@ -375,10 +381,16 @@ def test_container_backend_uses_isolated_writable_home(
     assert captured["kwargs"]["sync_uid"] is True
 
     MTO2DRunner._run_container(case, settings, "optimize")  # noqa: SLF001
-    assert "reconstructPar -latestTime" in captured["args"][0][-1]
+    assert "reconstructPar" not in captured["args"][0][-1]
+
+    MTO2DRunner._run_container(case, replace(settings, mpi_cores=4), "optimize")  # noqa: SLF001
+    parallel_command = captured["args"][0][-1]
+    assert "decomposePar" in parallel_command
+    assert "mpirun -np 4" in parallel_command
+    assert "reconstructPar -latestTime" in parallel_command
 
 
-def test_local_backend_reconstructs_only_optimization(
+def test_local_backend_uses_serial_or_parallel_execution(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -399,10 +411,14 @@ def test_local_backend_reconstructs_only_optimization(
     )
 
     MTO2DRunner._run_local(case, settings, "simulate")  # noqa: SLF001
-    assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun"]
+    assert [command[0] for command in commands] == ["blockMesh", "../src_TF/EXEC"]
 
     commands.clear()
     MTO2DRunner._run_local(case, settings, "optimize")  # noqa: SLF001
+    assert [command[0] for command in commands] == ["blockMesh", "../src_TF/EXEC"]
+
+    commands.clear()
+    MTO2DRunner._run_local(case, replace(settings, mpi_cores=4), "optimize")  # noqa: SLF001
     assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun", "reconstructPar"]
 
 
