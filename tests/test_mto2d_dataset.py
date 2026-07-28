@@ -1,10 +1,13 @@
 from pathlib import Path
 from types import SimpleNamespace
 
+from datasets import Dataset
+from datasets import DatasetDict
 import numpy as np
 import pytest
 
 from engibench.problems.mto2d import v0 as mto2d_module
+from engibench.problems.mto2d.model import reformat_hf_dataset
 from engibench.problems.mto2d.model.dataset import assemble_shards
 from engibench.problems.mto2d.model.dataset import condition_grid
 from engibench.problems.mto2d.model.dataset import convert_raw_arrays
@@ -16,6 +19,8 @@ from engibench.problems.mto2d.model.dataset import legacy_row
 from engibench.problems.mto2d.model.dataset import RAW_FILENAMES
 from engibench.problems.mto2d.model.dataset import RAW_ROW_COUNT
 from engibench.problems.mto2d.model.dataset import run_optimization_case
+from engibench.problems.mto2d.model.dataset import validate_legacy_dataset
+from engibench.problems.mto2d.model.dataset import verify_raw_file_hashes
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 
 
@@ -38,14 +43,14 @@ def test_condition_grid_rejects_invalid_shape(invalid_shape) -> None:
         condition_grid(invalid_shape)
 
 
-def test_legacy_split_has_requested_sizes_and_is_deterministic() -> None:
+def test_engibench_split_has_requested_sizes_and_is_deterministic() -> None:
     first = deterministic_split_indices(RAW_ROW_COUNT, seed=1)
     second = deterministic_split_indices(RAW_ROW_COUNT, seed=1)
 
     assert {name: len(indices) for name, indices in first.items()} == {
-        "train": 4_249,
-        "val": 283,
-        "test": 1_134,
+        "train": 4_532,
+        "val": 850,
+        "test": 284,
     }
     for name in first:
         np.testing.assert_array_equal(first[name], second[name])
@@ -159,13 +164,15 @@ def test_legacy_row_records_lossy_provenance_and_both_power_residuals() -> None:
         source_row_index=source_row_index,
     )
 
-    assert row["optimal_design"].shape == HALF_DESIGN_SHAPE
+    assert row["optimal_design"].shape == (int(np.prod(HALF_DESIGN_SHAPE)),)
     assert row["optimal_design"].dtype == np.float32
     assert row["design_is_exact"] is False
     assert "lossy" in row["design_provenance"]
     assert row["source_case_id"] == source_case_id
     assert row["source_row_index"] == source_row_index
     assert row["objectives_evaluated_on_design"] is False
+    assert row["volume_constraint_residual"] is None
+    assert row["optimization_steps"] is None
     assert row["power_constraint_residual_absolute"] == pytest.approx(62.2588 - 63.1)
     assert row["power_constraint_residual_relative"] == pytest.approx(62.2588 / 63.1 - 1.0)
 
@@ -202,10 +209,10 @@ def test_raw_conversion_streams_expected_schema_and_splits(tmp_path: Path) -> No
         source_revision="fixture",
     )
 
-    assert {name: len(split) for name, split in converted.items()} == {"train": 15, "val": 1, "test": 4}
+    assert {name: len(split) for name, split in converted.items()} == {"train": 16, "val": 3, "test": 1}
     assert converted["train"].features == dataset_features()
     row = converted["train"][0]
-    assert np.asarray(row["optimal_design"]).shape == HALF_DESIGN_SHAPE
+    assert np.asarray(row["optimal_design"]).shape == (int(np.prod(HALF_DESIGN_SHAPE)),)
     assert row["source_dataset"] == "test/raw"
     assert row["source_revision"] == "fixture"
     assert row["design_is_exact"] is False
@@ -245,10 +252,193 @@ def test_shard_assembly_streams_rows_and_checks_completeness(tmp_path: Path) -> 
 
     converted = assemble_shards(shard_dir, expected_count=20, seed=1, cache_dir=tmp_path / "cache")
 
-    assert {name: len(split) for name, split in converted.items()} == {"train": 15, "val": 1, "test": 4}
+    assert {name: len(split) for name, split in converted.items()} == {"train": 16, "val": 3, "test": 1}
     case_ids = sorted(int(case_id) for split in converted.values() for case_id in split["source_case_id"])
     assert case_ids == list(range(20))
 
     (shard_dir / "case_00019.npz").unlink()
     with pytest.raises(ValueError, match="incomplete shard set"):
         assemble_shards(shard_dir, expected_count=20, cache_dir=tmp_path / "other-cache")
+
+
+def test_raw_hash_verification_rejects_non_pinned_files(tmp_path: Path) -> None:
+    paths = {}
+    for key, filename in RAW_FILENAMES.items():
+        path = tmp_path / filename
+        path.write_bytes(key.encode())
+        paths[key] = path
+
+    with pytest.raises(ValueError, match="SHA-256 mismatch"):
+        verify_raw_file_hashes(paths)
+
+
+def _custom_legacy_dataset():
+    row_count = 20
+    source_dataset = "test/custom-mto"
+    source_revision = "synthetic-revision"
+    flat_design = np.full(int(np.prod(HALF_DESIGN_SHAPE)), 0.5, dtype=np.float32)
+    rows = []
+    for row_index in range(row_count):
+        conditions = np.array([-0.074, 63.1, 0.61]) if row_index == 0 else np.array([-0.05, 60.0, 0.5])
+        rows.append(
+            legacy_row(
+                legacy_design=np.full((256, 256), 0.5, dtype=np.float32),
+                conditions=conditions,
+                mean_temperature=9.45825 if row_index == 0 else 10.0 + row_index,
+                power_dissipation=62.2588 if row_index == 0 else 59.5,
+                source_case_id=row_index,
+                source_row_index=row_index,
+                source_dataset=source_dataset,
+                source_revision=source_revision,
+            )
+        )
+        rows[-1]["optimal_design"] = flat_design
+
+    complete = Dataset.from_list(rows, features=dataset_features())
+    indices = deterministic_split_indices(row_count, seed=7)
+    return (
+        DatasetDict({name: complete.select(positions) for name, positions in indices.items()}),
+        source_dataset,
+        source_revision,
+    )
+
+
+def test_validate_legacy_dataset_accepts_custom_provenance() -> None:
+    dataset, source_dataset, source_revision = _custom_legacy_dataset()
+
+    sizes = validate_legacy_dataset(
+        dataset,
+        row_count=20,
+        seed=7,
+        source_dataset=source_dataset,
+        source_revision=source_revision,
+    )
+
+    assert sizes == {"train": 16, "val": 3, "test": 1}
+
+
+def test_validate_legacy_dataset_rejects_schema_corruption() -> None:
+    dataset, source_dataset, source_revision = _custom_legacy_dataset()
+    corrupted = DatasetDict(dict(dataset))
+    corrupted["train"] = dataset["train"].remove_columns("power_constraint_residual_relative")
+
+    with pytest.raises(ValueError, match="features do not match"):
+        validate_legacy_dataset(
+            corrupted,
+            row_count=20,
+            seed=7,
+            source_dataset=source_dataset,
+            source_revision=source_revision,
+        )
+
+
+def test_validate_legacy_dataset_rejects_nonfinite_design() -> None:
+    dataset, source_dataset, source_revision = _custom_legacy_dataset()
+    corrupted_rows = dataset["train"].to_list()
+    corrupted_rows[0]["optimal_design"][0] = float("nan")
+    corrupted = DatasetDict(dict(dataset))
+    corrupted["train"] = Dataset.from_list(corrupted_rows, features=dataset_features())
+
+    with pytest.raises(ValueError, match="non-finite design values"):
+        validate_legacy_dataset(
+            corrupted,
+            row_count=20,
+            seed=7,
+            source_dataset=source_dataset,
+            source_revision=source_revision,
+        )
+
+
+def test_validate_legacy_dataset_rejects_split_order_corruption() -> None:
+    dataset, source_dataset, source_revision = _custom_legacy_dataset()
+    corrupted = DatasetDict(dict(dataset))
+    order = [1, 0, *range(2, len(dataset["train"]))]
+    corrupted["train"] = dataset["train"].select(order)
+
+    with pytest.raises(ValueError, match="deterministic split membership and order"):
+        validate_legacy_dataset(
+            corrupted,
+            row_count=20,
+            seed=7,
+            source_dataset=source_dataset,
+            source_revision=source_revision,
+        )
+
+
+def test_validate_legacy_dataset_rejects_split_membership_corruption() -> None:
+    dataset, source_dataset, source_revision = _custom_legacy_dataset()
+    train_rows = dataset["train"].to_list()
+    val_rows = dataset["val"].to_list()
+    train_rows[0], val_rows[0] = val_rows[0], train_rows[0]
+    corrupted = DatasetDict(dict(dataset))
+    corrupted["train"] = Dataset.from_list(train_rows, features=dataset_features())
+    corrupted["val"] = Dataset.from_list(val_rows, features=dataset_features())
+
+    with pytest.raises(ValueError, match="deterministic split membership and order"):
+        validate_legacy_dataset(
+            corrupted,
+            row_count=20,
+            seed=7,
+            source_dataset=source_dataset,
+            source_revision=source_revision,
+        )
+
+
+@pytest.mark.parametrize("null_kind", ["row", "element"])
+def test_validate_legacy_dataset_rejects_null_design(null_kind: str) -> None:
+    dataset, source_dataset, source_revision = _custom_legacy_dataset()
+    corrupted_rows = dataset["train"].to_list()
+    if null_kind == "row":
+        corrupted_rows[0]["optimal_design"] = None
+    else:
+        corrupted_rows[0]["optimal_design"][0] = None
+    corrupted = DatasetDict(dict(dataset))
+    corrupted["train"] = Dataset.from_list(corrupted_rows, features=dataset_features())
+
+    with pytest.raises(ValueError, match="null designs or design values"):
+        validate_legacy_dataset(
+            corrupted,
+            row_count=20,
+            seed=7,
+            source_dataset=source_dataset,
+            source_revision=source_revision,
+        )
+
+
+def test_validate_legacy_dataset_rejects_inconsistent_power_residual() -> None:
+    dataset, source_dataset, source_revision = _custom_legacy_dataset()
+    corrupted_rows = dataset["train"].to_list()
+    corrupted_rows[0]["power_constraint_residual_absolute"] += 1.0
+    corrupted = DatasetDict(dict(dataset))
+    corrupted["train"] = Dataset.from_list(corrupted_rows, features=dataset_features())
+
+    with pytest.raises(ValueError, match="power_constraint_residual_absolute is inconsistent"):
+        validate_legacy_dataset(
+            corrupted,
+            row_count=20,
+            seed=7,
+            source_dataset=source_dataset,
+            source_revision=source_revision,
+        )
+
+
+def test_conversion_manifest_drives_existing_publish_validation_and_card(tmp_path: Path) -> None:
+    manifest = {
+        "schema": "engibench-mto2d-v0-beams3d-compatible-flat-design",
+        "source_dataset": "test/source",
+        "source_revision": "fixture-revision",
+        "row_count": 20,
+        "native_design_shape": [400, 200],
+        "stored_design_shape": [80_000],
+        "split_seed": 7,
+        "split_sizes": {"train": 16, "val": 3, "test": 1},
+    }
+
+    settings = reformat_hf_dataset._manifest_validation_settings(manifest)  # noqa: SLF001
+    reformat_hf_dataset._write_dataset_card(tmp_path, manifest)  # noqa: SLF001
+
+    assert settings == (20, 7, "test/source", "fixture-revision")
+    card = (tmp_path / "README.md").read_text(encoding="utf-8")
+    assert "license: mit" in card
+    assert "Stored objective values belong" in card
+    assert "https://doi.org/10.1115/1.4071440" in card

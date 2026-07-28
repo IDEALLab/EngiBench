@@ -33,6 +33,12 @@ An EngiBench design is a `float32` array with shape `(400, 200)` and values in
 - `render()` mirrors the half-domain horizontally to make a symmetric
   `(400, 400)` image.
 
+Following the
+[`beams_3d_16_v0`](https://huggingface.co/datasets/IDEALLab/beams_3d_16_v0)
+Hub convention, datasets store `optimal_design` as a flat
+`list<float32>` of length 80,000 in C order. `MTO2D.random_design()` reshapes
+that sequence back to the native `(400, 200)` API representation.
+
 The OpenFOAM field has 86,400 cells. The first 80,000 cells encode the
 `(400, 200)` design in two solver-specific blocks, while the remaining 6,400
 cells are fixed, non-design cells copied unchanged from the case template.
@@ -144,9 +150,7 @@ soft initial physics toward the final parameters; a warm run can start at or
 near those final parameters.
 
 ```python
-starting_design = problem.uniform_starting_design(
-    problem.conditions.volume_fraction
-)
+starting_design = problem.uniform_starting_design(problem.conditions.volume_fraction)
 optimized_design, history = problem.optimize(
     starting_design,
     config={"mode": "cold", "max_iter": 200},
@@ -267,28 +271,31 @@ python -m engibench.problems.mto2d.model.generate_dataset generate \
 Workers return small shard paths rather than transferring the large designs
 through the scheduler. Site-specific `sbatch` options can be repeated with
 `--sbatch-extra-arg`. Assemble the completed contiguous shard set into
-deterministic 75/5/20 `train`, `val`, and `test` splits:
+deterministic 80/15/5 `train`, `val`, and `test` splits:
 
 ```bash
 python -m engibench.problems.mto2d.model.generate_dataset assemble \
   --shard-dir ./mto2d_shards \
-  --output-dir ./mto2d_dataset \
+  --output-dir dataset_output/mto_2d_v0 \
   --expected-count 10000 \
   --seed 1
 ```
 
-The script saves a local Hugging Face `DatasetDict`; it does not upload data.
+For the full 10,000-case grid this produces 8,000 training, 1,500 validation,
+and 500 test rows. The script saves a local Hugging Face `DatasetDict`; it does
+not upload data.
 
 ## Reformat the published MTO-2D data
 
 The existing source contains 5,666 rows in five raw NumPy files. The formatter
 memory-maps the approximately 1.49 GB legacy design array, reconstructs one
-native-shaped row at a time, and streams the result into Arrow:
+native-shaped row at a time, flattens it in C order, and streams the result
+into Arrow:
 
 ```bash
 python -m engibench.problems.mto2d.model.reformat_hf_dataset \
   --raw-dir /path/to/five-npy-files \
-  --output-dir ./mto2d_dataset \
+  --output-dir dataset_output/mto_2d_v0 \
   --seed 1
 ```
 
@@ -297,17 +304,29 @@ Face cache:
 
 ```bash
 python -m engibench.problems.mto2d.model.reformat_hf_dataset \
-  --output-dir ./mto2d_dataset
+  --output-dir dataset_output/mto_2d_v0
 ```
 
 Nothing is downloaded merely by importing MTO2D, and the converter never
-uploads data. The default 75/5/20 split contains 4,249 training, 283
-validation, and 1,134 test rows.
+downloads the source when `--raw-dir` is supplied. The default 80/15/5 split
+contains 4,532 training, 850 validation, and 284 test rows.
+
+For the pinned source revision, conversion verifies the SHA-256 digest of all
+five NumPy files by default. It then validates the Arrow schema, split sizes,
+flat design lengths and bounds, finite condition/objective values, unique
+source IDs, provenance flags, and retained reference row. Finally, it saves,
+reloads, and validates the `DatasetDict` again. The output directory also
+contains `conversion_manifest.json` with the source revision, split policy,
+native and stored shapes, and transform description. `--no-verify-hashes`
+exists for deliberately converting a different source, but should not be used
+for the pinned publication.
 
 Both generated and converted datasets use the same schema:
 
-- `optimal_design` and the three condition fields;
-- `mean_temperature` and `power_dissipation`;
+- `optimal_design`: a flat C-order sequence of 80,000 `float32` values;
+- `inlet_velocity`, `max_power_dissipation`, and `volume_fraction` as
+  `float64`;
+- `mean_temperature` and `power_dissipation` as `float32`;
 - absolute and relative power-constraint residuals;
 - the volume-constraint residual when available;
 - source IDs, row indices, provenance, revision, and timing fields; and
@@ -316,18 +335,98 @@ Both generated and converted datasets use the same schema:
   for reconstructed legacy rows and for generated rows created with
   `--no-evaluate-final`.
 
+### Validate and load the local result
+
+Conversion already performs validation. It can also be rerun independently
+before publication:
+
+```python
+from datasets import load_from_disk
+
+from engibench.problems.mto2d.model.dataset import validate_legacy_dataset
+
+dataset = load_from_disk("dataset_output/mto_2d_v0")
+print(validate_legacy_dataset(dataset))
+# {'train': 4532, 'val': 850, 'test': 284}
+```
+
 The problem's `dataset_id` is provisionally `IDEALLab/mto_2d_v0`. Until that
-repository is published, load a local conversion explicitly:
+repository is published, inject the local conversion explicitly:
 
 ```python
 from datasets import load_from_disk
 
 from engibench.problems.mto2d import MTO2D
 
-dataset = load_from_disk("./mto2d_dataset")
+dataset = load_from_disk("dataset_output/mto_2d_v0")
 problem = MTO2D(dataset=dataset)
 design, row_index = problem.random_design("train")
 ```
+
+### Push to Hugging Face
+
+Authenticate with the Hugging Face CLI in your shell; do not place access
+tokens in source files or command history. Conversion can validate and publish
+in one command:
+
+```bash
+python -m engibench.problems.mto2d.model.reformat_hf_dataset \
+  --raw-dir /path/to/five-npy-files \
+  --output-dir dataset_output/mto_2d_v0 \
+  --push-to-hub IDEALLab/mto_2d_v0 \
+  --max-shard-size 500MB
+```
+
+To publish a previously converted and validated directory without downloading
+or converting again:
+
+```bash
+python -m engibench.problems.mto2d.model.reformat_hf_dataset \
+  --output-dir dataset_output/mto_2d_v0 \
+  --push-to-hub IDEALLab/mto_2d_v0 \
+  --max-shard-size 500MB
+```
+
+This path revalidates the saved dataset and uploads its Parquet shards,
+dataset card, and `conversion_manifest.json`. The card keeps the MIT license,
+citation, and lossy-reconstruction warning beside the data. Use `--private`
+when a review upload should not be public.
+
+## Dataset-backed `v0.py` demo
+
+Run the problem module against the local `DatasetDict` to sample a real
+converted design, print its source conditions and objectives, and render the
+symmetric heat sink:
+
+```bash
+python ./engibench/problems/mto2d/v0.py \
+  --dataset dataset_output/mto_2d_v0
+```
+
+Use `--no-show` in a headless shell. This default demo does **not** launch
+OpenFOAM.
+
+Solver-backed evaluation is deliberately opt-in:
+
+```bash
+python ./engibench/problems/mto2d/v0.py \
+  --dataset dataset_output/mto_2d_v0 \
+  --simulate \
+  --solver-config ./solver.json \
+  --no-show
+```
+
+`--simulate` is a real frozen OpenFOAM evaluation, not a lookup or surrogate.
+It therefore still requires the external Linux/OpenFOAM runtime and solver
+case described above. The command evaluates the sampled reconstruction under
+that row's three physical conditions.
+
+Most importantly, the two objective values stored in the converted dataset
+belong to the original solver-native source topology. The published
+`256 x 256` design was resized lossily, so those values are **not** reference
+values for the reconstructed `(400, 200)` array. A successful `--simulate`
+result is a fresh evaluation of the reconstruction and is expected to differ
+from the stored legacy objectives.
 
 ## Current limitations and release blockers
 

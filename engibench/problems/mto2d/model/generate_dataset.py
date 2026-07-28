@@ -24,6 +24,7 @@ from typing import Any
 from engibench.problems.mto2d.model.dataset import assemble_shards
 from engibench.problems.mto2d.model.dataset import condition_grid
 from engibench.problems.mto2d.model.dataset import DEFAULT_GRID_SHAPE
+from engibench.problems.mto2d.model.dataset import DEFAULT_WRITER_BATCH_SIZE
 from engibench.problems.mto2d.model.dataset import generate_local
 from engibench.problems.mto2d.model.dataset import generation_jobs
 from engibench.problems.mto2d.model.dataset import load_solver_config
@@ -80,6 +81,7 @@ def _parser() -> argparse.ArgumentParser:
     )
     assemble.add_argument("--seed", type=int, default=1)
     assemble.add_argument("--cache-dir", type=Path)
+    assemble.add_argument("--writer-batch-size", type=int, default=DEFAULT_WRITER_BATCH_SIZE)
     return parser
 
 
@@ -160,6 +162,7 @@ def _run_assemble(args: argparse.Namespace) -> None:
         expected_count=None if args.allow_partial else args.expected_count,
         seed=args.seed,
         cache_dir=args.cache_dir,
+        writer_batch_size=args.writer_batch_size,
     )
     dataset.save_to_disk(str(output))
     sizes = ", ".join(f"{name}={len(split):,}" for name, split in dataset.items())

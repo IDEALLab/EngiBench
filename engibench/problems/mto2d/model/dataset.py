@@ -7,7 +7,9 @@ cases. Dataset assembly streams those shards into Arrow one row at a time.
 """
 
 from collections.abc import Iterator, Mapping, Sequence
+import hashlib
 import json
+import math
 import os
 from pathlib import Path
 import tempfile
@@ -26,8 +28,9 @@ DEFAULT_GRID_SHAPE = (20, 20, 25)
 DEFAULT_INLET_RANGE = (-0.095, -0.025)
 DEFAULT_POWER_RANGE = (50.0, 75.0)
 DEFAULT_VOLUME_RANGE = (0.25, 0.70)
-DEFAULT_SPLIT_FRACTIONS = (0.75, 0.05, 0.20)
+DEFAULT_SPLIT_FRACTIONS = (0.80, 0.15, 0.05)
 DEFAULT_SPLIT_SEED = 1
+DEFAULT_WRITER_BATCH_SIZE = 16
 CONDITION_COLUMN_COUNT = len(DEFAULT_GRID_SHAPE)
 RANGE_BOUND_COUNT = len(DEFAULT_INLET_RANGE)
 GRID_DIMENSION_COUNT = 2
@@ -41,12 +44,28 @@ RAW_FILENAMES = {
     "power_dissipation": "dissP_5666.npy",
     "source_case_id": "index_5666.npy",
 }
+RAW_SHA256 = {
+    "design": "87aa4b2dfa0b8433eb808440502489d7311e9ac2d5967efdd82f12eaf3f2f753",
+    "conditions": "f5eb9b65158a1a5f00f580f989458f76321c476963e5b5b5886cd0366a11e3af",
+    "mean_temperature": "179f35854f74955d29c8760227f3d2adca3dc89a8571a118fff98a8a925a78ff",
+    "power_dissipation": "3fd6dd841e901f17a061beb6957e1e96e95349750282e17032b1018374c1edc7",
+    "source_case_id": "1ebb41a932a87dc91f479335173e840613d15f10d44a82d217f7ed035692fcd9",
+}
 RAW_ROW_COUNT = 5_666
 
 GENERATED_PROVENANCE = "native OpenFOAM gamma field produced by MTO2D.optimize"
 LEGACY_PROVENANCE = (
     "lossy reconstruction from the published 256x256 half-domain using "
     "PyTorch-compatible non-antialiased bicubic interpolation"
+)
+LEGACY_REQUIRED_FINITE_FIELDS = (
+    "inlet_velocity",
+    "max_power_dissipation",
+    "volume_fraction",
+    "mean_temperature",
+    "power_dissipation",
+    "power_constraint_residual_absolute",
+    "power_constraint_residual_relative",
 )
 
 
@@ -87,9 +106,10 @@ def deterministic_split_indices(
 ) -> dict[str, npt.NDArray[np.int64]]:
     """Deterministically partition row positions into train, val, and test.
 
-    The first two split sizes are floored and the remainder is assigned to
-    test. Thus 5,666 legacy rows yield 4,249/283/1,134 rows for a 75/5/20
-    split, exactly matching the requested migration policy.
+    The split is performed in two stages like the Beams3D dataset: first take
+    the requested training fraction, then divide the held-out remainder
+    between validation and test. With the default 80/15/5 fractions, 5,666
+    rows yield 4,532/850/284 examples.
     """
     if not isinstance(row_count, int) or row_count < 0:
         raise ValueError("row_count must be a non-negative integer")
@@ -101,7 +121,14 @@ def deterministic_split_indices(
 
     permutation = np.random.default_rng(seed).permutation(row_count).astype(np.int64, copy=False)
     train_count = int(row_count * fraction_array[0])
-    val_count = int(row_count * fraction_array[1])
+    held_out_count = row_count - train_count
+    held_out_fraction = float(fraction_array[1] + fraction_array[2])
+    test_count = (
+        0
+        if held_out_count == 0 or held_out_fraction == 0.0
+        else math.ceil(held_out_count * fraction_array[2] / held_out_fraction - 1e-12)
+    )
+    val_count = held_out_count - test_count
     return {
         "train": permutation[:train_count],
         "val": permutation[train_count : train_count + val_count],
@@ -111,18 +138,18 @@ def deterministic_split_indices(
 
 def dataset_features() -> Any:
     """Return the common Hugging Face feature schema, importing lazily."""
-    from datasets import Array2D  # noqa: PLC0415
     from datasets import Features  # noqa: PLC0415
+    from datasets import Sequence as DatasetSequence  # noqa: PLC0415
     from datasets import Value  # noqa: PLC0415
 
     return Features(
         {
-            "optimal_design": Array2D(shape=HALF_DESIGN_SHAPE, dtype="float32"),
+            "optimal_design": DatasetSequence(Value("float32")),
             "inlet_velocity": Value("float64"),
             "max_power_dissipation": Value("float64"),
             "volume_fraction": Value("float64"),
-            "mean_temperature": Value("float64"),
-            "power_dissipation": Value("float64"),
+            "mean_temperature": Value("float32"),
+            "power_dissipation": Value("float32"),
             "power_constraint_residual_absolute": Value("float64"),
             "power_constraint_residual_relative": Value("float64"),
             "volume_constraint_residual": Value("float64"),
@@ -180,7 +207,7 @@ def generation_jobs(  # noqa: PLR0913
     ]
 
 
-def run_optimization_case(  # noqa: PLR0913
+def run_optimization_case(  # noqa: PLR0913, PLR0917
     case_id: int,
     inlet_velocity: float,
     max_power_dissipation: float,
@@ -300,7 +327,7 @@ def submit_slurm(  # noqa: PLR0913
         submitted.append(
             slurm.sbatch_map(
                 f=run_optimization_case,
-                args=jobs[start : start + batch_size],
+                args=[dict(job) for job in jobs[start : start + batch_size]],
                 slurm_args=slurm_config,
                 group_size=group_size,
                 work_dir=None if batch_work_dir is None else str(batch_work_dir),
@@ -341,12 +368,15 @@ def assemble_shards(
     expected_count: int | None = None,
     seed: int = DEFAULT_SPLIT_SEED,
     cache_dir: str | Path | None = None,
+    writer_batch_size: int = DEFAULT_WRITER_BATCH_SIZE,
 ) -> Any:
     """Stream completed shards into a Hugging Face ``DatasetDict``."""
     from datasets import Dataset  # noqa: PLC0415
     from datasets import DatasetDict  # noqa: PLC0415
 
     paths = discover_shards(shard_dir, expected_count=expected_count)
+    if writer_batch_size < 1:
+        raise ValueError("writer_batch_size must be positive")
     splits = deterministic_split_indices(len(paths), seed=seed)
     features = dataset_features()
     datasets = {}
@@ -358,6 +388,7 @@ def assemble_shards(
             cache_dir=None if cache_dir is None else str(Path(cache_dir).expanduser().resolve()),
             gen_kwargs={"paths": split_paths},
             split=split_name,
+            writer_batch_size=writer_batch_size,
         )
         dataset.info.description = (
             "Native 400x200 MTO2D heat-sink designs generated on a Cartesian condition grid. "
@@ -375,6 +406,21 @@ def raw_file_paths(raw_dir: str | Path) -> dict[str, Path]:
     if missing:
         raise FileNotFoundError(f"missing raw MTO-2D files: {missing}")
     return paths
+
+
+def verify_raw_file_hashes(paths: Mapping[str, str | Path]) -> None:
+    """Verify the five raw files against the pinned Hugging Face LFS hashes."""
+    missing_keys = sorted(set(RAW_SHA256) - set(paths))
+    if missing_keys:
+        raise ValueError(f"raw path mapping is missing hash keys: {missing_keys}")
+    for key, expected_hash in RAW_SHA256.items():
+        digest = hashlib.sha256()
+        with Path(paths[key]).expanduser().open("rb") as stream:
+            for chunk in iter(lambda: stream.read(8 * 1024 * 1024), b""):
+                digest.update(chunk)
+        actual_hash = digest.hexdigest()
+        if actual_hash != expected_hash:
+            raise ValueError(f"{key} SHA-256 mismatch: expected {expected_hash}, got {actual_hash} for {paths[key]}")
 
 
 def download_raw_files(
@@ -450,20 +496,27 @@ def validate_raw_arrays(
     return row_count
 
 
-def convert_raw_arrays(
+def convert_raw_arrays(  # noqa: PLR0913
     paths: Mapping[str, str | Path],
     *,
     seed: int = DEFAULT_SPLIT_SEED,
     cache_dir: str | Path | None = None,
     source_dataset: str = RAW_REPOSITORY,
     source_revision: str = RAW_REVISION,
+    writer_batch_size: int = DEFAULT_WRITER_BATCH_SIZE,
+    verify_hashes: bool = True,
 ) -> Any:
     """Convert memory-mapped legacy arrays into a streamed ``DatasetDict``."""
     from datasets import Dataset  # noqa: PLC0415
     from datasets import DatasetDict  # noqa: PLC0415
 
     normalized_paths = {key: str(Path(path).expanduser().resolve()) for key, path in paths.items()}
-    expected_row_count = RAW_ROW_COUNT if source_dataset == RAW_REPOSITORY and source_revision == RAW_REVISION else None
+    is_pinned_source = source_dataset == RAW_REPOSITORY and source_revision == RAW_REVISION
+    if writer_batch_size < 1:
+        raise ValueError("writer_batch_size must be positive")
+    if is_pinned_source and verify_hashes:
+        verify_raw_file_hashes(normalized_paths)
+    expected_row_count = RAW_ROW_COUNT if is_pinned_source else None
     row_count = validate_raw_arrays(normalized_paths, expected_row_count=expected_row_count)
     splits = deterministic_split_indices(row_count, seed=seed)
     features = dataset_features()
@@ -480,6 +533,7 @@ def convert_raw_arrays(
                 "source_revision": source_revision,
             },
             split=split_name,
+            writer_batch_size=writer_batch_size,
         )
         dataset.info.description = (
             "IDEALLab/MTO-2D raw NumPy data converted to EngiBench's native 400x200 half-domain. "
@@ -518,7 +572,7 @@ def legacy_row(  # noqa: PLR0913
     absolute_residual = power_dissipation - max_power_dissipation
     relative_residual = power_dissipation / max_power_dissipation - 1.0
     return {
-        "optimal_design": legacy_256_to_half(design),
+        "optimal_design": legacy_256_to_half(design).reshape(-1),
         "inlet_velocity": inlet_velocity,
         "max_power_dissipation": max_power_dissipation,
         "volume_fraction": volume_fraction,
@@ -526,18 +580,164 @@ def legacy_row(  # noqa: PLR0913
         "power_dissipation": power_dissipation,
         "power_constraint_residual_absolute": absolute_residual,
         "power_constraint_residual_relative": relative_residual,
-        "volume_constraint_residual": float("nan"),
+        "volume_constraint_residual": None,
         "source_case_id": int(source_case_id),
         "source_row_index": int(source_row_index),
-        "optimization_steps": 0,
-        "optimization_elapsed_time": float("nan"),
-        "evaluation_elapsed_time": float("nan"),
+        "optimization_steps": None,
+        "optimization_elapsed_time": None,
+        "evaluation_elapsed_time": None,
         "source_dataset": source_dataset,
         "source_revision": source_revision,
         "design_provenance": LEGACY_PROVENANCE,
         "design_is_exact": False,
         "objectives_evaluated_on_design": False,
     }
+
+
+def validate_legacy_dataset(
+    dataset: Mapping[str, Any],
+    *,
+    row_count: int = RAW_ROW_COUNT,
+    seed: int = DEFAULT_SPLIT_SEED,
+    source_dataset: str = RAW_REPOSITORY,
+    source_revision: str = RAW_REVISION,
+) -> dict[str, int]:
+    """Validate a converted legacy DatasetDict before publication."""
+    expected_indices = deterministic_split_indices(row_count, seed=seed)
+    expected_sizes = {name: len(indices) for name, indices in expected_indices.items()}
+    if set(dataset) != set(expected_sizes):
+        raise ValueError(f"dataset splits must be {sorted(expected_sizes)}; got {sorted(dataset)}")
+
+    all_ids: list[int] = []
+    reference_row: Mapping[str, Any] | None = None
+    for split_name, expected_size in expected_sizes.items():
+        split = dataset[split_name]
+        source_ids, split_reference = _validate_legacy_split(
+            split_name,
+            split,
+            expected_size,
+            expected_indices[split_name],
+            source_dataset=source_dataset,
+            source_revision=source_revision,
+        )
+        all_ids.extend(source_ids)
+        reference_row = split_reference or reference_row
+
+    if len(all_ids) != row_count or len(set(all_ids)) != row_count:
+        raise ValueError("source_case_id values must be unique across all splits")
+    if source_dataset == RAW_REPOSITORY and source_revision == RAW_REVISION:
+        _validate_retained_reference(reference_row)
+    return expected_sizes
+
+
+def _validate_legacy_split(  # noqa: PLR0913
+    split_name: str,
+    split: Any,
+    expected_size: int,
+    expected_positions: npt.NDArray[np.int64],
+    *,
+    source_dataset: str,
+    source_revision: str,
+) -> tuple[list[int], Mapping[str, Any] | None]:
+    if len(split) != expected_size:
+        raise ValueError(f"{split_name} contains {len(split)} rows; expected {expected_size}")
+    if split.features != dataset_features():
+        raise ValueError(f"{split_name} features do not match the MTO2D v0 schema")
+
+    _validate_flat_design_column(split_name, _logical_arrow_column(split, "optimal_design"))
+    _validate_finite_columns(split_name, split)
+    _validate_residual_columns(split_name, split)
+    _validate_legacy_metadata(split_name, split, source_dataset, source_revision)
+    source_ids = [int(value) for value in split["source_case_id"]]
+    actual_positions = np.asarray(split["source_row_index"], dtype=np.int64)
+    if not np.array_equal(actual_positions, expected_positions):
+        raise ValueError(f"{split_name}.source_row_index does not match the deterministic split membership and order")
+    reference = split[source_ids.index(0)] if 0 in source_ids else None
+    return source_ids, reference
+
+
+def _validate_flat_design_column(split_name: str, designs: Any) -> None:
+    import pyarrow.compute as pc  # type: ignore[import-untyped]  # noqa: PLC0415
+
+    design_length = int(np.prod(HALF_DESIGN_SHAPE))
+    for chunk in designs.chunks:
+        if chunk.null_count or chunk.values.null_count:
+            raise ValueError(f"{split_name} contains null designs or design values")
+        length_bounds = pc.min_max(pc.list_value_length(chunk)).as_py()
+        if length_bounds != {"min": design_length, "max": design_length}:
+            raise ValueError(f"{split_name} contains a design whose flattened length is not {design_length}")
+        values = chunk.values
+        if not pc.all(pc.is_finite(values)).as_py():
+            raise ValueError(f"{split_name} contains non-finite design values")
+        value_bounds = pc.min_max(values).as_py()
+        if value_bounds["min"] < 0.0 or value_bounds["max"] > 1.0:
+            raise ValueError(f"{split_name} contains design values outside [0, 1]")
+
+
+def _validate_finite_columns(split_name: str, split: Any) -> None:
+    import pyarrow.compute as pc  # noqa: PLC0415
+
+    for name in LEGACY_REQUIRED_FINITE_FIELDS:
+        column = _logical_arrow_column(split, name).combine_chunks()
+        if column.null_count or not pc.all(pc.is_finite(column)).as_py():
+            raise ValueError(f"{split_name}.{name} must contain only finite, non-null values")
+
+
+def _validate_residual_columns(split_name: str, split: Any) -> None:
+    maximum = np.asarray(split["max_power_dissipation"], dtype=np.float64)
+    measured = np.asarray(split["power_dissipation"], dtype=np.float64)
+    absolute = np.asarray(split["power_constraint_residual_absolute"], dtype=np.float64)
+    relative = np.asarray(split["power_constraint_residual_relative"], dtype=np.float64)
+    if not np.allclose(absolute, measured - maximum, rtol=1e-6, atol=1e-5):
+        raise ValueError(f"{split_name}.power_constraint_residual_absolute is inconsistent")
+    if not np.allclose(relative, measured / maximum - 1.0, rtol=1e-6, atol=1e-7):
+        raise ValueError(f"{split_name}.power_constraint_residual_relative is inconsistent")
+
+
+def _validate_legacy_metadata(
+    split_name: str,
+    split: Any,
+    source_dataset: str,
+    source_revision: str,
+) -> None:
+    if any(value is not False for value in split["design_is_exact"]) or any(
+        value is not False for value in split["objectives_evaluated_on_design"]
+    ):
+        raise ValueError(f"{split_name} must mark reconstructed designs and objectives as inexact")
+    if set(split["source_dataset"]) != {source_dataset}:
+        raise ValueError(f"{split_name} must record source dataset {source_dataset}")
+    if set(split["source_revision"]) != {source_revision}:
+        raise ValueError(f"{split_name} must record source revision {source_revision}")
+    if set(split["design_provenance"]) != {LEGACY_PROVENANCE}:
+        raise ValueError(f"{split_name} contains unexpected design provenance")
+    for field in (
+        "volume_constraint_residual",
+        "optimization_steps",
+        "optimization_elapsed_time",
+        "evaluation_elapsed_time",
+    ):
+        if _logical_arrow_column(split, field).null_count != len(split):
+            raise ValueError(f"{split_name}.{field} must be null because the source does not provide it")
+
+
+def _logical_arrow_column(split: Any, name: str) -> Any:
+    """Return an Arrow column while respecting any Dataset row indices."""
+    return split.with_format("arrow")[name]
+
+
+def _validate_retained_reference(reference_row: Mapping[str, Any] | None) -> None:
+    if reference_row is None:
+        raise ValueError("converted dataset does not contain retained reference source_case_id=0")
+    conditions = [
+        reference_row["inlet_velocity"],
+        reference_row["max_power_dissipation"],
+        reference_row["volume_fraction"],
+    ]
+    objectives = [reference_row["mean_temperature"], reference_row["power_dissipation"]]
+    if not np.allclose(conditions, [-0.074, 63.1, 0.61], rtol=0.0, atol=1e-12):
+        raise ValueError(f"retained reference conditions do not match: {conditions}")
+    if not np.allclose(objectives, [9.45825, 62.2588], rtol=0.0, atol=1e-5):
+        raise ValueError(f"retained reference objectives do not match: {objectives}")
 
 
 def load_solver_config(path: str | Path | None) -> dict[str, Any]:
@@ -626,11 +826,19 @@ def _load_shard_row(path: str | Path) -> dict[str, Any]:
             name: (np.asarray(shard[name], dtype=np.float32) if name == "optimal_design" else _scalar(shard[name], name))
             for name in feature_names
         }
-    design = row["optimal_design"]
-    if design.shape != HALF_DESIGN_SHAPE:
-        raise ValueError(f"shard {path} design has shape {design.shape}; expected {HALF_DESIGN_SHAPE}")
-    if not np.all(np.isfinite(design)) or np.any((design < 0.0) | (design > 1.0)):
+    design = np.asarray(row["optimal_design"], dtype=np.float32)
+    if design.shape == (int(np.prod(HALF_DESIGN_SHAPE)),):
+        native_design = design.reshape(HALF_DESIGN_SHAPE)
+    elif design.shape == HALF_DESIGN_SHAPE:
+        native_design = design
+    else:
+        raise ValueError(
+            f"shard {path} design has shape {design.shape}; "
+            f"expected {HALF_DESIGN_SHAPE} or {(int(np.prod(HALF_DESIGN_SHAPE)),)}"
+        )
+    if not np.all(np.isfinite(native_design)) or np.any((native_design < 0.0) | (native_design > 1.0)):
         raise ValueError(f"shard {path} design must contain finite values in [0, 1]")
+    row["optimal_design"] = native_design.reshape(-1)
     return row
 
 

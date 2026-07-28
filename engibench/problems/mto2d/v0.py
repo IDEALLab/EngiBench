@@ -1,8 +1,11 @@
 """Two-dimensional multiphysics topology optimization problem."""
 
+import argparse
 import dataclasses
 from dataclasses import dataclass
+import json
 import os
+from pathlib import Path
 from typing import Annotated, Any
 import warnings
 
@@ -40,6 +43,9 @@ J1 = 1.58e-7
 
 MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 """Smallest feasible all-cell volume fraction when the design domain is solid."""
+
+REPOSITORY_DATASET_PATH = Path(__file__).resolve().parents[3] / "dataset_output" / "mto_2d_v0"
+"""Preferred local converted dataset for the source-tree demonstration."""
 
 
 @dataclass
@@ -280,7 +286,12 @@ class MTO2D(Problem[npt.NDArray]):
         """
         split = self.dataset[dataset_split]
         index = int(self.np_random.integers(0, len(split)))
-        design = np.asarray(split[index][design_key], dtype=np.float32)
+        return self.design_from_dataset_value(split[index][design_key]), index
+
+    @staticmethod
+    def design_from_dataset_value(value: Any) -> npt.NDArray[np.float32]:
+        """Convert a native, flattened, or legacy dataset value to the design space."""
+        design = np.asarray(value, dtype=np.float32)
         if design.shape == (1, *LEGACY_DESIGN_SHAPE):
             design = design[0]
         if design.shape == LEGACY_DESIGN_SHAPE:
@@ -292,7 +303,7 @@ class MTO2D(Problem[npt.NDArray]):
             design = legacy_256_to_half(design)
         elif design.shape != HALF_DESIGN_SHAPE and design.size == int(np.prod(HALF_DESIGN_SHAPE)):
             design = design.reshape(HALF_DESIGN_SHAPE)
-        return self._coerce_design(design), index
+        return MTO2D._coerce_design(design)
 
     def render(self, design: npt.NDArray, *, open_window: bool = False) -> tuple[Figure, Any]:
         """Render the symmetric ``400 x 400`` fluid-density field."""
@@ -336,6 +347,8 @@ class MTO2D(Problem[npt.NDArray]):
             raise ValueError(str(errors))
 
     def _resolve_config(self, overrides: dict[str, Any] | None) -> Config:
+        if self.config is None:
+            raise RuntimeError("MTO2D solver configuration is not initialized")
         values = dataclasses.asdict(self.config)
         values.update(overrides or {})
         if isinstance(values.get("driver_command"), list):
@@ -366,12 +379,166 @@ class MTO2D(Problem[npt.NDArray]):
         return RunnerSettings(**values)
 
 
-def main(problem_type: type[MTO2D] = MTO2D, *, open_window: bool = False) -> None:
-    """Render one condition-aware starting design without launching the solver."""
-    problem = problem_type(seed=0)
-    design = problem.uniform_starting_design(problem.conditions.volume_fraction)
-    problem.render(design, open_window=open_window)
+def _load_demo_dataset(
+    source: str | Path | None,
+    *,
+    default_dataset_id: str,
+) -> tuple[Any, str]:
+    """Load a local saved DatasetDict or a dataset from the Hugging Face Hub."""
+    from datasets import load_dataset  # noqa: PLC0415
+    from datasets import load_from_disk  # noqa: PLC0415
+
+    resolved_source: str | Path
+    if source is None:
+        resolved_source = REPOSITORY_DATASET_PATH if REPOSITORY_DATASET_PATH.is_dir() else default_dataset_id
+    else:
+        resolved_source = source
+
+    local_path = Path(resolved_source).expanduser()
+    if local_path.is_dir():
+        resolved_path = local_path.resolve()
+        return load_from_disk(str(resolved_path)), str(resolved_path)
+    if isinstance(resolved_source, Path):
+        raise FileNotFoundError(f"local dataset directory does not exist: {local_path}")
+    return load_dataset(resolved_source), resolved_source
+
+
+def _read_solver_config(path: str | Path | None) -> dict[str, Any]:
+    """Read an optional JSON object containing solver-only configuration."""
+    if path is None:
+        return {}
+    config_path = Path(path).expanduser().resolve()
+    with config_path.open(encoding="utf-8") as stream:
+        config = json.load(stream)
+    if not isinstance(config, dict):
+        raise TypeError(f"solver config must contain a JSON object: {config_path}")
+    return config
+
+
+def main(  # noqa: PLR0913
+    problem_type: type[MTO2D] = MTO2D,
+    *,
+    dataset: Any | None = None,
+    dataset_source: str | Path | None = None,
+    split: str = "train",
+    index: int = 0,
+    seed: int = 0,
+    solver_config: dict[str, Any] | None = None,
+    run_simulation: bool = False,
+    render_output: str | Path | None = None,
+    open_window: bool = False,
+    runner: MTO2DRunner | None = None,
+) -> MTO2DSimulationResult | None:
+    """Render one real dataset design and optionally evaluate it.
+
+    Simulation is deliberately opt-in because it requires the external
+    OpenFOAM runtime and can be expensive. Dataset-row conditions always
+    override the physical-condition defaults in ``solver_config``.
+    """
+    if dataset is not None and dataset_source is not None:
+        raise ValueError("pass either dataset or dataset_source, not both")
+
+    source_label = "<injected dataset>"
+    if dataset is None:
+        dataset, source_label = _load_demo_dataset(dataset_source, default_dataset_id=problem_type.dataset_id)
+
+    problem = problem_type(seed=seed, config=solver_config, dataset=dataset, runner=runner)
+    if split not in problem.dataset:
+        available = ", ".join(problem.dataset.keys())
+        raise KeyError(f"dataset split {split!r} is unavailable; choose from: {available}")
+    selected_split = problem.dataset[split]
+    if not 0 <= index < len(selected_split):
+        raise IndexError(f"dataset index must be in [0, {len(selected_split)}); got {index}")
+
+    row = selected_split[index]
+    design = problem.design_from_dataset_value(row["optimal_design"])
+    row_conditions = {key: float(row[key]) for key in problem.conditions_keys}
+    stored_objectives = {key: float(row[key]) for key in problem.objectives_keys}
+
+    print(f"Dataset: {source_label}")
+    print(f"Selected split={split!r}, index={index}")
+    print("Conditions: " + ", ".join(f"{key}={value:.8g}" for key, value in row_conditions.items()))
+    print("Stored objectives: " + ", ".join(f"{key}={value:.8g}" for key, value in stored_objectives.items()))
+    provenance = row.get("design_provenance")
+    if provenance:
+        print(f"Design provenance: {provenance}")
+    if row.get("design_is_exact") is False or row.get("objectives_evaluated_on_design") is False:
+        print(
+            "WARNING: this design was reconstructed lossily; its stored objectives "
+            "belong to the source solver case and may not match a new simulation."
+        )
+
+    figure, _axes = problem.render(design, open_window=False)
+    if render_output is not None:
+        output_path = Path(render_output).expanduser().resolve()
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        figure.savefig(output_path, dpi=150, bbox_inches="tight")
+        print(f"Saved rendering to {output_path}")
+    if open_window:
+        plt.show()
+    plt.close(figure)
+
+    if not run_simulation:
+        print("Simulation skipped. Pass --simulate with a solver config to run the external CFD solver.")
+        return None
+
+    print("Running frozen one-step simulation with the selected row conditions...")
+    result = problem.simulate_verbose(design, config=row_conditions)
+    print(
+        "Simulated objectives: "
+        + ", ".join(
+            f"{key}={float(value):.8g}" for key, value in zip(problem.objectives_keys, result.objective_values, strict=True)
+        )
+    )
+    print(
+        "Simulation diagnostics: "
+        f"volume_residual={result.volume_constraint_residual:.8g}, "
+        f"power_residual={result.power_constraint_residual:.8g}, "
+        f"elapsed_time={result.elapsed_time:.8g}s"
+    )
+    return result
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Render a real MTO2D dataset row and optionally simulate it.",
+        allow_abbrev=False,
+    )
+    parser.add_argument(
+        "--dataset",
+        dest="dataset_source",
+        help=(
+            "local DatasetDict directory or Hugging Face dataset ID; defaults to "
+            "dataset_output/mto_2d_v0 when present, otherwise IDEALLab/mto_2d_v0"
+        ),
+    )
+    parser.add_argument("--split", default="train")
+    parser.add_argument("--index", type=int, default=0)
+    parser.add_argument("--seed", type=int, default=0)
+    parser.add_argument("--render-output", type=Path)
+    parser.add_argument("--show", action=argparse.BooleanOptionalAction, default=True)
+    parser.add_argument("--simulate", action="store_true")
+    parser.add_argument(
+        "--solver-config",
+        type=Path,
+        help="JSON object with case_template, backend, MPI, timeout, and related solver settings",
+    )
+    return parser
+
+
+def _cli(argv: list[str] | None = None) -> MTO2DSimulationResult | None:
+    args = _parser().parse_args(argv)
+    return main(
+        dataset_source=args.dataset_source,
+        split=args.split,
+        index=args.index,
+        seed=args.seed,
+        solver_config=_read_solver_config(args.solver_config),
+        run_simulation=args.simulate,
+        render_output=args.render_output,
+        open_window=args.show,
+    )
 
 
 if __name__ == "__main__":
-    main(open_window=True)
+    _cli()
