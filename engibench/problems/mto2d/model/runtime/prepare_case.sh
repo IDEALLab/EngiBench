@@ -28,6 +28,8 @@ mkdir -p "$output"
 unzip -q "$archive" -d "$output"
 patch --batch --forward --strip=1 --directory="$output" \
     <"$runtime_dir/frozen-evaluation.patch"
+patch --batch --forward --strip=1 --directory="$output" \
+    <"$runtime_dir/optimization-schedules.patch"
 
 if ! docker image inspect "$runtime_image" >/dev/null 2>&1; then
     echo "Runtime image does not exist: $runtime_image" >&2
@@ -43,5 +45,6 @@ docker run --rm \
     "$runtime_image" \
     bash -lc "cd /work/case/src_TF && wmake"
 chmod u+x "$output/src_TF/EXEC"
+printf '2\n' >"$output/.engibench-mto2d-runtime-version"
 
 echo "Prepared case template: $output"

@@ -16,11 +16,15 @@ from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import parse_internal_field
 from engibench.problems.mto2d.model.runner import MTO2DRunner
+from engibench.problems.mto2d.model.runner import OptimizationSchedule
 from engibench.problems.mto2d.model.runner import RunnerSettings
+from engibench.problems.mto2d.model.runner import SCHEDULE_RUNTIME_MARKER
+from engibench.problems.mto2d.model.runner import SCHEDULE_RUNTIME_VERSION
 from engibench.problems.mto2d.model.runner import SolverRun
 from engibench.problems.mto2d.model.runner import SolverRunError
 
 OPTIMIZATION_STEPS = 3
+CONTINUATION_PARAMETER_COUNT = 3
 
 
 class FakeRunner:
@@ -69,6 +73,8 @@ def _make_case_template(root: Path) -> Path:
     (app / "constant").mkdir()
     (app / "system").mkdir()
     (case / "src_TF").mkdir()
+    (case / "src_TF" / "continuation.H").write_text("// warm-ready fixture\n", encoding="utf-8")
+    (case / SCHEDULE_RUNTIME_MARKER).write_text(f"{SCHEDULE_RUNTIME_VERSION}\n", encoding="ascii")
 
     gamma = np.concatenate(
         (
@@ -186,7 +192,10 @@ def test_problem_simulation_and_optimization_objective_order() -> None:
     assert runner.calls[0][1].max_iter == 1
     assert runner.calls[0][2] == "simulate"
 
-    optimized, history = problem.optimize(design, {"mode": "warm"})
+    optimized, history = problem.optimize(
+        design,
+        {"mode": "warm", "optimization_schedule": "strict"},
+    )
 
     assert optimized.shape == HALF_DESIGN_SHAPE
     assert optimized.dtype == np.float32
@@ -195,6 +204,7 @@ def test_problem_simulation_and_optimization_objective_order() -> None:
     np.testing.assert_array_equal(history[-1].obj_values, np.array([8.0, 60.0]))
     assert [step.step for step in history] == [1, 2, 3]
     assert runner.calls[1][1].mode == "warm"
+    assert runner.calls[1][1].optimization_schedule == "strict"
     assert runner.calls[1][2] == "optimize"
 
 
@@ -209,8 +219,11 @@ def test_optimize_verbose_distinguishes_active_and_final_power_bounds() -> None:
     )
     design = problem.uniform_starting_design(problem.conditions.volume_fraction)
 
-    with pytest.warns(UserWarning, match="final active bound is 89.4"):
+    with pytest.warns(UserWarning, match="exact prefix|final active bound") as legacy_warnings:
         cold = problem.optimize_verbose(design, {"mode": "cold"})
+    warning_messages = [str(warning.message) for warning in legacy_warnings]
+    assert any("exact prefix" in message for message in warning_messages)
+    assert any("final active bound is 89.4" in message for message in warning_messages)
     np.testing.assert_allclose(cold.active_power_bounds, [89.8, 89.6, 89.4])
     np.testing.assert_allclose(
         cold.active_power_constraint_residuals,
@@ -218,7 +231,10 @@ def test_optimize_verbose_distinguishes_active_and_final_power_bounds() -> None:
     )
     np.testing.assert_allclose(cold.power_constraint_residuals, np.array([61.0, 60.5, 60.0]) / 63.1 - 1.0)
 
-    warm = problem.optimize_verbose(design, {"mode": "warm"})
+    warm = problem.optimize_verbose(
+        design,
+        {"mode": "warm", "optimization_schedule": "strict"},
+    )
     np.testing.assert_allclose(warm.active_power_bounds, [63.1, 63.1, 63.1])
     np.testing.assert_allclose(
         warm.active_power_constraint_residuals,
@@ -258,10 +274,22 @@ def test_random_design_uses_injected_dataset_and_reset() -> None:
     ("config", "message"),
     [
         ({"mode": "invalid"}, "mode"),
+        ({"optimization_schedule": "invalid"}, "optimization_schedule"),
+        ({"mode": "warm"}, "warm repair"),
+        ({"max_iter": 201}, "shorter exact prefix"),
+        ({"continuation_steps": 1}, "continuation_steps"),
+        ({"continuation_profile": "quadratic"}, "continuation_profile"),
         ({"backend": "invalid"}, "backend"),
         ({"timeout": 0.0}, "timeout"),
         ({"power_bound_start": 0.0}, "power_bound_start"),
-        ({"max_iter": 5, "continuation_steps": 2}, "divisible"),
+        (
+            {
+                "max_iter": 5,
+                "continuation_steps": 2,
+                "optimization_schedule": "strict",
+            },
+            "divisible",
+        ),
         ({"volume_fraction": 0.01}, "volume_fraction"),
     ],
 )
@@ -314,6 +342,7 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
     assert "writePrecision 12;" in control
     continuation = (prepared / "constant" / "continuationProperties").read_text(encoding="utf-8")
     assert "n_steps         1;" in continuation
+    assert "optimizationSchedule strict;" in continuation
     assert continuation.count("from           0.019;") == 1
     assert continuation.count("from           5025200;") == 1
     assert continuation.count("from           59.8;") == 1
@@ -325,6 +354,57 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
         expected_count=GAMMA_CELL_COUNT,
     )
     np.testing.assert_array_equal(prepared_gamma[DESIGN_CELL_COUNT:], 1.0)
+
+
+def test_legacy_schedule_prepares_source_initialization_and_endpoints(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    design = np.full(HALF_DESIGN_SHAPE, 0.5, dtype=np.float32)
+    settings = RunnerSettings(
+        case_template=str(template),
+        inlet_velocity=-0.074,
+        max_power_dissipation=63.1,
+        volume_fraction=0.61,
+        max_iter=1,
+        optimization_schedule="legacy",
+    )
+
+    MTO2DRunner._validate_settings(settings, "optimize")  # noqa: SLF001
+    MTO2DRunner()._prepare_case(template, design, settings, "optimize")  # noqa: SLF001
+
+    transport = (template / "app" / "constant" / "transportProperties").read_text(encoding="utf-8")
+    assert re.search(r"alphaMax\s+alphaMax \[0 0 -1 0 0 0 0\] 2500\.0;", transport)
+    assert "qu 0.005;" in transport
+    assert "D0 90.0;" in transport
+    continuation = (template / "app" / "constant" / "continuationProperties").read_text(encoding="utf-8")
+    assert "n_steps         1;" in continuation
+    assert "optimizationSchedule legacy;" in continuation
+    assert continuation.count("overallType    constant;") == CONTINUATION_PARAMETER_COUNT
+    assert continuation.count("from           0.005;") == 1
+    assert continuation.count("to             0.01;") == 1
+    assert continuation.count("from           2500;") == 1
+    assert continuation.count("to             5025226.63913;") == 1
+    assert continuation.count("from           0.1;") == 1
+    assert continuation.count("to             59.8;") == 1
+
+
+@pytest.mark.parametrize("schedule", ["legacy", "strict"])
+def test_optimization_schedule_requires_rebuilt_runtime_marker(
+    tmp_path: Path,
+    schedule: OptimizationSchedule,
+) -> None:
+    template = _make_case_template(tmp_path)
+    marker = template / SCHEDULE_RUNTIME_MARKER
+    marker.unlink()
+
+    with pytest.raises(FileNotFoundError, match=f"optimization_schedule='{schedule}'"):
+        MTO2DRunner._validate_schedule_runtime(template, schedule)  # noqa: SLF001
+
+    marker.write_text("1\n", encoding="ascii")
+    with pytest.raises(ValueError, match="expected '2'"):
+        MTO2DRunner._validate_schedule_runtime(template, schedule)  # noqa: SLF001
+
+    marker.write_text(f"{SCHEDULE_RUNTIME_VERSION}\n", encoding="ascii")
+    MTO2DRunner._validate_schedule_runtime(template, schedule)  # noqa: SLF001
 
 
 @pytest.mark.parametrize(
@@ -380,6 +460,14 @@ def test_case_template_rejects_wrong_gamma_cell_count(tmp_path: Path) -> None:
     (template / "app" / "0" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
 
     with pytest.raises(ValueError, match="expected 86400"):
+        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+
+
+def test_case_template_rejects_solver_that_ignores_continuation(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    (template / "src_TF" / "continuation.H").unlink()
+
+    with pytest.raises(FileNotFoundError, match="silently ignores continuationProperties"):
         MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
 
 
@@ -487,6 +575,7 @@ def test_command_backend_one_step_optimization_smoke(
             "driver_command": (sys.executable, str(driver)),
             "max_iter": 1,
             "mode": mode,
+            "optimization_schedule": "strict",
             "power_bound_start": configured_power_bound_start,
             "work_dir": str(tmp_path),
             "retain_artifacts": True,

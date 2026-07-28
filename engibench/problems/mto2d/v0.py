@@ -33,6 +33,7 @@ from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import half_to_full
 from engibench.problems.mto2d.model.design_io import legacy_256_to_half
 from engibench.problems.mto2d.model.design_io import LEGACY_DESIGN_SHAPE
+from engibench.problems.mto2d.model.runner import LEGACY_OPTIMIZATION_ITERATIONS
 from engibench.problems.mto2d.model.runner import MTO2DRunner
 from engibench.problems.mto2d.model.runner import POWER_BOUND_DECREMENT_PER_ITERATION
 from engibench.problems.mto2d.model.runner import RunnerSettings
@@ -148,6 +149,7 @@ class MTO2D(Problem[npt.NDArray]):
 
         max_iter: Annotated[int, greater_than(0).category(IMPL)] = 200
         mode: str = "cold"
+        optimization_schedule: str = "legacy"
         mpi_cores: Annotated[int, greater_than(0).category(IMPL)] = 1
         case_template: str | None = None
         backend: str = "local"
@@ -178,6 +180,31 @@ class MTO2D(Problem[npt.NDArray]):
 
         @constraint(categories=IMPL)
         @staticmethod
+        def valid_optimization_schedule(
+            mode: str,
+            max_iter: int,
+            continuation_steps: int | None,
+            optimization_schedule: str,
+        ) -> None:
+            """Keep the named legacy schedule exact instead of approximating it."""
+            assert optimization_schedule in {
+                "legacy",
+                "strict",
+            }, "Config.optimization_schedule must be 'legacy' or 'strict'"
+            if optimization_schedule == "legacy":
+                assert mode == "cold", (
+                    "Config.optimization_schedule='legacy' is only valid for cold source reproduction; "
+                    "warm repair must pass Config.optimization_schedule='strict'"
+                )
+                assert (
+                    max_iter <= LEGACY_OPTIMIZATION_ITERATIONS
+                ), "Config.optimization_schedule='legacy' supports 200 steps or a shorter exact prefix"
+                assert (
+                    continuation_steps is None
+                ), "Config.continuation_steps is not configurable with Config.optimization_schedule='legacy'"
+
+        @constraint(categories=IMPL)
+        @staticmethod
         def valid_backend(backend: str) -> None:
             """Require a supported runner backend."""
             assert backend in {"local", "container", "command"}, "Config.backend must be 'local', 'container', or 'command'"
@@ -190,6 +217,16 @@ class MTO2D(Problem[npt.NDArray]):
                 return
             assert 1 <= continuation_steps <= max_iter, "Config.continuation_steps must be between 1 and max_iter"
             assert max_iter % continuation_steps == 0, "Config.max_iter must be divisible by continuation_steps"
+
+        @constraint(categories=IMPL)
+        @staticmethod
+        def valid_continuation_profile(continuation_profile: str) -> None:
+            """Require a profile implemented by the warm-ready solver."""
+            assert continuation_profile in {
+                "constant",
+                "linear",
+                "geometric",
+            }, "Config.continuation_profile must be 'constant', 'linear', or 'geometric'"
 
         @constraint(categories=IMPL)
         @staticmethod
@@ -274,6 +311,16 @@ class MTO2D(Problem[npt.NDArray]):
         density = self._coerce_design(starting_point)
         resolved = self._resolve_config(config)
         active_power_bounds = self._active_power_bounds(resolved)
+        if (
+            resolved.optimization_schedule == "legacy"
+            and resolved.max_iter < LEGACY_OPTIMIZATION_ITERATIONS
+        ):
+            warnings.warn(
+                f"A {resolved.max_iter}-step legacy optimization is an exact prefix of the "
+                "published 200-step schedule, not a converged source reproduction.",
+                UserWarning,
+                stacklevel=2,
+            )
         if active_power_bounds[-1] > resolved.max_power_dissipation:
             warnings.warn(
                 "Optimization stops before the legacy power-bound continuation reaches "
@@ -540,7 +587,9 @@ def main(  # noqa: PLR0913
     if row.get("design_is_exact") is False or row.get("objectives_evaluated_on_design") is False:
         print(
             "WARNING: this design was reconstructed lossily; its stored objectives "
-            "belong to the source solver case and may not match a new simulation."
+            "belong to the source solver's pre-update field under legacy physics "
+            "and may not match a new simulation. Canonical simulation uses the "
+            "stricter final q=0.019 physics."
         )
 
     figure, _axes = problem.render(design, open_window=False)
@@ -557,7 +606,13 @@ def main(  # noqa: PLR0913
         print("Simulation skipped. Pass --simulate with a solver config to run the external CFD solver.")
         return None
 
-    print("Running frozen one-step simulation with the selected row conditions...")
+    runtime_config = problem.config
+    assert runtime_config is not None
+    print(
+        "Running frozen one-step simulation with the selected row conditions "
+        f"(q={runtime_config.qu_final:.8g}, alphaMax={runtime_config.alpha_max_final:.8g}, "
+        f"Heaviside={runtime_config.heaviside_final:.8g})..."
+    )
     result = problem.simulate_verbose(design, config=row_conditions)
     print(
         "Simulated objectives: "

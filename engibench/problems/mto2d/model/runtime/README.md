@@ -44,12 +44,16 @@ license is unresolved:
   /tmp/mto2d-case
 ```
 
-The helper applies the small frozen-evaluation patch in this directory and
-rebuilds `EXEC` inside the local parity image. The patched solver honors
-`updateDesign = false`, recording objectives without running sensitivity/MMA
-or writing the invalid `nan` field produced by the original zero-movement
-update. Recreate previously prepared cases so that their executable contains
-this fix.
+The helper applies the frozen-evaluation and named optimization-schedule
+patches in this directory and rebuilds `EXEC` inside the local parity image.
+The patched solver honors `updateDesign = false`, recording objectives without
+running sensitivity/MMA or writing the invalid `nan` field produced by the
+original zero-movement update. It also restores the exact source timing for
+`optimization_schedule="legacy"` while keeping the warm-ready interpolation
+path for `optimization_schedule="strict"`. A capability marker is written only
+after a successful rebuild; the Python runner refuses either optimization
+schedule without it. Recreate previously prepared cases so their executable
+and marker contain both fixes.
 
 Pass a different local runtime image as an optional third argument:
 
@@ -108,9 +112,14 @@ Desktop host with four emulated amd64 MPI ranks:
 - a one-iteration strict warm `optimize_verbose()` used `D0 = D1 = 63.1`,
   returned a finite `(400, 200)` design bounded by `[0, 1]`, and that returned
   design frozen-evaluated at `[9.55802, 40.7588]`;
-- a two-iteration cold smoke run traversed the expected physical continuation
-  endpoints and reconstructed a finite output design; and
-- after applying `frozen-evaluation.patch`, the completed reference-campaign
+- a two-iteration strict cold smoke run traversed the configured physical
+  continuation endpoints and reconstructed a finite output design;
+- the rebuilt v2 runtime completed a three-iteration legacy cold prefix with
+  recorded `(alphaMax, qu, Heaviside)` values
+  `(2500, .005, .1)`, `(3214.29, .005, .1)`, and
+  `(3571.43, .005, .4)`, confirming the source schedule's pre-projection
+  Heaviside timing; and
+- after applying the runtime patches, the completed reference-campaign
   design reproduced strict objectives `[9.40088, 70.0166]` and legacy-profile
   objectives `[9.33296, 62.0621]`. Both runs skipped sensitivity/MMA, wrote
   finite unchanged gamma fields, and passed the runner's frozen-field

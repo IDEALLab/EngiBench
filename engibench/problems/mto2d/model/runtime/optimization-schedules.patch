@@ -1,0 +1,108 @@
+diff --git a/src_TF/continuation.H b/src_TF/continuation.H
+--- a/src_TF/continuation.H
++++ b/src_TF/continuation.H
+@@ -12,6 +12,22 @@ Info<< "Reading Material Properties\n" << endl;
+             IOobject::NO_WRITE
+         )
+     );
++word optimizationSchedule
++(
++    continuationProperties.lookupOrDefault<word>
++    (
++        "optimizationSchedule",
++        "strict"
++    )
++);
++if (optimizationSchedule != "legacy" && optimizationSchedule != "strict")
++{
++    FatalErrorInFunction
++        << "optimizationSchedule must be legacy or strict; got "
++        << optimizationSchedule << exit(FatalError);
++}
++const bool legacyOptimizationSchedule(optimizationSchedule == "legacy");
++
+ const objectRegistry& db = mesh.thisDb();
+ label maxIter_=db.time().endTime().value();
+ label n_steps(readLabel(continuationProperties.lookup("n_steps")));
+diff --git a/src_TF/Heaviside_rho.H b/src_TF/Heaviside_rho.H
+--- a/src_TF/Heaviside_rho.H
++++ b/src_TF/Heaviside_rho.H
+@@ -20,11 +20,14 @@ for(i=0;i<nallcells;i++)
+    gamma_densityfilter[i]=add1/add2;
+ }
+ 
+-// if(opt>1)
+-// {
+-//   del=del+0.3;
+-// }
+-// del=Foam::min(del,100);
++if(legacyOptimizationSchedule)
++{
++  if(opt>1)
++  {
++    del=del+0.3;
++  }
++  del=Foam::min(del,100);
++}
+ 
+ eta0=0.0001;
+ eta1=1.0;
+diff --git a/src_TF/sensitivity.H b/src_TF/sensitivity.H
+--- a/src_TF/sensitivity.H
++++ b/src_TF/sensitivity.H
+@@ -37,28 +37,33 @@ VecRestoreArray(xmma,&xmma_array);
+ 
+ opt++;
+ iter++;
+-iter_++;
+-level=Foam::min(iter_/constrant_interval,n_steps-1);
+-qu = qu_overallList[level];
+-del = Heaviside_overallList[level];
+-alphaMax.value()=alphaMax_overallList[level];
+-
+-
+-// if(opt<=100)// {
+-//   alphaMax=alphamax*(opt/7.0+1.0);
+-// }
+-// if(opt>100)
+-// {
+-//   alphaMax=alphaMax*1.05;
+-// }
+-// alphaMax.value()=Foam::min(alphaMax.value(),10000000.0);
+-
+-// if(opt>=60)
+-// {
+-//   qu=0.005+(opt-60)*1e-4;
+-// }
+-// qu=Foam::min(qu,0.01);
+-// qu.correctBoundaryConditions();
++
++if(legacyOptimizationSchedule)
++{
++  if(opt<=100)
++  {
++    alphaMax.value()=2500.0*(opt/7.0+1.0);
++  }
++  if(opt>100)
++  {
++    alphaMax.value()=alphaMax.value()*1.05;
++  }
++  alphaMax.value()=Foam::min(alphaMax.value(),10000000.0);
++
++  if(opt>=60)
++  {
++    qu=0.005+(opt-60)*1e-4;
++  }
++  qu=Foam::min(qu,0.01);
++}
++else
++{
++  iter_++;
++  level=Foam::min(iter_/constrant_interval,n_steps-1);
++  qu = qu_overallList[level];
++  del = Heaviside_overallList[level];
++  alphaMax.value()=alphaMax_overallList[level];
++}
+ 
+ 
+ alpha=alphaMax*qu*(1-gamma)/(qu+gamma);

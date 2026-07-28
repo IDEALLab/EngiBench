@@ -175,9 +175,23 @@ and volume limits?”
 
 At each iteration, the solver computes the flow and temperature fields, uses
 adjoint sensitivities to estimate how changing every design cell affects the
-problem, and lets MMA choose a bounded design update. A cold run continues from
-soft initial physics toward the final parameters; a warm run can start at or
-near those final parameters.
+problem, and lets MMA choose a bounded design update.
+
+`optimization_schedule="legacy"` is the default cold schedule. It reproduces
+the source optimizer's iteration timing instead of approximating it with one
+interpolation curve: `qu` stays at `0.005`, begins increasing at iteration 61,
+and caps at `0.01`; `alphaMax` follows the original linear-then-geometric
+formula to `5.0252266e6`; and the Heaviside parameter advances from `0.1` to
+`59.8` immediately before the same projections as the source solver. The full
+published path is 200 iterations. A shorter run is an exact prefix for smoke
+testing, not a converged substitute.
+
+`optimization_schedule="strict"` uses the configurable
+`continuation_profile` and endpoint fields. Cold mode continues from soft
+initial physics toward `qu=0.019`, `alphaMax=5.0252e6`, and
+`Heaviside=59.8`; warm mode starts at those endpoints. The canonical
+`simulate()` call is always a strict frozen evaluation and does not depend on
+the optimization schedule.
 
 Cold mode also preserves the legacy power-bound continuation: by default the
 active bound starts at `90` and decreases by `0.2` per iteration until it
@@ -187,16 +201,12 @@ warns in that situation and returns both `active_power_bounds` and residuals
 against those bounds. Its `power_constraint_residuals` always use the requested
 final bound.
 
-That legacy-parity statement applies only to the active power bound. The
-`qu`, `alphaMax`, and Heaviside continuations are independently configurable,
-and the current cold defaults do not reproduce the dataset-generating legacy
-schedules.
-
 Warm mode defaults to the requested power bound from its first iteration.
 This is important because the legacy warm-start scripts reset their iteration
 counter and otherwise restart the loose bound near `90`. Set
 `power_bound_start=90` explicitly only when historical warm-start parity is
-required.
+required. Legacy is deliberately a cold-only selector; strict repair must pass
+both `mode="warm"` and `optimization_schedule="strict"`.
 
 ```python
 starting_design = problem.uniform_starting_design(problem.conditions.volume_fraction)
@@ -212,7 +222,11 @@ final_evaluation = problem.simulate_verbose(optimized_design)
 if final_evaluation.power_constraint_residual > 0:
     optimized_design, repair_history = problem.optimize(
         optimized_design,
-        config={"mode": "warm", "max_iter": 20},
+        config={
+            "mode": "warm",
+            "optimization_schedule": "strict",
+            "max_iter": 20,
+        },
     )
     final_evaluation = problem.simulate_verbose(optimized_design)
 ```
@@ -327,6 +341,7 @@ Pass solver settings in a JSON object:
   "backend": "local",
   "mpi_cores": 16,
   "mode": "cold",
+  "optimization_schedule": "legacy",
   "max_iter": 200,
   "timeout": 43200,
   "retain_on_failure": true
@@ -530,6 +545,42 @@ values for the reconstructed `(400, 200)` array. A successful `--simulate`
 result is a fresh evaluation of the reconstruction and is expected to differ
 from the stored legacy objectives.
 
+There are two additional fidelity differences. The source optimizer logged
+each objective before its MMA/Heaviside update, but wrote `app/200/gamma`
+after that update. The published label and published final topology therefore
+did not describe exactly the same field even before resizing. In addition,
+the source cold optimizer capped `qu` at `0.01`, while canonical
+`simulate()` uses the stricter final value `0.019`. The larger value increases
+the flow resistance assigned to intermediate-density cells and can raise the
+simulated power substantially.
+
+For example, converted source case `9130` has stored power `57.4882`.
+Evaluating its reconstructed design at `qu=0.01` gives `58.5875`, while the
+canonical `qu=0.019` evaluation gives `67.636`. Thus the physics change
+accounts for about 89% of that strict-versus-stored gap. The remaining
+difference cannot be removed from the published data because neither the
+native pre-update field nor the native final field is available for this
+case.
+
+For a diagnostic comparison with the old material interpolation, override
+the final evaluation parameters explicitly:
+
+```python
+legacy_like = problem.simulate_verbose(
+    design,
+    config={
+        "qu_final": 0.01,
+        "alpha_max_final": 5_025_200.0,
+        "heaviside_final": 59.8,
+    },
+)
+```
+
+This is not the canonical v0 simulation and cannot recreate a legacy label
+exactly. To obtain a design feasible under strict v0 physics, run a strict
+warm optimization, freeze-simulate the returned field, and store those new
+objectives rather than reusing the legacy labels.
+
 ## Current limitations and release blockers
 
 - No reproducible OCI solver image is published, and `container_id` is
@@ -544,6 +595,13 @@ from the stored legacy objectives.
   redistributed.
 - A fresh Linux environment must reproduce the reference case before this
   problem is considered release-ready.
+
+The package remains on its feature branch until those artifacts exist.
+Registration must not be made green with MTO2D-specific shared-test skips.
+Once the exact dataset is published, a legally redistributable OCI image is
+available by immutable digest, and a canonical strict reference is recorded,
+set `container_id` and let the ordinary EngiBench built-in tests exercise the
+problem.
 
 ## References
 

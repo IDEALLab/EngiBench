@@ -30,10 +30,28 @@ if TYPE_CHECKING:
 
 RunKind = Literal["simulate", "optimize"]
 OptimizationMode = Literal["cold", "warm"]
+OptimizationSchedule = Literal["legacy", "strict"]
 Backend = Literal["local", "container", "command"]
+CONTINUATION_PROFILES = frozenset({"constant", "linear", "geometric"})
+"""Profiles implemented by the retained warm-ready solver."""
 
 POWER_BOUND_DECREMENT_PER_ITERATION = 0.2
 """Hard-coded legacy decrease from ``D0`` toward ``D1`` each iteration."""
+
+LEGACY_OPTIMIZATION_ITERATIONS = 200
+"""Iteration count used by the published cold-start optimization."""
+
+LEGACY_QU_START = 0.005
+LEGACY_QU_FINAL = 0.01
+LEGACY_ALPHA_MAX_START = 2500.0
+LEGACY_ALPHA_MAX_FINAL = 5_025_226.639126618
+LEGACY_HEAVISIDE_START = 0.1
+LEGACY_HEAVISIDE_FINAL = 59.8
+"""Exact endpoints produced by the legacy 200-step source schedule."""
+
+SCHEDULE_RUNTIME_VERSION = "2"
+SCHEDULE_RUNTIME_MARKER = ".engibench-mto2d-runtime-version"
+"""Prepared-runtime capability marker required for optimization schedules."""
 
 FROZEN_GAMMA_ABSOLUTE_TOLERANCE = 1e-7
 """Absolute tolerance used to verify that frozen evaluation preserves gamma."""
@@ -72,6 +90,7 @@ class RunnerSettings:
     volume_fraction: float
     max_iter: int = 200
     mode: OptimizationMode = "cold"
+    optimization_schedule: OptimizationSchedule = "legacy"
     mpi_cores: int = 1
     backend: Backend = "local"
     container_image: str | None = None
@@ -110,11 +129,21 @@ class SolverRun:
 class ContinuationSettings:
     """Continuation dictionary values for an optimization or simulation."""
 
+    optimization_schedule: OptimizationSchedule
     steps: int
     profile: str
     qu: tuple[float, float]
     alpha_max: tuple[float, float]
     heaviside: tuple[float, float]
+
+
+@dataclass(frozen=True)
+class PreparedContinuation:
+    """Resolved solver controls for one run."""
+
+    iteration_count: int
+    movement_limit: float
+    continuation: ContinuationSettings
 
 
 class SolverRunError(RuntimeError):
@@ -148,6 +177,8 @@ class MTO2DRunner:
         """Execute a frozen simulation or an MMA optimization."""
         self._validate_settings(settings, kind)
         case_template = self._resolve_case_template(settings.case_template)
+        if kind == "optimize":
+            self._validate_schedule_runtime(case_template, settings.optimization_schedule)
         run_root = Path(
             tempfile.mkdtemp(
                 prefix="engibench-mto2d-",
@@ -205,6 +236,11 @@ class MTO2DRunner:
             raise ValueError("mpi_cores must be at least 1")
         if settings.mode not in {"cold", "warm"}:
             raise ValueError("mode must be 'cold' or 'warm'")
+        if settings.optimization_schedule not in {"legacy", "strict"}:
+            raise ValueError("optimization_schedule must be 'legacy' or 'strict'")
+        if settings.continuation_profile not in CONTINUATION_PROFILES:
+            allowed = ", ".join(sorted(CONTINUATION_PROFILES))
+            raise ValueError(f"continuation_profile must be one of: {allowed}")
         if settings.timeout is not None and settings.timeout <= 0:
             raise ValueError("timeout must be positive")
         if settings.power_bound_start is not None and settings.power_bound_start <= 0:
@@ -226,6 +262,22 @@ class MTO2DRunner:
 
     @staticmethod
     def _validate_optimization_settings(settings: RunnerSettings) -> None:
+        if settings.optimization_schedule == "legacy":
+            if settings.mode != "cold":
+                raise ValueError(
+                    "optimization_schedule='legacy' is the cold source-reproduction schedule; "
+                    "warm repair must pass optimization_schedule='strict'"
+                )
+            if settings.max_iter > LEGACY_OPTIMIZATION_ITERATIONS:
+                raise ValueError(
+                    "optimization_schedule='legacy' supports the published 200-step run "
+                    "or a shorter exact prefix"
+                )
+            if settings.continuation_steps is not None:
+                raise ValueError(
+                    "continuation_steps is not configurable when optimization_schedule='legacy'"
+                )
+            return
         n_steps = settings.continuation_steps or settings.max_iter
         if not 1 <= n_steps <= settings.max_iter:
             raise ValueError("continuation_steps must be between 1 and max_iter")
@@ -247,8 +299,36 @@ class MTO2DRunner:
         return path
 
     @staticmethod
+    def _validate_schedule_runtime(case_template: Path, schedule: OptimizationSchedule) -> None:
+        """Require a rebuilt executable that understands named schedules."""
+        marker = case_template / SCHEDULE_RUNTIME_MARKER
+        try:
+            version = marker.read_text(encoding="ascii").strip()
+        except OSError as error:
+            raise FileNotFoundError(
+                f"optimization_schedule={schedule!r} requires a case rebuilt with the "
+                "EngiBench schedule patch. Recreate it with "
+                "engibench/problems/mto2d/model/runtime/prepare_case.sh; "
+                f"missing capability marker: {marker}"
+            ) from error
+        if version != SCHEDULE_RUNTIME_VERSION:
+            raise ValueError(
+                "Unsupported MTO2D prepared-runtime version for "
+                f"optimization_schedule={schedule!r}: expected {SCHEDULE_RUNTIME_VERSION!r}, "
+                f"got {version!r} in {marker}"
+            )
+
+    @staticmethod
     def _validate_case_template(case_template: Path) -> None:
         """Require the mesh, area switches, and gamma tail assumed by the API mapping."""
+        continuation_source = case_template / "src_TF" / "continuation.H"
+        if not continuation_source.is_file():
+            raise FileNotFoundError(
+                "MTO2D requires the continuation-aware warm-ready solver source; "
+                f"missing {continuation_source}. The older solver silently ignores "
+                "continuationProperties and cannot run the strict schedule."
+            )
+
         app = case_template / "app"
         gamma_path = MTO2DRunner._gamma_template(app)
         gamma = parse_internal_field(gamma_path.read_text(encoding="ascii"), expected_count=GAMMA_CELL_COUNT)
@@ -329,49 +409,72 @@ class MTO2DRunner:
         self._replace_dictionary_value(transport, "D0", power_bound_start)
         self._replace_dictionary_value(transport, "D1", settings.max_power_dissipation)
 
-        if kind == "simulate":
-            iteration_count = 1
-            movement_limit = 0.0
-            qu_start = qu_final = settings.qu_final
-            alpha_start = alpha_final = settings.alpha_max_final
-            heaviside_start = heaviside_final = settings.heaviside_final
-            continuation_steps = 1
-        else:
-            iteration_count = settings.max_iter
-            movement_limit = settings.movement_limit
-            qu_final = settings.qu_final
-            alpha_final = settings.alpha_max_final
-            heaviside_final = settings.heaviside_final
-            if settings.mode == "warm":
-                qu_start = settings.qu_start if settings.qu_start is not None else qu_final
-                alpha_start = settings.alpha_max_start if settings.alpha_max_start is not None else alpha_final
-                heaviside_start = settings.heaviside_start if settings.heaviside_start is not None else heaviside_final
-            else:
-                qu_start = settings.qu_start if settings.qu_start is not None else 0.005
-                alpha_start = settings.alpha_max_start if settings.alpha_max_start is not None else 2500.0
-                heaviside_start = settings.heaviside_start if settings.heaviside_start is not None else 1.0
-            continuation_steps = settings.continuation_steps or settings.max_iter
+        prepared = self._resolve_continuation(settings, kind)
+        continuation = prepared.continuation
 
-        self._replace_dictionary_value(transport, "movlim", movement_limit)
+        self._replace_dictionary_value(transport, "movlim", prepared.movement_limit)
         self._upsert_plain_dictionary_value(transport, "updateDesign", kind == "optimize")
-        self._replace_dictionary_value(transport, "qu", qu_start)
-        self._replace_dictionary_value(transport, "alphaMax", alpha_start)
-        self._replace_dictionary_value(transport, "alphamax", alpha_start)
-        self._replace_dictionary_value(control, "endTime", iteration_count)
-        self._replace_dictionary_value(control, "writeInterval", iteration_count)
+        self._replace_dictionary_value(transport, "qu", continuation.qu[0])
+        self._replace_dictionary_value(transport, "alphaMax", continuation.alpha_max[0])
+        self._replace_dictionary_value(transport, "alphamax", continuation.alpha_max[0])
+        self._replace_dictionary_value(control, "endTime", prepared.iteration_count)
+        self._replace_dictionary_value(control, "writeInterval", prepared.iteration_count)
         self._replace_dictionary_value(control, "writePrecision", 12)
         self._write_continuation(
             app / "constant" / "continuationProperties",
-            ContinuationSettings(
-                steps=continuation_steps,
-                profile=settings.continuation_profile,
-                qu=(qu_start, qu_final),
-                alpha_max=(alpha_start, alpha_final),
-                heaviside=(heaviside_start, heaviside_final),
-            ),
+            continuation,
         )
         self._write_inlet_velocity(zero_dir / "U", settings.inlet_velocity)
         self._write_decomposition(decompose, settings.mpi_cores)
+
+    @staticmethod
+    def _resolve_continuation(settings: RunnerSettings, kind: RunKind) -> PreparedContinuation:
+        """Resolve named schedules without approximating the legacy source timing."""
+        if kind == "simulate":
+            continuation = ContinuationSettings(
+                optimization_schedule="strict",
+                steps=1,
+                profile=settings.continuation_profile,
+                qu=(settings.qu_final, settings.qu_final),
+                alpha_max=(settings.alpha_max_final, settings.alpha_max_final),
+                heaviside=(settings.heaviside_final, settings.heaviside_final),
+            )
+            return PreparedContinuation(1, 0.0, continuation)
+        if settings.optimization_schedule == "legacy":
+            continuation = ContinuationSettings(
+                optimization_schedule="legacy",
+                steps=settings.max_iter,
+                # The named C++ branch owns every post-update value. Keeping
+                # the generic lists constant guarantees the source initial
+                # values even when max_iter == 1 (the retained one-element
+                # geometric helper otherwise selects its ``to`` endpoint).
+                profile="constant",
+                qu=(LEGACY_QU_START, LEGACY_QU_FINAL),
+                alpha_max=(LEGACY_ALPHA_MAX_START, LEGACY_ALPHA_MAX_FINAL),
+                heaviside=(LEGACY_HEAVISIDE_START, LEGACY_HEAVISIDE_FINAL),
+            )
+            return PreparedContinuation(settings.max_iter, settings.movement_limit, continuation)
+
+        qu_final = settings.qu_final
+        alpha_final = settings.alpha_max_final
+        heaviside_final = settings.heaviside_final
+        if settings.mode == "warm":
+            qu_start = settings.qu_start if settings.qu_start is not None else qu_final
+            alpha_start = settings.alpha_max_start if settings.alpha_max_start is not None else alpha_final
+            heaviside_start = settings.heaviside_start if settings.heaviside_start is not None else heaviside_final
+        else:
+            qu_start = settings.qu_start if settings.qu_start is not None else 0.005
+            alpha_start = settings.alpha_max_start if settings.alpha_max_start is not None else 2500.0
+            heaviside_start = settings.heaviside_start if settings.heaviside_start is not None else 1.0
+        continuation = ContinuationSettings(
+            optimization_schedule="strict",
+            steps=settings.continuation_steps or settings.max_iter,
+            profile=settings.continuation_profile,
+            qu=(qu_start, qu_final),
+            alpha_max=(alpha_start, alpha_final),
+            heaviside=(heaviside_start, heaviside_final),
+        )
+        return PreparedContinuation(settings.max_iter, settings.movement_limit, continuation)
 
     @staticmethod
     def _clear_stale_case_outputs(app: Path) -> None:
@@ -500,8 +603,9 @@ class MTO2DRunner:
         path: Path,
         settings: ContinuationSettings,
     ) -> None:
-        if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]*", settings.profile):
-            raise ValueError("continuation_profile must be an OpenFOAM word")
+        if settings.profile not in CONTINUATION_PROFILES:
+            allowed = ", ".join(sorted(CONTINUATION_PROFILES))
+            raise ValueError(f"continuation_profile must be one of: {allowed}")
         text = f"""FoamFile
 {{
     version     2.0;
@@ -512,6 +616,7 @@ class MTO2DRunner:
 }}
 
 n_steps         {settings.steps};
+optimizationSchedule {settings.optimization_schedule};
 
 qu
 {{
