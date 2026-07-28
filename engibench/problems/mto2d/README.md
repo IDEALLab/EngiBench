@@ -22,6 +22,8 @@ The public implementation is intentionally small:
 - `model/runner.py` prepares and runs an isolated solver case.
 - `model/dataset.py`, `model/generate_dataset.py`, and
   `model/reformat_hf_dataset.py` contain the heavier dataset workflows.
+- `model/retrieve_native_gammas.py` retrieves and validates authorized
+  solver-native source fields without modifying the remote case tree.
 
 ## Design space
 
@@ -397,6 +399,67 @@ For the full 10,000-case grid this produces 8,000 training, 1,500 validation,
 and 500 test rows. The script saves a local Hugging Face `DatasetDict`; it does
 not upload data.
 
+## Retrieve exact native source fields
+
+The public `IDEALLab/MTO-2D` repository contains lossy `256 x 256` arrays, not
+the original OpenFOAM fields. An authorized Zaratan user can retrieve the
+exact final fields selected by the pinned `index_5666.npy` with a resumable,
+manifest-driven workflow. The source is read-only: the command requests only
+`2Dheatsink_<id>/app/200/gamma` and never uses rsync deletion or source-removal
+options.
+
+First prepare the 5,666-file manifest:
+
+```bash
+python -m engibench.problems.mto2d.model.retrieve_native_gammas prepare \
+  --ids-npy /path/to/index_5666.npy \
+  --output-dir /path/to/source-gammas
+```
+
+Then run the transfer in an interactive terminal so SSH password/MFA prompts
+stay outside source files and command output. On macOS, `caffeinate` prevents
+sleep during the transfer:
+
+```bash
+caffeinate -i python \
+  -m engibench.problems.mto2d.model.retrieve_native_gammas fetch \
+  --output-dir /path/to/source-gammas \
+  --bwlimit-kib 1024
+```
+
+The command pins `login-1`, disables SSH multiplexing, uses compression and
+keepalives, preserves partial files, and reads paths from `gamma-files.txt`.
+Rerun the same command after a disconnect; rsync skips completed files and
+reuses partial destinations.
+
+After transfer, parse and hash every field:
+
+```bash
+python -m engibench.problems.mto2d.model.retrieve_native_gammas validate \
+  --output-dir /path/to/source-gammas
+```
+
+Validation requires exactly 86,400 finite values in `[0, 1]` and verifies that
+the final 6,400 fixed cells are all fluid. It writes:
+
+- `gamma-validation.jsonl`, with byte size and SHA-256 per source row;
+- `gamma-validation-summary.json`, with valid/missing/invalid counts; and
+- `gamma-retry-files.txt`, containing only missing or invalid paths.
+
+Retry that smaller list with remote checksums when necessary:
+
+```bash
+caffeinate -i python \
+  -m engibench.problems.mto2d.model.retrieve_native_gammas fetch \
+  --output-dir /path/to/source-gammas \
+  --retry-only --checksum --bwlimit-kib 1024
+```
+
+Do not publish these higher-resolution fields until their redistribution
+status is confirmed. Retrieval also does not repair the historical label
+timing mismatch: source objectives were recorded before the final MMA update,
+while `app/200/gamma` was written afterward.
+
 ## Reformat the published MTO-2D data
 
 The existing source contains 5,666 rows in five raw NumPy files. The formatter
@@ -557,10 +620,12 @@ simulated power substantially.
 For example, converted source case `9130` has stored power `57.4882`.
 Evaluating its reconstructed design at `qu=0.01` gives `58.5875`, while the
 canonical `qu=0.019` evaluation gives `67.636`. Thus the physics change
-accounts for about 89% of that strict-versus-stored gap. The remaining
-difference cannot be removed from the published data because neither the
-native pre-update field nor the native final field is available for this
-case.
+accounts for about 89% of that strict-versus-stored gap. The published Hugging
+Face data cannot remove the remainder because it contains neither native
+field. When the exact post-update `app/200/gamma` is retrieved separately, its
+legacy frozen evaluation is `57.0208`; it still does not equal the pre-update
+`57.4882` source label. The pre-update field was not written and therefore
+cannot be recovered by retrieving the final gamma.
 
 For a diagnostic comparison with the old material interpolation, override
 the final evaluation parameters explicitly:
