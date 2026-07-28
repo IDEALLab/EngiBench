@@ -1,0 +1,28 @@
+{
+  "name": "2Dheatsink_0",
+  "kind": "recorded_optimization_output",
+  "native_design_shape": [
+    400,
+    200
+  ],
+  "openfoam_gamma_cells": 86400,
+  "conditions": {
+    "inlet_velocity": -0.074,
+    "max_power_dissipation": 63.1,
+    "volume_fraction": 0.61
+  },
+  "objectives": {
+    "mean_temperature": 9.45825,
+    "power_dissipation": 62.2588
+  },
+  "diagnostics": {
+    "volume_constraint_residual": -0.000671484,
+    "elapsed_time_seconds": 13713,
+    "power_normalization": 1.57572e-7
+  },
+  "notes": [
+    "The scalar values are the final lines of the retained 200-step optimization histories.",
+    "The final gamma is written after the MMA update, whereas each history row evaluates the pre-update design.",
+    "Run one frozen simulate() call to obtain exact objectives for the returned final gamma."
+  ]
+}
