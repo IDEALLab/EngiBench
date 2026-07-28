@@ -194,6 +194,13 @@ state. Set `retain_artifacts=True` to keep a successful run. By default,
 cannot enforce the API timeout; use the `command` backend when a hard timeout
 is required.
 
+The source-tree demonstration accepts a solver JSON with `--solver-config`.
+For `v0.py --simulate` only, it also checks
+`ENGIBENCH_MTO2D_SOLVER_CONFIG` and then the migration workspace's private
+`../.artifacts/mto2d-docker.json`. This convenience does not change the
+defaults of the programmatic `MTO2D()` API, and render-only CLI calls do not
+load machine-specific runtime configuration.
+
 ### Local Docker parity image
 
 EngiBench's HeatConduction2D, HeatConduction3D, and Airfoil problems use

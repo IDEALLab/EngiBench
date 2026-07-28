@@ -159,6 +159,8 @@ def test_cli_reads_json_solver_config_and_keeps_simulation_opt_in(
 ) -> None:
     config_path = tmp_path / "solver.json"
     config_path.write_text('{"backend": "command", "driver_command": ["driver"], "mpi_cores": 4}', encoding="utf-8")
+    monkeypatch.setenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, str(tmp_path / "missing-environment.json"))
+    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", tmp_path / "missing-local.json")
     captured: dict[str, Any] = {}
 
     def fake_main(**kwargs: Any) -> None:
@@ -190,6 +192,86 @@ def test_cli_reads_json_solver_config_and_keeps_simulation_opt_in(
         "driver_command": ["driver"],
         "mpi_cores": 4,
     }
+
+
+def test_cli_auto_discovers_local_solver_config_only_for_simulation(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_checkout = tmp_path / "EngiBench"
+    (source_checkout / ".git").mkdir(parents=True)
+    local_config = tmp_path / "mto2d-docker.json"
+    local_config.write_text(
+        '{"backend": "container", "container_image": "auto-image", "case_template": "/auto/case", "mpi_cores": 4}',
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(mto2d_module, "SOURCE_CHECKOUT_PATH", source_checkout)
+    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", local_config)
+    monkeypatch.setenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, "")
+    monkeypatch.setenv("ENGIBENCH_MTO2D_CASE_TEMPLATE", "/environment/case")
+    monkeypatch.setenv("ENGIBENCH_MTO2D_IMAGE", "environment-image")
+    captured: dict[str, Any] = {}
+
+    def fake_main(**kwargs: Any) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(mto2d_module, "main", fake_main)
+    mto2d_module._cli(["--simulate", "--no-show"])  # noqa: SLF001
+
+    assert captured["solver_config"] == {
+        "backend": "container",
+        "container_image": "environment-image",
+        "case_template": "/environment/case",
+        "mpi_cores": 4,
+    }
+
+    captured.clear()
+    mto2d_module._cli(["--no-show"])  # noqa: SLF001
+    assert captured["solver_config"] == {}
+
+
+def test_cli_environment_solver_config_wins_over_local_discovery(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    environment_config = tmp_path / "environment.json"
+    environment_config.write_text(
+        '{"backend": "container", "container_image": "configured-image", '
+        '"case_template": "/configured/case", "mpi_cores": 2}',
+        encoding="utf-8",
+    )
+    malformed_local = tmp_path / "local.json"
+    malformed_local.write_text("not JSON", encoding="utf-8")
+    monkeypatch.setenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, str(environment_config))
+    monkeypatch.setenv("ENGIBENCH_MTO2D_IMAGE", "lower-priority-image")
+    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", malformed_local)
+    captured: dict[str, Any] = {}
+
+    def fake_main(**kwargs: Any) -> None:
+        captured.update(kwargs)
+
+    monkeypatch.setattr(mto2d_module, "main", fake_main)
+    mto2d_module._cli(["--simulate", "--no-show"])  # noqa: SLF001
+
+    assert captured["solver_config"] == {
+        "backend": "container",
+        "container_image": "configured-image",
+        "case_template": "/configured/case",
+        "mpi_cores": 2,
+    }
+
+
+def test_solver_config_auto_discovery_is_silent_when_local_artifact_is_missing(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source_checkout = tmp_path / "EngiBench"
+    (source_checkout / ".git").mkdir(parents=True)
+    monkeypatch.setattr(mto2d_module, "SOURCE_CHECKOUT_PATH", source_checkout)
+    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", tmp_path / "missing.json")
+    monkeypatch.delenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, raising=False)
+
+    assert mto2d_module._read_solver_config(None, auto_discover=True) == {}  # noqa: SLF001
 
 
 def test_v0_file_runs_directly_with_local_dataset(saved_flat_dataset: Path, tmp_path: Path) -> None:

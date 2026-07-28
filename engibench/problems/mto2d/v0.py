@@ -44,8 +44,17 @@ J1 = 1.58e-7
 MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 """Smallest feasible all-cell volume fraction when the design domain is solid."""
 
-REPOSITORY_DATASET_PATH = Path(__file__).resolve().parents[3] / "dataset_output" / "mto_2d_v0"
+SOURCE_CHECKOUT_PATH = Path(__file__).resolve().parents[3]
+"""EngiBench source checkout containing this module."""
+
+REPOSITORY_DATASET_PATH = SOURCE_CHECKOUT_PATH / "dataset_output" / "mto_2d_v0"
 """Preferred local converted dataset for the source-tree demonstration."""
+
+LOCAL_RUNTIME_CONFIG_PATH = SOURCE_CHECKOUT_PATH.parent / ".artifacts" / "mto2d-docker.json"
+"""Optional private Docker runtime config produced beside this source checkout."""
+
+SOLVER_CONFIG_ENV_VAR = "ENGIBENCH_MTO2D_SOLVER_CONFIG"
+"""Environment variable selecting a solver configuration JSON file."""
 
 
 @dataclass
@@ -403,15 +412,45 @@ def _load_demo_dataset(
     return load_dataset(resolved_source), resolved_source
 
 
-def _read_solver_config(path: str | Path | None) -> dict[str, Any]:
-    """Read an optional JSON object containing solver-only configuration."""
-    if path is None:
-        return {}
+def _load_solver_config_file(path: str | Path) -> dict[str, Any]:
+    """Read one JSON object containing solver-only configuration."""
     config_path = Path(path).expanduser().resolve()
     with config_path.open(encoding="utf-8") as stream:
         config = json.load(stream)
     if not isinstance(config, dict):
         raise TypeError(f"solver config must contain a JSON object: {config_path}")
+    return config
+
+
+def _read_solver_config(
+    path: str | Path | None,
+    *,
+    auto_discover: bool = False,
+) -> dict[str, Any]:
+    """Resolve CLI solver configuration without changing :class:`MTO2D` defaults.
+
+    An explicit path wins. For opt-in CLI simulation, a path selected through
+    ``ENGIBENCH_MTO2D_SOLVER_CONFIG`` is next, followed by the private runtime
+    config beside a Git source checkout. Individual case/image environment
+    variables may override only that automatically discovered local config.
+    """
+    if path is not None:
+        return _load_solver_config_file(path)
+    if not auto_discover:
+        return {}
+
+    environment_path = os.environ.get(SOLVER_CONFIG_ENV_VAR)
+    if environment_path:
+        return _load_solver_config_file(environment_path)
+
+    if not (SOURCE_CHECKOUT_PATH / ".git").exists() or not LOCAL_RUNTIME_CONFIG_PATH.is_file():
+        return {}
+
+    config = _load_solver_config_file(LOCAL_RUNTIME_CONFIG_PATH)
+    if case_template := os.environ.get("ENGIBENCH_MTO2D_CASE_TEMPLATE"):
+        config["case_template"] = case_template
+    if container_image := os.environ.get("ENGIBENCH_MTO2D_IMAGE"):
+        config["container_image"] = container_image
     return config
 
 
@@ -521,7 +560,10 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--solver-config",
         type=Path,
-        help="JSON object with case_template, backend, MPI, timeout, and related solver settings",
+        help=(
+            "JSON object with case_template, backend, MPI, timeout, and related solver settings; "
+            f"with --simulate, defaults to ${SOLVER_CONFIG_ENV_VAR} or the prepared local runtime"
+        ),
     )
     return parser
 
@@ -533,7 +575,7 @@ def _cli(argv: list[str] | None = None) -> MTO2DSimulationResult | None:
         split=args.split,
         index=args.index,
         seed=args.seed,
-        solver_config=_read_solver_config(args.solver_config),
+        solver_config=_read_solver_config(args.solver_config, auto_discover=args.simulate),
         run_simulation=args.simulate,
         render_output=args.render_output,
         open_window=args.show,

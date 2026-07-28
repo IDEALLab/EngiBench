@@ -67,6 +67,19 @@ To evaluate through EngiBench, use:
 }
 ```
 
+Pass that file with `--solver-config`, or set
+`ENGIBENCH_MTO2D_SOLVER_CONFIG` to its path. In the migration source
+workspace, the direct demonstration also auto-loads
+`../.artifacts/mto2d-docker.json` when `--simulate` is present:
+
+```bash
+python ./engibench/problems/mto2d/v0.py --simulate
+```
+
+An explicit `--solver-config` takes precedence over the environment-selected
+file, which takes precedence over the auto-detected local file. Render-only
+invocations never auto-load a solver configuration.
+
 Set `DOCKER_DEFAULT_PLATFORM=linux/amd64` when invoking EngiBench on an ARM
 host.
 
