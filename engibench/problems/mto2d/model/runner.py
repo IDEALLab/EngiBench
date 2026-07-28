@@ -270,13 +270,10 @@ class MTO2DRunner:
                 )
             if settings.max_iter > LEGACY_OPTIMIZATION_ITERATIONS:
                 raise ValueError(
-                    "optimization_schedule='legacy' supports the published 200-step run "
-                    "or a shorter exact prefix"
+                    "optimization_schedule='legacy' supports the published 200-step run or a shorter exact prefix"
                 )
             if settings.continuation_steps is not None:
-                raise ValueError(
-                    "continuation_steps is not configurable when optimization_schedule='legacy'"
-                )
+                raise ValueError("continuation_steps is not configurable when optimization_schedule='legacy'")
             return
         n_steps = settings.continuation_steps or settings.max_iter
         if not 1 <= n_steps <= settings.max_iter:

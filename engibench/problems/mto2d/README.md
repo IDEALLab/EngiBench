@@ -460,6 +460,25 @@ status is confirmed. Retrieval also does not repair the historical label
 timing mismatch: source objectives were recorded before the final MMA update,
 while `app/200/gamma` was written afterward.
 
+After validation succeeds, build a local exact-design dataset with the four
+small metadata arrays from the pinned Hugging Face snapshot:
+
+```bash
+python -m engibench.problems.mto2d.model.reformat_native_gamma_dataset \
+  --gamma-dir /path/to/source-gammas \
+  --raw-dir /path/to/pinned/MTO-2D/snapshot \
+  --output-dir dataset_output/mto_2d_exact_source_v0 \
+  --cache-dir dataset_output/mto_2d_exact_source_v0_cache
+```
+
+The converter rechecks every field checksum, converts OpenFOAM storage order
+to the native `(400, 200)` orientation, and preserves the paper-compatible
+4,249/283/1,134 split. Rows set `design_is_exact=true` and
+`objectives_evaluated_on_design=false`. Their volume residual is computed from
+the exact 86,400-cell field; their temperature, power, and power residuals
+remain historical pre-update labels. The generated card and manifest
+explicitly block publication until redistribution rights are confirmed.
+
 ## Reformat the published MTO-2D data
 
 The existing source contains 5,666 rows in five raw NumPy files. The formatter

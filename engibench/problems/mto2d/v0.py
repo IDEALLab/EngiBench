@@ -1,6 +1,7 @@
 """Two-dimensional multiphysics topology optimization problem."""
 
 import argparse
+from collections.abc import Mapping
 import dataclasses
 from dataclasses import dataclass
 import json
@@ -196,12 +197,12 @@ class MTO2D(Problem[npt.NDArray]):
                     "Config.optimization_schedule='legacy' is only valid for cold source reproduction; "
                     "warm repair must pass Config.optimization_schedule='strict'"
                 )
-                assert (
-                    max_iter <= LEGACY_OPTIMIZATION_ITERATIONS
-                ), "Config.optimization_schedule='legacy' supports 200 steps or a shorter exact prefix"
-                assert (
-                    continuation_steps is None
-                ), "Config.continuation_steps is not configurable with Config.optimization_schedule='legacy'"
+                assert max_iter <= LEGACY_OPTIMIZATION_ITERATIONS, (
+                    "Config.optimization_schedule='legacy' supports 200 steps or a shorter exact prefix"
+                )
+                assert continuation_steps is None, (
+                    "Config.continuation_steps is not configurable with Config.optimization_schedule='legacy'"
+                )
 
         @constraint(categories=IMPL)
         @staticmethod
@@ -311,10 +312,7 @@ class MTO2D(Problem[npt.NDArray]):
         density = self._coerce_design(starting_point)
         resolved = self._resolve_config(config)
         active_power_bounds = self._active_power_bounds(resolved)
-        if (
-            resolved.optimization_schedule == "legacy"
-            and resolved.max_iter < LEGACY_OPTIMIZATION_ITERATIONS
-        ):
+        if resolved.optimization_schedule == "legacy" and resolved.max_iter < LEGACY_OPTIMIZATION_ITERATIONS:
             warnings.warn(
                 f"A {resolved.max_iter}-step legacy optimization is an exact prefix of the "
                 "published 200-step schedule, not a converged source reproduction.",
@@ -537,6 +535,22 @@ def _read_solver_config(
     return config
 
 
+def _print_dataset_row_warning(row: Mapping[str, Any]) -> None:
+    if row.get("design_is_exact") is False:
+        print(
+            "WARNING: this design was reconstructed lossily; its stored objectives "
+            "belong to the source solver's pre-update field under legacy physics "
+            "and may not match a new simulation. Canonical simulation uses the "
+            "stricter final q=0.019 physics."
+        )
+    elif row.get("objectives_evaluated_on_design") is False:
+        print(
+            "WARNING: the stored objectives were not evaluated on this stored design "
+            "and may not match a fresh simulation. See the design provenance and "
+            "dataset card for the source-specific reason."
+        )
+
+
 def main(  # noqa: PLR0913
     problem_type: type[MTO2D] = MTO2D,
     *,
@@ -584,13 +598,7 @@ def main(  # noqa: PLR0913
     provenance = row.get("design_provenance")
     if provenance:
         print(f"Design provenance: {provenance}")
-    if row.get("design_is_exact") is False or row.get("objectives_evaluated_on_design") is False:
-        print(
-            "WARNING: this design was reconstructed lossily; its stored objectives "
-            "belong to the source solver's pre-update field under legacy physics "
-            "and may not match a new simulation. Canonical simulation uses the "
-            "stricter final q=0.019 physics."
-        )
+    _print_dataset_row_warning(row)
 
     figure, _axes = problem.render(design, open_window=False)
     if render_output is not None:

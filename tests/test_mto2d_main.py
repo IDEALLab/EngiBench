@@ -138,6 +138,17 @@ def test_main_does_not_call_solver_without_explicit_flag(capsys: pytest.CaptureF
     assert "Simulation skipped. Pass --simulate" in capsys.readouterr().out
 
 
+def test_main_distinguishes_exact_design_with_legacy_labels(capsys: pytest.CaptureFixture[str]) -> None:
+    row = _row(np.full(HALF_DESIGN_SHAPE, 0.25, dtype=np.float32))
+    row["objectives_evaluated_on_design"] = False
+
+    mto2d_module.main(dataset={"train": [row]})
+
+    output = capsys.readouterr().out
+    assert "stored objectives were not evaluated on this stored design" in output
+    assert "reconstructed lossily" not in output
+
+
 def test_main_auto_uses_repository_dataset(
     saved_flat_dataset: Path,
     monkeypatch: pytest.MonkeyPatch,
