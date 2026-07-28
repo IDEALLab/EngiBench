@@ -92,13 +92,17 @@ Desktop host with four emulated amd64 MPI ranks:
   `[22.2645, 67.6276]`;
 - `simulate_verbose()` completed for the exact retained `app/200/gamma` with
   objectives `[9.47532, 70.805]`; and
-- a one-iteration warm `optimize_verbose()` returned a finite `(400, 200)`
-  design bounded by `[0, 1]`.
+- a one-iteration strict warm `optimize_verbose()` used `D0 = D1 = 63.1`,
+  returned a finite `(400, 200)` design bounded by `[0, 1]`, and that returned
+  design frozen-evaluated at `[9.55802, 40.7588]`;
+- a two-iteration cold smoke run traversed the expected physical continuation
+  endpoints and reconstructed a finite output design.
 
 These are runtime-validation values, not a new canonical numerical reference.
-In particular, the retained scalar history `[9.45825, 62.2588]` describes the
-pre-update design in the final legacy iteration, whereas `app/200/gamma` is
-the subsequent MMA update.
+The two-step cold run is intentionally too abrupt to assess optimization
+quality; meaningful cold validation requires the full, smoother continuation.
+The retained scalar history `[9.45825, 62.2588]` also uses the legacy cold
+physics, while strict evaluation uses the final RAMP parameters.
 
 ## Publishable successor
 

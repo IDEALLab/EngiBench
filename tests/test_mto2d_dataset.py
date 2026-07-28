@@ -441,4 +441,5 @@ def test_conversion_manifest_drives_existing_publish_validation_and_card(tmp_pat
     card = (tmp_path / "README.md").read_text(encoding="utf-8")
     assert "license: mit" in card
     assert "Stored objective values belong" in card
+    assert "strict final Brinkman/RAMP parameters" in card
     assert "https://doi.org/10.1115/1.4071440" in card

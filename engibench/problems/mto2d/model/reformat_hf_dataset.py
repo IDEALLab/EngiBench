@@ -119,6 +119,10 @@ def main(argv: list[str] | None = None) -> None:
         "stored_design_order": "C",
         "condition_dtype": "float64",
         "objective_dtype": "float32",
+        "objective_semantics": (
+            "published legacy cold-start source labels; not evaluated on the "
+            "reconstructed design or with strict final Brinkman/RAMP parameters"
+        ),
         "split_fractions": list(DEFAULT_SPLIT_FRACTIONS),
         "split_seed": args.seed,
         "split_algorithm": "NumPy PCG64 permutation; floor train; split held-out remainder into val/test",
@@ -243,6 +247,14 @@ def _write_dataset_card(output: Path, manifest: Mapping[str, Any]) -> None:
     sizes = manifest["split_sizes"]
     source_dataset = manifest["source_dataset"]
     source_revision = manifest["source_revision"]
+    tolerance_note = ""
+    if source_dataset == RAW_REPOSITORY and source_revision == RAW_REVISION:
+        tolerance_note = """
+At this pinned revision, 3,149 of 5,666 published power labels are slightly
+above their listed limit, but the largest excess is only `0.4997` normalized
+units (`0.976%`). Preserve the exact residual and explicitly state the
+tolerance used for any derived feasibility flag.
+"""
     card = f"""---
 license: mit
 pretty_name: MTO2D v0
@@ -268,8 +280,18 @@ The source stores lossy `256 x 256` images. This conversion mirrors each source
 half, applies PyTorch-compatible non-antialiased bicubic resizing, takes the
 native `(400, 200)` left half, and flattens it. Stored objective values belong
 to the original solver-native topology, **not** the reconstructed design.
-Re-simulating the reconstruction is expected to produce different values.
+They also come from the published cold-start solver fidelity, whereas
+EngiBench `simulate()` uses the strict final Brinkman/RAMP parameters. The
+paper's Appendix E reports that all test designs violate the strict constraint
+before warm-starting. Re-simulating the reconstruction is therefore expected
+to produce different values.
 
+The fields `design_is_exact = false` and
+`objectives_evaluated_on_design = false` make this distinction
+machine-readable. Treat the objective columns as preserved source labels, not
+strict evaluations of `optimal_design`.
+
+{tolerance_note}
 See `conversion_manifest.json` for hashes, split policy, exact provenance, and
 representation details.
 

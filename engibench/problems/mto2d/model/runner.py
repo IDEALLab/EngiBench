@@ -28,6 +28,9 @@ RunKind = Literal["simulate", "optimize"]
 OptimizationMode = Literal["cold", "warm"]
 Backend = Literal["local", "container", "command"]
 
+POWER_BOUND_DECREMENT_PER_ITERATION = 0.2
+"""Hard-coded legacy decrease from ``D0`` toward ``D1`` each iteration."""
+
 HISTORY_FILES = {
     "mean_temperature": "meanT.txt",
     "power_dissipation": "Disspower.txt",
@@ -57,6 +60,7 @@ class RunnerSettings:
     retain_artifacts: bool = False
     retain_on_failure: bool = True
     continuation_steps: int | None = None
+    power_bound_start: float | None = None
     qu_start: float | None = None
     qu_final: float = 0.019
     alpha_max_start: float | None = None
@@ -169,6 +173,8 @@ class MTO2DRunner:
             raise ValueError("mode must be 'cold' or 'warm'")
         if settings.timeout is not None and settings.timeout <= 0:
             raise ValueError("timeout must be positive")
+        if settings.power_bound_start is not None and settings.power_bound_start <= 0:
+            raise ValueError("power_bound_start must be positive")
 
     @staticmethod
     def _validate_backend_settings(settings: RunnerSettings) -> None:
@@ -226,6 +232,10 @@ class MTO2DRunner:
         control = app / "system" / "controlDict"
         decompose = app / "system" / "decomposeParDict"
         self._replace_dictionary_value(transport, "voluse", settings.volume_fraction)
+        power_bound_start = settings.power_bound_start
+        if power_bound_start is None:
+            power_bound_start = settings.max_power_dissipation if kind == "simulate" or settings.mode == "warm" else 90.0
+        self._replace_dictionary_value(transport, "D0", power_bound_start)
         self._replace_dictionary_value(transport, "D1", settings.max_power_dissipation)
 
         if kind == "simulate":

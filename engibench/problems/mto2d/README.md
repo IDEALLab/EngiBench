@@ -60,6 +60,22 @@ values belong to the published legacy design's source case, not to an exactly
 reproducible native field. Use a solver-native `(400, 200)` design and
 `design_is_exact = True` when exact simulation is required.
 
+There is also a solver-fidelity difference. The published cold-start designs
+were optimized with a lower RAMP parameter, while `simulate()` deliberately
+uses the strict final Brinkman/RAMP parameters. Appendix E of the accompanying
+paper reports that all test designs violate the strict constraint before
+warm-starting. The converted v0 data therefore preserves the published
+objectives as source labels and sets `objectives_evaluated_on_design = False`;
+those labels must not be presented as strict evaluations of the reconstructed
+arrays.
+
+At the pinned source revision, 3,149 of 5,666 published power labels are
+slightly above their listed bound, but the largest excess is only `0.4997`
+normalized units (`0.976%`). This is consistent with a legacy feasibility
+tolerance, not with the much larger strict re-simulation gap. Keep the exact
+residual and state the tolerance used when deriving any feasible/infeasible
+flag.
+
 ## Objectives
 
 Objective arrays always use this order:
@@ -151,6 +167,20 @@ problem, and lets MMA choose a bounded design update. A cold run continues from
 soft initial physics toward the final parameters; a warm run can start at or
 near those final parameters.
 
+Cold mode also preserves the legacy power-bound continuation: by default the
+active bound starts at `90` and decreases by `0.2` per iteration until it
+reaches `max_power_dissipation`. A short cold run can therefore exercise the
+solver without yet enforcing the requested final bound. `optimize_verbose()`
+warns in that situation and returns both `active_power_bounds` and residuals
+against those bounds. Its `power_constraint_residuals` always use the requested
+final bound.
+
+Warm mode defaults to the requested power bound from its first iteration.
+This is important because the legacy warm-start scripts reset their iteration
+counter and otherwise restart the loose bound near `90`. Set
+`power_bound_start=90` explicitly only when historical warm-start parity is
+required.
+
 ```python
 starting_design = problem.uniform_starting_design(problem.conditions.volume_fraction)
 optimized_design, history = problem.optimize(
@@ -159,7 +189,15 @@ optimized_design, history = problem.optimize(
 )
 
 # Re-evaluate the returned update when exact final objectives are needed.
-final_objectives = problem.simulate(optimized_design)
+final_evaluation = problem.simulate_verbose(optimized_design)
+
+# A positive value means the returned design still needs strict warm repair.
+if final_evaluation.power_constraint_residual > 0:
+    optimized_design, repair_history = problem.optimize(
+        optimized_design,
+        config={"mode": "warm", "max_iter": 20},
+    )
+    final_evaluation = problem.simulate_verbose(optimized_design)
 ```
 
 Every `OptiStep.obj_values` follows the two-objective order documented above.
@@ -168,6 +206,12 @@ evaluated **before** its MMA update, while the returned final `gamma` is the
 subsequent update. Consequently, the last history row is not an exact
 evaluation of the returned field. Run the frozen `simulate()` call on the
 result when exact final objectives are needed.
+
+For dataset production, the frozen result is the canonical EngiBench
+measurement. Preserve any historical values in provenance/source fields,
+retain and flag a strictly infeasible design, or continue warm repair and
+re-evaluate it. Do not rescale the measured power or silently attach a
+pre-update history value to the returned design.
 
 ## Solver setup and execution backends
 

@@ -34,6 +34,7 @@ from engibench.problems.mto2d.model.design_io import half_to_full
 from engibench.problems.mto2d.model.design_io import legacy_256_to_half
 from engibench.problems.mto2d.model.design_io import LEGACY_DESIGN_SHAPE
 from engibench.problems.mto2d.model.runner import MTO2DRunner
+from engibench.problems.mto2d.model.runner import POWER_BOUND_DECREMENT_PER_ITERATION
 from engibench.problems.mto2d.model.runner import RunnerSettings
 from engibench.problems.mto2d.model.runner import SolverRun
 from engibench.utils.upcast import upcast
@@ -84,6 +85,8 @@ class MTO2DOptimizationResult:
     design: npt.NDArray[np.float32]
     history: list[OptiStep]
     volume_constraint_residuals: npt.NDArray[np.float64]
+    active_power_bounds: npt.NDArray[np.float64]
+    active_power_constraint_residuals: npt.NDArray[np.float64]
     power_constraint_residuals: npt.NDArray[np.float64]
     elapsed_times: npt.NDArray[np.float64]
     artifacts_path: str | None
@@ -156,6 +159,7 @@ class MTO2D(Problem[npt.NDArray]):
         retain_on_failure: bool = True
         continuation_steps: int | None = None
         continuation_profile: str = "geometric"
+        power_bound_start: float | None = None
         qu_start: float | None = None
         qu_final: Annotated[float, greater_than(0.0).category(IMPL)] = 0.019
         alpha_max_start: float | None = None
@@ -190,6 +194,12 @@ class MTO2D(Problem[npt.NDArray]):
         def valid_timeout(timeout: float | None) -> None:
             """Require a positive optional process timeout."""
             assert timeout is None or timeout > 0.0, "Config.timeout must be positive"
+
+        @constraint(categories=IMPL)
+        @staticmethod
+        def valid_power_bound_start(power_bound_start: float | None) -> None:
+            """Require a positive optional initial power-dissipation bound."""
+            assert power_bound_start is None or power_bound_start > 0.0, "Config.power_bound_start must be positive"
 
     def __init__(
         self,
@@ -261,6 +271,16 @@ class MTO2D(Problem[npt.NDArray]):
         """
         density = self._coerce_design(starting_point)
         resolved = self._resolve_config(config)
+        active_power_bounds = self._active_power_bounds(resolved)
+        if active_power_bounds[-1] > resolved.max_power_dissipation:
+            warnings.warn(
+                "Optimization stops before the legacy power-bound continuation reaches "
+                f"max_power_dissipation={resolved.max_power_dissipation:.8g}; its final active bound is "
+                f"{active_power_bounds[-1]:.8g}. Use more iterations, set power_bound_start to the final bound, "
+                "or treat this as a runtime smoke test.",
+                UserWarning,
+                stacklevel=2,
+            )
         run = self._runner.run(density, self._runner_settings(resolved), kind="optimize")
         self.last_solver_run = run
         history = [
@@ -277,9 +297,23 @@ class MTO2D(Problem[npt.NDArray]):
             design=np.asarray(run.final_design, dtype=np.float32),
             history=history,
             volume_constraint_residuals=run.volume_residual.copy(),
+            active_power_bounds=active_power_bounds,
+            active_power_constraint_residuals=run.power_dissipation / active_power_bounds - 1.0,
             power_constraint_residuals=run.power_dissipation / resolved.max_power_dissipation - 1.0,
             elapsed_times=run.elapsed_time.copy(),
             artifacts_path=run.artifacts_path,
+        )
+
+    @staticmethod
+    def _active_power_bounds(config: Config) -> npt.NDArray[np.float64]:
+        """Return the power bound actually supplied to MMA at every iteration."""
+        power_bound_start = config.power_bound_start
+        if power_bound_start is None:
+            power_bound_start = config.max_power_dissipation if config.mode == "warm" else 90.0
+        iterations = np.arange(1, config.max_iter + 1, dtype=np.float64)
+        return np.maximum(
+            power_bound_start - POWER_BOUND_DECREMENT_PER_ITERATION * iterations,
+            config.max_power_dissipation,
         )
 
     def random_design(
