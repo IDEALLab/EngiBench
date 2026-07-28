@@ -119,16 +119,20 @@ The runner:
 1. checks the native design's shape, values, and finiteness;
 2. copies a pristine external OpenFOAM case into a unique temporary directory;
 3. writes the design and the three physical conditions;
-4. sets the final physical parameters and freezes MMA movement;
-5. runs `blockMesh`, `decomposePar`, and the parallel solver;
+4. sets the final physical parameters and disables design updates;
+5. runs `blockMesh` and the solver, using decomposition and MPI when requested;
 6. reads the final temperature, power, volume-residual, and timing values; and
 7. removes temporary artifacts unless retention was requested.
 
 The freeze uses one solver step with `qu = 0.019`,
-`alphaMax = 5.0252e6`, `Heaviside = 59.8`, and movement limit `0`.
-The simulation does not reconstruct the solver's post-MMA `gamma`: the
-evaluated input design is already known, and some legacy frozen updates contain
-`nan` values even though their pre-update physical objectives are valid.
+`alphaMax = 5.0252e6`, `Heaviside = 59.8`, movement limit `0`, and
+`updateDesign = false`. The patched solver records the physical objectives but
+bypasses its sensitivity/MMA update, so the written `gamma` remains finite and
+equal to the input design within OpenFOAM's output precision. The runner
+validates that invariant and reconstructs parallel output before returning.
+Because the objectives were already recorded before MMA in the legacy solver,
+this bypass fixes the invalid output field without changing the measured
+temperature or power.
 `simulate()` returns only
 `[mean_temperature, power_dissipation]`. `simulate_verbose()` returns those
 same objectives plus constraint residuals, elapsed time, status, and an

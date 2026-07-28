@@ -31,6 +31,9 @@ Backend = Literal["local", "container", "command"]
 POWER_BOUND_DECREMENT_PER_ITERATION = 0.2
 """Hard-coded legacy decrease from ``D0`` toward ``D1`` each iteration."""
 
+FROZEN_GAMMA_ABSOLUTE_TOLERANCE = 6e-5
+"""Rounding tolerance for an unchanged field written with four significant digits."""
+
 HISTORY_FILES = {
     "mean_temperature": "meanT.txt",
     "power_dissipation": "Disspower.txt",
@@ -133,6 +136,8 @@ class MTO2DRunner:
             histories = self._read_histories(
                 case_dir / "app", expected_steps=1 if kind == "simulate" else settings.max_iter
             )
+            if kind == "simulate":
+                self._validate_frozen_output(case_dir / "app", design)
             final_design = (
                 np.asarray(design, dtype=np.float32).copy()
                 if kind == "simulate"
@@ -262,6 +267,7 @@ class MTO2DRunner:
             continuation_steps = settings.continuation_steps or settings.max_iter
 
         self._replace_dictionary_value(transport, "movlim", movement_limit)
+        self._upsert_plain_dictionary_value(transport, "updateDesign", kind == "optimize")
         self._replace_dictionary_value(transport, "qu", qu_start)
         self._replace_dictionary_value(transport, "alphaMax", alpha_start)
         self._replace_dictionary_value(transport, "alphamax", alpha_start)
@@ -327,6 +333,19 @@ class MTO2DRunner:
         updated, count = pattern.subn(replace, text, count=1)
         if count != 1:
             raise ValueError(f"Could not find exactly one {key!r} entry in {path}")
+        path.write_text(updated, encoding="utf-8")
+
+    @staticmethod
+    def _upsert_plain_dictionary_value(path: Path, key: str, value: object) -> None:
+        """Set or append one non-dimensioned OpenFOAM dictionary value."""
+        text = path.read_text(encoding="utf-8")
+        formatted = str(value).lower() if isinstance(value, bool) else str(value)
+        pattern = re.compile(rf"(?m)^(\s*{re.escape(key)}\s+)([^;]*)(;.*)$")
+        updated, count = pattern.subn(rf"\g<1>{formatted}\g<3>", text)
+        if count > 1:
+            raise ValueError(f"Found more than one {key!r} entry in {path}")
+        if count == 0:
+            updated = f"{text.rstrip()}\n{key} {formatted};\n"
         path.write_text(updated, encoding="utf-8")
 
     @staticmethod
@@ -441,7 +460,7 @@ Heaviside
             )
 
     @staticmethod
-    def _run_local(case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
+    def _run_local(case_dir: Path, settings: RunnerSettings, _kind: RunKind) -> None:
         started = time.monotonic()
         commands: list[tuple[Sequence[str], Path]] = []
         if settings.build_solver:
@@ -466,7 +485,7 @@ Heaviside
                     ),
                 ]
             )
-        if kind == "optimize" and settings.mpi_cores > 1:
+        if settings.mpi_cores > 1:
             commands.append((("reconstructPar", "-latestTime"), app))
         with (case_dir / "run.log").open("wb") as log:
             for command, cwd in commands:
@@ -485,7 +504,7 @@ Heaviside
                 )
 
     @staticmethod
-    def _run_container(case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
+    def _run_container(case_dir: Path, settings: RunnerSettings, _kind: RunKind) -> None:
         assert settings.container_image is not None
         container_home = case_dir.parent / "container-home"
         container_tmp = case_dir.parent / "container-tmp"
@@ -497,15 +516,8 @@ Heaviside
             solve = executable
         else:
             solve = f"decomposePar; mpirun -np {settings.mpi_cores} {executable} -parallel"
-        command = (
-            "set -eu; "
-            "exec > /work/case/run.log 2>&1; "
-            f"{build}"
-            "cd /work/case/app; "
-            "blockMesh; "
-            f"{solve}"
-        )
-        if kind == "optimize" and settings.mpi_cores > 1:
+        command = f"set -eu; exec > /work/case/run.log 2>&1; {build}cd /work/case/app; blockMesh; {solve}"
+        if settings.mpi_cores > 1:
             command += "; reconstructPar -latestTime"
         container.run(
             ["bash", "-lc", command],
@@ -533,6 +545,29 @@ Heaviside
         if not candidates:
             raise FileNotFoundError(f"No reconstructed numeric-time gamma found under {app}")
         return max(candidates, key=lambda path: int(path.parent.name))
+
+    @staticmethod
+    def _validate_frozen_output(app: Path, design: npt.NDArray[np.float32]) -> None:
+        """Require a frozen solver step to preserve a finite input design."""
+        try:
+            written_design = read_half_design(MTO2DRunner._latest_gamma(app))
+        except (OSError, ValueError) as error:
+            raise ValueError(
+                "Frozen simulation wrote a non-finite or invalid gamma. The solver executable "
+                "likely lacks updateDesign support; recreate and rebuild the case with "
+                "model/runtime/prepare_case.sh."
+            ) from error
+        if not np.allclose(
+            written_design,
+            design,
+            rtol=0.0,
+            atol=FROZEN_GAMMA_ABSOLUTE_TOLERANCE,
+        ):
+            max_difference = float(np.max(np.abs(written_design.astype(np.float64) - design.astype(np.float64))))
+            raise ValueError(
+                "Frozen simulation changed the design after objective evaluation; "
+                f"maximum absolute difference is {max_difference:.8g}"
+            )
 
 
 def _read_scalar_history(path: Path) -> npt.NDArray[np.float64]:

@@ -44,8 +44,21 @@ license is unresolved:
   /tmp/mto2d-case
 ```
 
-The helper also restores the executable bit that the ZIP archive does not
-preserve.
+The helper applies the small frozen-evaluation patch in this directory and
+rebuilds `EXEC` inside the local parity image. The patched solver honors
+`updateDesign = false`, recording objectives without running sensitivity/MMA
+or writing the invalid `nan` field produced by the original zero-movement
+update. Recreate previously prepared cases so that their executable contains
+this fix.
+
+Pass a different local runtime image as an optional third argument:
+
+```bash
+./engibench/problems/mto2d/model/runtime/prepare_case.sh \
+  /path/to/warm-ready-2d.zip \
+  /tmp/mto2d-case \
+  my-local-mto2d-runtime:tag
+```
 
 ## Smoke test
 
@@ -96,7 +109,12 @@ Desktop host with four emulated amd64 MPI ranks:
   returned a finite `(400, 200)` design bounded by `[0, 1]`, and that returned
   design frozen-evaluated at `[9.55802, 40.7588]`;
 - a two-iteration cold smoke run traversed the expected physical continuation
-  endpoints and reconstructed a finite output design.
+  endpoints and reconstructed a finite output design; and
+- after applying `frozen-evaluation.patch`, the completed reference-campaign
+  design reproduced strict objectives `[9.40088, 70.0166]` and legacy-profile
+  objectives `[9.33296, 62.0621]`. Both runs skipped sensitivity/MMA, wrote
+  finite unchanged gamma fields, and passed the runner's frozen-field
+  validation.
 
 These are runtime-validation values, not a new canonical numerical reference.
 The two-step cold run is intentionally too abrupt to assess optimization

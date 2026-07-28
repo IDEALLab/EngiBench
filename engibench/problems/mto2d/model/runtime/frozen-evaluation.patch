@@ -1,0 +1,29 @@
+diff --git a/src_TF/MTO_TF.C b/src_TF/MTO_TF.C
+--- a/src_TF/MTO_TF.C
++++ b/src_TF/MTO_TF.C
+@@ -77,7 +77,10 @@ int main(int argc, char *argv[])
+            #include "adjoint_flow_U.H" 
+         }   
+         #include "costfunction.H"                           
+-        #include "sensitivity.H"        
++        if (updateDesign)
++        {
++            #include "sensitivity.H"
++        }
+         if(runTime.writeTime())
+         {
+         gamma.write();
+diff --git a/src_TF/createFields.H b/src_TF/createFields.H
+--- a/src_TF/createFields.H
++++ b/src_TF/createFields.H
+@@ -167,6 +167,10 @@ scalar mma_init(readScalar(transportProperties.lookup("mma_init")));
+ scalar mma_dec(readScalar(transportProperties.lookup("mma_dec")));
+ scalar mma_inc(readScalar(transportProperties.lookup("mma_inc")));
+ scalar movlim(readScalar(transportProperties.lookup("movlim")));
++Switch updateDesign
++(
++    transportProperties.lookupOrDefault<Switch>("updateDesign", Switch(movlim > SMALL))
++);
+ 
+ scalar voluse(readScalar(transportProperties.lookup("voluse")));
+ scalar filter_Radius(readScalar(transportProperties.lookup("filter_Radius")));

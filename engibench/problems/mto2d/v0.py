@@ -231,7 +231,7 @@ class MTO2D(Problem[npt.NDArray]):
         design: npt.NDArray,
         config: dict[str, Any] | None = None,
     ) -> MTO2DSimulationResult:
-        """Evaluate a fixed topology for one final-physics solver iteration."""
+        """Evaluate final physics once while bypassing sensitivity and MMA updates."""
         density = self._coerce_design(design)
         resolved = self._resolve_config(config)
         settings = self._runner_settings(resolved, max_iter=1)

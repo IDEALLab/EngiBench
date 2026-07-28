@@ -262,12 +262,15 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
     assert result.volume_constraint_residual == pytest.approx(-0.000671484)
     assert result.elapsed_time == pytest.approx(13713.0)
     assert result.artifacts_path is not None
+    assert problem.last_solver_run is not None
+    np.testing.assert_array_equal(problem.last_solver_run.final_design, design)
     prepared = Path(result.artifacts_path) / "case" / "app"
 
     transport = (prepared / "constant" / "transportProperties").read_text(encoding="utf-8")
     assert re.search(r"alphaMax\s+alphaMax \[0 0 -1 0 0 0 0\] 5025200\.0;", transport)
     assert re.search(r"alphamax\s+alphamax \[0 0 -1 0 0 0 0\] 5025200\.0;", transport)
     assert "movlim 0.0;" in transport
+    assert "updateDesign false;" in transport
     assert "voluse 0.61;" in transport
     assert "D0 63.1;" in transport
     assert "D1 63.1;" in transport
@@ -291,6 +294,21 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
         expected_count=GAMMA_CELL_COUNT,
     )
     np.testing.assert_array_equal(prepared_gamma[DESIGN_CELL_COUNT:], 1.0)
+
+
+def test_update_design_dictionary_value_is_replaced_without_duplication(tmp_path: Path) -> None:
+    dictionary = tmp_path / "transportProperties"
+    dictionary.write_text("movlim 0.4;\nupdateDesign true;\n", encoding="utf-8")
+
+    MTO2DRunner._upsert_plain_dictionary_value(  # noqa: SLF001
+        dictionary,
+        "updateDesign",
+        value=False,
+    )
+
+    updated = dictionary.read_text(encoding="utf-8")
+    assert updated.count("updateDesign") == 1
+    assert "updateDesign false;" in updated
 
 
 @pytest.mark.parametrize(
@@ -338,6 +356,7 @@ def test_command_backend_one_step_optimization_smoke(
         Path(problem.last_solver_run.artifacts_path) / "case" / "app" / "constant" / "transportProperties"
     ).read_text(encoding="utf-8")
     assert f"D0 {expected_power_bound_start};" in transport
+    assert "updateDesign true;" in transport
 
 
 def test_container_backend_uses_isolated_writable_home(
@@ -383,6 +402,9 @@ def test_container_backend_uses_isolated_writable_home(
     MTO2DRunner._run_container(case, settings, "optimize")  # noqa: SLF001
     assert "reconstructPar" not in captured["args"][0][-1]
 
+    MTO2DRunner._run_container(case, replace(settings, mpi_cores=4), "simulate")  # noqa: SLF001
+    assert "reconstructPar -latestTime" in captured["args"][0][-1]
+
     MTO2DRunner._run_container(case, replace(settings, mpi_cores=4), "optimize")  # noqa: SLF001
     parallel_command = captured["args"][0][-1]
     assert "decomposePar" in parallel_command
@@ -418,8 +440,78 @@ def test_local_backend_uses_serial_or_parallel_execution(
     assert [command[0] for command in commands] == ["blockMesh", "../src_TF/EXEC"]
 
     commands.clear()
+    MTO2DRunner._run_local(case, replace(settings, mpi_cores=4), "simulate")  # noqa: SLF001
+    assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun", "reconstructPar"]
+
+    commands.clear()
     MTO2DRunner._run_local(case, replace(settings, mpi_cores=4), "optimize")  # noqa: SLF001
     assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun", "reconstructPar"]
+
+
+def test_frozen_output_validation_rejects_nonfinite_gamma(tmp_path: Path) -> None:
+    app = tmp_path / "app"
+    (app / "1").mkdir(parents=True)
+    values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
+    values[0] = np.nan
+    (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
+
+    with pytest.raises(ValueError, match="non-finite or invalid gamma"):
+        MTO2DRunner._validate_frozen_output(  # noqa: SLF001
+            app,
+            np.zeros(HALF_DESIGN_SHAPE, dtype=np.float32),
+        )
+
+
+def test_frozen_output_validation_rejects_finite_design_change(tmp_path: Path) -> None:
+    app = tmp_path / "app"
+    (app / "1").mkdir(parents=True)
+    values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
+    values[0] = 0.1
+    (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
+
+    with pytest.raises(ValueError, match="changed the design"):
+        MTO2DRunner._validate_frozen_output(  # noqa: SLF001
+            app,
+            np.zeros(HALF_DESIGN_SHAPE, dtype=np.float32),
+        )
+
+
+def test_simulation_rejects_unpatched_solver_gamma(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    template = _make_case_template(tmp_path)
+
+    def fake_execute(
+        _runner: MTO2DRunner,
+        case_dir: Path,
+        _settings: RunnerSettings,
+        _kind: str,
+    ) -> None:
+        app = case_dir / "app"
+        (app / "1").mkdir()
+        values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
+        values[0] = np.nan
+        (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
+        for filename, value in {
+            "meanT.txt": 9.0,
+            "Disspower.txt": 62.0,
+            "Voluse.txt": -0.001,
+            "Time.txt": 1.0,
+        }.items():
+            (app / filename).write_text(f"{value}\n", encoding="utf-8")
+
+    monkeypatch.setattr(MTO2DRunner, "_execute", fake_execute)
+    problem = MTO2D(
+        config={
+            "case_template": str(template),
+            "work_dir": str(tmp_path),
+            "retain_on_failure": True,
+        }
+    )
+
+    with pytest.raises(SolverRunError, match="likely lacks updateDesign support"):
+        problem.simulate(problem.uniform_starting_design(0.61))
 
 
 def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:
