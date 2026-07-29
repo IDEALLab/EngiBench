@@ -352,8 +352,7 @@ class MTO2DRunner:
         except OSError as error:
             raise FileNotFoundError(
                 f"{required_by} requires a case rebuilt with the EngiBench runtime "
-                "patches. Recreate it with "
-                "engibench/problems/mto2d/model/runtime/prepare_case.sh; "
+                "patches. Use the published MTO2D image or rebuild Dockerfile.source; "
                 f"missing capability marker: {marker}"
             ) from error
         if version != SCHEDULE_RUNTIME_VERSION:
@@ -814,8 +813,7 @@ Heaviside
         except (OSError, ValueError) as error:
             raise ValueError(
                 "Frozen simulation wrote a non-finite or invalid gamma. The solver executable "
-                "likely lacks updateDesign support; recreate and rebuild the case with "
-                "model/runtime/prepare_case.sh."
+                "likely lacks updateDesign support; use the published MTO2D image."
             ) from error
         if not np.allclose(
             written_design,

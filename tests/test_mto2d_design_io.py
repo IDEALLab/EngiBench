@@ -13,15 +13,9 @@ from engibench.problems.mto2d.model.design_io import gamma_to_half_design
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import half_design_to_gamma
 from engibench.problems.mto2d.model.design_io import half_to_full
-from engibench.problems.mto2d.model.design_io import half_to_legacy_256
-from engibench.problems.mto2d.model.design_io import legacy_256_to_half
-from engibench.problems.mto2d.model.design_io import LEGACY_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import parse_internal_field
 from engibench.problems.mto2d.model.design_io import read_half_design
 from engibench.problems.mto2d.model.design_io import write_half_design
-
-LOW_EDGE_MAX = 0.01
-HIGH_EDGE_MIN = 0.99
 
 
 def _foam_field(values: np.ndarray, *, location: str = "200", values_per_line: int = 1) -> str:
@@ -227,82 +221,3 @@ def test_write_rejects_unsafe_location(template_path: Path, tmp_path: Path) -> N
 
     with pytest.raises(ValueError, match="location"):
         write_half_design(design, template_path, tmp_path / "gamma", location='0"; bad')
-
-
-def test_legacy_conversion_is_explicitly_shaped_float32_and_bounded() -> None:
-    half = np.zeros(HALF_DESIGN_SHAPE, dtype=np.float32)
-    half[80:320, 40:160] = 1.0
-
-    legacy = half_to_legacy_256(half)
-    restored = legacy_256_to_half(legacy)
-
-    assert legacy.shape == LEGACY_DESIGN_SHAPE
-    assert legacy.dtype == np.float32
-    assert restored.shape == HALF_DESIGN_SHAPE
-    assert restored.dtype == np.float32
-    assert np.all((legacy >= 0.0) & (legacy <= 1.0))
-    assert np.all((restored >= 0.0) & (restored <= 1.0))
-
-
-def test_forward_legacy_conversion_resizes_the_entire_half_without_mirroring() -> None:
-    horizontal_ramp = np.linspace(0.0, 1.0, HALF_DESIGN_SHAPE[1], dtype=np.float32)
-    half = np.repeat(horizontal_ramp[None, :], HALF_DESIGN_SHAPE[0], axis=0)
-
-    legacy = half_to_legacy_256(half)
-
-    assert float(np.mean(legacy[:, 0])) < LOW_EDGE_MAX
-    assert float(np.mean(legacy[:, -1])) > HIGH_EDGE_MIN
-    assert np.all(np.diff(legacy[LEGACY_DESIGN_SHAPE[0] // 2]) >= 0.0)
-
-
-def test_reverse_legacy_conversion_mirrors_the_whole_legacy_half_before_resize() -> None:
-    horizontal_ramp = np.linspace(0.0, 1.0, LEGACY_DESIGN_SHAPE[1], dtype=np.float32)
-    legacy = np.repeat(horizontal_ramp[None, :], LEGACY_DESIGN_SHAPE[0], axis=0)
-
-    restored = legacy_256_to_half(legacy)
-
-    assert float(np.mean(restored[:, 0])) < LOW_EDGE_MAX
-    assert float(np.mean(restored[:, -1])) > HIGH_EDGE_MIN
-    assert np.all(np.diff(restored[HALF_DESIGN_SHAPE[0] // 2]) >= 0.0)
-
-
-def test_legacy_conversion_matches_pytorch_bicubic_reference_values() -> None:
-    native_rows = np.arange(HALF_DESIGN_SHAPE[0])[:, None]
-    native_columns = np.arange(HALF_DESIGN_SHAPE[1])[None, :]
-    half = (((native_rows * 7 + native_columns * 13) % 97) / 96).astype(np.float32)
-
-    legacy = half_to_legacy_256(half)
-    forward_rows = np.array([0, 0, 17, 127, 128, 255, 200])
-    forward_columns = np.array([0, 255, 23, 128, 128, 255, 73])
-    forward_expected = np.array(
-        [0.006975084, 0.701681018, 0.325160444, 0.727137089, 0.864555597, 0.461774945, 0.188424066],
-        dtype=np.float32,
-    )
-    np.testing.assert_allclose(legacy[forward_rows, forward_columns], forward_expected, rtol=0.0, atol=1e-6)
-
-    legacy_rows = np.arange(LEGACY_DESIGN_SHAPE[0])[:, None]
-    legacy_columns = np.arange(LEGACY_DESIGN_SHAPE[1])[None, :]
-    published = (((legacy_rows * 5 + legacy_columns * 11) % 89) / 88).astype(np.float32)
-
-    restored = legacy_256_to_half(published)
-    reverse_rows = np.array([0, 0, 17, 199, 200, 399, 300])
-    reverse_columns = np.array([0, 199, 23, 128, 128, 199, 73])
-    reverse_expected = np.array(
-        [0.008053148, 0.504358768, 0.258844435, 0.418325007, 0.44932133, 0.844219506, 0.34124288],
-        dtype=np.float32,
-    )
-    np.testing.assert_allclose(restored[reverse_rows, reverse_columns], reverse_expected, rtol=0.0, atol=1e-6)
-
-
-@pytest.mark.parametrize(
-    "legacy",
-    [
-        np.zeros((128, 256), dtype=np.float32),
-        np.zeros(LEGACY_DESIGN_SHAPE, dtype=np.float64),
-        np.full(LEGACY_DESIGN_SHAPE, np.inf, dtype=np.float32),
-        np.full(LEGACY_DESIGN_SHAPE, 1.01, dtype=np.float32),
-    ],
-)
-def test_legacy_conversion_validates_input(legacy: np.ndarray) -> None:
-    with pytest.raises((TypeError, ValueError)):
-        legacy_256_to_half(legacy)

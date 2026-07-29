@@ -1,7 +1,6 @@
 """Two-dimensional multiphysics topology optimization problem."""
 
 import argparse
-from collections.abc import Mapping
 import dataclasses
 from dataclasses import dataclass
 import json
@@ -28,13 +27,10 @@ from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.core import SimulationResult
-from engibench.problems.mto2d.model.dataset import canonicalize_dataset_columns
 from engibench.problems.mto2d.model.design_io import FIXED_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import half_to_full
-from engibench.problems.mto2d.model.design_io import legacy_256_to_half
-from engibench.problems.mto2d.model.design_io import LEGACY_DESIGN_SHAPE
 from engibench.problems.mto2d.model.runner import LEGACY_OPTIMIZATION_ITERATIONS
 from engibench.problems.mto2d.model.runner import MTO2DRunner
 from engibench.problems.mto2d.model.runner import POWER_BOUND_DECREMENT_PER_ITERATION
@@ -45,20 +41,11 @@ from engibench.utils.upcast import upcast
 MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 """Smallest feasible all-cell volume fraction when the design domain is solid."""
 
-SOURCE_CHECKOUT_PATH = Path(__file__).resolve().parents[3]
-"""EngiBench source checkout containing this module."""
-
-REPOSITORY_DATASET_PATH = SOURCE_CHECKOUT_PATH / "dataset_output" / "mto_2d_exact_source_v0"
-"""Preferred local exact-source dataset for source-tree use."""
-
-LOCAL_RUNTIME_CONFIG_PATH = SOURCE_CHECKOUT_PATH.parent / ".artifacts" / "mto2d-docker.json"
-"""Optional private Docker runtime config produced beside this source checkout."""
-
 SOLVER_CONFIG_ENV_VAR = "ENGIBENCH_MTO2D_SOLVER_CONFIG"
 """Environment variable selecting a solver configuration JSON file."""
 
 DEFAULT_CONTAINER_IMAGE = "ghcr.io/ideallab/engibench-mto2d:v0"
-"""Prospective public OCI image; replace the tag with its digest after publication."""
+"""Published OCI image tag; releases pin its immutable digest."""
 
 
 @dataclass
@@ -250,7 +237,7 @@ class MTO2D(Problem[npt.NDArray]):
         dataset: Any | None = None,
         runner: MTO2DRunner | None = None,
     ) -> None:
-        """Initialize MTO2D with optional local dataset and runner injection."""
+        """Initialize MTO2D with optional dataset and runner injection."""
         values = dict(config or {})
         if isinstance(values.get("driver_command"), list):
             values["driver_command"] = tuple(values["driver_command"])
@@ -261,9 +248,7 @@ class MTO2D(Problem[npt.NDArray]):
         self._runner = runner or MTO2DRunner()
         self.last_solver_run: SolverRun | None = None
         if dataset is not None:
-            self._dataset = (
-                canonicalize_dataset_columns(dataset) if getattr(dataset, "column_names", None) is not None else dataset
-            )
+            self._dataset = dataset
 
     def reset(self, seed: int | None = None) -> None:
         """Reset the EngiBench random-number generator."""
@@ -370,30 +355,16 @@ class MTO2D(Problem[npt.NDArray]):
         dataset_split: str = "train",
         design_key: str = "optimal_design",
     ) -> tuple[npt.NDArray[np.float32], int]:
-        """Sample a native design from a formatted dataset.
-
-        Legacy ``256 x 256`` half-domain rows are accepted for migration and
-        reconstructed lossily. New datasets should store native ``400 x 200``
-        designs directly.
-        """
+        """Sample a native design from the published dataset."""
         split = self.dataset[dataset_split]
         index = int(self.np_random.integers(0, len(split)))
         return self.design_from_dataset_value(split[index][design_key]), index
 
     @staticmethod
     def design_from_dataset_value(value: Any) -> npt.NDArray[np.float32]:
-        """Convert a native, flattened, or legacy dataset value to the design space."""
+        """Convert a native or flattened dataset value to the design space."""
         design = np.asarray(value, dtype=np.float32)
-        if design.shape == (1, *LEGACY_DESIGN_SHAPE):
-            design = design[0]
-        if design.shape == LEGACY_DESIGN_SHAPE:
-            warnings.warn(
-                "Reconstructing a native MTO2D design from the lossy legacy 256 x 256 half-domain.",
-                UserWarning,
-                stacklevel=2,
-            )
-            design = legacy_256_to_half(design)
-        elif design.shape != HALF_DESIGN_SHAPE and design.size == int(np.prod(HALF_DESIGN_SHAPE)):
+        if design.shape != HALF_DESIGN_SHAPE and design.size == int(np.prod(HALF_DESIGN_SHAPE)):
             design = design.reshape(HALF_DESIGN_SHAPE)
         return MTO2D._coerce_design(design)
 
@@ -478,14 +449,10 @@ def _load_demo_dataset(
     default_dataset_id: str,
 ) -> tuple[Any, str]:
     """Load a local saved DatasetDict or a dataset from the Hugging Face Hub."""
-    from datasets import load_dataset  # noqa: PLC0415
-    from datasets import load_from_disk  # noqa: PLC0415
+    from datasets import load_dataset  # type: ignore[import-untyped, unused-ignore]  # noqa: PLC0415
+    from datasets import load_from_disk  # type: ignore[import-untyped, unused-ignore]  # noqa: PLC0415
 
-    resolved_source: str | Path
-    if source is None:
-        resolved_source = REPOSITORY_DATASET_PATH if REPOSITORY_DATASET_PATH.is_dir() else default_dataset_id
-    else:
-        resolved_source = source
+    resolved_source = default_dataset_id if source is None else source
 
     local_path = Path(resolved_source).expanduser()
     if local_path.is_dir():
@@ -511,13 +478,7 @@ def _read_solver_config(
     *,
     auto_discover: bool = False,
 ) -> dict[str, Any]:
-    """Resolve CLI solver configuration without changing :class:`MTO2D` defaults.
-
-    An explicit path wins. For opt-in CLI simulation, a path selected through
-    ``ENGIBENCH_MTO2D_SOLVER_CONFIG`` is next, followed by the private runtime
-    config beside a Git source checkout. Individual case/image environment
-    variables may override only that automatically discovered local config.
-    """
+    """Resolve an explicit or environment-selected solver configuration."""
     if path is not None:
         return _load_solver_config_file(path)
     if not auto_discover:
@@ -526,32 +487,7 @@ def _read_solver_config(
     environment_path = os.environ.get(SOLVER_CONFIG_ENV_VAR)
     if environment_path:
         return _load_solver_config_file(environment_path)
-
-    if not (SOURCE_CHECKOUT_PATH / ".git").exists() or not LOCAL_RUNTIME_CONFIG_PATH.is_file():
-        return {}
-
-    config = _load_solver_config_file(LOCAL_RUNTIME_CONFIG_PATH)
-    if case_template := os.environ.get("ENGIBENCH_MTO2D_CASE_TEMPLATE"):
-        config["case_template"] = case_template
-    if container_image := os.environ.get("ENGIBENCH_MTO2D_IMAGE"):
-        config["container_image"] = container_image
-    return config
-
-
-def _print_dataset_row_warning(row: Mapping[str, Any]) -> None:
-    if row.get("design_is_exact") is False:
-        print(
-            "WARNING: this design was reconstructed lossily; its stored objectives "
-            "belong to the source solver's pre-update field under legacy physics "
-            "and may not match a new simulation, even though default simulation "
-            "uses the source-matched final q=0.01 physics."
-        )
-    elif row.get("objectives_evaluated_on_design") is False:
-        print(
-            "WARNING: the stored objectives were not evaluated on this stored design "
-            "and may not match a fresh simulation. See the design provenance and "
-            "dataset card for the source-specific reason."
-        )
+    return {}
 
 
 def main(  # noqa: PLR0913
@@ -598,11 +534,6 @@ def main(  # noqa: PLR0913
     print(f"Selected split={split!r}, index={index}")
     print("Conditions: " + ", ".join(f"{key}={value:.8g}" for key, value in row_conditions.items()))
     print("Stored objectives: " + ", ".join(f"{key}={value:.8g}" for key, value in stored_objectives.items()))
-    provenance = row.get("design_provenance")
-    if provenance:
-        print(f"Design provenance: {provenance}")
-    _print_dataset_row_warning(row)
-
     figure, _axes = problem.render(design, open_window=False)
     if render_output is not None:
         output_path = Path(render_output).expanduser().resolve()
@@ -648,10 +579,7 @@ def _parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--dataset",
         dest="dataset_source",
-        help=(
-            "local DatasetDict directory or Hugging Face dataset ID; defaults to "
-            "dataset_output/mto_2d_exact_source_v0 when present, otherwise IDEALLab/mto_2d_v0"
-        ),
+        help="local DatasetDict directory or Hugging Face dataset ID; defaults to IDEALLab/mto_2d_v0",
     )
     parser.add_argument("--split", default="train")
     parser.add_argument("--index", type=int, default=0)
@@ -664,7 +592,7 @@ def _parser() -> argparse.ArgumentParser:
         type=Path,
         help=(
             "JSON object with case_template, backend, MPI, timeout, and related solver settings; "
-            f"with --simulate, defaults to ${SOLVER_CONFIG_ENV_VAR} or the prepared local runtime"
+            f"with --simulate, defaults to ${SOLVER_CONFIG_ENV_VAR} or the published container"
         ),
     )
     return parser

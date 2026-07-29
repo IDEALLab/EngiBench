@@ -15,7 +15,6 @@ from engibench.problems.mto2d.model.design_io import DESIGN_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import parse_internal_field
-from engibench.problems.mto2d.model.publish_native_dataset import PUBLIC_COLUMNS
 from engibench.problems.mto2d.model.runner import MTO2DRunner
 from engibench.problems.mto2d.model.runner import OptimizationSchedule
 from engibench.problems.mto2d.model.runner import RunnerSettings
@@ -53,7 +52,14 @@ def test_engibench_condition_and_objective_names_follow_topology_conventions() -
 
     assert problem.conditions_keys == ["inlet_velocity", "max_power_dissipation", "volfrac"]
     assert problem.objectives_keys == ["mean_temperature", "power_dissipation"]
-    assert ("optimal_design", *problem.conditions_keys, *problem.objectives_keys) == PUBLIC_COLUMNS
+    assert ("optimal_design", *problem.conditions_keys, *problem.objectives_keys) == (
+        "optimal_design",
+        "inlet_velocity",
+        "max_power_dissipation",
+        "volfrac",
+        "mean_temperature",
+        "power_dissipation",
+    )
 
 
 def _foam_gamma(values: np.ndarray) -> str:

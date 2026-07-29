@@ -5,16 +5,11 @@
 
 ## Release status
 
-MTO2D is currently registered as a draft problem. Its Python API,
-exact-native dataset validator/publisher, source-build OCI recipe, and
-image-contained case-export backend are available. The
-`IDEALLab/mto_2d_v0` dataset is public, but the solver image is not. Local
-solver-backed calls can use an explicitly prepared case and runtime.
-Artifact-dependent shared tests remain gated until an immutable
-redistributable image reproduces the committed simulation reference.
-The planned image home is GitHub Container Registry at
-`ghcr.io/ideallab/engibench-mto2d`; EngiBench will pin the accepted
-`linux/amd64` manifest by digest rather than by its mutable `v0` tag.
+The native dataset is public at
+[`IDEALLab/mto_2d_v0`](https://huggingface.co/datasets/IDEALLab/mto_2d_v0).
+The source-built Linux/AMD64 solver is hosted at
+`ghcr.io/ideallab/engibench-mto2d`; `MTO2D.container_id` pins the accepted
+manifest by immutable digest.
 
 ## Motivation
 
@@ -52,12 +47,12 @@ Datasets store `optimal_design` as a flat `list<float32>` of length 80,000 in
 C order, following the Beams3D Hub convention; `random_design()` reshapes rows
 back to the native `(400, 200)` representation.
 
-Note that the previously published
+The earlier
 [`IDEALLab/MTO-2D`](https://huggingface.co/datasets/IDEALLab/MTO-2D) NumPy
 dataset stores each design as a `(256, 256)` image of the whole left
 half-domain, produced by a lossy anisotropic bicubic resize of the native
-field. Conversions between the two representations are provided but are
-explicitly lossy; exact simulation requires a solver-native design.
+field. MTO2D v0 deliberately accepts only the native representation so
+simulation never silently resizes a topology.
 
 ## Objectives
 
@@ -121,16 +116,13 @@ part of the base `Problem` contract. Standard `optimize()` still returns
 active power bounds, elapsed times, and retained artifacts.
 
 See the package `README.md` in `engibench/problems/mto2d/` for solver
-backends, runtime-image preparation, dataset tooling, and the current release
-blockers.
+backends, runtime-image preparation, and usage.
 
 ## Dataset
 
-Rows contain the flat `optimal_design`, the three condition fields, both
-objective fields, power/volume constraint residuals, provenance fields
-(`design_is_exact`, `objectives_evaluated_on_design`, `design_provenance`),
-and source-case identifiers. Splits follow the source paper's 75/5/20
-train/val/test policy.
+Rows contain the flat `optimal_design`, the three condition fields, and both
+objective fields. The 4,249/283/1,134 train/validation/test splits follow the
+source paper's 75/5/20 policy.
 
 ## Citation
 

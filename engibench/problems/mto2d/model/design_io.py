@@ -9,14 +9,7 @@ by 6,400 fixed/non-design cells:
 * values ``80000:86400`` are fixed cells copied from a case template.
 
 The solver blocks are vertically flipped to obtain the visual orientation used
-by EngiBench. Each legacy published ``(256, 256)`` array is the entire native
-half-domain anisotropically resized to a square, not a full mirrored image.
-The legacy ``gamma_npy.py`` helper separately mirrors that half-domain into a
-``(400, 400)`` tensor for visualization and conversion; its returned tensor is
-not the storage convention of the published ``256 x 256`` NumPy designs.
-Conversions involving that format reproduce PyTorch's non-antialiased Keys
-bicubic interpolation and are explicitly lossy; they must not be used on the
-simulator path when exact reproduction is required.
+by EngiBench.
 """
 
 from pathlib import Path
@@ -30,9 +23,6 @@ HALF_DESIGN_SHAPE = (400, 200)
 
 FULL_DESIGN_SHAPE = (400, 400)
 """Shape of the mirrored visualization."""
-
-LEGACY_DESIGN_SHAPE = (256, 256)
-"""Shape used by the legacy published NumPy dataset."""
 
 FIRST_BLOCK_SHAPE = (400, 160)
 SECOND_BLOCK_SHAPE = (400, 40)
@@ -211,104 +201,6 @@ def full_to_half(
     if validate_symmetry:
         _validate_symmetry(full, HALF_DESIGN_SHAPE[1], symmetry_tolerance)
     return np.ascontiguousarray(full[:, : HALF_DESIGN_SHAPE[1]])
-
-
-def _cubic_convolution1(value: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
-    coefficient = np.float32(-0.75)
-    return ((coefficient + np.float32(2.0)) * value - (coefficient + np.float32(3.0))) * value * value + np.float32(1.0)
-
-
-def _cubic_convolution2(value: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
-    coefficient = np.float32(-0.75)
-    return (
-        (coefficient * value - np.float32(5.0) * coefficient) * value + np.float32(8.0) * coefficient
-    ) * value - np.float32(4.0) * coefficient
-
-
-def _axis_indices_and_weights(input_size: int, output_size: int) -> tuple[npt.NDArray[np.int64], npt.NDArray[np.float32]]:
-    """Build PyTorch-style bicubic indices and weights for one axis."""
-    scale = np.float32(input_size / output_size)
-    output_coordinates = np.arange(output_size, dtype=np.float64)
-    # PyTorch stores the scale as float32 and commonly evaluates this expression
-    # with fused multiply-add. Computing with the exact float32 scale in float64
-    # and rounding once reproduces that coordinate convention in NumPy.
-    source_coordinates = np.asarray(
-        (output_coordinates + 0.5) * np.float64(scale) - 0.5,
-        dtype=np.float32,
-    )
-    base_indices = np.floor(source_coordinates).astype(np.int64)
-    fractions = np.asarray(source_coordinates - base_indices, dtype=np.float32)
-
-    weights = np.stack(
-        (
-            _cubic_convolution2(fractions + np.float32(1.0)),
-            _cubic_convolution1(fractions),
-            _cubic_convolution1(np.float32(1.0) - fractions),
-            _cubic_convolution2(np.float32(2.0) - fractions),
-        ),
-        axis=1,
-    )
-    offsets = np.arange(-1, 3, dtype=np.int64)
-    indices = np.clip(base_indices[:, None] + offsets, 0, input_size - 1)
-    return indices, weights
-
-
-def _weighted_sum_four(samples: npt.NDArray[np.float32], weights: npt.NDArray[np.float32]) -> npt.NDArray[np.float32]:
-    terms = samples * weights
-    return ((terms[..., 0] + terms[..., 1]) + terms[..., 2]) + terms[..., 3]
-
-
-def _resize_density(design: npt.NDArray[np.float32], target_shape: tuple[int, int]) -> npt.NDArray[np.float32]:
-    """Apply non-antialiased Keys bicubic interpolation like PyTorch.
-
-    PyTorch uses ``a=-0.75``, half-pixel source coordinates for
-    ``align_corners=False``, and edge-index clamping. Interpolation is applied
-    horizontally and then vertically to preserve its separable evaluation
-    order.
-    """
-    row_indices, row_weights = _axis_indices_and_weights(design.shape[0], target_shape[0])
-    column_indices, column_weights = _axis_indices_and_weights(design.shape[1], target_shape[1])
-
-    horizontal_samples = design[:, column_indices]
-    horizontal = _weighted_sum_four(horizontal_samples, column_weights[None, :, :])
-
-    vertical_samples = np.moveaxis(horizontal[row_indices, :], 1, -1)
-    resized = _weighted_sum_four(vertical_samples, row_weights[:, None, :])
-    return np.ascontiguousarray(np.clip(resized, 0.0, 1.0), dtype=np.float32)
-
-
-def half_to_legacy_256(design: npt.NDArray) -> npt.NDArray[np.float32]:
-    """Lossily convert a native half-domain to a legacy ``(256, 256)`` array.
-
-    The complete native ``(400, 200)`` half-domain is anisotropically resized
-    directly to ``(256, 256)``. It is not mirrored first. Bicubic overshoot is
-    clipped to ``[0, 1]``.
-
-    Note that this forward conversion clamps samples at the symmetry edge while
-    :func:`legacy_256_to_half` mirror-pads across it, so the two functions are
-    near- but intentionally not exact inverses.
-    """
-    half = _validate_density_array(design, HALF_DESIGN_SHAPE, name="design")
-    return _resize_density(half, LEGACY_DESIGN_SHAPE)
-
-
-def legacy_256_to_half(design: npt.NDArray) -> npt.NDArray[np.float32]:
-    """Lossily convert a legacy ``(256, 256)`` field to the native half-domain.
-
-    The complete legacy array represents one half-domain. It is concatenated
-    with its horizontal mirror to form ``(256, 512)``, bicubically resized to
-    the native ``(400, 400)`` full field, and reduced to the first 200 columns.
-    This matches the VQGAN/MTO conversion geometry. Bicubic overshoot is clipped
-    to ``[0, 1]``.
-
-    Note that this reverse conversion mirror-pads across the symmetry edge while
-    :func:`half_to_legacy_256` clamps at it, so the two functions are near- but
-    intentionally not exact inverses.
-    """
-    legacy = _validate_density_array(design, LEGACY_DESIGN_SHAPE, name="legacy design")
-    mirrored = np.concatenate((legacy, np.fliplr(legacy)), axis=1)
-    native_full = _resize_density(mirrored, FULL_DESIGN_SHAPE)
-    return np.ascontiguousarray(native_full[:, : HALF_DESIGN_SHAPE[1]])
 
 
 def _replace_internal_field(content: str, values: npt.NDArray[np.float64]) -> str:

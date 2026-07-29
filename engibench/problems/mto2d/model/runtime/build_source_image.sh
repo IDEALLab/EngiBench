@@ -6,12 +6,9 @@ usage() {
 Usage:
   build_source_image.sh /path/to/warm-ready-2d.zip /path/to/MTO-Scripts [image]
 
-Builds a local linux/amd64 image entirely from pinned dependency sources plus
-the caller-supplied MTO2D case and recovered MMA source. The output defaults
-to engibench-mto2d:source-local.
-
-This command does not grant redistribution rights. Do not push the resulting
-image until the MTO2D solver, exact case, and MMA licensing review is complete.
+Builds a local linux/amd64 image from pinned dependency sources plus the
+caller-supplied MTO2D case and recovered MMA source. The output defaults to
+engibench-mto2d:source-local. Use publish_source_image.sh for release checks.
 EOF
 }
 
@@ -214,4 +211,4 @@ docker buildx build \
 echo "Built local source image: $output_image"
 echo "Run its structural smoke test with:"
 echo "  docker run --rm --platform linux/amd64 $output_image mto2d-source-smoke"
-echo "Do not push this image until redistribution rights and numerical parity are approved."
+echo "Publish only through publish_source_image.sh after numerical parity validation."

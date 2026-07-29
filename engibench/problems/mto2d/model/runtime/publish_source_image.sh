@@ -13,7 +13,7 @@ Options:
   --image IMAGE                         Local image (default: engibench-mto2d:source-local)
   --remote REPOSITORY                   Remote repository (default: ghcr.io/ideallab/engibench-mto2d)
   --confirm-redistribution-rights       Confirm that publication rights are resolved
-  --reference-dataset PATH              Exact native dataset used by the q=0.01 check
+  --reference-dataset SOURCE            HF dataset ID or saved DatasetDict used by the q=0.01 check
   --confirm-reference                   Run and require q=0.01 numerical reference parity
   --push                                Tag and push v0 and v0-<Git SHA>
   -h, --help                            Show this help
@@ -26,7 +26,7 @@ image=engibench-mto2d:source-local
 remote=ghcr.io/ideallab/engibench-mto2d
 confirm_rights=false
 confirm_reference=false
-reference_dataset=${MTO2D_REFERENCE_DATASET:-}
+reference_dataset=${MTO2D_REFERENCE_DATASET:-IDEALLab/mto_2d_v0}
 push=false
 
 while [[ $# -gt 0 ]]; do
@@ -152,14 +152,9 @@ fi
     echo "--push requires --confirm-reference" >&2
     exit 2
 }
-if [[ -z "$reference_dataset" && -d "$repository/dataset_output/mto_2d_exact_source_v0" ]]; then
-    reference_dataset="$repository/dataset_output/mto_2d_exact_source_v0"
+if [[ -d "$reference_dataset" ]]; then
+    reference_dataset=$(cd "$reference_dataset" && pwd)
 fi
-[[ -n "$reference_dataset" && -d "$reference_dataset" ]] || {
-    echo "--push requires --reference-dataset pointing to the exact native dataset." >&2
-    exit 2
-}
-reference_dataset=$(cd "$reference_dataset" && pwd)
 python_command=${MTO2D_PYTHON:-"$repository/.venv/bin/python"}
 if [[ ! -x "$python_command" ]]; then
     python_command=$(command -v python || true)

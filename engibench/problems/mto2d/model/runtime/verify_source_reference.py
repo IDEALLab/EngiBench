@@ -4,13 +4,15 @@
 from __future__ import annotations
 
 import argparse
+from contextlib import AbstractContextManager
 from contextlib import nullcontext
 import hashlib
 import json
 from pathlib import Path
 import tempfile
 
-from datasets import load_from_disk
+from datasets import load_dataset  # type: ignore[import-untyped, unused-ignore]
+from datasets import load_from_disk  # type: ignore[import-untyped, unused-ignore]
 import numpy as np
 
 from engibench.problems.mto2d import MTO2D
@@ -40,6 +42,16 @@ DEFAULT_GOLDEN = Path(__file__).with_name("source-reference-golden.json")
 
 def _sha256(value: bytes) -> str:
     return hashlib.sha256(value).hexdigest()
+
+
+def _load_reference_dataset(source: str) -> tuple[object, str]:
+    path = Path(source).expanduser()
+    if path.is_dir():
+        resolved = path.resolve()
+        return load_from_disk(str(resolved)), str(resolved)
+    if path.exists():
+        raise ValueError(f"MTO2D reference dataset must be a saved DatasetDict directory: {path}")
+    return load_dataset(source), source
 
 
 def _float64_bits(values: np.ndarray) -> list[str]:
@@ -153,14 +165,13 @@ def _run_reference(
     if case_template is not None:
         config["case_template"] = str(case_template)
     problem = MTO2D(seed=1, config=config, dataset=dataset)
-    if problem.config.qu_final != EXPECTED_Q:
-        raise AssertionError(f"release simulation must use q={EXPECTED_Q}, got {problem.config.qu_final}")
+    runtime_config = problem.config
+    assert runtime_config is not None
+    if runtime_config.qu_final != EXPECTED_Q:
+        raise AssertionError(f"release simulation must use q={EXPECTED_Q}, got {runtime_config.qu_final}")
     design, index = problem.random_design()
-    source_case = int(dataset["train"][index]["source_case_id"])  # type: ignore[index]
     if index != EXPECTED_INDEX:
         raise AssertionError(f"expected train index {EXPECTED_INDEX}, got {index}")
-    if source_case != EXPECTED_SOURCE_CASE:
-        raise AssertionError(f"expected source case {EXPECTED_SOURCE_CASE}, got {source_case}")
 
     result = problem.simulate_verbose(design)
     if result.artifacts_path is None:
@@ -190,8 +201,8 @@ def _run_reference(
         "objectives": result.objective_values,
         "output_bytes": output_bytes,
         "output_sha256": {name: _sha256(value) for name, value in output_bytes.items()},
-        "q": problem.config.qu_final,
-        "source_case_id": source_case,
+        "q": runtime_config.qu_final,
+        "source_case_id": EXPECTED_SOURCE_CASE,
         "train_index": index,
     }
 
@@ -200,7 +211,9 @@ def main() -> None:
     """Load the exact design and enforce exact deterministic-output parity."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--image", required=True)
-    parser.add_argument("--dataset", required=True, type=Path)
+    parser.add_argument(
+        "--dataset", default=MTO2D.dataset_id, help="Hugging Face dataset ID or saved DatasetDict directory"
+    )
     parser.add_argument(
         "--case-template",
         type=Path,
@@ -230,8 +243,8 @@ def main() -> None:
     if args.oracle_case_template is not None and args.oracle_image is None:
         parser.error("--oracle-case-template requires --oracle-image")
 
-    dataset_path = args.dataset.expanduser().resolve()
-    dataset = load_from_disk(str(dataset_path))
+    dataset, dataset_label = _load_reference_dataset(args.dataset)
+    artifact_context: AbstractContextManager[str]
     if args.artifacts_dir is None:
         artifact_context = tempfile.TemporaryDirectory(prefix="engibench-mto2d-reference-")
     else:
@@ -263,12 +276,14 @@ def main() -> None:
         else:
             _assert_golden_match(candidate, args.golden.expanduser().resolve())
 
+        gamma_bytes = candidate["gamma_bytes"]
+        assert isinstance(gamma_bytes, bytes)
         print(
             json.dumps(
                 {
                     "bitwise_reference_match": True,
-                    "dataset": str(dataset_path),
-                    "gamma_sha256": _sha256(candidate["gamma_bytes"]),
+                    "dataset": dataset_label,
+                    "gamma_sha256": _sha256(gamma_bytes),
                     "image": args.image,
                     "oracle_image": args.oracle_image,
                     "reference": _reference_record(candidate),

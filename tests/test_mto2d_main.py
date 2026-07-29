@@ -41,7 +41,7 @@ class RecordingRunner:
         )
 
 
-def _row(design: np.ndarray, *, exact: bool = True) -> dict[str, Any]:
+def _row(design: np.ndarray) -> dict[str, Any]:
     return {
         "optimal_design": design,
         "inlet_velocity": -0.051,
@@ -49,9 +49,6 @@ def _row(design: np.ndarray, *, exact: bool = True) -> dict[str, Any]:
         "volfrac": 0.47,
         "mean_temperature": 9.5,
         "power_dissipation": 61.0,
-        "design_provenance": "native fixture" if exact else "lossy fixture",
-        "design_is_exact": exact,
-        "objectives_evaluated_on_design": exact,
     }
 
 
@@ -68,9 +65,6 @@ def saved_flat_dataset(tmp_path: Path) -> Path:
             "volfrac": Value("float64"),
             "mean_temperature": Value("float64"),
             "power_dissipation": Value("float64"),
-            "design_provenance": Value("string"),
-            "design_is_exact": Value("bool"),
-            "objectives_evaluated_on_design": Value("bool"),
         }
     )
     columns = {key: [value] for key, value in row.items()}
@@ -89,7 +83,7 @@ def test_main_uses_flat_dataset_row_conditions_and_opt_in_simulation(
     dataset = {
         "train": [
             _row(np.zeros(HALF_DESIGN_SHAPE, dtype=np.float32)),
-            _row(native.reshape(-1), exact=False),
+            _row(native.reshape(-1)),
         ]
     }
     runner = RecordingRunner()
@@ -121,7 +115,6 @@ def test_main_uses_flat_dataset_row_conditions_and_opt_in_simulation(
     output = capsys.readouterr().out
     assert "Selected split='train', index=1" in output
     assert "Stored objectives: mean_temperature=9.5, power_dissipation=61" in output
-    assert "WARNING: this design was reconstructed lossily" in output
     assert "Simulated objectives: mean_temperature=9.25, power_dissipation=61.5" in output
 
 
@@ -138,48 +131,22 @@ def test_main_does_not_call_solver_without_explicit_flag(capsys: pytest.CaptureF
     assert "Simulation skipped. Pass --simulate" in capsys.readouterr().out
 
 
-def test_main_distinguishes_exact_design_with_legacy_labels(capsys: pytest.CaptureFixture[str]) -> None:
-    row = _row(np.full(HALF_DESIGN_SHAPE, 0.25, dtype=np.float32))
-    row["objectives_evaluated_on_design"] = False
-
-    mto2d_module.main(dataset={"train": [row]})
-
-    output = capsys.readouterr().out
-    assert "stored objectives were not evaluated on this stored design" in output
-    assert "reconstructed lossily" not in output
-
-
-def test_main_auto_uses_repository_dataset(
-    saved_flat_dataset: Path,
+def test_main_defaults_to_published_hub_dataset(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    monkeypatch.setattr(mto2d_module, "REPOSITORY_DATASET_PATH", saved_flat_dataset)
+    hub_dataset = {"train": [_row(np.full(HALF_DESIGN_SHAPE, 0.25, dtype=np.float32))]}
+
+    def fake_load_dataset(dataset_id: str) -> dict[str, list[dict[str, Any]]]:
+        assert dataset_id == "IDEALLab/mto_2d_v0"
+        return hub_dataset
+
+    monkeypatch.setattr("datasets.load_dataset", fake_load_dataset)
 
     result = mto2d_module.main(open_window=False)
 
     assert result is None
-    output = capsys.readouterr().out
-    assert f"Dataset: {saved_flat_dataset.resolve()}" in output
-    assert "Selected split='train', index=0" in output
-
-
-def test_problem_dataset_does_not_auto_discover_repository_data(
-    saved_flat_dataset: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    monkeypatch.setattr(mto2d_module, "REPOSITORY_DATASET_PATH", saved_flat_dataset)
-    hub_dataset = {"train": [{"source": "hub"}]}
-
-    def fake_load_dataset(dataset_id: str) -> dict[str, list[dict[str, str]]]:
-        assert dataset_id == "IDEALLab/mto_2d_v0"
-        return hub_dataset
-
-    monkeypatch.setattr("engibench.core.load_dataset", fake_load_dataset)
-
-    problem = mto2d_module.MTO2D()
-
-    assert problem.dataset is hub_dataset
+    assert "Dataset: IDEALLab/mto_2d_v0" in capsys.readouterr().out
 
 
 def test_cli_reads_json_solver_config_and_keeps_simulation_opt_in(
@@ -189,7 +156,6 @@ def test_cli_reads_json_solver_config_and_keeps_simulation_opt_in(
     config_path = tmp_path / "solver.json"
     config_path.write_text('{"backend": "command", "driver_command": ["driver"], "mpi_cores": 4}', encoding="utf-8")
     monkeypatch.setenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, str(tmp_path / "missing-environment.json"))
-    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", tmp_path / "missing-local.json")
     captured: dict[str, Any] = {}
 
     def fake_main(**kwargs: Any) -> None:
@@ -223,57 +189,16 @@ def test_cli_reads_json_solver_config_and_keeps_simulation_opt_in(
     }
 
 
-def test_cli_auto_discovers_local_solver_config_only_for_simulation(
+def test_cli_reads_environment_solver_config_only_for_simulation(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    source_checkout = tmp_path / "EngiBench"
-    (source_checkout / ".git").mkdir(parents=True)
-    local_config = tmp_path / "mto2d-docker.json"
-    local_config.write_text(
-        '{"backend": "container", "container_image": "auto-image", "case_template": "/auto/case", "mpi_cores": 4}',
-        encoding="utf-8",
-    )
-    monkeypatch.setattr(mto2d_module, "SOURCE_CHECKOUT_PATH", source_checkout)
-    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", local_config)
-    monkeypatch.setenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, "")
-    monkeypatch.setenv("ENGIBENCH_MTO2D_CASE_TEMPLATE", "/environment/case")
-    monkeypatch.setenv("ENGIBENCH_MTO2D_IMAGE", "environment-image")
-    captured: dict[str, Any] = {}
-
-    def fake_main(**kwargs: Any) -> None:
-        captured.update(kwargs)
-
-    monkeypatch.setattr(mto2d_module, "main", fake_main)
-    mto2d_module._cli(["--simulate", "--no-show"])  # noqa: SLF001
-
-    assert captured["solver_config"] == {
-        "backend": "container",
-        "container_image": "environment-image",
-        "case_template": "/environment/case",
-        "mpi_cores": 4,
-    }
-
-    captured.clear()
-    mto2d_module._cli(["--no-show"])  # noqa: SLF001
-    assert captured["solver_config"] == {}
-
-
-def test_cli_environment_solver_config_wins_over_local_discovery(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    environment_config = tmp_path / "environment.json"
+    environment_config = tmp_path / "mto2d.json"
     environment_config.write_text(
-        '{"backend": "container", "container_image": "configured-image", '
-        '"case_template": "/configured/case", "mpi_cores": 2}',
+        '{"backend": "container", "container_image": "configured-image", "mpi_cores": 4}',
         encoding="utf-8",
     )
-    malformed_local = tmp_path / "local.json"
-    malformed_local.write_text("not JSON", encoding="utf-8")
     monkeypatch.setenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, str(environment_config))
-    monkeypatch.setenv("ENGIBENCH_MTO2D_IMAGE", "lower-priority-image")
-    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", malformed_local)
     captured: dict[str, Any] = {}
 
     def fake_main(**kwargs: Any) -> None:
@@ -285,22 +210,12 @@ def test_cli_environment_solver_config_wins_over_local_discovery(
     assert captured["solver_config"] == {
         "backend": "container",
         "container_image": "configured-image",
-        "case_template": "/configured/case",
-        "mpi_cores": 2,
+        "mpi_cores": 4,
     }
 
-
-def test_solver_config_auto_discovery_is_silent_when_local_artifact_is_missing(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    source_checkout = tmp_path / "EngiBench"
-    (source_checkout / ".git").mkdir(parents=True)
-    monkeypatch.setattr(mto2d_module, "SOURCE_CHECKOUT_PATH", source_checkout)
-    monkeypatch.setattr(mto2d_module, "LOCAL_RUNTIME_CONFIG_PATH", tmp_path / "missing.json")
-    monkeypatch.delenv(mto2d_module.SOLVER_CONFIG_ENV_VAR, raising=False)
-
-    assert mto2d_module._read_solver_config(None, auto_discover=True) == {}  # noqa: SLF001
+    captured.clear()
+    mto2d_module._cli(["--no-show"])  # noqa: SLF001
+    assert captured["solver_config"] == {}
 
 
 def test_v0_file_runs_directly_with_local_dataset(saved_flat_dataset: Path, tmp_path: Path) -> None:

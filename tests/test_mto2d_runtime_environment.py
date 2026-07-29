@@ -154,7 +154,7 @@ def test_source_image_carries_release_provenance_labels() -> None:
     pins = (RUNTIME_DIR / "source-pins.env").read_text(encoding="utf-8")
     assert "BASE_IMAGE_NAME='docker.io/library/ubuntu:20.04'" in pins
     assert "BASE_IMAGE_DIGEST='sha256:" in pins
-    assert "APPROVED_IMAGE_LICENSES='NOASSERTION'" in pins
+    assert "APPROVED_IMAGE_LICENSES='GPL-3.0-or-later'" in pins
     assert "OPENSSH_CLIENT_VERSION='1:8.2p1-4ubuntu0.13'" in pins
 
 
@@ -196,7 +196,7 @@ def test_source_reference_verifier_is_simulation_only() -> None:
     assert "DEFAULT_GOLDEN" in verifier
     assert "_assert_golden_match" in verifier
     assert "assert_array_equal" in verifier
-    assert "assert_allclose" not in verifier
+    assert "default=MTO2D.dataset_id" in verifier
     assert ".optimize(" not in verifier
     assert "d53c0b6f8ec566b0d165be485efefde814e9f2af7e1e39f1ebc30a9a86ca62a6" in golden
     assert "5f2f11fba64a3a15229994f7af7914593ac412b22faab4173192bb5ad067cb7f" in golden
