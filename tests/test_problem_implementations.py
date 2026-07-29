@@ -23,6 +23,11 @@ from engibench.utils.all_problems import BUILTIN_PROBLEMS
 if TYPE_CHECKING:
     from typing import Self
 
+# Problems whose dataset and solver runtime are not published yet. Their static API
+# surface is still checked; only the parts requiring published artifacts are skipped.
+# Remove a problem from this tuple once its dataset and container image are released.
+UNPUBLISHED_PROBLEMS = ("engibench.problems.mto2d",)
+
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
 def test_problem_impl(problem_class: type[Problem]) -> None:
@@ -70,6 +75,9 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     )
     assert "reset" in class_methods, f"Problem {problem_class.__name__}: The reset method should be implemented."
     # optimize is optional, thus not checked
+
+    if problem_class.__module__.startswith(UNPUBLISHED_PROBLEMS):
+        pytest.skip(f"{problem_class.__name__} has no published dataset yet")
 
     # Test the dataset has the required splits
     dataset = problem.dataset
@@ -119,6 +127,8 @@ def test_python_problem_impl(
     """
     if problem_class.container_id is not None and not sys.platform.startswith("linux"):
         pytest.skip(f"Skipping containerized problem {problem_class.__name__} on non-linux platform")
+    if problem_class.__module__.startswith(UNPUBLISHED_PROBLEMS):
+        pytest.skip(f"{problem_class.__name__} has no published solver image or dataset yet")
     if problem_class.__module__.startswith("engibench.problems.power_electronics") and sys.platform == "darwin":
         pytest.skip(f"Skipping {problem_class.__name__} on MacOs")
     ref_path = Path(__file__).parent / "reference" / "simulate" / (problem_id(problem_class) + ".json")
