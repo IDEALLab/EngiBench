@@ -8,7 +8,7 @@
 The native dataset is public at
 [`IDEALLab/mto_2d_v0`](https://huggingface.co/datasets/IDEALLab/mto_2d_v0).
 The source-built Linux/AMD64 solver is hosted at
-`ghcr.io/ideallab/engibench-mto2d`; `MTO2D.container_id` pins the accepted
+`ghcr.io/arthurdrake1/engibench-mto2d`; `MTO2D.container_id` pins the accepted
 manifest by immutable digest.
 
 ## Motivation

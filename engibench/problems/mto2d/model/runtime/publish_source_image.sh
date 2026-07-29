@@ -11,7 +11,7 @@ The default is a non-mutating validation run.
 
 Options:
   --image IMAGE                         Local image (default: engibench-mto2d:source-local)
-  --remote REPOSITORY                   Remote repository (default: ghcr.io/ideallab/engibench-mto2d)
+  --remote REPOSITORY                   Remote repository (default: ghcr.io/arthurdrake1/engibench-mto2d)
   --confirm-redistribution-rights       Confirm that publication rights are resolved
   --reference-dataset SOURCE            HF dataset ID or saved DatasetDict used by the q=0.01 check
   --confirm-reference                   Run and require q=0.01 numerical reference parity
@@ -23,7 +23,7 @@ EOF
 }
 
 image=engibench-mto2d:source-local
-remote=ghcr.io/ideallab/engibench-mto2d
+remote=ghcr.io/arthurdrake1/engibench-mto2d
 confirm_rights=false
 confirm_reference=false
 reference_dataset=${MTO2D_REFERENCE_DATASET:-IDEALLab/mto_2d_v0}

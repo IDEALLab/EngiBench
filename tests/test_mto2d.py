@@ -714,14 +714,14 @@ def test_container_backend_exports_image_case_template(
         max_power_dissipation=63.1,
         volume_fraction=0.61,
         backend="container",
-        container_image="ghcr.io/ideallab/engibench-mto2d:test",
+        container_image="ghcr.io/arthurdrake1/engibench-mto2d:test",
     )
 
     MTO2DRunner._export_case_template(run_root, case, settings)  # noqa: SLF001
 
     assert captured["args"] == (
         ["mto2d-export-case", "/work/case"],
-        "ghcr.io/ideallab/engibench-mto2d:test",
+        "ghcr.io/arthurdrake1/engibench-mto2d:test",
     )
     assert captured["kwargs"]["mounts"] == ((str(run_root), "/work"),)
     assert captured["kwargs"]["env"] == {

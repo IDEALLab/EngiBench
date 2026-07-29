@@ -45,7 +45,7 @@ SOLVER_CONFIG_ENV_VAR = "ENGIBENCH_MTO2D_SOLVER_CONFIG"
 """Environment variable selecting a solver configuration JSON file."""
 
 DEFAULT_CONTAINER_IMAGE = (
-    "ghcr.io/ideallab/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131"
+    "ghcr.io/arthurdrake1/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131"
 )
 """Published OCI image pinned by immutable manifest digest."""
 
