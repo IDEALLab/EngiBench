@@ -105,7 +105,7 @@ def test_generation_jobs_selects_grid_rows_without_large_payloads(tmp_path: Path
     )
 
     assert [job["case_id"] for job in jobs] == [2, 3]
-    assert jobs[0]["volume_fraction"] == pytest.approx(0.25)
+    assert jobs[0]["volfrac"] == pytest.approx(0.25)
     assert jobs[0]["solver_config"] == {"max_iter": 1, "driver_command": ["external-driver"]}
     assert "optimal_design" not in jobs[0]
 
@@ -123,8 +123,8 @@ def test_case_worker_calls_optimize_and_resumes_from_atomic_shard(
             self.last_solver_run = None
 
         @staticmethod
-        def uniform_starting_design(volume_fraction):
-            return np.full(HALF_DESIGN_SHAPE, volume_fraction, dtype=np.float32)
+        def uniform_starting_design(volfrac):
+            return np.full(HALF_DESIGN_SHAPE, volfrac, dtype=np.float32)
 
         def optimize(self, starting_design):
             calls.append(("optimize", starting_design.shape))
@@ -151,7 +151,7 @@ def test_case_worker_calls_optimize_and_resumes_from_atomic_shard(
         case_id=case_id,
         inlet_velocity=-0.05,
         max_power_dissipation=60.0,
-        volume_fraction=0.5,
+        volfrac=0.5,
         output_dir=str(output_dir),
         solver_config={"max_iter": 1},
     )
@@ -169,7 +169,7 @@ def test_case_worker_calls_optimize_and_resumes_from_atomic_shard(
             case_id=case_id,
             inlet_velocity=-0.05,
             max_power_dissipation=60.0,
-            volume_fraction=0.5,
+            volfrac=0.5,
             output_dir=str(output_dir),
             solver_config={"max_iter": 1},
         )
@@ -181,7 +181,7 @@ def test_case_worker_calls_optimize_and_resumes_from_atomic_shard(
             case_id=case_id,
             inlet_velocity=-0.05,
             max_power_dissipation=61.0,
-            volume_fraction=0.5,
+            volfrac=0.5,
             output_dir=str(output_dir),
             solver_config={"max_iter": 1},
         )
@@ -260,7 +260,7 @@ def _generated_row(case_id: int) -> dict:
         "optimal_design": np.full(HALF_DESIGN_SHAPE, case_id / 20.0, dtype=np.float32),
         "inlet_velocity": -0.05,
         "max_power_dissipation": max_power,
-        "volume_fraction": 0.5,
+        "volfrac": 0.5,
         "mean_temperature": 10.0 + case_id,
         "power_dissipation": power,
         "power_constraint_residual_absolute": power - max_power,

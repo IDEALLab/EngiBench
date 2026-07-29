@@ -46,7 +46,7 @@ def _row(design: np.ndarray, *, exact: bool = True) -> dict[str, Any]:
         "optimal_design": design,
         "inlet_velocity": -0.051,
         "max_power_dissipation": 62.0,
-        "volume_fraction": 0.47,
+        "volfrac": 0.47,
         "mean_temperature": 9.5,
         "power_dissipation": 61.0,
         "design_provenance": "native fixture" if exact else "lossy fixture",
@@ -65,7 +65,7 @@ def saved_flat_dataset(tmp_path: Path) -> Path:
             "optimal_design": Sequence(Value("float32")),
             "inlet_velocity": Value("float64"),
             "max_power_dissipation": Value("float64"),
-            "volume_fraction": Value("float64"),
+            "volfrac": Value("float64"),
             "mean_temperature": Value("float64"),
             "power_dissipation": Value("float64"),
             "design_provenance": Value("string"),
@@ -164,16 +164,22 @@ def test_main_auto_uses_repository_dataset(
     assert "Selected split='train', index=0" in output
 
 
-def test_problem_dataset_prefers_exact_local_data(
+def test_problem_dataset_does_not_auto_discover_repository_data(
     saved_flat_dataset: Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(mto2d_module, "REPOSITORY_DATASET_PATH", saved_flat_dataset)
+    hub_dataset = {"train": [{"source": "hub"}]}
+
+    def fake_load_dataset(dataset_id: str) -> dict[str, list[dict[str, str]]]:
+        assert dataset_id == "IDEALLab/mto_2d_v0"
+        return hub_dataset
+
+    monkeypatch.setattr("engibench.core.load_dataset", fake_load_dataset)
 
     problem = mto2d_module.MTO2D()
 
-    assert len(problem.dataset["train"]) == 1
-    assert problem.dataset["train"][0]["design_is_exact"] is True
+    assert problem.dataset is hub_dataset
 
 
 def test_cli_reads_json_solver_config_and_keeps_simulation_opt_in(

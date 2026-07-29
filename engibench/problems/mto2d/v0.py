@@ -28,6 +28,7 @@ from engibench.core import ObjectiveDirection
 from engibench.core import OptiStep
 from engibench.core import Problem
 from engibench.core import SimulationResult
+from engibench.problems.mto2d.model.dataset import canonicalize_dataset_columns
 from engibench.problems.mto2d.model.design_io import FIXED_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
@@ -56,13 +57,16 @@ LOCAL_RUNTIME_CONFIG_PATH = SOURCE_CHECKOUT_PATH.parent / ".artifacts" / "mto2d-
 SOLVER_CONFIG_ENV_VAR = "ENGIBENCH_MTO2D_SOLVER_CONFIG"
 """Environment variable selecting a solver configuration JSON file."""
 
+DEFAULT_CONTAINER_IMAGE = "ghcr.io/ideallab/engibench-mto2d:v0"
+"""Prospective public OCI image; replace the tag with its digest after publication."""
+
 
 @dataclass
 class MTO2DSimulationResult(SimulationResult):
     """Objectives and constraint diagnostics from a frozen MTO2D evaluation."""
 
     volume_constraint_residual: float
-    """Solver-reported ``mean(gamma) - volume_fraction`` over all cells."""
+    """Solver-reported ``mean(gamma) - volfrac`` over all cells."""
 
     power_constraint_residual: float
     """Relative power residual ``power_dissipation / max_power_dissipation - 1``."""
@@ -129,7 +133,7 @@ class MTO2D(Problem[npt.NDArray]):
         reference scale ``J1 ≈ 1.58e-7``.
         """
 
-        volume_fraction: Annotated[
+        volfrac: Annotated[
             float,
             bounded(lower=MIN_VOLUME_FRACTION, upper=1.0).category(THEORY),
             bounded(lower=0.25, upper=0.70).warning().category(IMPL),
@@ -139,7 +143,7 @@ class MTO2D(Problem[npt.NDArray]):
     conditions = Conditions()
     design_space = spaces.Box(low=0.0, high=1.0, shape=HALF_DESIGN_SHAPE, dtype=np.float32)
     dataset_id = "IDEALLab/mto_2d_v0"
-    container_id = None
+    container_id = DEFAULT_CONTAINER_IMAGE
 
     @dataclass
     class Config(Conditions):
@@ -150,7 +154,7 @@ class MTO2D(Problem[npt.NDArray]):
         optimization_schedule: str = "legacy"
         mpi_cores: Annotated[int, greater_than(0).category(IMPL)] = 1
         case_template: str | None = None
-        backend: str = "local"
+        backend: str = "container"
         container_image: str | None = None
         driver_command: tuple[str, ...] = ()
         solver_executable: str = "../src_TF/EXEC"
@@ -257,16 +261,9 @@ class MTO2D(Problem[npt.NDArray]):
         self._runner = runner or MTO2DRunner()
         self.last_solver_run: SolverRun | None = None
         if dataset is not None:
-            self._dataset = dataset
-
-    @property
-    def dataset(self) -> Any:
-        """Load the exact local source dataset when available, then fall back to Hugging Face."""
-        if self._dataset is None and REPOSITORY_DATASET_PATH.is_dir():
-            from datasets import load_from_disk  # noqa: PLC0415
-
-            self._dataset = load_from_disk(str(REPOSITORY_DATASET_PATH))
-        return super().dataset
+            self._dataset = (
+                canonicalize_dataset_columns(dataset) if getattr(dataset, "column_names", None) is not None else dataset
+            )
 
     def reset(self, seed: int | None = None) -> None:
         """Reset the EngiBench random-number generator."""
@@ -416,23 +413,23 @@ class MTO2D(Problem[npt.NDArray]):
         return fig, ax
 
     @staticmethod
-    def design_volume_residual(design: npt.NDArray, volume_fraction: float) -> float:
+    def design_volume_residual(design: npt.NDArray, volfrac: float) -> float:
         """Estimate the raw all-cell volume residual before filtering/projection."""
         density = np.asarray(design, dtype=np.float64)
         if density.shape != HALF_DESIGN_SHAPE:
             raise ValueError(f"design must have shape {HALF_DESIGN_SHAPE}")
-        return float((density.sum() + FIXED_CELL_COUNT) / GAMMA_CELL_COUNT - volume_fraction)
+        return float((density.sum() + FIXED_CELL_COUNT) / GAMMA_CELL_COUNT - volfrac)
 
     @staticmethod
-    def uniform_starting_design(volume_fraction: float) -> npt.NDArray[np.float32]:
+    def uniform_starting_design(volfrac: float) -> npt.NDArray[np.float32]:
         """Create a uniform design whose all-cell mean equals the requested volume.
 
         The correction accounts for the 6,400 fixed-fluid cells outside the
         80,000-cell design domain.
         """
-        design_fraction = (GAMMA_CELL_COUNT * volume_fraction - FIXED_CELL_COUNT) / int(np.prod(HALF_DESIGN_SHAPE))
+        design_fraction = (GAMMA_CELL_COUNT * volfrac - FIXED_CELL_COUNT) / int(np.prod(HALF_DESIGN_SHAPE))
         if not 0.0 <= design_fraction <= 1.0:
-            raise ValueError("volume_fraction is incompatible with the fixed-fluid region")
+            raise ValueError("volfrac is incompatible with the fixed-fluid region")
         return np.full(HALF_DESIGN_SHAPE, design_fraction, dtype=np.float32)
 
     @staticmethod
@@ -463,14 +460,15 @@ class MTO2D(Problem[npt.NDArray]):
             raise ValueError("MTO2D design values must lie in [0, 1]")
         return np.ascontiguousarray(density)
 
-    @staticmethod
-    def _runner_settings(config: Config, *, max_iter: int | None = None) -> RunnerSettings:
+    @classmethod
+    def _runner_settings(cls, config: Config, *, max_iter: int | None = None) -> RunnerSettings:
         values = dataclasses.asdict(config)
+        values["volume_fraction"] = values.pop("volfrac")
         fields = {field.name for field in dataclasses.fields(RunnerSettings)}
         values = {key: value for key, value in values.items() if key in fields}
         if max_iter is not None:
             values["max_iter"] = max_iter
-        values["container_image"] = values["container_image"] or os.environ.get("ENGIBENCH_MTO2D_IMAGE")
+        values["container_image"] = values["container_image"] or os.environ.get("ENGIBENCH_MTO2D_IMAGE") or cls.container_id
         return RunnerSettings(**values)
 
 

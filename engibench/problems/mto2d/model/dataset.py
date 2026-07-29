@@ -69,12 +69,16 @@ LEGACY_PROVENANCE = (
 LEGACY_REQUIRED_FINITE_FIELDS = (
     "inlet_velocity",
     "max_power_dissipation",
-    "volume_fraction",
+    "volfrac",
     "mean_temperature",
     "power_dissipation",
     "power_constraint_residual_absolute",
     "power_constraint_residual_relative",
 )
+LEGACY_DATASET_COLUMN_RENAMES = {
+    "volume_fraction": "volfrac",
+}
+"""Legacy-to-canonical MTO2D column names."""
 
 
 def condition_grid(
@@ -87,7 +91,7 @@ def condition_grid(
     """Return a stable Cartesian condition grid.
 
     Columns are ``inlet_velocity``, ``max_power_dissipation``, and
-    ``volume_fraction``. Ordering is inlet-major, then power, with volume
+    ``volfrac``. Ordering is inlet-major, then power, with volume
     changing fastest. The default shape is ``20 * 20 * 25 == 10_000``.
     """
     if len(shape) != CONDITION_COLUMN_COUNT or any(not isinstance(count, int) or count <= 0 for count in shape):
@@ -199,7 +203,7 @@ def dataset_features() -> Any:
             "optimal_design": DatasetSequence(Value("float32")),
             "inlet_velocity": Value("float64"),
             "max_power_dissipation": Value("float64"),
-            "volume_fraction": Value("float64"),
+            "volfrac": Value("float64"),
             "mean_temperature": Value("float32"),
             "power_dissipation": Value("float32"),
             "power_constraint_residual_absolute": Value("float64"),
@@ -217,6 +221,40 @@ def dataset_features() -> Any:
             "objectives_evaluated_on_design": Value("bool"),
         }
     )
+
+
+def canonicalize_dataset_columns(dataset: Any) -> Any:
+    """Return a Dataset or DatasetDict using canonical MTO2D column names.
+
+    This keeps already-saved datasets with the former ``volume_fraction``
+    name usable without regenerating their large design arrays. Hugging Face
+    column renames are metadata-only Arrow operations.
+    """
+    column_names = getattr(dataset, "column_names", None)
+    if isinstance(column_names, Mapping):
+        converted = {
+            split_name: _canonicalize_dataset_split(split, context=str(split_name)) for split_name, split in dataset.items()
+        }
+        if all(converted[name] is dataset[name] for name in converted):
+            return dataset
+        return dataset.__class__(converted)
+    return _canonicalize_dataset_split(dataset)
+
+
+def _canonicalize_dataset_split(dataset: Any, *, context: str = "dataset") -> Any:
+    column_names = getattr(dataset, "column_names", None)
+    if column_names is None or isinstance(column_names, Mapping):
+        raise TypeError(f"{context} must be a Hugging Face Dataset")
+    names = set(column_names)
+    renames: dict[str, str] = {}
+    for legacy_name, canonical_name in LEGACY_DATASET_COLUMN_RENAMES.items():
+        if legacy_name in names and canonical_name in names:
+            raise ValueError(
+                f"{context} contains both legacy column {legacy_name!r} and canonical column {canonical_name!r}"
+            )
+        if legacy_name in names:
+            renames[legacy_name] = canonical_name
+    return dataset.rename_columns(renames) if renames else dataset
 
 
 def generation_jobs(  # noqa: PLR0913
@@ -249,7 +287,7 @@ def generation_jobs(  # noqa: PLR0913
             "case_id": case_id,
             "inlet_velocity": float(conditions[case_id, 0]),
             "max_power_dissipation": float(conditions[case_id, 1]),
-            "volume_fraction": float(conditions[case_id, 2]),
+            "volfrac": float(conditions[case_id, 2]),
             "output_dir": destination,
             "solver_config": config,
             "evaluate_final": evaluate_final,
@@ -263,7 +301,7 @@ def run_optimization_case(  # noqa: PLR0913, PLR0917
     case_id: int,
     inlet_velocity: float,
     max_power_dissipation: float,
-    volume_fraction: float,
+    volfrac: float,
     output_dir: str,
     solver_config: Mapping[str, Any] | None = None,
     *,
@@ -283,22 +321,22 @@ def run_optimization_case(  # noqa: PLR0913, PLR0917
         _validate_existing_shard(
             shard_path,
             case_id=case_id,
-            conditions=(inlet_velocity, max_power_dissipation, volume_fraction),
+            conditions=(inlet_velocity, max_power_dissipation, volfrac),
         )
         return str(shard_path)
 
     from engibench.problems.mto2d.v0 import MTO2D  # noqa: PLC0415
 
-    config = dict(solver_config or {})
+    config = _json_safe_mapping(solver_config or {})
     config.update(
         {
             "inlet_velocity": float(inlet_velocity),
             "max_power_dissipation": float(max_power_dissipation),
-            "volume_fraction": float(volume_fraction),
+            "volfrac": float(volfrac),
         }
     )
     problem = MTO2D(seed=case_id, config=config)
-    starting_design = problem.uniform_starting_design(volume_fraction)
+    starting_design = problem.uniform_starting_design(volfrac)
     optimized_design, history = problem.optimize(starting_design)
     if not history:
         raise RuntimeError("MTO2D.optimize returned an empty history")
@@ -329,7 +367,7 @@ def run_optimization_case(  # noqa: PLR0913, PLR0917
         "optimal_design": np.asarray(optimized_design, dtype=np.float32),
         "inlet_velocity": float(inlet_velocity),
         "max_power_dissipation": float(max_power_dissipation),
-        "volume_fraction": float(volume_fraction),
+        "volfrac": float(volfrac),
         "mean_temperature": mean_temperature,
         "power_dissipation": power_dissipation,
         "power_constraint_residual_absolute": power_dissipation - max_power_dissipation,
@@ -614,7 +652,7 @@ def legacy_row(  # noqa: PLR0913
     condition_array = np.asarray(conditions, dtype=np.float64)
     if condition_array.shape != (CONDITION_COLUMN_COUNT,) or not np.all(np.isfinite(condition_array)):
         raise ValueError("conditions must contain three finite values")
-    inlet_velocity, max_power_dissipation, volume_fraction = (float(value) for value in condition_array)
+    inlet_velocity, max_power_dissipation, volfrac = (float(value) for value in condition_array)
     if max_power_dissipation <= 0.0:
         raise ValueError("max_power_dissipation must be positive")
     mean_temperature = float(mean_temperature)
@@ -627,7 +665,7 @@ def legacy_row(  # noqa: PLR0913
         "optimal_design": legacy_256_to_half(design).reshape(-1),
         "inlet_velocity": inlet_velocity,
         "max_power_dissipation": max_power_dissipation,
-        "volume_fraction": volume_fraction,
+        "volfrac": volfrac,
         "mean_temperature": mean_temperature,
         "power_dissipation": power_dissipation,
         "power_constraint_residual_absolute": absolute_residual,
@@ -655,6 +693,7 @@ def validate_legacy_dataset(
     source_revision: str = RAW_REVISION,
 ) -> dict[str, int]:
     """Validate a converted legacy DatasetDict before publication."""
+    dataset = canonicalize_dataset_columns(dataset)
     expected_indices = legacy_split_indices(row_count, seed=seed)
     expected_sizes = {name: len(indices) for name, indices in expected_indices.items()}
     if set(dataset) != set(expected_sizes):
@@ -785,7 +824,7 @@ def _validate_retained_reference(reference_row: Mapping[str, Any] | None) -> Non
     conditions = [
         reference_row["inlet_velocity"],
         reference_row["max_power_dissipation"],
-        reference_row["volume_fraction"],
+        reference_row["volfrac"],
     ]
     objectives = [reference_row["mean_temperature"], reference_row["power_dissipation"]]
     if not np.allclose(conditions, [-0.074, 63.1, 0.61], rtol=0.0, atol=1e-12):
@@ -812,6 +851,12 @@ def _json_safe_mapping(values: Mapping[str, Any]) -> dict[str, Any]:
     decoded = json.loads(encoded)
     if not isinstance(decoded, dict):
         raise TypeError("solver_config must be a mapping")
+    for legacy_name, canonical_name in LEGACY_DATASET_COLUMN_RENAMES.items():
+        if legacy_name not in decoded:
+            continue
+        if canonical_name in decoded:
+            raise ValueError(f"solver_config contains both legacy key {legacy_name!r} and canonical key {canonical_name!r}")
+        decoded[canonical_name] = decoded.pop(legacy_name)
     return decoded
 
 
@@ -859,7 +904,7 @@ def _validate_existing_shard(
         [
             row["inlet_velocity"],
             row["max_power_dissipation"],
-            row["volume_fraction"],
+            row["volfrac"],
         ],
         dtype=np.float64,
     )
@@ -873,11 +918,27 @@ def _validate_existing_shard(
 def _load_shard_row(path: str | Path) -> dict[str, Any]:
     feature_names = tuple(dataset_features())
     with np.load(path, allow_pickle=False) as shard:
-        missing = [name for name in feature_names if name not in shard]
+        source_names = {}
+        for name in feature_names:
+            legacy_name = next(
+                (legacy for legacy, canonical in LEGACY_DATASET_COLUMN_RENAMES.items() if canonical == name),
+                None,
+            )
+            if name in shard and legacy_name is not None and legacy_name in shard:
+                raise ValueError(f"shard {path} contains both {legacy_name!r} and {name!r}")
+            if name in shard:
+                source_names[name] = name
+            elif legacy_name is not None and legacy_name in shard:
+                source_names[name] = legacy_name
+        missing = [name for name in feature_names if name not in source_names]
         if missing:
             raise ValueError(f"shard {path} is missing fields: {missing}")
         row = {
-            name: (np.asarray(shard[name], dtype=np.float32) if name == "optimal_design" else _scalar(shard[name], name))
+            name: (
+                np.asarray(shard[source_names[name]], dtype=np.float32)
+                if name == "optimal_design"
+                else _scalar(shard[source_names[name]], source_names[name])
+            )
             for name in feature_names
         }
     design = np.asarray(row["optimal_design"], dtype=np.float32)

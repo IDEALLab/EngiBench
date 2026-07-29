@@ -1,0 +1,251 @@
+# syntax=docker/dockerfile:1.7
+
+ARG BASE_IMAGE=ubuntu:20.04@sha256:c664f8f86ed5a386b0a340d981b8f81714e21a8b9c73f658c4bea56aa179d54a
+FROM --platform=linux/amd64 ${BASE_IMAGE}
+
+ARG BASE_IMAGE
+ARG APT_SNAPSHOT
+ARG OPENFOAM_REPOSITORY
+ARG OPENFOAM_COMMIT
+ARG THIRD_PARTY_REPOSITORY
+ARG THIRD_PARTY_COMMIT
+ARG OPENMPI_VERSION
+ARG OPENMPI_ARCHIVE_URL
+ARG OPENMPI_ARCHIVE_SHA256
+ARG PETSC_REPOSITORY
+ARG PETSC_COMMIT
+ARG SWAK4FOAM_REPOSITORY
+ARG SWAK4FOAM_COMMIT
+ARG SOURCE_BUILD_JOBS=8
+
+SHELL ["/bin/bash", "-o", "pipefail", "-c"]
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    MPI_DIR=/opt/openmpi-4.0.4 \
+    PETSC_DIR=/opt/petsc \
+    PETSC_ARCH=arch-linux2-c-opt
+
+# The pinned focal base has no CA bundle, so bootstrap the exact focal-release
+# TLS packages before apt can contact snapshot.ubuntu.com. They are upgraded
+# from the dated snapshot after the dependency builds.
+RUN apt-get -o Acquire::Retries=5 update \
+    && apt-get -o Acquire::Retries=5 install --yes --no-install-recommends \
+        ca-certificates=20190110ubuntu1 \
+        libssl1.1=1.1.1f-1ubuntu2 \
+        openssl=1.1.1f-1ubuntu2 \
+    && sed -i -E 's|^deb |deb [snapshot=yes] |' /etc/apt/sources.list \
+    && printf 'APT::Snapshot "%s";\n' "${APT_SNAPSHOT}" \
+        >/etc/apt/apt.conf.d/50snapshot
+
+ARG CA_CERTIFICATES_VERSION
+ARG LIBSSL1_1_VERSION
+ARG OPENSSL_VERSION
+
+RUN --mount=type=cache,id=mto2d-apt-packages-amd64,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=mto2d-apt-lists-amd64,target=/var/lib/apt/lists,sharing=locked \
+    rm -f /etc/apt/apt.conf.d/docker-clean \
+    && printf '%s\n' \
+        'APT::Keep-Downloaded-Packages "true";' \
+        'Acquire::Retries "5";' \
+        'Acquire::http::Timeout "30";' \
+        'Acquire::https::Timeout "30";' \
+        >/etc/apt/apt.conf.d/80mto2d-network \
+    && apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        autoconf \
+        automake \
+        binutils-dev \
+        bison \
+        build-essential \
+        ca-certificates="${CA_CERTIFICATES_VERSION}" \
+        cmake \
+        curl \
+        file \
+        flex \
+        gfortran \
+        git \
+        libblas-dev \
+        libboost-system-dev \
+        libboost-thread-dev \
+        libfl-dev \
+        liblapack-dev \
+        libncurses-dev \
+        libreadline-dev \
+        libssl1.1="${LIBSSL1_1_VERSION}" \
+        libtool \
+        libxt-dev \
+        m4 \
+        openssl="${OPENSSL_VERSION}" \
+        patch \
+        perl \
+        pkg-config \
+        python-is-python3 \
+        python3 \
+        rsync \
+        unzip \
+        wget \
+        zlib1g-dev \
+    && test "$(dpkg-query -W -f='${Version}' ca-certificates)" = "${CA_CERTIFICATES_VERSION}" \
+    && test "$(dpkg-query -W -f='${Version}' libssl1.1)" = "${LIBSSL1_1_VERSION}" \
+    && test "$(dpkg-query -W -f='${Version}' openssl)" = "${OPENSSL_VERSION}"
+
+COPY source-build-common.sh /usr/local/lib/mto2d/source-build-common.sh
+
+COPY source-build-openmpi.sh /usr/local/sbin/mto2d-build-openmpi
+RUN chmod 0755 /usr/local/sbin/mto2d-build-openmpi \
+    && OPENMPI_VERSION="${OPENMPI_VERSION}" \
+       OPENMPI_ARCHIVE_URL="${OPENMPI_ARCHIVE_URL}" \
+       OPENMPI_ARCHIVE_SHA256="${OPENMPI_ARCHIVE_SHA256}" \
+       SOURCE_BUILD_JOBS="${SOURCE_BUILD_JOBS}" \
+       /usr/local/sbin/mto2d-build-openmpi
+
+COPY source-build-petsc.sh /usr/local/sbin/mto2d-build-petsc
+RUN chmod 0755 /usr/local/sbin/mto2d-build-petsc \
+    && PETSC_REPOSITORY="${PETSC_REPOSITORY}" \
+       PETSC_COMMIT="${PETSC_COMMIT}" \
+       SOURCE_BUILD_JOBS="${SOURCE_BUILD_JOBS}" \
+       /usr/local/sbin/mto2d-build-petsc
+
+ARG SCOTCH_REPOSITORY
+ARG SCOTCH_COMMIT
+ARG SCOTCH_MAKEFILE_SHA256
+ARG SCOTCH_DGRAPH_HALO_SHA256
+LABEL org.opencontainers.image.mto2d.scotch.revision="${SCOTCH_COMMIT}"
+
+COPY source-openfoam-environment.sh /usr/local/lib/mto2d/source-openfoam-environment.sh
+
+COPY source-prepare-openfoam.sh /usr/local/sbin/mto2d-prepare-openfoam
+RUN chmod 0755 /usr/local/sbin/mto2d-prepare-openfoam \
+    && OPENFOAM_REPOSITORY="${OPENFOAM_REPOSITORY}" \
+       OPENFOAM_COMMIT="${OPENFOAM_COMMIT}" \
+       THIRD_PARTY_REPOSITORY="${THIRD_PARTY_REPOSITORY}" \
+       THIRD_PARTY_COMMIT="${THIRD_PARTY_COMMIT}" \
+       SCOTCH_REPOSITORY="${SCOTCH_REPOSITORY}" \
+       SCOTCH_COMMIT="${SCOTCH_COMMIT}" \
+       SCOTCH_MAKEFILE_SHA256="${SCOTCH_MAKEFILE_SHA256}" \
+       SCOTCH_DGRAPH_HALO_SHA256="${SCOTCH_DGRAPH_HALO_SHA256}" \
+       SOURCE_BUILD_JOBS="${SOURCE_BUILD_JOBS}" \
+       /usr/local/sbin/mto2d-prepare-openfoam
+
+COPY source-build-openfoam-foundation.sh /usr/local/sbin/mto2d-build-openfoam-foundation
+RUN chmod 0755 /usr/local/sbin/mto2d-build-openfoam-foundation \
+    && SOURCE_BUILD_JOBS="${SOURCE_BUILD_JOBS}" \
+       /usr/local/sbin/mto2d-build-openfoam-foundation
+
+COPY source-build-openfoam-models.sh /usr/local/sbin/mto2d-build-openfoam-models
+RUN chmod 0755 /usr/local/sbin/mto2d-build-openfoam-models \
+    && SOURCE_BUILD_JOBS="${SOURCE_BUILD_JOBS}" \
+       /usr/local/sbin/mto2d-build-openfoam-models
+
+COPY source-build-openfoam-utilities.sh /usr/local/sbin/mto2d-build-openfoam-utilities
+RUN chmod 0755 /usr/local/sbin/mto2d-build-openfoam-utilities \
+    && SOURCE_BUILD_JOBS="${SOURCE_BUILD_JOBS}" \
+       /usr/local/sbin/mto2d-build-openfoam-utilities
+
+COPY source-build-swak4foam.sh /usr/local/sbin/mto2d-build-swak4foam
+RUN chmod 0755 /usr/local/sbin/mto2d-build-swak4foam \
+    && SWAK4FOAM_REPOSITORY="${SWAK4FOAM_REPOSITORY}" \
+       SWAK4FOAM_COMMIT="${SWAK4FOAM_COMMIT}" \
+       /usr/local/sbin/mto2d-build-swak4foam
+
+ARG OPENSSH_CLIENT_VERSION
+RUN --mount=type=cache,id=mto2d-apt-packages-amd64,target=/var/cache/apt,sharing=locked \
+    --mount=type=cache,id=mto2d-apt-lists-amd64,target=/var/lib/apt/lists,sharing=locked \
+    apt-get update \
+    && apt-get install --yes --no-install-recommends \
+        openssh-client="${OPENSSH_CLIENT_VERSION}" \
+    && test "$(dpkg-query -W -f='${Version}' openssh-client)" = "${OPENSSH_CLIENT_VERSION}"
+
+COPY source-record-build.sh /usr/local/sbin/mto2d-record-source-build
+RUN chmod 0755 /usr/local/sbin/mto2d-record-source-build \
+    && BASE_IMAGE="${BASE_IMAGE}" \
+       APT_SNAPSHOT="${APT_SNAPSHOT}" \
+       CA_CERTIFICATES_VERSION="${CA_CERTIFICATES_VERSION}" \
+       LIBSSL1_1_VERSION="${LIBSSL1_1_VERSION}" \
+       OPENSSL_VERSION="${OPENSSL_VERSION}" \
+       OPENSSH_CLIENT_VERSION="${OPENSSH_CLIENT_VERSION}" \
+       OPENFOAM_REPOSITORY="${OPENFOAM_REPOSITORY}" \
+       OPENFOAM_COMMIT="${OPENFOAM_COMMIT}" \
+       THIRD_PARTY_REPOSITORY="${THIRD_PARTY_REPOSITORY}" \
+       THIRD_PARTY_COMMIT="${THIRD_PARTY_COMMIT}" \
+       SCOTCH_REPOSITORY="${SCOTCH_REPOSITORY}" \
+       SCOTCH_COMMIT="${SCOTCH_COMMIT}" \
+       SCOTCH_MAKEFILE_SHA256="${SCOTCH_MAKEFILE_SHA256}" \
+       SCOTCH_DGRAPH_HALO_SHA256="${SCOTCH_DGRAPH_HALO_SHA256}" \
+       OPENMPI_VERSION="${OPENMPI_VERSION}" \
+       OPENMPI_ARCHIVE_URL="${OPENMPI_ARCHIVE_URL}" \
+       OPENMPI_ARCHIVE_SHA256="${OPENMPI_ARCHIVE_SHA256}" \
+       PETSC_REPOSITORY="${PETSC_REPOSITORY}" \
+       PETSC_COMMIT="${PETSC_COMMIT}" \
+       SWAK4FOAM_REPOSITORY="${SWAK4FOAM_REPOSITORY}" \
+       SWAK4FOAM_COMMIT="${SWAK4FOAM_COMMIT}" \
+       /usr/local/sbin/mto2d-record-source-build
+
+# These named contexts are deliberately supplied only by
+# build_source_image.sh. No MTO2D or MMA source is redistributed in EngiBench.
+ARG MMA_SOURCE_COMMIT
+ARG MMA_IMPLEMENTATION_SHA256
+ARG MMA_HEADER_SHA256
+ARG MTO2D_CASE_ARCHIVE_SHA256
+ARG FROZEN_PATCH_SHA256
+ARG SCHEDULE_PATCH_SHA256
+ARG ENGIBENCH_REVISION
+ARG ENGIBENCH_TREE_STATE
+ARG IMAGE_LICENSES
+ARG BASE_IMAGE_NAME
+ARG BASE_IMAGE_DIGEST
+
+COPY --from=mma_source / /usr/local/src/mto2d-mma/
+COPY --from=mto2d_case / /opt/mto2d/case-template/
+
+COPY source-install-case.sh /usr/local/sbin/mto2d-install-source-case
+RUN chmod 0755 /usr/local/sbin/mto2d-install-source-case \
+    && MMA_IMPLEMENTATION_SHA256="${MMA_IMPLEMENTATION_SHA256}" \
+       MMA_HEADER_SHA256="${MMA_HEADER_SHA256}" \
+       MMA_SOURCE_COMMIT="${MMA_SOURCE_COMMIT}" \
+       MTO2D_CASE_ARCHIVE_SHA256="${MTO2D_CASE_ARCHIVE_SHA256}" \
+       FROZEN_PATCH_SHA256="${FROZEN_PATCH_SHA256}" \
+       SCHEDULE_PATCH_SHA256="${SCHEDULE_PATCH_SHA256}" \
+       /usr/local/sbin/mto2d-install-source-case
+
+COPY source-build-prebuilt-mesh.sh /usr/local/sbin/mto2d-build-prebuilt-mesh
+RUN chmod 0755 /usr/local/sbin/mto2d-build-prebuilt-mesh \
+    && /usr/local/sbin/mto2d-build-prebuilt-mesh
+
+COPY docker-entrypoint.sh /usr/local/bin/mto2d-entrypoint
+COPY source-runtime-environment.sh /usr/local/lib/mto2d/source-runtime-environment.sh
+COPY export-case.sh /usr/local/bin/mto2d-export-case
+COPY prepare-mesh.sh /usr/local/bin/mto2d-prepare-mesh
+COPY source-smoke-test.sh /usr/local/bin/mto2d-source-smoke
+RUN chmod 0755 \
+        /usr/local/bin/mto2d-entrypoint \
+        /usr/local/bin/mto2d-export-case \
+        /usr/local/bin/mto2d-prepare-mesh \
+        /usr/local/bin/mto2d-source-smoke \
+    && /usr/local/bin/mto2d-entrypoint mto2d-source-smoke
+
+LABEL org.opencontainers.image.title="EngiBench MTO2D source runtime" \
+      org.opencontainers.image.description="Pinned source build of the MTO2D OpenFOAM solver" \
+      org.opencontainers.image.licenses="${IMAGE_LICENSES}" \
+      org.opencontainers.image.source="https://github.com/IDEALLab/EngiBench" \
+      org.opencontainers.image.documentation="https://engibench.ethz.ch/problems/mto2d/" \
+      org.opencontainers.image.vendor="IDEALLab" \
+      org.opencontainers.image.version="v0" \
+      org.opencontainers.image.revision="${ENGIBENCH_REVISION}" \
+      org.opencontainers.image.mto2d.source-tree-state="${ENGIBENCH_TREE_STATE}" \
+      org.opencontainers.image.base.name="${BASE_IMAGE_NAME}" \
+      org.opencontainers.image.base.digest="${BASE_IMAGE_DIGEST}" \
+      org.opencontainers.image.mto2d.ubuntu-snapshot="${APT_SNAPSHOT}" \
+      org.opencontainers.image.mto2d.ca-certificates.version="${CA_CERTIFICATES_VERSION}" \
+      org.opencontainers.image.mto2d.libssl1-1.version="${LIBSSL1_1_VERSION}" \
+      org.opencontainers.image.mto2d.openssl.version="${OPENSSL_VERSION}" \
+      org.opencontainers.image.mto2d.openssh-client.version="${OPENSSH_CLIENT_VERSION}" \
+      org.opencontainers.image.mto2d.openfoam.revision="${OPENFOAM_COMMIT}" \
+      org.opencontainers.image.mto2d.third-party.revision="${THIRD_PARTY_COMMIT}" \
+      org.opencontainers.image.mto2d.petsc.revision="${PETSC_COMMIT}" \
+      org.opencontainers.image.mto2d.swak4foam.revision="${SWAK4FOAM_COMMIT}" \
+      org.opencontainers.image.mto2d.mma-source.revision="${MMA_SOURCE_COMMIT}" \
+      org.opencontainers.image.mto2d.case-archive.sha256="${MTO2D_CASE_ARCHIVE_SHA256}"
+
+ENTRYPOINT ["/usr/local/bin/mto2d-entrypoint"]
+CMD ["/bin/bash"]

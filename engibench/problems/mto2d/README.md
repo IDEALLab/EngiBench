@@ -1,13 +1,11 @@
 # MTO2D
 
-<!-- start docs -->
-
 > **Draft implementation.** The Python API, isolated case runner, dataset
-> generator, and legacy-data converter are implemented for review. The solver
-> case, a redistributable runtime image, and the provisional
-> `IDEALLab/mto_2d_v0` dataset are not bundled or published yet. Therefore,
-> `simulate()` and `optimize()` require an externally supplied solver case and
-> runtime.
+> generator, and legacy-data converter are implemented for review. A source
+> image recipe now builds and embeds a pristine exportable solver case, but
+> the redistributable runtime image is not published yet. The
+> `IDEALLab/mto_2d_v0` dataset is public; solver calls still require a locally
+> built image (or an explicit compatible runtime and case).
 
 MTO2D is a two-dimensional multiphysics topology-optimization problem for a
 fluid-cooled heat sink. It couples flow and heat transfer, and uses an adjoint
@@ -108,7 +106,7 @@ The public conditions are:
   nominally from `50` to `75`. The retained solver uses the exact
   `D_normalization = 1.57572e-7`; the paper calls the rounded
   `J1 ≈ 1.58e-7` reference scale.
-- `volume_fraction`: maximum all-cell fluid fraction, nominally from `0.25` to
+- `volfrac`: maximum all-cell fluid fraction, nominally from `0.25` to
   `0.70`.
 
 The converter preserves source values rather than clipping them. In
@@ -157,7 +155,7 @@ problem = MTO2D(
         "mpi_cores": 8,
         "inlet_velocity": -0.074,
         "max_power_dissipation": 63.1,
-        "volume_fraction": 0.61,
+        "volfrac": 0.61,
     }
 )
 design = np.load("native_half_400x200.npy").astype(np.float32)
@@ -208,7 +206,7 @@ required. Legacy is deliberately a cold-only selector; strict repair must pass
 both `mode="warm"` and `optimization_schedule="strict"`.
 
 ```python
-starting_design = problem.uniform_starting_design(problem.conditions.volume_fraction)
+starting_design = problem.uniform_starting_design(problem.conditions.volfrac)
 optimized_design, history = problem.optimize(
     starting_design,
     config={"mode": "cold", "max_iter": 200},
@@ -233,6 +231,9 @@ if final_evaluation.power_constraint_residual > 0:
 `optimize_verbose()` is a deliberate MTO2D-specific extension, not a method on
 EngiBench's base `Problem` API. It preserves the standard `optimize()` return
 contract while additionally exposing constraint and elapsed-time histories.
+This extension should be called out explicitly in the upstream pull request
+because it establishes an optimize-side counterpart to the already supported
+`SimulationResult` subclass pattern.
 
 Every `OptiStep.obj_values` follows the two-objective order documented above.
 One legacy-solver detail matters: iteration row `k` describes the field
@@ -249,18 +250,22 @@ pre-update history value to the returned design.
 
 ## Solver setup and execution backends
 
-The case template must contain at least `app/` and `src_TF/`, including an
-ASCII 86,400-cell `gamma` template. Configure it with
+An explicitly supplied case template must contain at least `app/` and
+`src_TF/`, including an ASCII 86,400-cell `gamma` template. Configure it with
 `case_template="/path/to/case"` or the
-`ENGIBENCH_MTO2D_CASE_TEMPLATE` environment variable.
+`ENGIBENCH_MTO2D_CASE_TEMPLATE` environment variable. When the container
+backend has no host template, the runner instead calls
+`mto2d-export-case` in the image to materialize a pristine writable template
+inside the isolated run directory.
 
 The retained solver currently depends on a Linux/HPC stack with OpenFOAM 5,
 PETSc, MPI, GroovyBC, `libMMA_yu`, and custom adjoint boundary-condition
 libraries. Three execution backends are available:
 
 - `local` runs the OpenFOAM commands directly in the current environment.
-- `container` uses EngiBench's container abstraction and a user-supplied
-  `container_image` (or `ENGIBENCH_MTO2D_IMAGE`).
+- `container` is the installed default. It uses EngiBench's container
+  abstraction and `MTO2D.container_id`; `container_image` or
+  `ENGIBENCH_MTO2D_IMAGE` can override that image.
 - `command` calls a user-supplied `driver_command`; the prepared case path is
   available as `MTO2D_CASE_DIR`. This is useful for site-specific schedulers,
   modules, or a Docker/Podman/Apptainer wrapper.
@@ -319,6 +324,14 @@ The retained migration case is the initial reproduction target:
 These numbers came from the original retained case. Reproduction through a
 fresh, published runtime image remains a release requirement, not a claim of
 the current draft.
+
+The generic EngiBench shared test exercises a different deterministic input:
+`MTO2D(seed=1).random_design()` selects train index 2010 (source case 6799)
+and evaluates it under the class-default conditions. The local parity image
+produced the provisional source-matched `q=0.01` reference
+`[13.8912, 63.8033]`. This value is committed so the release path is ready,
+but it must be confirmed once against the source-built published image before
+the artifact gate is enabled.
 
 ## Generate a 10,000-case gridded dataset
 
@@ -520,7 +533,7 @@ for the pinned publication.
 Both generated and converted datasets use the same schema:
 
 - `optimal_design`: a flat C-order sequence of 80,000 `float32` values;
-- `inlet_velocity`, `max_power_dissipation`, and `volume_fraction` as
+- `inlet_velocity`, `max_power_dissipation`, and `volfrac` as
   `float64`;
 - `mean_temperature` and `power_dissipation` as `float32`;
 - absolute and relative power-constraint residuals;
@@ -531,30 +544,27 @@ Both generated and converted datasets use the same schema:
   for reconstructed legacy rows and for generated rows created with
   `--no-evaluate-final`.
 
-### Validate and load the local result
+### Validate and load the canonical exact result
 
-Conversion already performs validation. It can also be rerun independently
-before publication:
+The publication helper performs a complete, non-networked validation by
+default:
 
-```python
-from datasets import load_from_disk
-
-from engibench.problems.mto2d.model.dataset import validate_legacy_dataset
-
-dataset = load_from_disk("dataset_output/mto_2d_v0")
-print(validate_legacy_dataset(dataset))
-# {'train': 4249, 'val': 283, 'test': 1134}
+```bash
+python -m engibench.problems.mto2d.model.publish_native_dataset \
+  --dataset-dir dataset_output/mto_2d_exact_source_v0
 ```
 
-The problem's `dataset_id` is provisionally `IDEALLab/mto_2d_v0`. Until that
-repository is published, inject the local conversion explicitly:
+It verifies all 5,666 native designs, schema and bounds, exact split
+membership, pinned source hashes, gamma-validation evidence, provenance, and
+the historical-label semantics. To use the richer local audit copy instead of
+the public six-column projection, inject it explicitly:
 
 ```python
 from datasets import load_from_disk
 
 from engibench.problems.mto2d import MTO2D
 
-dataset = load_from_disk("dataset_output/mto_2d_v0")
+dataset = load_from_disk("dataset_output/mto_2d_exact_source_v0")
 problem = MTO2D(dataset=dataset)
 design, row_index = problem.random_design("train")
 ```
@@ -562,31 +572,37 @@ design, row_index = problem.random_design("train")
 ### Push to Hugging Face
 
 Authenticate with the Hugging Face CLI in your shell; do not place access
-tokens in source files or command history. Conversion can validate and publish
-in one command:
+tokens in source files or command history. After confirming redistribution
+rights, publish the already validated exact-native dataset with:
+
+```bash
+python -m engibench.problems.mto2d.model.publish_native_dataset \
+  --dataset-dir dataset_output/mto_2d_exact_source_v0 \
+  --repo-id IDEALLab/mto_2d_v0 \
+  --license mit \
+  --confirm-redistribution-rights \
+  --push
+```
+
+The two independent confirmation flags prevent an accidental upload. The
+example verifies that the existing human-edited card declares the intended
+EngiBench `mit` license. The publisher validates the rich local audit data,
+projects the six EngiBench columns, and replaces only `data/*.parquet` in the
+existing repository. It does not upload or rewrite the README, conversion
+manifest, gamma-validation JSONL, or other local evidence. The objective
+columns remain historical pre-update labels, not fresh frozen evaluations of
+the exact stored fields.
+
+If rights for the retrieved native fields remain unresolved, the public
+MIT-licensed lossy conversion can instead be regenerated and published under
+a distinct fallback ID:
 
 ```bash
 python -m engibench.problems.mto2d.model.reformat_hf_dataset \
-  --raw-dir /path/to/five-npy-files \
-  --output-dir dataset_output/mto_2d_v0 \
-  --push-to-hub IDEALLab/mto_2d_v0 \
+  --output-dir dataset_output/mto_2d_lossy_v0 \
+  --push-to-hub IDEALLab/mto_2d_lossy_v0 \
   --max-shard-size 500MB
 ```
-
-To publish a previously converted and validated directory without downloading
-or converting again:
-
-```bash
-python -m engibench.problems.mto2d.model.reformat_hf_dataset \
-  --output-dir dataset_output/mto_2d_v0 \
-  --push-to-hub IDEALLab/mto_2d_v0 \
-  --max-shard-size 500MB
-```
-
-This path revalidates the saved dataset and uploads its Parquet shards,
-dataset card, and `conversion_manifest.json`. The card keeps the MIT license,
-citation, and lossy-reconstruction warning beside the data. Use `--private`
-when a review upload should not be public.
 
 ## Dataset-backed `v0.py` demo
 
@@ -655,10 +671,11 @@ than reusing the pre-update labels.
 
 ## Current limitations and release blockers
 
-- No reproducible OCI solver image is published, and `container_id` is
-  intentionally unset.
-- The solver case and compiled executable are not included in EngiBench.
-- The new `IDEALLab/mto_2d_v0` dataset has not been published.
+- No reproducible OCI solver image is published. `container_id` reserves the
+  intended GHCR tag, which must be replaced with its immutable digest after
+  publication.
+- The wheel does not include a solver case or compiled executable. The
+  source-built image will export its pristine prepared template on demand.
 - The legacy `256 x 256` conversion is useful for training and analysis but
   cannot reproduce native solver cell values exactly.
 - Redistribution rights for the adapted solver, `libMMA_yu`, and bundled
@@ -668,12 +685,19 @@ than reusing the pre-update labels.
 - A fresh Linux environment must reproduce the reference case before this
   problem is considered release-ready.
 
-The package remains on its feature branch until those artifacts exist.
-Registration must not be made green with MTO2D-specific shared-test skips.
-Once the exact dataset is published, a legally redistributable OCI image is
-available by immutable digest, and a canonical source-matched reference is recorded,
-set `container_id` and let the ordinary EngiBench built-in tests exercise the
-problem.
+The package remains on its feature branch until the remaining artifacts exist.
+Once a legally redistributable OCI image is available by immutable digest and
+a canonical source-matched reference is recorded, set `container_id` and
+change the MTO2D
+`ProblemTestPolicy.artifacts_available` flag in
+`tests/test_problem_implementations.py` to `True`. The ordinary shared suite
+will then exercise dataset loading and frozen simulation. Optimization is
+entirely excluded from that shared suite because even a shortened external
+solve is unsuitable for its lightweight contract; focused opt-in integration
+tests remain the appropriate coverage. The initial OCI release is
+`linux/amd64`, so the shared simulation is also skipped on Linux ARM until a
+native multi-architecture image is published; explicitly configured amd64
+emulation remains available for local use.
 
 ## References
 
@@ -683,5 +707,3 @@ problem.
 - [IDEALLab/MTO-2D raw dataset](https://huggingface.co/datasets/IDEALLab/MTO-2D).
 - [IDEALLab/VQGAN-TO utilities](https://github.com/IDEALLab/VQGAN-TO).
 - [IDEALLab/EngiBench](https://github.com/IDEALLab/EngiBench).
-
-<!-- end docs -->

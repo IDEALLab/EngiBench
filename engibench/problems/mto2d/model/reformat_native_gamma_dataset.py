@@ -27,6 +27,7 @@ from typing import Any
 import numpy as np
 import numpy.typing as npt
 
+from engibench.problems.mto2d.model.dataset import canonicalize_dataset_columns
 from engibench.problems.mto2d.model.dataset import CONDITION_COLUMN_COUNT
 from engibench.problems.mto2d.model.dataset import dataset_features
 from engibench.problems.mto2d.model.dataset import DEFAULT_SPLIT_SEED
@@ -67,6 +68,24 @@ PUBLICATION_BLOCK_REASON = (
     "Redistribution rights for the solver-native gamma fields have not been "
     "verified; do not publish this dataset until permission is confirmed."
 )
+CANONICAL_FROZEN_SIMULATION = {
+    "ramp_q": 0.01,
+    "alpha_max": 5_025_200.0,
+    "heaviside": 59.8,
+    "design_update": False,
+}
+"""Source-matched final physics used by the canonical frozen simulator."""
+
+HISTORICAL_LABEL_SEMANTICS = {
+    "evaluated_on_stored_design": False,
+    "timing": "pre-final-MMA/Heaviside-update",
+    "stored_design_timing": "post-final-MMA/Heaviside-update",
+    "note": (
+        "The historical labels were produced by the source optimization and "
+        "must not be presented as frozen q=0.01 evaluations of the stored design."
+    ),
+}
+"""Explicit distinction between source labels and canonical re-evaluation."""
 
 
 def _sha256_bytes(content: bytes) -> str:
@@ -230,7 +249,7 @@ def native_source_row(  # noqa: PLR0913
     condition_array = np.asarray(conditions, dtype=np.float64)
     if condition_array.shape != (CONDITION_COLUMN_COUNT,) or not np.all(np.isfinite(condition_array)):
         raise ValueError("conditions must contain three finite values")
-    inlet_velocity, max_power_dissipation, volume_fraction = (float(value) for value in condition_array)
+    inlet_velocity, max_power_dissipation, volfrac = (float(value) for value in condition_array)
     if max_power_dissipation <= 0.0:
         raise ValueError("max_power_dissipation must be positive")
     mean_temperature = float(mean_temperature)
@@ -242,12 +261,12 @@ def native_source_row(  # noqa: PLR0913
         "optimal_design": gamma_to_half_design(values).reshape(-1),
         "inlet_velocity": inlet_velocity,
         "max_power_dissipation": max_power_dissipation,
-        "volume_fraction": volume_fraction,
+        "volfrac": volfrac,
         "mean_temperature": mean_temperature,
         "power_dissipation": power_dissipation,
         "power_constraint_residual_absolute": power_dissipation - max_power_dissipation,
         "power_constraint_residual_relative": power_dissipation / max_power_dissipation - 1.0,
-        "volume_constraint_residual": float(np.mean(values) - volume_fraction),
+        "volume_constraint_residual": float(np.mean(values) - volfrac),
         "source_case_id": int(source_case_id),
         "source_row_index": int(source_row_index),
         "optimization_steps": None,
@@ -373,6 +392,7 @@ def _validate_saved_dataset(
     source_case_ids: npt.NDArray[np.int64],
     seed: int,
 ) -> dict[str, int]:
+    dataset = canonicalize_dataset_columns(dataset)
     expected_indices = legacy_split_indices(len(source_case_ids), seed=seed)
     expected_sizes = {name: len(indices) for name, indices in expected_indices.items()}
     if set(dataset) != set(expected_sizes):
@@ -423,9 +443,11 @@ def _write_handoff_metadata(  # noqa: PLR0913
         "design_is_exact": True,
         "objectives_evaluated_on_design": False,
         "objective_semantics": "historical pre-final-MMA/Heaviside-update source labels",
+        "historical_label_semantics": HISTORICAL_LABEL_SEMANTICS,
+        "canonical_frozen_simulation": CANONICAL_FROZEN_SIMULATION,
         "residual_semantics": {
             "volume_constraint_residual": (
-                "mean of all 86,400 cells in the exact post-update app/200/gamma field minus volume_fraction"
+                "mean of all 86,400 cells in the exact post-update app/200/gamma field minus volfrac"
             ),
             "power_constraint_residual": (
                 "computed from the historical pre-update power-dissipation label and max_power_dissipation"
@@ -451,6 +473,15 @@ topologies retrieved from the source `app/200/gamma` fields. Historical
 mean-temperature and power-dissipation labels are preserved, but they were
 logged before the final MMA/Heaviside update and were not evaluated on the
 stored post-update design.
+
+## Simulation physics and label semantics
+
+EngiBench's canonical frozen simulation uses the source-matched final
+RAMP parameter `q=0.01`, `alphaMax=5.0252e6`, and `Heaviside=59.8`, with
+design updates disabled. The stored objective columns are historical source
+labels, **not** frozen `q=0.01` evaluations of the stored fields. Keep
+`objectives_evaluated_on_design=false` unless each row is explicitly
+re-evaluated and relabeled.
 
 ## Residual timing
 

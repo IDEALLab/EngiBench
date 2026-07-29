@@ -9,7 +9,7 @@
   "conditions": {
     "inlet_velocity": -0.074,
     "max_power_dissipation": 63.1,
-    "volume_fraction": 0.61
+    "volfrac": 0.61
   },
   "objectives": {
     "mean_temperature": 9.45825,

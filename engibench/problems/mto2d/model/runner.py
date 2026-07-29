@@ -179,9 +179,10 @@ class MTO2DRunner:
     ) -> SolverRun:
         """Execute a frozen simulation or an MMA optimization."""
         self._validate_settings(settings, kind)
-        case_template = self._resolve_case_template(settings.case_template)
-        if kind == "optimize":
-            self._validate_schedule_runtime(case_template, settings.optimization_schedule)
+        configured_template = settings.case_template or os.environ.get("ENGIBENCH_MTO2D_CASE_TEMPLATE")
+        case_template = self._resolve_case_template(configured_template) if configured_template else None
+        if case_template is None and settings.backend != "container":
+            self._resolve_case_template(None)
         run_root = Path(
             tempfile.mkdtemp(
                 prefix="engibench-mto2d-",
@@ -193,7 +194,15 @@ class MTO2DRunner:
         keep = settings.retain_artifacts
 
         try:
-            shutil.copytree(case_template, case_dir)
+            if case_template is None:
+                self._export_case_template(run_root, case_dir, settings)
+                self._validate_case_template(case_dir)
+            else:
+                shutil.copytree(case_template, case_dir)
+            if kind == "simulate":
+                self._validate_runtime_marker(case_dir, "frozen simulation")
+            if kind == "optimize":
+                self._validate_schedule_runtime(case_dir, settings.optimization_schedule)
             self._prepare_case(case_dir, design, settings, kind)
             self._execute(case_dir, settings, kind)
             histories = self._read_histories(
@@ -299,22 +308,58 @@ class MTO2DRunner:
         return path
 
     @staticmethod
+    def _export_case_template(
+        run_root: Path,
+        case_dir: Path,
+        settings: RunnerSettings,
+    ) -> None:
+        """Materialize the pristine case bundled in the published OCI image."""
+        if settings.backend != "container" or settings.container_image is None:
+            raise FileNotFoundError(
+                "An image-provided MTO2D case template requires the container backend and a configured container image."
+            )
+        container_home = run_root / "container-home"
+        container_tmp = run_root / "container-tmp"
+        container_home.mkdir(exist_ok=True)
+        container_tmp.mkdir(exist_ok=True)
+        container.run(
+            ["mto2d-export-case", "/work/case"],
+            settings.container_image,
+            mounts=((str(run_root), "/work"),),
+            env={"HOME": "/work/container-home", "TMPDIR": "/work/container-tmp"},
+            sync_uid=True,
+        )
+        if not (case_dir / "app").is_dir() or not (case_dir / "src_TF").is_dir():
+            raise FileNotFoundError(
+                "The configured MTO2D image did not export an app/src_TF case template. "
+                "Rebuild it from model/runtime/Dockerfile.source."
+            )
+
+    @staticmethod
     def _validate_schedule_runtime(case_template: Path, schedule: OptimizationSchedule) -> None:
         """Require a rebuilt executable that understands named schedules."""
+        MTO2DRunner._validate_runtime_marker(
+            case_template,
+            f"optimization_schedule={schedule!r}",
+        )
+
+    @staticmethod
+    def _validate_runtime_marker(case_template: Path, required_by: str) -> None:
+        """Require the prepared-runtime version used by frozen and scheduled runs."""
         marker = case_template / SCHEDULE_RUNTIME_MARKER
         try:
             version = marker.read_text(encoding="ascii").strip()
         except OSError as error:
             raise FileNotFoundError(
-                f"optimization_schedule={schedule!r} requires a case rebuilt with the "
-                "EngiBench schedule patch. Recreate it with "
+                f"{required_by} requires a case rebuilt with the EngiBench runtime "
+                "patches. Recreate it with "
                 "engibench/problems/mto2d/model/runtime/prepare_case.sh; "
                 f"missing capability marker: {marker}"
             ) from error
         if version != SCHEDULE_RUNTIME_VERSION:
             raise ValueError(
-                "Unsupported MTO2D prepared-runtime version for "
-                f"optimization_schedule={schedule!r}: expected {SCHEDULE_RUNTIME_VERSION!r}, "
+                f"Unsupported MTO2D prepared-runtime version for {required_by}: "
+                f"expected {SCHEDULE_RUNTIME_VERSION!r}, "
                 f"got {version!r} in {marker}"
             )
 
@@ -583,6 +628,7 @@ class MTO2DRunner:
     @staticmethod
     def _write_decomposition(path: Path, mpi_cores: int) -> None:
         MTO2DRunner._replace_dictionary_value(path, "numberOfSubdomains", mpi_cores)
+        MTO2DRunner._upsert_plain_dictionary_value(path, "method", "simple")
         text = path.read_text(encoding="utf-8")
         simple = re.search(r"\bsimpleCoeffs\s*\{(?P<body>.*?)\}", text, re.DOTALL)
         if simple is None:
@@ -729,7 +775,8 @@ Heaviside
             solve = executable
         else:
             solve = f"decomposePar; mpirun -np {settings.mpi_cores} {executable} -parallel"
-        command = f"set -eu; exec > /work/case/run.log 2>&1; {build}cd /work/case/app; blockMesh; {solve}"
+        mesh = "if command -v mto2d-prepare-mesh >/dev/null 2>&1; then mto2d-prepare-mesh .; else blockMesh; fi"
+        command = f"set -eu; exec > /work/case/run.log 2>&1; {build}cd /work/case/app; {mesh}; {solve}"
         if settings.mpi_cores > 1:
             command += "; reconstructPar -latestTime"
         container.run(

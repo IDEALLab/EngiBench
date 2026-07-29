@@ -110,12 +110,12 @@ def _run_generate(args: argparse.Namespace) -> None:
     print(
         "First conditions: "
         f"u={first['inlet_velocity']:.6g}, D1={first['max_power_dissipation']:.6g}, "
-        f"volume={first['volume_fraction']:.6g}"
+        f"volume={first['volfrac']:.6g}"
     )
     print(
         "Last conditions: "
         f"u={last['inlet_velocity']:.6g}, D1={last['max_power_dissipation']:.6g}, "
-        f"volume={last['volume_fraction']:.6g}"
+        f"volume={last['volfrac']:.6g}"
     )
     if args.dry_run:
         return

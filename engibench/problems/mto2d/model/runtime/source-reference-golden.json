@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "trusted_oracle": {
+    "converted_image_id": "sha256:81e36ca5d4d4be3f81665d8aadd32aefaeda4daf6fd90e13024bcdf160f02ff0",
+    "prepared_case_executable_sha256": "b4c63e3458f6aca627a5cfffa6495135b550aa20942f1b88bc26703c1fa8bb48",
+    "sif_sha256": "d53c0b6f8ec566b0d165be485efefde814e9f2af7e1e39f1ebc30a9a86ca62a6"
+  },
+  "reference": {
+    "conditions": {
+      "inlet_velocity": -0.074,
+      "max_power_dissipation": 63.1,
+      "volfrac": 0.61
+    },
+    "design_sha256": "7d5b35a291c987db2b0b77e73554aa20cde007065773acb11b50df9c1bef19b9",
+    "final_design_sha256": "7d5b35a291c987db2b0b77e73554aa20cde007065773acb11b50df9c1bef19b9",
+    "forward_field_sha256": {
+      "gamma": "5f2f11fba64a3a15229994f7af7914593ac412b22faab4173192bb5ad067cb7f"
+    },
+    "objective_bits": [
+      "0x402bc84b5dcc63f1",
+      "0x404fe6d288ce703b"
+    ],
+    "objectives": [
+      13.8912,
+      63.8033
+    ],
+    "output_sha256": {
+      "Disspower.txt": "73a731715f0d48f675df6df839cdf3a69bbd83f5b8e67409af89751519ca5406",
+      "HEAV.txt": "d52180d530d6930750ba551854c0a3bee7d2fa9ecb4d1e3e5bcf76f306ffc4ec",
+      "Voluse.txt": "60ede96b596fa1a80f744ac3ba007cfed2d1044a1bf1c7fc766912a7156e568c",
+      "aMax.txt": "42384967cd4618d9b7c3fd1957191c7eb3c614c6715930ca89b3bb22557cc777",
+      "meanT.txt": "6a003036262981d3cbc8174e3bb982e1d41330cf67ae9a21edac150cfca2e5b6",
+      "qu.txt": "a37f9fe7bd3fa9d73c6b5c339b56943e53f5e080499527175cf537b71a836c01"
+    },
+    "q": 0.01,
+    "source_case_id": 6799,
+    "train_index": 2010
+  }
+}

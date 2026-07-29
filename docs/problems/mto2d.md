@@ -3,6 +3,19 @@
 ```{problem:table}
 ```
 
+## Release status
+
+MTO2D is currently registered as a draft problem. Its Python API,
+exact-native dataset validator/publisher, source-build OCI recipe, and
+image-contained case-export backend are available. The
+`IDEALLab/mto_2d_v0` dataset is public, but the solver image is not. Local
+solver-backed calls can use an explicitly prepared case and runtime.
+Artifact-dependent shared tests remain gated until an immutable
+redistributable image reproduces the committed simulation reference.
+The planned image home is GitHub Container Registry at
+`ghcr.io/ideallab/engibench-mto2d`; EngiBench will pin the accepted
+`linux/amd64` manifest by digest rather than by its mutable `v0` tag.
+
 ## Motivation
 
 Multiphysics topology optimization (MTO) couples fluid flow, heat transfer, and
@@ -73,7 +86,7 @@ with the solver-reported volume residual.
   nominally from `50` to `75`. The solver normalizes by
   `D_normalization = 1.57572e-7`; the paper calls the rounded `J1 ≈ 1.58e-7`
   reference scale.
-- `volume_fraction`: maximum all-cell fluid fraction, nominally from `0.25`
+- `volfrac`: maximum all-cell fluid fraction, nominally from `0.25`
   to `0.70`.
 
 ## Simulator
@@ -96,10 +109,16 @@ belong to the input design exactly.
 continuation timing used to generate the published dataset; an alternative
 `"strict"` schedule exposes configurable interpolation profiles and endpoints.
 Cold starts run 200 iterations by default; warm starts from a good initial
-design commonly use 20. The retained reference case
-(`inlet_velocity = -0.074`, `max_power_dissipation = 63.1`,
-`volume_fraction = 0.61`) reaches `mean_temperature = 9.45825` and
-`power_dissipation = 62.2588`.
+design commonly use 20. The retained legacy optimization history for the case
+with `inlet_velocity = -0.074`, `max_power_dissipation = 63.1`, and
+`volfrac = 0.61` reaches `mean_temperature = 9.45825` and
+`power_dissipation = 62.2588`. Those historical values describe the
+pre-update optimizer field, not the committed frozen-simulation reference.
+
+`optimize_verbose()` is a deliberate MTO2D-specific extension rather than
+part of the base `Problem` contract. Standard `optimize()` still returns
+`(design, history)`; the extension additionally exposes constraint residuals,
+active power bounds, elapsed times, and retained artifacts.
 
 See the package `README.md` in `engibench/problems/mto2d/` for solver
 backends, runtime-image preparation, dataset tooling, and the current release
@@ -118,11 +137,14 @@ train/val/test policy.
 If you use this problem or dataset, please cite the source study:
 
 ```bibtex
-@article{drake2025quantize,
+@article{drake2026quantize,
   title={To Quantize or Not to Quantize: Effects on Generative Models for Topology Optimization Problems},
   author={Drake, Arthur and Chen, Qiuyi and Wang, Jun and Nejat, Ardalan and Guest, James K. and Fuge, Mark},
   journal={Journal of Mechanical Design},
-  year={2025},
+  year={2026},
+  volume={148},
+  number={10},
+  pages={101704},
   doi={10.1115/1.4071440}
 }
 

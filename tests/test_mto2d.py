@@ -15,6 +15,7 @@ from engibench.problems.mto2d.model.design_io import DESIGN_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
 from engibench.problems.mto2d.model.design_io import parse_internal_field
+from engibench.problems.mto2d.model.publish_native_dataset import PUBLIC_COLUMNS
 from engibench.problems.mto2d.model.runner import MTO2DRunner
 from engibench.problems.mto2d.model.runner import OptimizationSchedule
 from engibench.problems.mto2d.model.runner import RunnerSettings
@@ -45,6 +46,14 @@ class FakeRunner:
             elapsed_time=np.linspace(5.0, 5.0 * count, count, dtype=np.float64),
             artifacts_path="fake-mto2d-artifacts",
         )
+
+
+def test_engibench_condition_and_objective_names_follow_topology_conventions() -> None:
+    problem = MTO2D(runner=FakeRunner())  # type: ignore[arg-type]
+
+    assert problem.conditions_keys == ["inlet_velocity", "max_power_dissipation", "volfrac"]
+    assert problem.objectives_keys == ["mean_temperature", "power_dissipation"]
+    assert ("optimal_design", *problem.conditions_keys, *problem.objectives_keys) == PUBLIC_COLUMNS
 
 
 def _foam_gamma(values: np.ndarray) -> str:
@@ -182,7 +191,7 @@ for name, value in {
 def test_problem_simulation_and_optimization_objective_order() -> None:
     runner = FakeRunner()
     problem = MTO2D(config={"max_iter": OPTIMIZATION_STEPS}, runner=runner)  # type: ignore[arg-type]
-    design = problem.uniform_starting_design(problem.conditions.volume_fraction)
+    design = problem.uniform_starting_design(problem.conditions.volfrac)
 
     result = problem.simulate_verbose(design, {"max_power_dissipation": 62.0})
 
@@ -217,7 +226,7 @@ def test_optimize_verbose_distinguishes_active_and_final_power_bounds() -> None:
         },
         runner=runner,  # type: ignore[arg-type]
     )
-    design = problem.uniform_starting_design(problem.conditions.volume_fraction)
+    design = problem.uniform_starting_design(problem.conditions.volfrac)
 
     with pytest.warns(UserWarning, match="exact prefix|final active bound") as legacy_warnings:
         cold = problem.optimize_verbose(design, {"mode": "cold"})
@@ -270,6 +279,20 @@ def test_random_design_uses_injected_dataset_and_reset() -> None:
     np.testing.assert_array_equal(design_a, design_b)
 
 
+def test_default_solver_config_uses_configured_container_reference() -> None:
+    runner = FakeRunner()
+    problem = MTO2D(runner=runner)  # type: ignore[arg-type]
+    design = problem.uniform_starting_design(problem.conditions.volfrac)
+
+    problem.simulate(design)
+
+    _recorded_design, settings, kind = runner.calls[-1]
+    assert kind == "simulate"
+    assert settings.backend == "container"
+    assert settings.container_image == problem.container_id
+    assert settings.case_template is None
+
+
 @pytest.mark.parametrize(
     ("config", "message"),
     [
@@ -290,7 +313,7 @@ def test_random_design_uses_injected_dataset_and_reset() -> None:
             },
             "divisible",
         ),
-        ({"volume_fraction": 0.01}, "volume_fraction"),
+        ({"volfrac": 0.01}, "volfrac"),
     ],
 )
 def test_invalid_problem_config_is_rejected(config: dict[str, Any], message: str) -> None:
@@ -337,6 +360,7 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
     assert "value uniform (0 -0.074 0);" in inlet
     decomposition = (prepared / "system" / "decomposeParDict").read_text(encoding="utf-8")
     assert "numberOfSubdomains 6;" in decomposition
+    assert "method simple;" in decomposition
     assert "n (2 3 1);" in decomposition
     control = (prepared / "system" / "controlDict").read_text(encoding="utf-8")
     assert "writePrecision 12;" in control
@@ -405,6 +429,14 @@ def test_optimization_schedule_requires_rebuilt_runtime_marker(
 
     marker.write_text(f"{SCHEDULE_RUNTIME_VERSION}\n", encoding="ascii")
     MTO2DRunner._validate_schedule_runtime(template, schedule)  # noqa: SLF001
+
+
+def test_frozen_simulation_requires_rebuilt_runtime_marker(tmp_path: Path) -> None:
+    template = _make_case_template(tmp_path)
+    (template / SCHEDULE_RUNTIME_MARKER).unlink()
+
+    with pytest.raises(FileNotFoundError, match="frozen simulation requires"):
+        MTO2DRunner._validate_runtime_marker(template, "frozen simulation")  # noqa: SLF001
 
 
 @pytest.mark.parametrize(
@@ -581,7 +613,7 @@ def test_command_backend_one_step_optimization_smoke(
             "retain_artifacts": True,
         }
     )
-    starting_design = problem.uniform_starting_design(problem.conditions.volume_fraction)
+    starting_design = problem.uniform_starting_design(problem.conditions.volfrac)
 
     if expected_power_bound_start > problem.conditions.max_power_dissipation:
         with pytest.warns(UserWarning, match="final active bound is 89.8"):
@@ -652,6 +684,45 @@ def test_container_backend_uses_isolated_writable_home(
     assert "decomposePar" in parallel_command
     assert "mpirun -np 4" in parallel_command
     assert "reconstructPar -latestTime" in parallel_command
+
+
+def test_container_backend_exports_image_case_template(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    run_root = tmp_path / "run"
+    run_root.mkdir()
+    case = run_root / "case"
+    captured: dict[str, Any] = {}
+
+    def fake_container_run(*args: Any, **kwargs: Any) -> None:
+        captured["args"] = args
+        captured["kwargs"] = kwargs
+        (case / "app").mkdir(parents=True)
+        (case / "src_TF").mkdir()
+
+    monkeypatch.setattr("engibench.problems.mto2d.model.runner.container.run", fake_container_run)
+    settings = RunnerSettings(
+        case_template=None,
+        inlet_velocity=-0.074,
+        max_power_dissipation=63.1,
+        volume_fraction=0.61,
+        backend="container",
+        container_image="ghcr.io/ideallab/engibench-mto2d:test",
+    )
+
+    MTO2DRunner._export_case_template(run_root, case, settings)  # noqa: SLF001
+
+    assert captured["args"] == (
+        ["mto2d-export-case", "/work/case"],
+        "ghcr.io/ideallab/engibench-mto2d:test",
+    )
+    assert captured["kwargs"]["mounts"] == ((str(run_root), "/work"),)
+    assert captured["kwargs"]["env"] == {
+        "HOME": "/work/container-home",
+        "TMPDIR": "/work/container-tmp",
+    }
+    assert captured["kwargs"]["sync_uid"] is True
 
 
 def test_local_backend_uses_serial_or_parallel_execution(
@@ -767,7 +838,7 @@ def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:
             "retain_on_failure": True,
         }
     )
-    design = problem.uniform_starting_design(problem.conditions.volume_fraction)
+    design = problem.uniform_starting_design(problem.conditions.volfrac)
 
     with pytest.raises(SolverRunError, match="returned non-zero exit status 7") as error:
         problem.simulate(design)
