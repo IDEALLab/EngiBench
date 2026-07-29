@@ -283,6 +283,10 @@ def half_to_legacy_256(design: npt.NDArray) -> npt.NDArray[np.float32]:
     The complete native ``(400, 200)`` half-domain is anisotropically resized
     directly to ``(256, 256)``. It is not mirrored first. Bicubic overshoot is
     clipped to ``[0, 1]``.
+
+    Note that this forward conversion clamps samples at the symmetry edge while
+    :func:`legacy_256_to_half` mirror-pads across it, so the two functions are
+    near- but intentionally not exact inverses.
     """
     half = _validate_density_array(design, HALF_DESIGN_SHAPE, name="design")
     return _resize_density(half, LEGACY_DESIGN_SHAPE)
@@ -296,6 +300,10 @@ def legacy_256_to_half(design: npt.NDArray) -> npt.NDArray[np.float32]:
     the native ``(400, 400)`` full field, and reduced to the first 200 columns.
     This matches the VQGAN/MTO conversion geometry. Bicubic overshoot is clipped
     to ``[0, 1]``.
+
+    Note that this reverse conversion mirror-pads across the symmetry edge while
+    :func:`half_to_legacy_256` clamps at it, so the two functions are near- but
+    intentionally not exact inverses.
     """
     legacy = _validate_density_array(design, LEGACY_DESIGN_SHAPE, name="legacy design")
     mirrored = np.concatenate((legacy, np.fliplr(legacy)), axis=1)

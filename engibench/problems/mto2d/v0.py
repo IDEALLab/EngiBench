@@ -70,9 +70,6 @@ class MTO2DSimulationResult(SimulationResult):
     elapsed_time: float
     """Cumulative solver wall time in seconds."""
 
-    status: str
-    """Simulation completion status."""
-
     artifacts_path: str | None = None
     """Retained isolated run directory, when requested."""
 
@@ -293,7 +290,6 @@ class MTO2D(Problem[npt.NDArray]):
             volume_constraint_residual=float(run.volume_residual[-1]),
             power_constraint_residual=power_dissipation / resolved.max_power_dissipation - 1.0,
             elapsed_time=float(run.elapsed_time[-1]),
-            status="success",
             artifacts_path=run.artifacts_path,
         )
 

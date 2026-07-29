@@ -79,6 +79,9 @@ HISTORY_FILES = {
     "elapsed_time": "Time.txt",
 }
 
+DIAGNOSTIC_HISTORY_FILES = ("aMax.txt", "qu.txt", "HEAV.txt")
+"""Continuation diagnostics written by ``costfunction.H`` but not parsed here."""
+
 
 @dataclass(frozen=True)
 class RunnerSettings:
@@ -387,7 +390,10 @@ class MTO2DRunner:
         kind: RunKind,
     ) -> None:
         app = case_dir / "app"
-        for filename in HISTORY_FILES.values():
+        # The solver's SIMP_initialize.H removes all seven history files at startup;
+        # deleting stale template copies here is defense in depth for runs that fail
+        # before solver initialization.
+        for filename in (*HISTORY_FILES.values(), *DIAGNOSTIC_HISTORY_FILES):
             (app / filename).unlink(missing_ok=True)
 
         gamma_template = self._gamma_template(app)

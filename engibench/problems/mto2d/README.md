@@ -141,8 +141,9 @@ this bypass fixes the invalid output field without changing the measured
 temperature or power.
 `simulate()` returns only
 `[mean_temperature, power_dissipation]`. `simulate_verbose()` returns those
-same objectives plus constraint residuals, elapsed time, status, and an
-artifact path when retained.
+same objectives plus constraint residuals, elapsed time, and an artifact path
+when retained. Solver failures raise `SolverRunError` rather than returning a
+result.
 
 ```python
 import numpy as np
