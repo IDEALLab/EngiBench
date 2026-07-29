@@ -9,6 +9,9 @@ repos:
       - id: check-symlinks
       - id: destroyed-symlinks
       - id: trailing-whitespace
+        # Diff context lines in the MTO2D solver patches carry meaningful trailing
+        # whitespace; stripping it would corrupt the hunks.
+        exclude: engibench/problems/mto2d/model/runtime/.*\.patch$
       - id: end-of-file-fixer
       - id: check-yaml
       - id: check-toml
