@@ -47,8 +47,8 @@ MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 SOURCE_CHECKOUT_PATH = Path(__file__).resolve().parents[3]
 """EngiBench source checkout containing this module."""
 
-REPOSITORY_DATASET_PATH = SOURCE_CHECKOUT_PATH / "dataset_output" / "mto_2d_v0"
-"""Preferred local converted dataset for the source-tree demonstration."""
+REPOSITORY_DATASET_PATH = SOURCE_CHECKOUT_PATH / "dataset_output" / "mto_2d_exact_source_v0"
+"""Preferred local exact-source dataset for source-tree use."""
 
 LOCAL_RUNTIME_CONFIG_PATH = SOURCE_CHECKOUT_PATH.parent / ".artifacts" / "mto2d-docker.json"
 """Optional private Docker runtime config produced beside this source checkout."""
@@ -166,7 +166,7 @@ class MTO2D(Problem[npt.NDArray]):
         continuation_profile: str = "geometric"
         power_bound_start: float | None = None
         qu_start: float | None = None
-        qu_final: Annotated[float, greater_than(0.0).category(IMPL)] = 0.019
+        qu_final: Annotated[float, greater_than(0.0).category(IMPL)] = 0.01
         alpha_max_start: float | None = None
         alpha_max_final: Annotated[float, greater_than(0.0).category(IMPL)] = 5.0252e6
         heaviside_start: float | None = None
@@ -261,6 +261,15 @@ class MTO2D(Problem[npt.NDArray]):
         self.last_solver_run: SolverRun | None = None
         if dataset is not None:
             self._dataset = dataset
+
+    @property
+    def dataset(self) -> Any:
+        """Load the exact local source dataset when available, then fall back to Hugging Face."""
+        if self._dataset is None and REPOSITORY_DATASET_PATH.is_dir():
+            from datasets import load_from_disk  # noqa: PLC0415
+
+            self._dataset = load_from_disk(str(REPOSITORY_DATASET_PATH))
+        return super().dataset
 
     def reset(self, seed: int | None = None) -> None:
         """Reset the EngiBench random-number generator."""
@@ -540,8 +549,8 @@ def _print_dataset_row_warning(row: Mapping[str, Any]) -> None:
         print(
             "WARNING: this design was reconstructed lossily; its stored objectives "
             "belong to the source solver's pre-update field under legacy physics "
-            "and may not match a new simulation. Canonical simulation uses the "
-            "stricter final q=0.019 physics."
+            "and may not match a new simulation, even though default simulation "
+            "uses the source-matched final q=0.01 physics."
         )
     elif row.get("objectives_evaluated_on_design") is False:
         print(
@@ -647,7 +656,7 @@ def _parser() -> argparse.ArgumentParser:
         dest="dataset_source",
         help=(
             "local DatasetDict directory or Hugging Face dataset ID; defaults to "
-            "dataset_output/mto_2d_v0 when present, otherwise IDEALLab/mto_2d_v0"
+            "dataset_output/mto_2d_exact_source_v0 when present, otherwise IDEALLab/mto_2d_v0"
         ),
     )
     parser.add_argument("--split", default="train")

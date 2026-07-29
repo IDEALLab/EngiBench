@@ -68,21 +68,17 @@ values belong to the published legacy design's source case, not to an exactly
 reproducible native field. Use a solver-native `(400, 200)` design and
 `design_is_exact = True` when exact simulation is required.
 
-There is also a solver-fidelity difference. The published cold-start designs
-were optimized with a lower RAMP parameter, while `simulate()` deliberately
-uses the strict final Brinkman/RAMP parameters. Appendix E of the accompanying
-paper reports that all test designs violate the strict constraint before
-warm-starting. The converted v0 data therefore preserves the published
-objectives as source labels and sets `objectives_evaluated_on_design = False`;
-those labels must not be presented as strict evaluations of the reconstructed
-arrays.
+The published cold-start designs used the final RAMP parameter `q=0.01`, which
+is also the default for `simulate()`. The converted v0 data nevertheless
+preserves the published objectives as source labels and sets
+`objectives_evaluated_on_design = False`: the public arrays are lossy, and the
+source labels describe the field before its final MMA update.
 
 At the pinned source revision, 3,149 of 5,666 published power labels are
 slightly above their listed bound, but the largest excess is only `0.4997`
 normalized units (`0.976%`). This is consistent with a legacy feasibility
-tolerance, not with the much larger strict re-simulation gap. Keep the exact
-residual and state the tolerance used when deriving any feasible/infeasible
-flag.
+tolerance, not with the much larger `q=0.019` experiment. Keep the exact
+residual and state the tolerance used when deriving any feasible/infeasible flag.
 
 ## Objectives
 
@@ -134,7 +130,7 @@ The runner:
 6. reads the final temperature, power, volume-residual, and timing values; and
 7. removes temporary artifacts unless retention was requested.
 
-The freeze uses one solver step with `qu = 0.019`,
+The freeze uses one solver step with `qu = 0.01`,
 `alphaMax = 5.0252e6`, `Heaviside = 59.8`, movement limit `0`, and
 `updateDesign = false`. The patched solver records the physical objectives but
 bypasses its sensitivity/MMA update, so the written `gamma` remains finite and
@@ -190,10 +186,10 @@ testing, not a converged substitute.
 
 `optimization_schedule="strict"` uses the configurable
 `continuation_profile` and endpoint fields. Cold mode continues from soft
-initial physics toward `qu=0.019`, `alphaMax=5.0252e6`, and
-`Heaviside=59.8`; warm mode starts at those endpoints. The canonical
-`simulate()` call is always a strict frozen evaluation and does not depend on
-the optimization schedule.
+initial physics toward the configured endpoints; warm mode starts at those
+endpoints. The default endpoint is the source-matched `qu=0.01`,
+`alphaMax=5.0252e6`, and `Heaviside=59.8`. `simulate()` freezes those endpoint
+values and does not depend on the optimization schedule.
 
 Cold mode also preserves the legacy power-bound continuation: by default the
 active bound starts at `90` and decreases by `0.2` per iteration until it
@@ -599,7 +595,7 @@ symmetric heat sink:
 
 ```bash
 python ./engibench/problems/mto2d/v0.py \
-  --dataset dataset_output/mto_2d_v0
+  --dataset dataset_output/mto_2d_exact_source_v0
 ```
 
 Use `--no-show` in a headless shell. This default demo does **not** launch
@@ -609,7 +605,7 @@ Solver-backed evaluation is deliberately opt-in:
 
 ```bash
 python ./engibench/problems/mto2d/v0.py \
-  --dataset dataset_output/mto_2d_v0 \
+  --dataset dataset_output/mto_2d_exact_source_v0 \
   --simulate \
   --solver-config ./solver.json \
   --no-show
@@ -617,53 +613,44 @@ python ./engibench/problems/mto2d/v0.py \
 
 `--simulate` is a real frozen OpenFOAM evaluation, not a lookup or surrogate.
 It therefore still requires the external Linux/OpenFOAM runtime and solver
-case described above. The command evaluates the sampled reconstruction under
-that row's three physical conditions.
+case described above. The command evaluates the sampled exact design under
+that row's three physical conditions. When no `--dataset` is given in a source
+checkout, this exact-source dataset is preferred automatically.
 
 Most importantly, the two objective values stored in the converted dataset
-belong to the original solver-native source topology. The published
-`256 x 256` design was resized lossily, so those values are **not** reference
-values for the reconstructed `(400, 200)` array. A successful `--simulate`
-result is a fresh evaluation of the reconstruction and is expected to differ
-from the stored legacy objectives.
+describe the pre-update source field, while each exact `app/200/gamma`
+topology is post-update. A successful `--simulate` result is a fresh evaluation
+of the exact stored topology and can therefore differ slightly from its
+historical objective labels.
 
-There are two additional fidelity differences. The source optimizer logged
+There is an additional timing difference. The source optimizer logged
 each objective before its MMA/Heaviside update, but wrote `app/200/gamma`
 after that update. The published label and published final topology therefore
-did not describe exactly the same field even before resizing. In addition,
-the source cold optimizer capped `qu` at `0.01`, while canonical
-`simulate()` uses the stricter final value `0.019`. The larger value increases
-the flow resistance assigned to intermediate-density cells and can raise the
-simulated power substantially.
+did not describe exactly the same field even before resizing. Default
+`simulate()` now uses the source-matched final value `q=0.01`.
 
 For example, converted source case `9130` has stored power `57.4882`.
-Evaluating its reconstructed design at `qu=0.01` gives `58.5875`, while the
-canonical `qu=0.019` evaluation gives `67.636`. Thus the physics change
-accounts for about 89% of that strict-versus-stored gap. The published Hugging
-Face data cannot remove the remainder because it contains neither native
-field. When the exact post-update `app/200/gamma` is retrieved separately, its
-legacy frozen evaluation is `57.0208`; it still does not equal the pre-update
-`57.4882` source label. The pre-update field was not written and therefore
-cannot be recovered by retrieving the final gamma.
+Evaluating its lossy reconstruction at `q=0.01` gives `58.5875`. Evaluating
+the exact post-update `app/200/gamma` gives `57.0208`; it still does not equal
+the pre-update `57.4882` source label. The pre-update field was not written and
+cannot be recovered from the final gamma.
 
-For a diagnostic comparison with the old material interpolation, override
-the final evaluation parameters explicitly:
+The former stricter `q=0.019` experiment remains available explicitly:
 
 ```python
-legacy_like = problem.simulate_verbose(
+strict_experiment = problem.simulate_verbose(
     design,
     config={
-        "qu_final": 0.01,
+        "qu_final": 0.019,
         "alpha_max_final": 5_025_200.0,
         "heaviside_final": 59.8,
     },
 )
 ```
 
-This is not the canonical v0 simulation and cannot recreate a legacy label
-exactly. To obtain a design feasible under strict v0 physics, run a strict
-warm optimization, freeze-simulate the returned field, and store those new
-objectives rather than reusing the legacy labels.
+This is not the default v0 simulation. Any dataset objective intended to
+describe the stored topology should come from a fresh frozen evaluation rather
+than reusing the pre-update labels.
 
 ## Current limitations and release blockers
 
@@ -683,7 +670,7 @@ objectives rather than reusing the legacy labels.
 The package remains on its feature branch until those artifacts exist.
 Registration must not be made green with MTO2D-specific shared-test skips.
 Once the exact dataset is published, a legally redistributable OCI image is
-available by immutable digest, and a canonical strict reference is recorded,
+available by immutable digest, and a canonical source-matched reference is recorded,
 set `container_id` and let the ordinary EngiBench built-in tests exercise the
 problem.
 

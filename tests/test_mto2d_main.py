@@ -164,6 +164,18 @@ def test_main_auto_uses_repository_dataset(
     assert "Selected split='train', index=0" in output
 
 
+def test_problem_dataset_prefers_exact_local_data(
+    saved_flat_dataset: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(mto2d_module, "REPOSITORY_DATASET_PATH", saved_flat_dataset)
+
+    problem = mto2d_module.MTO2D()
+
+    assert len(problem.dataset["train"]) == 1
+    assert problem.dataset["train"][0]["design_is_exact"] is True
+
+
 def test_cli_reads_json_solver_config_and_keeps_simulation_opt_in(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

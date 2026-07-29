@@ -104,7 +104,7 @@ class RunnerSettings:
     continuation_steps: int | None = None
     power_bound_start: float | None = None
     qu_start: float | None = None
-    qu_final: float = 0.019
+    qu_final: float = 0.01
     alpha_max_start: float | None = None
     alpha_max_final: float = 5.0252e6
     heaviside_start: float | None = None

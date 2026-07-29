@@ -130,7 +130,7 @@ def main(argv: list[str] | None = None) -> None:
         "objective_dtype": "float32",
         "objective_semantics": (
             "published legacy cold-start source labels; not evaluated on the "
-            "reconstructed design or with strict final Brinkman/RAMP parameters"
+            "reconstructed design; default simulation uses source-matched q=0.01 physics"
         ),
         "split_policy": LEGACY_SPLIT_POLICY,
         "split_fractions": list(LEGACY_SPLIT_FRACTIONS),
@@ -302,16 +302,15 @@ The source stores lossy `256 x 256` images. This conversion mirrors each source
 half, applies PyTorch-compatible non-antialiased bicubic resizing, takes the
 native `(400, 200)` left half, and flattens it. Stored objective values belong
 to the original solver-native topology, **not** the reconstructed design.
-They also come from the published cold-start solver fidelity, whereas
-EngiBench `simulate()` uses the strict final Brinkman/RAMP parameters. The
-paper's Appendix E reports that all test designs violate the strict constraint
-before warm-starting. Re-simulating the reconstruction is therefore expected
-to produce different values.
+They also describe the source solver's pre-update field, whereas the stored
+topology is post-update. EngiBench `simulate()` defaults to the source-matched
+final `q=0.01` material interpolation, but re-simulating the lossy
+reconstruction is still expected to produce different values.
 
 The fields `design_is_exact = false` and
 `objectives_evaluated_on_design = false` make this distinction
 machine-readable. Treat the objective columns as preserved source labels, not
-strict evaluations of `optimal_design`.
+fresh evaluations of `optimal_design`.
 
 {tolerance_note}
 See `conversion_manifest.json` for hashes, split policy, exact provenance, and

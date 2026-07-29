@@ -331,7 +331,7 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
     assert "voluse 0.61;" in transport
     assert "D0 63.1;" in transport
     assert "D1 63.1;" in transport
-    assert "qu 0.019;" in transport
+    assert "qu 0.01;" in transport
 
     inlet = (prepared / "0" / "U").read_text(encoding="utf-8")
     assert "value uniform (0 -0.074 0);" in inlet
@@ -343,7 +343,7 @@ def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path
     continuation = (prepared / "constant" / "continuationProperties").read_text(encoding="utf-8")
     assert "n_steps         1;" in continuation
     assert "optimizationSchedule strict;" in continuation
-    assert continuation.count("from           0.019;") == 1
+    assert continuation.count("from           0.01;") == 1
     assert continuation.count("from           5025200;") == 1
     assert continuation.count("from           59.8;") == 1
     assert not (prepared / "9").exists()
