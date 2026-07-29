@@ -7,9 +7,9 @@ digest from `MTO2D.container_id`.
 ## Pull and smoke test
 
 ```bash
-docker pull ghcr.io/ideallab/engibench-mto2d@sha256:<pinned digest>
+docker pull ghcr.io/ideallab/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131
 docker run --rm --platform linux/amd64 \
-  ghcr.io/ideallab/engibench-mto2d@sha256:<pinned digest> \
+  ghcr.io/ideallab/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131 \
   mto2d-source-smoke
 ```
 

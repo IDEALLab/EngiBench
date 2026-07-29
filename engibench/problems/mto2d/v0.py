@@ -44,8 +44,10 @@ MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 SOLVER_CONFIG_ENV_VAR = "ENGIBENCH_MTO2D_SOLVER_CONFIG"
 """Environment variable selecting a solver configuration JSON file."""
 
-DEFAULT_CONTAINER_IMAGE = "ghcr.io/ideallab/engibench-mto2d:v0"
-"""Published OCI image tag; releases pin its immutable digest."""
+DEFAULT_CONTAINER_IMAGE = (
+    "ghcr.io/ideallab/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131"
+)
+"""Published OCI image pinned by immutable manifest digest."""
 
 
 @dataclass

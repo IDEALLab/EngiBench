@@ -43,8 +43,6 @@ PROBLEM_TEST_POLICIES = {
         optimization_reason="optimization is not part of the shared Airfoil smoke test",
     ),
     "problems.mto2d.v0.MTO2D": ProblemTestPolicy(
-        artifacts_available=False,
-        artifacts_reason="the solver image is not published yet",
         exercise_optimization=False,
         optimization_reason="the external 200-step optimization is too expensive for the shared smoke test",
         supported_machines=("x86_64", "amd64"),
@@ -65,7 +63,7 @@ def problem_test_policy(problem_class: type[Problem]) -> ProblemTestPolicy:
 def test_mto2d_shared_policy_is_simulation_only() -> None:
     """Keep the expensive MTO2D optimizer out of the shared problem suite."""
     policy = PROBLEM_TEST_POLICIES["problems.mto2d.v0.MTO2D"]
-    assert not policy.artifacts_available
+    assert policy.artifacts_available
     assert not policy.exercise_optimization
     assert policy.supported_machines == ("x86_64", "amd64")
 
@@ -210,6 +208,7 @@ def test_python_problem_impl(
             assert optimal_design.shape == problem.design_space.shape, (
                 f"Problem {problem_class.__name__}: The optimal design should have the same shape as the design space."
             )
+            assert problem.design_space.dtype is not None
             assert np.can_cast(optimal_design.dtype, problem.design_space.dtype), (
                 f"Problem {problem_class.__name__}: The optimal design should have the same dtype as the design space."
             )
