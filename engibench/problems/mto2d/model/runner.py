@@ -11,8 +11,7 @@ import shlex
 import shutil
 import subprocess
 import tempfile
-import time
-from typing import Literal, TYPE_CHECKING
+from typing import Literal
 
 import numpy as np
 import numpy.typing as npt
@@ -25,13 +24,10 @@ from engibench.problems.mto2d.model.design_io import read_half_design
 from engibench.problems.mto2d.model.design_io import write_half_design
 from engibench.utils import container
 
-if TYPE_CHECKING:
-    from collections.abc import Sequence
-
 RunKind = Literal["simulate", "optimize"]
 OptimizationMode = Literal["cold", "warm"]
 OptimizationSchedule = Literal["legacy", "strict"]
-Backend = Literal["local", "container", "command"]
+Backend = Literal["container", "command"]
 CONTINUATION_PROFILES = frozenset({"constant", "linear", "geometric"})
 """Profiles implemented by the retained warm-ready solver."""
 
@@ -95,11 +91,10 @@ class RunnerSettings:
     mode: OptimizationMode = "cold"
     optimization_schedule: OptimizationSchedule = "legacy"
     mpi_cores: int = 1
-    backend: Backend = "local"
+    backend: Backend = "container"
     container_image: str | None = None
     driver_command: tuple[str, ...] = ()
     solver_executable: str = "../src_TF/EXEC"
-    build_solver: bool = False
     timeout: float | None = None
     work_dir: str | None = None
     retain_artifacts: bool = False
@@ -260,8 +255,8 @@ class MTO2DRunner:
 
     @staticmethod
     def _validate_backend_settings(settings: RunnerSettings) -> None:
-        if settings.backend not in {"local", "container", "command"}:
-            raise ValueError("backend must be 'local', 'container', or 'command'")
+        if settings.backend not in {"container", "command"}:
+            raise ValueError("backend must be 'container' or 'command'")
         if settings.backend == "container" and not settings.container_image:
             raise ValueError("container_image is required for the container backend")
         if settings.backend == "command" and not settings.driver_command:
@@ -692,10 +687,7 @@ Heaviside
         if settings.backend == "command":
             self._run_driver(case_dir, settings, kind)
             return
-        if settings.backend == "container":
-            self._run_container(case_dir, settings, kind)
-            return
-        self._run_local(case_dir, settings, kind)
+        self._run_container(case_dir, settings, kind)
 
     @staticmethod
     def _run_driver(case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
@@ -718,64 +710,19 @@ Heaviside
             )
 
     @staticmethod
-    def _run_local(case_dir: Path, settings: RunnerSettings, _kind: RunKind) -> None:
-        started = time.monotonic()
-        commands: list[tuple[Sequence[str], Path]] = []
-        if settings.build_solver:
-            commands.append((("wmake",), case_dir / "src_TF"))
-        app = case_dir / "app"
-        commands.append((("blockMesh",), app))
-        if settings.mpi_cores == 1:
-            commands.append(((settings.solver_executable,), app))
-        else:
-            commands.extend(
-                [
-                    (("decomposePar",), app),
-                    (
-                        (
-                            "mpirun",
-                            "-np",
-                            str(settings.mpi_cores),
-                            settings.solver_executable,
-                            "-parallel",
-                        ),
-                        app,
-                    ),
-                ]
-            )
-        if settings.mpi_cores > 1:
-            commands.append((("reconstructPar", "-latestTime"), app))
-        with (case_dir / "run.log").open("wb") as log:
-            for command, cwd in commands:
-                remaining = None
-                if settings.timeout is not None:
-                    remaining = settings.timeout - (time.monotonic() - started)
-                    if remaining <= 0:
-                        raise subprocess.TimeoutExpired(command, settings.timeout)
-                subprocess.run(
-                    list(command),
-                    cwd=cwd,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    check=True,
-                    timeout=remaining,
-                )
-
-    @staticmethod
     def _run_container(case_dir: Path, settings: RunnerSettings, _kind: RunKind) -> None:
         assert settings.container_image is not None
         container_home = case_dir.parent / "container-home"
         container_tmp = case_dir.parent / "container-tmp"
         container_home.mkdir(exist_ok=True)
         container_tmp.mkdir(exist_ok=True)
-        build = "cd /work/case/src_TF && wmake && " if settings.build_solver else ""
         executable = shlex.quote(settings.solver_executable)
         if settings.mpi_cores == 1:
             solve = executable
         else:
             solve = f"decomposePar; mpirun -np {settings.mpi_cores} {executable} -parallel"
         mesh = "if command -v mto2d-prepare-mesh >/dev/null 2>&1; then mto2d-prepare-mesh .; else blockMesh; fi"
-        command = f"set -eu; exec > /work/case/run.log 2>&1; {build}cd /work/case/app; {mesh}; {solve}"
+        command = f"set -eu; exec > /work/case/run.log 2>&1; cd /work/case/app; {mesh}; {solve}"
         if settings.mpi_cores > 1:
             command += "; reconstructPar -latestTime"
         container.run(

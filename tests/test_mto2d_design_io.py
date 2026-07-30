@@ -7,7 +7,6 @@ import pytest
 from engibench.problems.mto2d.model.design_io import DESIGN_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import FIXED_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import FULL_DESIGN_SHAPE
-from engibench.problems.mto2d.model.design_io import full_to_half
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import gamma_to_half_design
 from engibench.problems.mto2d.model.design_io import HALF_DESIGN_SHAPE
@@ -152,7 +151,7 @@ def test_parse_internal_field_checks_expected_count() -> None:
         parse_internal_field(_foam_field(np.array([0.5], dtype=np.float64)), expected_count=2)
 
 
-def test_half_to_full_and_full_to_half_round_trip() -> None:
+def test_half_to_full_mirrors_the_half_domain() -> None:
     half = np.linspace(0.0, 1.0, DESIGN_CELL_COUNT, dtype=np.float32).reshape(HALF_DESIGN_SHAPE)
 
     full = half_to_full(half)
@@ -160,18 +159,6 @@ def test_half_to_full_and_full_to_half_round_trip() -> None:
     assert full.shape == FULL_DESIGN_SHAPE
     np.testing.assert_array_equal(full[:, :200], half)
     np.testing.assert_array_equal(full[:, 200:], np.fliplr(half))
-    np.testing.assert_array_equal(full_to_half(full), half)
-
-
-def test_full_to_half_optionally_validates_symmetry() -> None:
-    half = np.full(HALF_DESIGN_SHAPE, 0.5, dtype=np.float32)
-    asymmetric = half_to_full(half)
-    asymmetric[0, -1] = 0.75
-
-    with pytest.raises(ValueError, match="not horizontally symmetric"):
-        full_to_half(asymmetric)
-
-    np.testing.assert_array_equal(full_to_half(asymmetric, validate_symmetry=False), half)
 
 
 @pytest.mark.parametrize(

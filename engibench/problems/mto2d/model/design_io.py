@@ -170,39 +170,6 @@ def half_to_full(design: npt.NDArray) -> npt.NDArray[np.float32]:
     return np.ascontiguousarray(np.concatenate((half, np.fliplr(half)), axis=1))
 
 
-def _validate_symmetry(full: npt.NDArray[np.float32], half_width: int, tolerance: float) -> None:
-    if not np.isfinite(tolerance) or tolerance < 0.0:
-        raise ValueError("symmetry_tolerance must be a finite, non-negative number")
-    difference = np.abs(full[:, :half_width] - np.fliplr(full[:, half_width:]))
-    max_difference = float(np.max(difference))
-    if max_difference > tolerance:
-        raise ValueError(
-            f"full design is not horizontally symmetric within tolerance {tolerance}; "
-            f"maximum difference is {max_difference}"
-        )
-
-
-def full_to_half(
-    design: npt.NDArray,
-    *,
-    validate_symmetry: bool = True,
-    symmetry_tolerance: float = 1e-6,
-) -> npt.NDArray[np.float32]:
-    """Extract the native left half from a full visualization.
-
-    Args:
-        design: Float32 ``(400, 400)`` density array.
-        validate_symmetry: Whether to verify that the right half mirrors the
-            left half before discarding it.
-        symmetry_tolerance: Maximum absolute difference accepted by symmetry
-            validation.
-    """
-    full = _validate_density_array(design, FULL_DESIGN_SHAPE, name="design")
-    if validate_symmetry:
-        _validate_symmetry(full, HALF_DESIGN_SHAPE[1], symmetry_tolerance)
-    return np.ascontiguousarray(full[:, : HALF_DESIGN_SHAPE[1]])
-
-
 def _replace_internal_field(content: str, values: npt.NDArray[np.float64]) -> str:
     match = _internal_field_match(content)
     scalar_lines = "\n".join(format(float(value), ".17g") for value in values)

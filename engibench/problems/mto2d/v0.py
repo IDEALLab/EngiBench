@@ -141,7 +141,6 @@ class MTO2D(Problem[npt.NDArray]):
         container_image: str | None = None
         driver_command: tuple[str, ...] = ()
         solver_executable: str = "../src_TF/EXEC"
-        build_solver: bool = False
         timeout: float | None = None
         work_dir: str | None = None
         retain_artifacts: bool = False
@@ -192,7 +191,7 @@ class MTO2D(Problem[npt.NDArray]):
         @staticmethod
         def valid_backend(backend: str) -> None:
             """Require a supported runner backend."""
-            assert backend in {"local", "container", "command"}, "Config.backend must be 'local', 'container', or 'command'"
+            assert backend in {"container", "command"}, "Config.backend must be 'container' or 'command'"
 
         @constraint(categories=IMPL)
         @staticmethod

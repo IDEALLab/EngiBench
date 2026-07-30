@@ -396,6 +396,7 @@ def test_legacy_schedule_prepares_source_initialization_and_endpoints(tmp_path: 
         volume_fraction=0.61,
         max_iter=1,
         optimization_schedule="legacy",
+        container_image="example.invalid/mto2d:pinned",
     )
 
     MTO2DRunner._validate_settings(settings, "optimize")  # noqa: SLF001
@@ -729,42 +730,6 @@ def test_container_backend_exports_image_case_template(
         "TMPDIR": "/work/container-tmp",
     }
     assert captured["kwargs"]["sync_uid"] is True
-
-
-def test_local_backend_uses_serial_or_parallel_execution(
-    tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    case = tmp_path / "case"
-    (case / "app").mkdir(parents=True)
-    (case / "src_TF").mkdir()
-    commands: list[list[str]] = []
-
-    def fake_subprocess_run(command: list[str], **kwargs: Any) -> None:
-        commands.append(command)
-
-    monkeypatch.setattr("engibench.problems.mto2d.model.runner.subprocess.run", fake_subprocess_run)
-    settings = RunnerSettings(
-        case_template=str(case),
-        inlet_velocity=-0.074,
-        max_power_dissipation=63.1,
-        volume_fraction=0.61,
-    )
-
-    MTO2DRunner._run_local(case, settings, "simulate")  # noqa: SLF001
-    assert [command[0] for command in commands] == ["blockMesh", "../src_TF/EXEC"]
-
-    commands.clear()
-    MTO2DRunner._run_local(case, settings, "optimize")  # noqa: SLF001
-    assert [command[0] for command in commands] == ["blockMesh", "../src_TF/EXEC"]
-
-    commands.clear()
-    MTO2DRunner._run_local(case, replace(settings, mpi_cores=4), "simulate")  # noqa: SLF001
-    assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun", "reconstructPar"]
-
-    commands.clear()
-    MTO2DRunner._run_local(case, replace(settings, mpi_cores=4), "optimize")  # noqa: SLF001
-    assert [command[0] for command in commands] == ["blockMesh", "decomposePar", "mpirun", "reconstructPar"]
 
 
 def test_frozen_output_validation_rejects_nonfinite_gamma(tmp_path: Path) -> None:
