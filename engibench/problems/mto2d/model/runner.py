@@ -199,7 +199,7 @@ class MTO2DRunner:
         kind: RunKind,
     ) -> SolverRun:
         """Execute a frozen simulation or an MMA optimization."""
-        self._validate_settings(settings, kind)
+        self.validate_settings(settings, kind)
         configured_template = settings.case_template or os.environ.get("ENGIBENCH_MTO2D_CASE_TEMPLATE")
         case_template = self._resolve_case_template(configured_template) if configured_template else None
         if case_template is None and settings.backend != "container":
@@ -256,7 +256,8 @@ class MTO2DRunner:
                 shutil.rmtree(run_root, ignore_errors=True)
 
     @staticmethod
-    def _validate_settings(settings: RunnerSettings, kind: RunKind) -> None:
+    def validate_settings(settings: RunnerSettings, kind: RunKind) -> None:
+        """Validate settings shared by the public problem API and runner."""
         MTO2DRunner._validate_common_settings(settings)
         MTO2DRunner._validate_backend_settings(settings)
         if kind == "optimize":

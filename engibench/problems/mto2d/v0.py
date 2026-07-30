@@ -216,35 +216,6 @@ class MTO2D(Problem[npt.NDArray]):
             """Require a positive optional initial power-dissipation bound."""
             assert power_bound_start is None or power_bound_start > 0.0, "Config.power_bound_start must be positive"
 
-        def validate_for_optimization(self) -> None:
-            """Validate settings that are irrelevant to a frozen simulation."""
-            if self.optimization_schedule == "legacy":
-                if self.mode != "cold":
-                    raise ValueError(
-                        "Config.optimization_schedule='legacy' is only valid for cold source reproduction; "
-                        "warm repair must pass Config.optimization_schedule='strict'"
-                    )
-                if self.max_iter > LEGACY_OPTIMIZATION_ITERATIONS:
-                    raise ValueError("Config.optimization_schedule='legacy' supports 200 steps or a shorter exact prefix")
-                if self.continuation_steps is not None:
-                    raise ValueError(
-                        "Config.continuation_steps is not configurable with Config.optimization_schedule='legacy'"
-                    )
-
-            if self.continuation_steps is not None:
-                if not 1 <= self.continuation_steps <= self.max_iter:
-                    raise ValueError("Config.continuation_steps must be between 1 and max_iter")
-                if self.max_iter % self.continuation_steps:
-                    raise ValueError("Config.max_iter must be divisible by continuation_steps")
-
-            for name, value in (
-                ("qu_start", self.qu_start),
-                ("alpha_max_start", self.alpha_max_start),
-                ("heaviside_start", self.heaviside_start),
-            ):
-                if value is not None and value <= 0.0:
-                    raise ValueError(f"Config.{name} must be positive")
-
     def __init__(
         self,
         seed: int = 0,
@@ -313,7 +284,9 @@ class MTO2D(Problem[npt.NDArray]):
         are required.
         """
         density = self._coerce_design(starting_point)
-        resolved = self._resolve_config(config, for_optimization=True)
+        resolved = self._resolve_config(config)
+        settings = self._runner_settings(resolved)
+        MTO2DRunner.validate_settings(settings, "optimize")
         active_power_bounds = self._active_power_bounds(resolved)
         if resolved.optimization_schedule == "legacy" and resolved.max_iter < LEGACY_OPTIMIZATION_ITERATIONS:
             warnings.warn(
@@ -331,7 +304,7 @@ class MTO2D(Problem[npt.NDArray]):
                 UserWarning,
                 stacklevel=2,
             )
-        run = self._runner.run(density, self._runner_settings(resolved), kind="optimize")
+        run = self._runner.run(density, settings, kind="optimize")
         self.last_solver_run = run
         history = [
             OptiStep(
@@ -425,7 +398,7 @@ class MTO2D(Problem[npt.NDArray]):
         if errors:
             raise ValueError(str(errors))
 
-    def _resolve_config(self, overrides: dict[str, Any] | None, *, for_optimization: bool = False) -> Config:
+    def _resolve_config(self, overrides: dict[str, Any] | None) -> Config:
         if self.config is None:
             raise RuntimeError("MTO2D solver configuration is not initialized")
         values = dataclasses.asdict(self.config)
@@ -434,8 +407,6 @@ class MTO2D(Problem[npt.NDArray]):
             values["driver_command"] = tuple(values["driver_command"])
         resolved = self.Config(**values)
         self._raise_config_errors(resolved)
-        if for_optimization:
-            resolved.validate_for_optimization()
         return resolved
 
     @staticmethod

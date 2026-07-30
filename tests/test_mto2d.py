@@ -478,7 +478,7 @@ def test_legacy_schedule_prepares_source_initialization_and_endpoints(tmp_path: 
         container_image="example.invalid/mto2d:pinned",
     )
 
-    MTO2DRunner._validate_settings(settings, "optimize")  # noqa: SLF001
+    MTO2DRunner.validate_settings(settings, "optimize")
     MTO2DRunner()._prepare_case(template, design, settings, "optimize")  # noqa: SLF001
 
     transport = (template / "app" / "constant" / "transportProperties").read_text(encoding="utf-8")
