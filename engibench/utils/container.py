@@ -29,6 +29,7 @@ def run(  # noqa: PLR0913
     stdin: bytes | None = None,
     *,
     sync_uid: bool = False,
+    timeout: float | None = None,
 ) -> None:
     """Run a command in a container using the selected runtime.
 
@@ -40,14 +41,27 @@ def run(  # noqa: PLR0913
         name: Optional name for the container (not supported by all runtimes).
         stdin: Optional data to feed to stdin of the process inside the container.
         sync_uid: Use the uid of the current process as uid inside the container.
+        timeout: Optional wall-clock limit in seconds for the containerized command.
+
+    Raises:
+        FileNotFoundError: If no container runtime is available.
+        TimeoutError: If the command does not finish within `timeout` seconds.
+        RuntimeError: If the command exits with a non-zero status.
     """
     if RUNTIME is None:
         msg = "No container runtime found. Please ensure Docker, Podman, or Singularity is installed and running."
         raise FileNotFoundError(msg)
 
+    if timeout is not None and timeout <= 0.0:
+        msg = f"timeout must be positive, got {timeout}"
+        raise ValueError(msg)
+
     try:
-        result = RUNTIME.run(command, image, mounts, env, name, stdin, sync_uid=sync_uid)
+        result = RUNTIME.run(command, image, mounts, env, name, stdin, sync_uid=sync_uid, timeout=timeout)
         result.check_returncode()
+    except subprocess.TimeoutExpired as e:
+        msg = f"Container command timed out after {e.timeout} seconds:\nCommand: {' '.join(command)}"
+        raise TimeoutError(msg) from None
     except subprocess.CalledProcessError as e:
         msg = f"""Container command failed with exit code {e.returncode}:
 Command: {" ".join(command)}
@@ -100,6 +114,7 @@ class ContainerRuntime:
         stdin: bytes | None = None,
         *,
         sync_uid: bool = False,
+        timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -111,6 +126,7 @@ class ContainerRuntime:
             name: Optional name for the container (not supported by all runtimes).
             stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
+            timeout: Optional wall-clock limit in seconds for the containerized command.
         """
         raise NotImplementedError("Must be implemented by a subclass")
 
@@ -179,6 +195,7 @@ class Docker(ContainerRuntime):
         stdin: bytes | None = None,
         *,
         sync_uid: bool = False,
+        timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -190,6 +207,7 @@ class Docker(ContainerRuntime):
             name: Optional name for the container (not supported by all runtimes).
             stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
+            timeout: Optional wall-clock limit in seconds for the containerized command.
         """
         name_args = [] if name is None else ["--name", name]
         user_args = cls._user_args() if sync_uid else ()
@@ -212,6 +230,7 @@ class Docker(ContainerRuntime):
             capture_output=True,
             env=cls._env(),
             input=stdin,
+            timeout=timeout,
         )
 
     @classmethod
@@ -335,6 +354,7 @@ class Apptainer(ContainerRuntime):
         stdin: bytes | None = None,
         *,
         sync_uid: bool = False,  # noqa: ARG003
+        timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -346,6 +366,7 @@ class Apptainer(ContainerRuntime):
             name: Optional name for the container (not supported by all runtimes).
             stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
+            timeout: Optional wall-clock limit in seconds for the containerized command.
         """
         # Set Apptainer environment variables
         cls._set_apptainer_env()
@@ -366,6 +387,7 @@ class Apptainer(ContainerRuntime):
             ],
             check=False,
             input=stdin,
+            timeout=timeout,
         )
 
 
