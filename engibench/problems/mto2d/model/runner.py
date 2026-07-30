@@ -332,7 +332,7 @@ class MTO2DRunner:
         if not (case_dir / "app").is_dir() or not (case_dir / "src_TF").is_dir():
             raise FileNotFoundError(
                 "The configured MTO2D image did not export an app/src_TF case template. "
-                "Rebuild it from model/runtime/Dockerfile.source."
+                "Rebuild it from docker/mto2d/Dockerfile.source in the EngiBench repository."
             )
 
     @staticmethod

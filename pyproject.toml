@@ -77,7 +77,6 @@ engibench = [
     "**/*.json",
     "**/templates/*",
     "**/data/*",
-    "**/model/runtime/*",
 ]
 
 ######################## Linters and Test tools #########################

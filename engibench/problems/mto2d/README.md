@@ -7,9 +7,11 @@ sensitivities and MMA design updates.
 The implementation is split into:
 
 - `v0.py`: EngiBench API and user-facing demo;
-- `model/design_io.py`: native NumPy/OpenFOAM field conversion;
-- `model/runner.py`: isolated local, command, and container execution; and
-- `model/runtime/`: the pinned source-image recipe and release reference.
+- `model/design_io.py`: native NumPy/OpenFOAM field conversion; and
+- `model/runner.py`: isolated container and command execution.
+
+The pinned source-image recipe and release reference live outside the Python
+package in `docker/mto2d/` at the repository root.
 
 ## Design and data
 
@@ -79,7 +81,7 @@ host OpenFOAM installation is required.
 
 The maintainer build is source-pinned and its one-step reference must match
 the committed scalar histories and final gamma bytes exactly. Build and
-release instructions are in [`model/runtime/README.md`](model/runtime/README.md).
+release instructions are in `docker/mto2d/README.md` at the repository root.
 
 ## References
 

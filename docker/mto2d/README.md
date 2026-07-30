@@ -24,7 +24,7 @@ solver, and its MMA library from the revisions and hashes in
 maintainer `IDEALLab/MTO-Scripts` checkout:
 
 ```bash
-./engibench/problems/mto2d/model/runtime/build_source_image.sh \
+./docker/mto2d/build_source_image.sh \
   /path/to/MTO-Scripts/warm_start/2D/templates/warm-ready-2d.zip \
   /path/to/MTO-Scripts \
   engibench-mto2d:source-local
@@ -57,7 +57,7 @@ The release gate uses train row 2010 from
 
 ```bash
 DOCKER_DEFAULT_PLATFORM=linux/amd64 \
-python engibench/problems/mto2d/model/runtime/verify_source_reference.py \
+python docker/mto2d/verify_source_reference.py \
   --image engibench-mto2d:source-local
 ```
 
@@ -72,7 +72,7 @@ Authenticate Docker to GHCR with a classic token carrying `write:packages`,
 then run:
 
 ```bash
-./engibench/problems/mto2d/model/runtime/publish_source_image.sh \
+./docker/mto2d/publish_source_image.sh \
   --image engibench-mto2d:source-local \
   --confirm-redistribution-rights \
   --confirm-reference \
