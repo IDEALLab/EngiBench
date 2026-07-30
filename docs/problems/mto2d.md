@@ -3,14 +3,6 @@
 ```{problem:table}
 ```
 
-## Release status
-
-The native dataset is public at
-[`IDEALLab/mto_2d_v0`](https://huggingface.co/datasets/IDEALLab/mto_2d_v0).
-The source-built Linux/AMD64 solver is hosted at
-`ghcr.io/arthurdrake1/engibench-mto2d`; `MTO2D.container_id` pins the accepted
-manifest by immutable digest.
-
 ## Motivation
 
 Multiphysics topology optimization (MTO) couples fluid flow, heat transfer, and
@@ -120,6 +112,8 @@ backends, runtime-image preparation, and usage.
 
 ## Dataset
 
+The dataset is hosted at
+[`IDEALLab/mto_2d_v0`](https://huggingface.co/datasets/IDEALLab/mto_2d_v0).
 Rows contain the flat `optimal_design`, the three condition fields, and both
 objective fields. The 4,249/283/1,134 train/validation/test splits follow the
 source paper's 75/5/20 policy.
