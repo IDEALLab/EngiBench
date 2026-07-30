@@ -1,8 +1,8 @@
 # Beams3D
 
-```{problem:table}
+``` {problem:table}
+:lead: Arthur Drake @arthurdrake1
 ```
-
 
 ## Motivation
 As articulated in the Beams2D and Thermoelastic3D sections, topology
