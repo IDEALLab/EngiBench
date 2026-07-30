@@ -2,7 +2,8 @@
 
 MTO2D is a two-dimensional thermofluid topology-optimization problem for a
 fluid-cooled heat sink. It couples steady flow and heat transfer with adjoint
-sensitivities and MMA design updates.
+sensitivities and MMA design updates. EngiBench reports mean temperature and
+fluid power dissipation as objectives, and both are minimized.
 
 The implementation is split into:
 
@@ -26,8 +27,9 @@ dataset has `train`, `val`, and `test` splits and six columns:
 - `inlet_velocity`, `max_power_dissipation`, and `volfrac`; and
 - `mean_temperature` and `power_dissipation`.
 
-`MTO2D().dataset` and the demo load that Hub dataset by default. A saved
-Hugging Face `DatasetDict` can be selected explicitly with `--dataset`.
+`MTO2D().dataset` and the demo load that Hub dataset by default. For offline
+use, load a saved Hugging Face `DatasetDict` with `datasets.load_from_disk()`
+and pass it as `MTO2D(dataset=dataset)`.
 
 ## Simulation
 

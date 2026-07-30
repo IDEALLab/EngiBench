@@ -19,6 +19,20 @@ The problem, solver, and dataset follow the VQGAN-for-MTO study by Drake et
 al., which generated thousands of optimized heat sinks over a range of inlet
 velocities, power-dissipation limits, and fluid volume fractions.
 
+## Problem setup
+
+MTO2D models one symmetric half of a water-cooled rectangular heat sink.
+Coolant enters through a channel at the top, flows through channels placed by
+the optimizer, and leaves through a channel at the bottom. The paper uses a
+10 mm design-domain length, a 2 mm inlet scale, and a uniform heat source of
+`1e8 W/m²`.
+
+The inlet has fixed velocity and reference temperature (`T = 0`). The outlet
+has zero pressure and no normal temperature gradient. The remaining outer
+walls are no-slip and adiabatic, and the centerline is a symmetry boundary.
+For every proposed material layout, the solver computes steady incompressible
+flow and heat transfer.
+
 ## Design space
 
 A design is a `float32` array with shape `(400, 200)` and values in `[0, 1]`,
@@ -28,6 +42,10 @@ storing the non-redundant left half of the symmetric design domain:
 - `gamma = 1` means fluid.
 - `render()` mirrors the half-domain horizontally into a symmetric
   `(400, 400)` image.
+
+The example above is a mirrored `400 x 400` rendering of public dataset row
+`train[1977]` (`volfrac = 0.26`), selected for its sparse, smooth fluid
+channels.
 
 The underlying OpenFOAM field has 86,400 cells: the first 80,000 encode the
 `(400, 200)` design in two solver-specific mesh blocks, and the remaining
@@ -48,18 +66,20 @@ simulation never silently resizes a topology.
 
 ## Objectives
 
-Objective arrays always use this order:
+EngiBench minimizes both reported objectives, in this order:
 
-0. `mean_temperature`: mean temperature over the domain, to minimize.
-1. `power_dissipation`: normalized fluid power dissipation, to minimize.
+0. `mean_temperature`: mean temperature over the domain, reported in degrees
+   Celsius.
+1. `power_dissipation`: measured fluid power dissipation, reported as the
+   factor `J/J1`.
 
-The native optimization formulation minimizes mean temperature only; power
-dissipation and fluid volume are solver constraints. Power dissipation is also
-reported as a second EngiBench objective so that designs can be compared in
-Pareto studies. Because the power constraint depends on the simulation output,
-it cannot be checked from inputs alone: `simulate_verbose()` reports its
-relative residual as `power_dissipation / max_power_dissipation - 1` together
-with the solver-reported volume residual.
+The native MMA formulation uses mean temperature as its scalar objective and
+enforces fluid volume and `J < J̄` as constraints. EngiBench also exposes the
+measured `J` as a second objective so designs can be compared on a Pareto
+front. The condition `max_power_dissipation` is the input bound `J̄/J1`, not
+the measured objective. Because that constraint depends on simulation output,
+`simulate_verbose()` reports its relative residual as
+`power_dissipation / max_power_dissipation - 1`.
 
 ## Conditions
 
@@ -68,11 +88,12 @@ with the solver-reported volume residual.
 ```
 
 - `inlet_velocity`: signed inlet velocity, nominally from `-0.095` to
-  `-0.025` m/s, corresponding to Reynolds numbers from 50 to 190.
-- `max_power_dissipation`: dimensionless normalized power-dissipation limit,
-  nominally from `50` to `75`. The solver normalizes by
-  `D_normalization = 1.57572e-7`; the paper calls the rounded `J1 ≈ 1.58e-7`
-  reference scale.
+  `-0.025` m/s, corresponding to Reynolds numbers from 50 to 190; the negative
+  sign denotes flow direction.
+- `max_power_dissipation`: input bound `J̄/J1`, primarily sampled from `50` to
+  `75` in the stable sweep. The paper defines `J1 = 1.58e-7` as the reference
+  dissipation of a straight, uniform-width channel from inlet to outlet. The
+  solver uses the more precise normalization `1.57572e-7`.
 - `volfrac`: maximum all-cell fluid fraction, nominally from `0.25`
   to `0.70`.
 
@@ -115,8 +136,28 @@ backends, runtime-image preparation, and usage.
 The dataset is hosted at
 [`IDEALLab/mto_2d_v0`](https://huggingface.co/datasets/IDEALLab/mto_2d_v0).
 Rows contain the flat `optimal_design`, the three condition fields, and both
-objective fields. The 4,249/283/1,134 train/validation/test splits follow the
-source paper's 75/5/20 policy.
+objective fields.
+
+The paper sampled 10,000 condition combinations with Latin hypercube
+sampling. An initial 5,000-case sweep used `J̄/J1` from 5 to 75; after many
+low-bound cases violated the power constraint, a second roughly 5,000-case
+sweep concentrated on 50 to 75. Both sweeps used `volfrac` from 0.25 to 0.70
+and Reynolds number from 50 to 190. Retaining only converged,
+constraint-satisfying runs produced 5,666 designs. Their
+4,249/283/1,134 train/validation/test splits follow the paper's 75/5/20 policy.
+
+```{figure} ../_static/img/problems/mto2d_pareto.png
+:alt: Pareto front of mean temperature and fluid power dissipation for the MTO2D dataset
+:name: mto2d-pareto-front
+:width: 700px
+:align: center
+
+The global dataset front contains 12 Pareto-optimal designs across all three
+splits and operating conditions. Both axes are minimized. Fluid power
+dissipation is shown in multiples of `J1`, where `J1 = 1.58e-7` is the paper's
+reference value. One 71.3 °C outlier lies above the displayed temperature
+range.
+```
 
 ## Citation
 
