@@ -816,3 +816,13 @@ def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:
 
     assert error.value.artifacts_path is not None
     assert (error.value.artifacts_path / "case" / "run.log").is_file()
+
+
+def test_shared_suite_policy_keeps_optimization_out() -> None:
+    """Keep the expensive MTO2D optimizer out of the shared problem suite."""
+    from tests.test_problem_implementations import PROBLEM_TEST_POLICIES  # noqa: PLC0415
+
+    policy = PROBLEM_TEST_POLICIES["problems.mto2d.v0.MTO2D"]
+    assert policy.artifacts_available
+    assert not policy.exercise_optimization
+    assert policy.supported_machines == ("x86_64", "amd64")

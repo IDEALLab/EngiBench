@@ -60,14 +60,6 @@ def problem_test_policy(problem_class: type[Problem]) -> ProblemTestPolicy:
     return PROBLEM_TEST_POLICIES.get(problem_id(problem_class), DEFAULT_TEST_POLICY)
 
 
-def test_mto2d_shared_policy_is_simulation_only() -> None:
-    """Keep the expensive MTO2D optimizer out of the shared problem suite."""
-    policy = PROBLEM_TEST_POLICIES["problems.mto2d.v0.MTO2D"]
-    assert policy.artifacts_available
-    assert not policy.exercise_optimization
-    assert policy.supported_machines == ("x86_64", "amd64")
-
-
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
 def test_problem_impl(problem_class: type[Problem]) -> None:
     """Check that all builtin problems define all required class attributes and methods."""
