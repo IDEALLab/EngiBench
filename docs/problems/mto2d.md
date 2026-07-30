@@ -1,6 +1,7 @@
 # MTO2D
 
 ```{problem:table}
+:lead: Arthur Drake @arthurdrake1
 ```
 
 ## Motivation
@@ -91,7 +92,7 @@ the measured objective. Because that constraint depends on simulation output,
   `-0.025` m/s, corresponding to Reynolds numbers from 50 to 190; the negative
   sign denotes flow direction.
 - `max_power_dissipation`: input bound `J̄/J1`, primarily sampled from `50` to
-  `75` in the stable sweep. The paper defines `J1 = 1.58e-7` as the reference
+  `75` in the stable sweep; the full published range is `[47.7, 75]`. The paper defines `J1 = 1.58e-7` as the reference
   dissipation of a straight, uniform-width channel from inlet to outlet. The
   solver uses the more precise normalization `1.57572e-7`.
 - `volfrac`: maximum all-cell fluid fraction, nominally from `0.25`
@@ -123,13 +124,14 @@ with `inlet_velocity = -0.074`, `max_power_dissipation = 63.1`, and
 `power_dissipation = 62.2588`. Those historical values describe the
 pre-update optimizer field, not the committed frozen-simulation reference.
 
-`optimize_verbose()` is a deliberate MTO2D-specific extension rather than
-part of the base `Problem` contract. Standard `optimize()` still returns
-`(design, history)`; the extension additionally exposes constraint residuals,
-active power bounds, elapsed times, and retained artifacts.
+`optimize()` returns `(design, history)` exactly as the base `Problem`
+contract specifies. Constraint residuals, elapsed times and retained artifacts
+are read from `problem.last_solver_run` after the call, and
+`problem.active_power_bounds()` reproduces the bound supplied to MMA at each
+iteration.
 
-See the package `README.md` in `engibench/problems/mto2d/` for solver
-backends, runtime-image preparation, and usage.
+See the package `README.md` in `engibench/problems/mto2d/` for runner
+settings, runtime-image preparation, and usage.
 
 ## Dataset
 
@@ -137,6 +139,13 @@ The dataset is hosted at
 [`IDEALLab/mto_2d_v0`](https://huggingface.co/datasets/IDEALLab/mto_2d_v0).
 Rows contain the flat `optimal_design`, the three condition fields, and both
 objective fields.
+
+Retained rows satisfy the fluid-volume constraint tightly (median all-cell
+residual `-4.6e-5`), but satisfy the power-dissipation constraint only to
+within MMA's convergence tolerance: 3,149 of the 5,666 rows report
+`power_dissipation` above their own `max_power_dissipation`, by at most 0.98%.
+Treat `power_constraint_residual` as a small two-sided quantity rather than a
+hard feasibility flag.
 
 The paper sampled 10,000 condition combinations with Latin hypercube
 sampling. An initial 5,000-case sweep used `J̄/J1` from 5 to 75; after many

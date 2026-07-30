@@ -107,13 +107,16 @@ class MTO2D(Problem[npt.NDArray]):
         max_power_dissipation: Annotated[
             float,
             greater_than(0.0).category(THEORY),
-            bounded(lower=50.0, upper=75.0).warning().category(IMPL),
+            bounded(lower=47.7, upper=75.0).warning().category(IMPL),
         ] = 63.1
         """Dimensionless normalized power-dissipation bound.
 
         The retained solver divides physical dissipation by its exact
         ``D_normalization = 1.57572e-7``. The paper denotes the rounded
         reference scale ``J1 ≈ 1.58e-7``.
+
+        The nominal dataset range is [47.7, 75]. The second sweep targeted
+        [50, 75], but 17 of the 5,666 retained rows fall below 50.
         """
 
         volfrac: Annotated[
