@@ -92,9 +92,10 @@ the measured objective. Because that constraint depends on simulation output,
   `-0.025` m/s, corresponding to Reynolds numbers from 50 to 190; the negative
   sign denotes flow direction.
 - `max_power_dissipation`: input bound `J̄/J1`, primarily sampled from `50` to
-  `75` in the stable sweep; the full published range is `[47.7, 75]`. The paper defines `J1 = 1.58e-7` as the reference
-  dissipation of a straight, uniform-width channel from inlet to outlet. The
-  solver uses the more precise normalization `1.57572e-7`.
+  `75` in the stable sweep; the full published range is `[47.7, 75]`. The
+  paper defines `J1 = 1.58e-7` as the reference dissipation of a straight,
+  uniform-width channel from inlet to outlet. The solver uses the more precise
+  normalization `1.57572e-7`.
 - `volfrac`: maximum all-cell fluid fraction, nominally from `0.25`
   to `0.70`.
 

@@ -11,10 +11,7 @@ The implementation is split into:
 - `model/design_io.py`: native NumPy/OpenFOAM field conversion; and
 - `model/runner.py`: isolated case preparation and container execution.
 
-The solver image is built and published from a separate repository,
-[`IDEALLab/engibench-mto2d-image`](https://github.com/IDEALLab/engibench-mto2d-image), the same way `airfoil` and
-`heatconduction2d` consume images maintained outside EngiBench. This package
-only references the published image by digest.
+The solver runs in a container built outside EngiBench; see Runtime below.
 
 ## Design and data
 
@@ -112,8 +109,11 @@ Each run uses a unique working directory and the image-contained case, so no
 host OpenFOAM installation is required.
 
 The image recipe, its pinned dependencies and its numerical release gate live
-in [`IDEALLab/engibench-mto2d-image`](https://github.com/IDEALLab/engibench-mto2d-image). EngiBench does not build
-the image, in line with the other containerized problems.
+in [`IDEALLab/engibench-mto2d-image`][image-repo]. EngiBench does not build the
+image, the same way it does not build `mdolab/public` for `Airfoil` or
+`quay.io/dolfinadjoint/pyadjoint` for the heat-conduction problems.
+
+[image-repo]: https://github.com/IDEALLab/engibench-mto2d-image
 
 ## References
 
