@@ -100,6 +100,9 @@ def test_check_constraints_handles_constraints_on_design_and_config() -> None:
                 bounded(lower=0.1, upper=0.9).warning().category(IMPL),
             ] = 0.35
 
+    default_design = np.full((2, 3), 0.35)
+    assert not FakeProblem().check_constraints(default_design, {})
+
     design = np.full((2, 3), 1.0)
     config = {"volfrac": 2.0}
     violations = FakeProblem().check_constraints(design, config)

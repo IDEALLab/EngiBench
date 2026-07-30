@@ -52,6 +52,10 @@ SCHEDULE_RUNTIME_MARKER = ".engibench-mto2d-runtime-version"
 FROZEN_GAMMA_ABSOLUTE_TOLERANCE = 1e-7
 """Absolute tolerance used to verify that frozen evaluation preserves gamma."""
 
+RUN_LOG_TAIL_BYTES = 16 * 1024
+RUN_LOG_TAIL_LINES = 20
+"""Limits for solver output included in failure messages."""
+
 _EXPECTED_BLOCK_MESH_LAYOUT = (
     (None, (160, 400, 1)),
     ("zone_test", (40, 400, 1)),
@@ -150,7 +154,29 @@ class SolverRunError(RuntimeError):
     def __init__(self, message: str, artifacts_path: Path | None = None) -> None:
         suffix = f"\nSolver artifacts retained at: {artifacts_path}" if artifacts_path is not None else ""
         super().__init__(message + suffix)
+        self.message = message
         self.artifacts_path = artifacts_path
+
+
+def _run_log_diagnostics(path: Path) -> str:
+    """Return the location and a bounded tail of a solver log."""
+    if not path.is_file():
+        return ""
+    label = f"\nSolver log: {path}"
+    try:
+        with path.open("rb") as log:
+            log.seek(0, os.SEEK_END)
+            size = log.tell()
+            log.seek(max(0, size - RUN_LOG_TAIL_BYTES))
+            text = log.read().decode("utf-8", errors="replace")
+    except OSError as error:
+        return f"{label}\nUnable to read solver log: {error}"
+
+    lines = text.splitlines()
+    tail = lines[-RUN_LOG_TAIL_LINES:]
+    if not tail:
+        return f"{label}\nSolver log is empty."
+    return f"{label}\nLast {len(tail)} solver log lines:\n" + "\n".join(tail)
 
 
 def _mask_foam_comments(text: str) -> str:
@@ -219,11 +245,12 @@ class MTO2DRunner:
         except Exception as exc:
             keep = settings.retain_on_failure
             retained = run_root if keep else None
-            if isinstance(exc, SolverRunError):
-                if exc.artifacts_path is None and retained is not None:
-                    raise SolverRunError(str(exc), retained) from exc
-                raise
-            raise SolverRunError(str(exc), retained) from exc
+            message = exc.message if isinstance(exc, SolverRunError) else str(exc)
+            artifacts_path = exc.artifacts_path if isinstance(exc, SolverRunError) else None
+            raise SolverRunError(
+                message + _run_log_diagnostics(case_dir / "run.log"),
+                artifacts_path or retained,
+            ) from exc
         finally:
             if (succeeded and not settings.retain_artifacts) or (not succeeded and not keep):
                 shutil.rmtree(run_root, ignore_errors=True)
@@ -269,6 +296,13 @@ class MTO2DRunner:
 
     @staticmethod
     def _validate_optimization_settings(settings: RunnerSettings) -> None:
+        for name, value in (
+            ("qu_start", settings.qu_start),
+            ("alpha_max_start", settings.alpha_max_start),
+            ("heaviside_start", settings.heaviside_start),
+        ):
+            if value is not None and value <= 0.0:
+                raise ValueError(f"{name} must be positive")
         if settings.optimization_schedule == "legacy":
             if settings.mode != "cold":
                 raise ValueError(
