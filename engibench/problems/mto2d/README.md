@@ -9,10 +9,12 @@ The implementation is split into:
 
 - `v0.py`: EngiBench API and user-facing demo;
 - `model/design_io.py`: native NumPy/OpenFOAM field conversion; and
-- `model/runner.py`: isolated container and command execution.
+- `model/runner.py`: isolated case preparation and container execution.
 
-The pinned source-image recipe and release reference live outside the Python
-package in `docker/mto2d/` at the repository root.
+The solver image is built and published from a separate repository,
+[`IDEALLab/engibench-mto2d-image`](https://github.com/IDEALLab/engibench-mto2d-image), the same way `airfoil` and
+`heatconduction2d` consume images maintained outside EngiBench. This package
+only references the published image by digest.
 
 ## Design and data
 
@@ -55,16 +57,48 @@ objectives = problem.simulate(design)
 
 Running the module directly (`python engibench/problems/mto2d/v0.py`) samples
 one dataset design, renders it, and re-evaluates it in the published
-container. Set `ENGIBENCH_MTO2D_IMAGE` to override the image; all other
-solver settings are ordinary `Config` fields passed through
-`MTO2D(config={...})` or per-call `config` dictionaries.
+container.
+
+Solver settings are ordinary `Config` fields, passed as keyword arguments like
+every other EngiBench problem (`MTO2D(max_iter=20, mode="warm")`) or per call
+(`problem.simulate(design, config={"volfrac": 0.4})`).
+
+Host settings -- which image to run, where to work, how long to allow, what to
+retain -- are constructor arguments of `MTO2DRunner`, not part of the benchmark
+configuration:
+
+```python
+from engibench.problems.mto2d import MTO2D
+from engibench.problems.mto2d.model.runner import MTO2DRunner
+
+problem = MTO2D(runner=MTO2DRunner(timeout=3600.0, retain_artifacts=True))
+```
+
+`$ENGIBENCH_MTO2D_IMAGE` overrides the pinned `container_id` for the default
+runner; see `MTO2D.resolved_container_image()`.
 
 ## Optimization
 
-`optimize()` runs the adjoint/MMA loop and returns `(design, history)`.
-`optimization_schedule="legacy"` reproduces the original 200-step cold
-schedule; `"strict"` supports configurable cold or warm continuation.
-`optimize_verbose()` also returns residual and timing histories.
+Note that the dataset satisfies the power-dissipation constraint only to within
+MMA's convergence tolerance: 3,149 of the 5,666 published rows report
+`power_dissipation` slightly above their own `max_power_dissipation`, by at most
+0.98%. `power_constraint_residual` is therefore expected to be small and
+positive for roughly half of all dataset designs, and is not a defect.
+
+`optimize()` runs the adjoint/MMA loop and returns `(design, history)`, as in
+the base `Problem` contract. `optimization_schedule="legacy"` reproduces the
+original 200-step cold schedule; `"strict"` supports configurable cold or warm
+continuation.
+
+Per-iteration residuals and timings are on `problem.last_solver_run` after the
+call, and `problem.active_power_bounds(...)` reproduces the bound MMA actually
+saw at each iteration:
+
+```python
+design, history = problem.optimize(starting_design)
+run = problem.last_solver_run
+residuals = run.power_dissipation / problem.active_power_bounds() - 1.0
+```
 
 Full optimization is intentionally absent from the shared EngiBench smoke
 suite because it takes hours. It remains available through the API for
@@ -77,9 +111,9 @@ The runtime is Linux/AMD64. EngiBench pins its immutable GHCR digest in
 Each run uses a unique working directory and the image-contained case, so no
 host OpenFOAM installation is required.
 
-The maintainer build is source-pinned and its one-step reference must match
-the committed scalar histories and final gamma bytes exactly. Build and
-release instructions are in `docker/mto2d/README.md` at the repository root.
+The image recipe, its pinned dependencies and its numerical release gate live
+in [`IDEALLab/engibench-mto2d-image`](https://github.com/IDEALLab/engibench-mto2d-image). EngiBench does not build
+the image, in line with the other containerized problems.
 
 ## References
 

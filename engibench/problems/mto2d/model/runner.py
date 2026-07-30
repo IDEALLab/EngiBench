@@ -4,14 +4,12 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 import math
-import os
 from pathlib import Path
 import re
 import shlex
 import shutil
-import subprocess
 import tempfile
-from typing import Literal
+from typing import Literal, TYPE_CHECKING
 
 import numpy as np
 import numpy.typing as npt
@@ -24,12 +22,17 @@ from engibench.problems.mto2d.model.design_io import read_half_design
 from engibench.problems.mto2d.model.design_io import write_half_design
 from engibench.utils import container
 
+if TYPE_CHECKING:
+    from collections.abc import Callable
+
 RunKind = Literal["simulate", "optimize"]
 OptimizationMode = Literal["cold", "warm"]
 OptimizationSchedule = Literal["legacy", "strict"]
-Backend = Literal["container", "command"]
 CONTINUATION_PROFILES = frozenset({"constant", "linear", "geometric"})
 """Profiles implemented by the retained warm-ready solver."""
+
+SOLVER_EXECUTABLE = "../src_TF/EXEC"
+"""Path of the solver binary relative to the case ``app/`` directory."""
 
 POWER_BOUND_DECREMENT_PER_ITERATION = 0.2
 """Hard-coded legacy decrease from ``D0`` toward ``D1`` each iteration."""
@@ -81,9 +84,14 @@ DIAGNOSTIC_HISTORY_FILES = ("aMax.txt", "qu.txt", "HEAV.txt")
 
 @dataclass(frozen=True)
 class RunnerSettings:
-    """All values needed to prepare and execute one isolated solver case."""
+    """Solver-facing values for one case.
 
-    case_template: str | None
+    These mirror :class:`engibench.problems.mto2d.v0.MTO2D.Config` and describe the
+    *physics and schedule* of a run. Host concerns -- which image, where to work,
+    what to retain -- belong to :class:`MTO2DRunner` and are deliberately absent
+    here, so that every field is validated exactly once, by ``Config``.
+    """
+
     inlet_velocity: float
     max_power_dissipation: float
     volume_fraction: float
@@ -91,14 +99,6 @@ class RunnerSettings:
     mode: OptimizationMode = "cold"
     optimization_schedule: OptimizationSchedule = "legacy"
     mpi_cores: int = 1
-    backend: Backend = "container"
-    container_image: str | None = None
-    driver_command: tuple[str, ...] = ()
-    solver_executable: str = "../src_TF/EXEC"
-    timeout: float | None = None
-    work_dir: str | None = None
-    retain_artifacts: bool = False
-    retain_on_failure: bool = True
     continuation_steps: int | None = None
     power_bound_start: float | None = None
     qu_start: float | None = None
@@ -163,7 +163,47 @@ def _mask_foam_comments(text: str) -> str:
 
 
 class MTO2DRunner:
-    """Prepare and run a copied MTO2D OpenFOAM case."""
+    """Prepare and run a copied MTO2D OpenFOAM case.
+
+    Host concerns live here rather than in ``MTO2D.Config``: which image to run,
+    where to put the isolated run directory, how long to allow, and what to keep
+    afterwards. Execution always goes through :mod:`engibench.utils.container`,
+    the same seam used by the other containerized EngiBench problems.
+    """
+
+    def __init__(  # noqa: PLR0913
+        self,
+        image: str | None = None,
+        *,
+        case_template: str | None = None,
+        work_dir: str | None = None,
+        timeout: float | None = None,
+        retain_artifacts: bool = False,
+        retain_on_failure: bool = True,
+        execute: Callable[[Path, RunnerSettings, RunKind], None] | None = None,
+    ) -> None:
+        """Configure how and where solver cases are executed.
+
+        Args:
+            image: Container image to run.
+            case_template: Optional path to a local case, used instead of the one
+                bundled in the image. Validated on use; the image-provided case is
+                trusted because the image is pinned by digest.
+            work_dir: Parent directory for the isolated run directory.
+            timeout: Optional wall-clock limit in seconds for the solver.
+            retain_artifacts: Keep the run directory after a successful run.
+            retain_on_failure: Keep the run directory after a failed run.
+            execute: Optional replacement for container execution. Intended for
+                tests that exercise case preparation and result parsing without a
+                container runtime.
+        """
+        self.image = image
+        self.case_template = case_template
+        self.work_dir = work_dir
+        self.timeout = timeout
+        self.retain_artifacts = retain_artifacts
+        self.retain_on_failure = retain_on_failure
+        self._execute_fn = execute or self._run_container
 
     def run(
         self,
@@ -173,33 +213,23 @@ class MTO2DRunner:
         kind: RunKind,
     ) -> SolverRun:
         """Execute a frozen simulation or an MMA optimization."""
-        self._validate_settings(settings, kind)
-        configured_template = settings.case_template or os.environ.get("ENGIBENCH_MTO2D_CASE_TEMPLATE")
-        case_template = self._resolve_case_template(configured_template) if configured_template else None
-        if case_template is None and settings.backend != "container":
-            self._resolve_case_template(None)
-        run_root = Path(
-            tempfile.mkdtemp(
-                prefix="engibench-mto2d-",
-                dir=settings.work_dir,
-            )
-        ).resolve()
+        case_template = self._resolve_case_template() if self.case_template else None
+        run_root = Path(tempfile.mkdtemp(prefix="engibench-mto2d-", dir=self.work_dir)).resolve()
         case_dir = run_root / "case"
         succeeded = False
-        keep = settings.retain_artifacts
+        keep = self.retain_artifacts
 
         try:
             if case_template is None:
-                self._export_case_template(run_root, case_dir, settings)
-                self._validate_case_template(case_dir)
+                self._export_case_template(run_root, case_dir)
             else:
                 shutil.copytree(case_template, case_dir)
-            if kind == "simulate":
-                self._validate_runtime_marker(case_dir, "frozen simulation")
-            if kind == "optimize":
-                self._validate_schedule_runtime(case_dir, settings.optimization_schedule)
+            self._validate_runtime_marker(
+                case_dir,
+                "frozen simulation" if kind == "simulate" else f"optimization_schedule={settings.optimization_schedule!r}",
+            )
             self._prepare_case(case_dir, design, settings, kind)
-            self._execute(case_dir, settings, kind)
+            self._execute_fn(case_dir, settings, kind)
             histories = self._read_histories(
                 case_dir / "app", expected_steps=1 if kind == "simulate" else settings.max_iter
             )
@@ -217,7 +247,7 @@ class MTO2DRunner:
                 **histories,
             )
         except Exception as exc:
-            keep = settings.retain_on_failure
+            keep = self.retain_on_failure
             retained = run_root if keep else None
             if isinstance(exc, SolverRunError):
                 if exc.artifacts_path is None and retained is not None:
@@ -225,93 +255,23 @@ class MTO2DRunner:
                 raise
             raise SolverRunError(str(exc), retained) from exc
         finally:
-            if (succeeded and not settings.retain_artifacts) or (not succeeded and not keep):
+            if (succeeded and not self.retain_artifacts) or (not succeeded and not keep):
                 shutil.rmtree(run_root, ignore_errors=True)
 
-    @staticmethod
-    def _validate_settings(settings: RunnerSettings, kind: RunKind) -> None:
-        MTO2DRunner._validate_common_settings(settings)
-        MTO2DRunner._validate_backend_settings(settings)
-        if kind == "optimize":
-            MTO2DRunner._validate_optimization_settings(settings)
-
-    @staticmethod
-    def _validate_common_settings(settings: RunnerSettings) -> None:
-        if settings.max_iter < 1:
-            raise ValueError("max_iter must be at least 1")
-        if settings.mpi_cores < 1:
-            raise ValueError("mpi_cores must be at least 1")
-        if settings.mode not in {"cold", "warm"}:
-            raise ValueError("mode must be 'cold' or 'warm'")
-        if settings.optimization_schedule not in {"legacy", "strict"}:
-            raise ValueError("optimization_schedule must be 'legacy' or 'strict'")
-        if settings.continuation_profile not in CONTINUATION_PROFILES:
-            allowed = ", ".join(sorted(CONTINUATION_PROFILES))
-            raise ValueError(f"continuation_profile must be one of: {allowed}")
-        if settings.timeout is not None and settings.timeout <= 0:
-            raise ValueError("timeout must be positive")
-        if settings.power_bound_start is not None and settings.power_bound_start <= 0:
-            raise ValueError("power_bound_start must be positive")
-
-    @staticmethod
-    def _validate_backend_settings(settings: RunnerSettings) -> None:
-        if settings.backend not in {"container", "command"}:
-            raise ValueError("backend must be 'container' or 'command'")
-        if settings.backend == "container" and not settings.container_image:
-            raise ValueError("container_image is required for the container backend")
-        if settings.backend == "command" and not settings.driver_command:
-            raise ValueError("driver_command is required for the command backend")
-        if settings.backend == "container" and settings.timeout is not None:
-            raise ValueError(
-                "The EngiBench container abstraction cannot enforce timeouts. "
-                "Use backend='command' with a Docker, Podman, or Apptainer command when a timeout is required."
-            )
-
-    @staticmethod
-    def _validate_optimization_settings(settings: RunnerSettings) -> None:
-        if settings.optimization_schedule == "legacy":
-            if settings.mode != "cold":
-                raise ValueError(
-                    "optimization_schedule='legacy' is the cold source-reproduction schedule; "
-                    "warm repair must pass optimization_schedule='strict'"
-                )
-            if settings.max_iter > LEGACY_OPTIMIZATION_ITERATIONS:
-                raise ValueError(
-                    "optimization_schedule='legacy' supports the published 200-step run or a shorter exact prefix"
-                )
-            if settings.continuation_steps is not None:
-                raise ValueError("continuation_steps is not configurable when optimization_schedule='legacy'")
-            return
-        n_steps = settings.continuation_steps or settings.max_iter
-        if not 1 <= n_steps <= settings.max_iter:
-            raise ValueError("continuation_steps must be between 1 and max_iter")
-        if settings.max_iter % n_steps:
-            raise ValueError("max_iter must be divisible by continuation_steps")
-
-    @staticmethod
-    def _resolve_case_template(case_template: str | None) -> Path:
-        configured = case_template or os.environ.get("ENGIBENCH_MTO2D_CASE_TEMPLATE")
-        if not configured:
-            raise FileNotFoundError(
-                "No MTO2D case template configured. Pass config={'case_template': '/path/to/case'} "
-                "or set ENGIBENCH_MTO2D_CASE_TEMPLATE."
-            )
-        path = Path(configured).expanduser().resolve()
+    def _resolve_case_template(self) -> Path:
+        assert self.case_template is not None
+        path = Path(self.case_template).expanduser().resolve()
         if not (path / "app").is_dir() or not (path / "src_TF").is_dir():
             raise FileNotFoundError(f"MTO2D case template must contain app/ and src_TF/: {path}")
-        MTO2DRunner._validate_case_template(path)
+        self._validate_case_template(path)
         return path
 
-    @staticmethod
-    def _export_case_template(
-        run_root: Path,
-        case_dir: Path,
-        settings: RunnerSettings,
-    ) -> None:
+    def _export_case_template(self, run_root: Path, case_dir: Path) -> None:
         """Materialize the pristine case bundled in the published OCI image."""
-        if settings.backend != "container" or settings.container_image is None:
+        if self.image is None:
             raise FileNotFoundError(
-                "An image-provided MTO2D case template requires the container backend and a configured container image."
+                "No MTO2D container image configured. Pass MTO2DRunner(image=...), set "
+                "$ENGIBENCH_MTO2D_IMAGE, or supply a local case_template."
             )
         container_home = run_root / "container-home"
         container_tmp = run_root / "container-tmp"
@@ -319,24 +279,17 @@ class MTO2DRunner:
         container_tmp.mkdir(exist_ok=True)
         container.run(
             ["mto2d-export-case", "/work/case"],
-            settings.container_image,
+            self.image,
             mounts=((str(run_root), "/work"),),
             env={"HOME": "/work/container-home", "TMPDIR": "/work/container-tmp"},
             sync_uid=True,
+            timeout=self.timeout,
         )
         if not (case_dir / "app").is_dir() or not (case_dir / "src_TF").is_dir():
             raise FileNotFoundError(
                 "The configured MTO2D image did not export an app/src_TF case template. "
-                "Rebuild it from docker/mto2d/Dockerfile.source in the EngiBench repository."
+                "Rebuild it from https://github.com/IDEALLab/engibench-mto2d-image."
             )
-
-    @staticmethod
-    def _validate_schedule_runtime(case_template: Path, schedule: OptimizationSchedule) -> None:
-        """Require a rebuilt executable that understands named schedules."""
-        MTO2DRunner._validate_runtime_marker(
-            case_template,
-            f"optimization_schedule={schedule!r}",
-        )
 
     @staticmethod
     def _validate_runtime_marker(case_template: Path, required_by: str) -> None:
@@ -683,40 +636,16 @@ Heaviside
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(text, encoding="utf-8")
 
-    def _execute(self, case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
-        if settings.backend == "command":
-            self._run_driver(case_dir, settings, kind)
-            return
-        self._run_container(case_dir, settings, kind)
-
-    @staticmethod
-    def _run_driver(case_dir: Path, settings: RunnerSettings, kind: RunKind) -> None:
-        env = {
-            **os.environ,
-            "MTO2D_CASE_DIR": str(case_dir),
-            "MTO2D_MPI_CORES": str(settings.mpi_cores),
-            "MTO2D_RUN_KIND": kind,
-            "MTO2D_SOLVER_EXECUTABLE": settings.solver_executable,
-        }
-        with (case_dir / "run.log").open("wb") as log:
-            subprocess.run(
-                list(settings.driver_command),
-                cwd=case_dir,
-                env=env,
-                stdout=log,
-                stderr=subprocess.STDOUT,
-                check=True,
-                timeout=settings.timeout,
+    def _run_container(self, case_dir: Path, settings: RunnerSettings, _kind: RunKind) -> None:
+        if self.image is None:
+            raise FileNotFoundError(
+                "No MTO2D container image configured. Pass MTO2DRunner(image=...) or set $ENGIBENCH_MTO2D_IMAGE."
             )
-
-    @staticmethod
-    def _run_container(case_dir: Path, settings: RunnerSettings, _kind: RunKind) -> None:
-        assert settings.container_image is not None
         container_home = case_dir.parent / "container-home"
         container_tmp = case_dir.parent / "container-tmp"
         container_home.mkdir(exist_ok=True)
         container_tmp.mkdir(exist_ok=True)
-        executable = shlex.quote(settings.solver_executable)
+        executable = shlex.quote(SOLVER_EXECUTABLE)
         if settings.mpi_cores == 1:
             solve = executable
         else:
@@ -727,10 +656,11 @@ Heaviside
             command += "; reconstructPar -latestTime"
         container.run(
             ["bash", "-lc", command],
-            settings.container_image,
+            self.image,
             mounts=((str(case_dir.parent), "/work"),),
             env={"HOME": "/work/container-home", "TMPDIR": "/work/container-tmp"},
             sync_uid=True,
+            timeout=self.timeout,
         )
 
     @staticmethod

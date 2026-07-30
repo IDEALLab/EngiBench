@@ -1,9 +1,10 @@
 """Tests for the MTO2D problem API and isolated runner."""
 
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 import re
-import sys
+import shutil
 from typing import Any
 
 from matplotlib import pyplot as plt
@@ -22,6 +23,7 @@ from engibench.problems.mto2d.model.runner import SCHEDULE_RUNTIME_MARKER
 from engibench.problems.mto2d.model.runner import SCHEDULE_RUNTIME_VERSION
 from engibench.problems.mto2d.model.runner import SolverRun
 from engibench.problems.mto2d.model.runner import SolverRunError
+from tests.problem_policies import PROBLEM_TEST_POLICIES
 
 OPTIMIZATION_STEPS = 3
 CONTINUATION_PARAMETER_COUNT = 3
@@ -171,32 +173,34 @@ simpleCoeffs
     return case
 
 
-def _make_driver(path: Path) -> Path:
-    path.write_text(
-        """from pathlib import Path
-import os
-import shutil
+def _fake_solver(
+    *,
+    mean_temperature: float = 9.45825,
+    power_dissipation: float = 62.2588,
+    volume_residual: float = -0.000671484,
+    elapsed_time: float = 13713.0,
+) -> Callable[[Path, RunnerSettings, str], None]:
+    """Return an `execute` callable that writes the outputs a real solver would."""
 
-app = Path(os.environ["MTO2D_CASE_DIR"]) / "app"
-latest = app / "1"
-latest.mkdir()
-shutil.copy2(app / "0" / "gamma", latest / "gamma")
-for name, value in {
-    "meanT.txt": 9.45825,
-    "Disspower.txt": 62.2588,
-    "Voluse.txt": -0.000671484,
-    "Time.txt": 13713.0,
-}.items():
-    (app / name).write_text(f"{value}\\n", encoding="utf-8")
-""",
-        encoding="utf-8",
-    )
-    return path
+    def execute(case_dir: Path, _settings: RunnerSettings, _kind: str) -> None:
+        app = case_dir / "app"
+        latest = app / "1"
+        latest.mkdir()
+        shutil.copy2(app / "0" / "gamma", latest / "gamma")
+        for name, value in {
+            "meanT.txt": mean_temperature,
+            "Disspower.txt": power_dissipation,
+            "Voluse.txt": volume_residual,
+            "Time.txt": elapsed_time,
+        }.items():
+            (app / name).write_text(f"{value}\n", encoding="utf-8")
+
+    return execute
 
 
 def test_problem_simulation_and_optimization_objective_order() -> None:
     runner = FakeRunner()
-    problem = MTO2D(config={"max_iter": OPTIMIZATION_STEPS}, runner=runner)  # type: ignore[arg-type]
+    problem = MTO2D(max_iter=OPTIMIZATION_STEPS, runner=runner)  # type: ignore[arg-type]
     design = problem.uniform_starting_design(problem.conditions.volfrac)
 
     result = problem.simulate_verbose(design, {"max_power_dissipation": 62.0})
@@ -223,38 +227,36 @@ def test_problem_simulation_and_optimization_objective_order() -> None:
     assert runner.calls[1][2] == "optimize"
 
 
-def test_optimize_verbose_distinguishes_active_and_final_power_bounds() -> None:
+def test_optimize_distinguishes_active_and_final_power_bounds() -> None:
     runner = FakeRunner()
     problem = MTO2D(
-        config={
-            "max_iter": OPTIMIZATION_STEPS,
-            "max_power_dissipation": 63.1,
-        },
+        max_iter=OPTIMIZATION_STEPS,
+        max_power_dissipation=63.1,
         runner=runner,  # type: ignore[arg-type]
     )
     design = problem.uniform_starting_design(problem.conditions.volfrac)
 
     with pytest.warns(UserWarning, match="exact prefix|final active bound") as legacy_warnings:
-        cold = problem.optimize_verbose(design, {"mode": "cold"})
+        problem.optimize(design, {"mode": "cold"})
     warning_messages = [str(warning.message) for warning in legacy_warnings]
     assert any("exact prefix" in message for message in warning_messages)
     assert any("final active bound is 89.4" in message for message in warning_messages)
-    np.testing.assert_allclose(cold.active_power_bounds, [89.8, 89.6, 89.4])
+
+    cold_bounds = problem.active_power_bounds({"mode": "cold"})
+    np.testing.assert_allclose(cold_bounds, [89.8, 89.6, 89.4])
+    assert problem.last_solver_run is not None
     np.testing.assert_allclose(
-        cold.active_power_constraint_residuals,
+        problem.last_solver_run.power_dissipation / cold_bounds - 1.0,
         [61.0 / 89.8 - 1.0, 60.5 / 89.6 - 1.0, 60.0 / 89.4 - 1.0],
     )
-    np.testing.assert_allclose(cold.power_constraint_residuals, np.array([61.0, 60.5, 60.0]) / 63.1 - 1.0)
-
-    warm = problem.optimize_verbose(
-        design,
-        {"mode": "warm", "optimization_schedule": "strict"},
-    )
-    np.testing.assert_allclose(warm.active_power_bounds, [63.1, 63.1, 63.1])
     np.testing.assert_allclose(
-        warm.active_power_constraint_residuals,
-        warm.power_constraint_residuals,
+        problem.last_solver_run.power_dissipation / 63.1 - 1.0,
+        np.array([61.0, 60.5, 60.0]) / 63.1 - 1.0,
     )
+
+    warm_overrides = {"mode": "warm", "optimization_schedule": "strict"}
+    problem.optimize(design, warm_overrides)
+    np.testing.assert_allclose(problem.active_power_bounds(warm_overrides), [63.1, 63.1, 63.1])
 
 
 def test_uniform_start_and_render_use_native_half_domain() -> None:
@@ -294,9 +296,10 @@ def test_default_solver_config_uses_configured_container_reference() -> None:
 
     _recorded_design, settings, kind = runner.calls[-1]
     assert kind == "simulate"
-    assert settings.backend == "container"
-    assert settings.container_image == problem.container_id
-    assert settings.case_template is None
+    assert settings.max_iter == 1
+    assert MTO2D()._runner.image == problem.container_id  # noqa: SLF001
+    assert MTO2D()._runner.case_template is None  # noqa: SLF001
+    assert MTO2D.resolved_container_image() == MTO2D.container_id
 
 
 @pytest.mark.parametrize(
@@ -308,8 +311,6 @@ def test_default_solver_config_uses_configured_container_reference() -> None:
         ({"max_iter": 201}, "shorter exact prefix"),
         ({"continuation_steps": 1}, "continuation_steps"),
         ({"continuation_profile": "quadratic"}, "continuation_profile"),
-        ({"backend": "invalid"}, "backend"),
-        ({"timeout": 0.0}, "timeout"),
         ({"power_bound_start": 0.0}, "power_bound_start"),
         (
             {
@@ -324,21 +325,19 @@ def test_default_solver_config_uses_configured_container_reference() -> None:
 )
 def test_invalid_problem_config_is_rejected(config: dict[str, Any], message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        MTO2D(config=config)
+        MTO2D(**config)
 
 
-def test_command_backend_prepares_and_parses_isolated_frozen_case(tmp_path: Path) -> None:
+def test_runner_prepares_and_parses_isolated_frozen_case(tmp_path: Path) -> None:
     template = _make_case_template(tmp_path)
-    driver = _make_driver(tmp_path / "driver.py")
     problem = MTO2D(
-        config={
-            "case_template": str(template),
-            "backend": "command",
-            "driver_command": (sys.executable, str(driver)),
-            "mpi_cores": 6,
-            "work_dir": str(tmp_path),
-            "retain_artifacts": True,
-        }
+        mpi_cores=6,
+        runner=MTO2DRunner(
+            case_template=str(template),
+            work_dir=str(tmp_path),
+            retain_artifacts=True,
+            execute=_fake_solver(),
+        ),
     )
     design = np.linspace(0.0, 1.0, DESIGN_CELL_COUNT, dtype=np.float32).reshape(HALF_DESIGN_SHAPE)
 
@@ -390,16 +389,13 @@ def test_legacy_schedule_prepares_source_initialization_and_endpoints(tmp_path: 
     template = _make_case_template(tmp_path)
     design = np.full(HALF_DESIGN_SHAPE, 0.5, dtype=np.float32)
     settings = RunnerSettings(
-        case_template=str(template),
         inlet_velocity=-0.074,
         max_power_dissipation=63.1,
         volume_fraction=0.61,
         max_iter=1,
         optimization_schedule="legacy",
-        container_image="example.invalid/mto2d:pinned",
     )
 
-    MTO2DRunner._validate_settings(settings, "optimize")  # noqa: SLF001
     MTO2DRunner()._prepare_case(template, design, settings, "optimize")  # noqa: SLF001
 
     transport = (template / "app" / "constant" / "transportProperties").read_text(encoding="utf-8")
@@ -428,14 +424,14 @@ def test_optimization_schedule_requires_rebuilt_runtime_marker(
     marker.unlink()
 
     with pytest.raises(FileNotFoundError, match=f"optimization_schedule='{schedule}'"):
-        MTO2DRunner._validate_schedule_runtime(template, schedule)  # noqa: SLF001
+        MTO2DRunner._validate_runtime_marker(template, f"optimization_schedule={schedule!r}")  # noqa: SLF001
 
     marker.write_text("1\n", encoding="ascii")
     with pytest.raises(ValueError, match="expected '2'"):
-        MTO2DRunner._validate_schedule_runtime(template, schedule)  # noqa: SLF001
+        MTO2DRunner._validate_runtime_marker(template, f"optimization_schedule={schedule!r}")  # noqa: SLF001
 
     marker.write_text(f"{SCHEDULE_RUNTIME_VERSION}\n", encoding="ascii")
-    MTO2DRunner._validate_schedule_runtime(template, schedule)  # noqa: SLF001
+    MTO2DRunner._validate_runtime_marker(template, f"optimization_schedule={schedule!r}")  # noqa: SLF001
 
 
 def test_frozen_simulation_requires_rebuilt_runtime_marker(tmp_path: Path) -> None:
@@ -499,7 +495,7 @@ def test_case_template_rejects_wrong_gamma_cell_count(tmp_path: Path) -> None:
     (template / "app" / "0" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
 
     with pytest.raises(ValueError, match="expected 86400"):
-        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+        MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
 def test_case_template_rejects_solver_that_ignores_continuation(tmp_path: Path) -> None:
@@ -507,7 +503,7 @@ def test_case_template_rejects_solver_that_ignores_continuation(tmp_path: Path) 
     (template / "src_TF" / "continuation.H").unlink()
 
     with pytest.raises(FileNotFoundError, match="silently ignores continuationProperties"):
-        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+        MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
 def test_case_template_rejects_nonfluid_gamma_tail(tmp_path: Path) -> None:
@@ -522,7 +518,7 @@ def test_case_template_rejects_nonfluid_gamma_tail(tmp_path: Path) -> None:
     (template / "app" / "0" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
 
     with pytest.raises(ValueError, match="final 6,400 gamma cells"):
-        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+        MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
 def test_case_template_rejects_incompatible_area_switch(tmp_path: Path) -> None:
@@ -534,7 +530,7 @@ def test_case_template_rejects_incompatible_area_switch(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="requires fluid_area=1"):
-        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+        MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
 def test_case_template_rejects_wrong_power_normalization(tmp_path: Path) -> None:
@@ -549,7 +545,7 @@ def test_case_template_rejects_wrong_power_normalization(tmp_path: Path) -> None
     )
 
     with pytest.raises(ValueError, match=r"requires D_normalization=1\.57572e-07"):
-        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+        MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
 def test_case_template_rejects_wrong_fixed_fluid_zone(tmp_path: Path) -> None:
@@ -561,7 +557,7 @@ def test_case_template_rejects_wrong_fixed_fluid_zone(tmp_path: Path) -> None:
     )
 
     with pytest.raises(ValueError, match="ordered 80,000-cell design region"):
-        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+        MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
 def test_case_template_rejects_wrong_block_mesh_cell_count(tmp_path: Path) -> None:
@@ -573,7 +569,7 @@ def test_case_template_rejects_wrong_block_mesh_cell_count(tmp_path: Path) -> No
     )
 
     with pytest.raises(ValueError, match="exactly 86,400 cells"):
-        MTO2DRunner._resolve_case_template(str(template))  # noqa: SLF001
+        MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
 def test_update_design_dictionary_value_is_replaced_without_duplication(tmp_path: Path) -> None:
@@ -599,26 +595,24 @@ def test_update_design_dictionary_value_is_replaced_without_duplication(tmp_path
         ("warm", 90.0, 90.0),
     ],
 )
-def test_command_backend_one_step_optimization_smoke(
+def test_one_step_optimization_smoke(
     tmp_path: Path,
     mode: str,
     configured_power_bound_start: float | None,
     expected_power_bound_start: float,
 ) -> None:
     template = _make_case_template(tmp_path)
-    driver = _make_driver(tmp_path / "driver.py")
     problem = MTO2D(
-        config={
-            "case_template": str(template),
-            "backend": "command",
-            "driver_command": (sys.executable, str(driver)),
-            "max_iter": 1,
-            "mode": mode,
-            "optimization_schedule": "strict",
-            "power_bound_start": configured_power_bound_start,
-            "work_dir": str(tmp_path),
-            "retain_artifacts": True,
-        }
+        max_iter=1,
+        mode=mode,
+        optimization_schedule="strict",
+        power_bound_start=configured_power_bound_start,
+        runner=MTO2DRunner(
+            case_template=str(template),
+            work_dir=str(tmp_path),
+            retain_artifacts=True,
+            execute=_fake_solver(),
+        ),
     )
     starting_design = problem.uniform_starting_design(problem.conditions.volfrac)
 
@@ -655,15 +649,13 @@ def test_container_backend_uses_isolated_writable_home(
 
     monkeypatch.setattr("engibench.problems.mto2d.model.runner.container.run", fake_container_run)
     settings = RunnerSettings(
-        case_template=str(case),
         inlet_velocity=-0.074,
         max_power_dissipation=63.1,
         volume_fraction=0.61,
-        backend="container",
-        container_image="engibench-mto2d:test",
     )
+    runner = MTO2DRunner(image="engibench-mto2d:test")
 
-    MTO2DRunner._run_container(case, settings, "simulate")  # noqa: SLF001
+    runner._run_container(case, settings, "simulate")  # noqa: SLF001
 
     assert (tmp_path / "container-home").is_dir()
     assert (tmp_path / "container-tmp").is_dir()
@@ -680,13 +672,13 @@ def test_container_backend_uses_isolated_writable_home(
     }
     assert captured["kwargs"]["sync_uid"] is True
 
-    MTO2DRunner._run_container(case, settings, "optimize")  # noqa: SLF001
+    runner._run_container(case, settings, "optimize")  # noqa: SLF001
     assert "reconstructPar" not in captured["args"][0][-1]
 
-    MTO2DRunner._run_container(case, replace(settings, mpi_cores=4), "simulate")  # noqa: SLF001
+    runner._run_container(case, replace(settings, mpi_cores=4), "simulate")  # noqa: SLF001
     assert "reconstructPar -latestTime" in captured["args"][0][-1]
 
-    MTO2DRunner._run_container(case, replace(settings, mpi_cores=4), "optimize")  # noqa: SLF001
+    runner._run_container(case, replace(settings, mpi_cores=4), "optimize")  # noqa: SLF001
     parallel_command = captured["args"][0][-1]
     assert "decomposePar" in parallel_command
     assert "mpirun -np 4" in parallel_command
@@ -709,16 +701,9 @@ def test_container_backend_exports_image_case_template(
         (case / "src_TF").mkdir()
 
     monkeypatch.setattr("engibench.problems.mto2d.model.runner.container.run", fake_container_run)
-    settings = RunnerSettings(
-        case_template=None,
-        inlet_velocity=-0.074,
-        max_power_dissipation=63.1,
-        volume_fraction=0.61,
-        backend="container",
-        container_image="ghcr.io/arthurdrake1/engibench-mto2d:test",
-    )
+    runner = MTO2DRunner(image="ghcr.io/arthurdrake1/engibench-mto2d:test")
 
-    MTO2DRunner._export_case_template(run_root, case, settings)  # noqa: SLF001
+    runner._export_case_template(run_root, case)  # noqa: SLF001
 
     assert captured["args"] == (
         ["mto2d-export-case", "/work/case"],
@@ -766,12 +751,7 @@ def test_simulation_rejects_unpatched_solver_gamma(
 ) -> None:
     template = _make_case_template(tmp_path)
 
-    def fake_execute(
-        _runner: MTO2DRunner,
-        case_dir: Path,
-        _settings: RunnerSettings,
-        _kind: str,
-    ) -> None:
+    def fake_execute(case_dir: Path, _settings: RunnerSettings, _kind: str) -> None:
         app = case_dir / "app"
         (app / "1").mkdir()
         values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
@@ -785,13 +765,13 @@ def test_simulation_rejects_unpatched_solver_gamma(
         }.items():
             (app / filename).write_text(f"{value}\n", encoding="utf-8")
 
-    monkeypatch.setattr(MTO2DRunner, "_execute", fake_execute)
     problem = MTO2D(
-        config={
-            "case_template": str(template),
-            "work_dir": str(tmp_path),
-            "retain_on_failure": True,
-        }
+        runner=MTO2DRunner(
+            case_template=str(template),
+            work_dir=str(tmp_path),
+            retain_on_failure=True,
+            execute=fake_execute,
+        )
     )
 
     with pytest.raises(SolverRunError, match="likely lacks updateDesign support"):
@@ -800,14 +780,18 @@ def test_simulation_rejects_unpatched_solver_gamma(
 
 def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:
     template = _make_case_template(tmp_path)
+
+    def failing_execute(case_dir: Path, _settings: RunnerSettings, _kind: str) -> None:
+        (case_dir / "run.log").write_text("solver crashed\n", encoding="utf-8")
+        raise RuntimeError("solver returned non-zero exit status 7")
+
     problem = MTO2D(
-        config={
-            "case_template": str(template),
-            "backend": "command",
-            "driver_command": (sys.executable, "-c", "raise SystemExit(7)"),
-            "work_dir": str(tmp_path),
-            "retain_on_failure": True,
-        }
+        runner=MTO2DRunner(
+            case_template=str(template),
+            work_dir=str(tmp_path),
+            retain_on_failure=True,
+            execute=failing_execute,
+        )
     )
     design = problem.uniform_starting_design(problem.conditions.volfrac)
 
@@ -819,10 +803,9 @@ def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:
 
 
 def test_shared_suite_policy_keeps_optimization_out() -> None:
-    """Keep the expensive MTO2D optimizer out of the shared problem suite."""
-    from tests.test_problem_implementations import PROBLEM_TEST_POLICIES  # noqa: PLC0415
-
+    """Keep the expensive MTO2D optimizer and simulation out of the default suite."""
     policy = PROBLEM_TEST_POLICIES["problems.mto2d.v0.MTO2D"]
-    assert policy.artifacts_available
+
     assert not policy.exercise_optimization
     assert policy.supported_machines == ("x86_64", "amd64")
+    assert policy.slow
