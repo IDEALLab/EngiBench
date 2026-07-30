@@ -51,15 +51,11 @@ design, _ = problem.random_design()
 objectives = problem.simulate(design)
 ```
 
-The command-line demo uses the published dataset and container:
-
-```bash
-python engibench/problems/mto2d/v0.py --simulate --no-show
-```
-
-Set `ENGIBENCH_MTO2D_IMAGE` to override the image. Advanced solver settings
-can be supplied as JSON through `--solver-config` or
-`ENGIBENCH_MTO2D_SOLVER_CONFIG`.
+Running the module directly (`python engibench/problems/mto2d/v0.py`) samples
+one dataset design, renders it, and re-evaluates it in the published
+container. Set `ENGIBENCH_MTO2D_IMAGE` to override the image; all other
+solver settings are ordinary `Config` fields passed through
+`MTO2D(config={...})` or per-call `config` dictionaries.
 
 ## Optimization
 

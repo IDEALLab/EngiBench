@@ -1,11 +1,8 @@
 """Two-dimensional multiphysics topology optimization problem."""
 
-import argparse
 import dataclasses
 from dataclasses import dataclass
-import json
 import os
-from pathlib import Path
 from typing import Annotated, Any
 import warnings
 
@@ -40,9 +37,6 @@ from engibench.utils.upcast import upcast
 
 MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 """Smallest feasible all-cell volume fraction when the design domain is solid."""
-
-SOLVER_CONFIG_ENV_VAR = "ENGIBENCH_MTO2D_SOLVER_CONFIG"
-"""Environment variable selecting a solver configuration JSON file."""
 
 DEFAULT_CONTAINER_IMAGE = (
     "ghcr.io/arthurdrake1/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131"
@@ -445,119 +439,20 @@ class MTO2D(Problem[npt.NDArray]):
         return RunnerSettings(**values)
 
 
-def _load_demo_dataset(
-    source: str | Path | None,
-    *,
-    default_dataset_id: str,
-) -> tuple[Any, str]:
-    """Load a local saved DatasetDict or a dataset from the Hugging Face Hub."""
-    from datasets import load_dataset  # type: ignore[import-untyped, unused-ignore]  # noqa: PLC0415
-    from datasets import load_from_disk  # type: ignore[import-untyped, unused-ignore]  # noqa: PLC0415
-
-    resolved_source = default_dataset_id if source is None else source
-
-    local_path = Path(resolved_source).expanduser()
-    if local_path.is_dir():
-        resolved_path = local_path.resolve()
-        return load_from_disk(str(resolved_path)), str(resolved_path)
-    if isinstance(resolved_source, Path):
-        raise FileNotFoundError(f"local dataset directory does not exist: {local_path}")
-    return load_dataset(resolved_source), resolved_source
-
-
-def _load_solver_config_file(path: str | Path) -> dict[str, Any]:
-    """Read one JSON object containing solver-only configuration."""
-    config_path = Path(path).expanduser().resolve()
-    with config_path.open(encoding="utf-8") as stream:
-        config = json.load(stream)
-    if not isinstance(config, dict):
-        raise TypeError(f"solver config must contain a JSON object: {config_path}")
-    return config
-
-
-def _read_solver_config(
-    path: str | Path | None,
-    *,
-    auto_discover: bool = False,
-) -> dict[str, Any]:
-    """Resolve an explicit or environment-selected solver configuration."""
-    if path is not None:
-        return _load_solver_config_file(path)
-    if not auto_discover:
-        return {}
-
-    environment_path = os.environ.get(SOLVER_CONFIG_ENV_VAR)
-    if environment_path:
-        return _load_solver_config_file(environment_path)
-    return {}
-
-
-def main(  # noqa: PLR0913
-    problem_type: type[MTO2D] = MTO2D,
-    *,
-    dataset: Any | None = None,
-    dataset_source: str | Path | None = None,
-    split: str = "train",
-    index: int = 0,
-    seed: int = 0,
-    solver_config: dict[str, Any] | None = None,
-    run_simulation: bool = False,
-    render_output: str | Path | None = None,
-    open_window: bool = False,
-    runner: MTO2DRunner | None = None,
-) -> MTO2DSimulationResult | None:
-    """Render one real dataset design and optionally evaluate it.
-
-    Simulation is deliberately opt-in because it requires the external
-    OpenFOAM runtime and can be expensive. Dataset-row conditions always
-    override the physical-condition defaults in ``solver_config``.
-    """
-    if dataset is not None and dataset_source is not None:
-        raise ValueError("pass either dataset or dataset_source, not both")
-
-    source_label = "<injected dataset>"
-    if dataset is None:
-        dataset, source_label = _load_demo_dataset(dataset_source, default_dataset_id=problem_type.dataset_id)
-
-    problem = problem_type(seed=seed, config=solver_config, dataset=dataset, runner=runner)
-    if split not in problem.dataset:
-        available = ", ".join(problem.dataset.keys())
-        raise KeyError(f"dataset split {split!r} is unavailable; choose from: {available}")
-    selected_split = problem.dataset[split]
-    if not 0 <= index < len(selected_split):
-        raise IndexError(f"dataset index must be in [0, {len(selected_split)}); got {index}")
-
-    row = selected_split[index]
-    design = problem.design_from_dataset_value(row["optimal_design"])
-    row_conditions = {key: float(row[key]) for key in problem.conditions_keys}
+def main(problem_type: type[MTO2D] = MTO2D, *, open_window: bool = False) -> None:
+    """Sample a dataset design, render it, and re-evaluate it in the published container."""
+    problem = problem_type(seed=0)
+    design, index = problem.random_design()
+    row = problem.dataset["train"][index]
+    conditions = {key: float(row[key]) for key in problem.conditions_keys}
     stored_objectives = {key: float(row[key]) for key in problem.objectives_keys}
 
-    print(f"Dataset: {source_label}")
-    print(f"Selected split={split!r}, index={index}")
-    print("Conditions: " + ", ".join(f"{key}={value:.8g}" for key, value in row_conditions.items()))
+    print(f"Sampled train row {index}.")
+    print("Conditions: " + ", ".join(f"{key}={value:.8g}" for key, value in conditions.items()))
     print("Stored objectives: " + ", ".join(f"{key}={value:.8g}" for key, value in stored_objectives.items()))
-    figure, _axes = problem.render(design, open_window=False)
-    if render_output is not None:
-        output_path = Path(render_output).expanduser().resolve()
-        output_path.parent.mkdir(parents=True, exist_ok=True)
-        figure.savefig(output_path, dpi=150, bbox_inches="tight")
-        print(f"Saved rendering to {output_path}")
-    if open_window:
-        plt.show()
-    plt.close(figure)
+    problem.render(design, open_window=open_window)
 
-    if not run_simulation:
-        print("Simulation skipped. Pass --simulate with a solver config to run the external CFD solver.")
-        return None
-
-    runtime_config = problem.config
-    assert runtime_config is not None
-    print(
-        "Running frozen one-step simulation with the selected row conditions "
-        f"(q={runtime_config.qu_final:.8g}, alphaMax={runtime_config.alpha_max_final:.8g}, "
-        f"Heaviside={runtime_config.heaviside_final:.8g})..."
-    )
-    result = problem.simulate_verbose(design, config=row_conditions)
+    result = problem.simulate_verbose(design, config=conditions)
     print(
         "Simulated objectives: "
         + ", ".join(
@@ -570,49 +465,7 @@ def main(  # noqa: PLR0913
         f"power_residual={result.power_constraint_residual:.8g}, "
         f"elapsed_time={result.elapsed_time:.8g}s"
     )
-    return result
-
-
-def _parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Render a real MTO2D dataset row and optionally simulate it.",
-        allow_abbrev=False,
-    )
-    parser.add_argument(
-        "--dataset",
-        dest="dataset_source",
-        help="local DatasetDict directory or Hugging Face dataset ID; defaults to IDEALLab/mto_2d_v0",
-    )
-    parser.add_argument("--split", default="train")
-    parser.add_argument("--index", type=int, default=0)
-    parser.add_argument("--seed", type=int, default=0)
-    parser.add_argument("--render-output", type=Path)
-    parser.add_argument("--show", action=argparse.BooleanOptionalAction, default=True)
-    parser.add_argument("--simulate", action="store_true")
-    parser.add_argument(
-        "--solver-config",
-        type=Path,
-        help=(
-            "JSON object with case_template, backend, MPI, timeout, and related solver settings; "
-            f"with --simulate, defaults to ${SOLVER_CONFIG_ENV_VAR} or the published container"
-        ),
-    )
-    return parser
-
-
-def _cli(argv: list[str] | None = None) -> MTO2DSimulationResult | None:
-    args = _parser().parse_args(argv)
-    return main(
-        dataset_source=args.dataset_source,
-        split=args.split,
-        index=args.index,
-        seed=args.seed,
-        solver_config=_read_solver_config(args.solver_config, auto_discover=args.simulate),
-        run_simulation=args.simulate,
-        render_output=args.render_output,
-        open_window=args.show,
-    )
 
 
 if __name__ == "__main__":
-    _cli()
+    main(open_window=True)
