@@ -20,44 +20,11 @@ import pytest
 
 from engibench import Problem
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
+from tests.problem_policies import problem_id
+from tests.problem_policies import problem_test_policy
 
 if TYPE_CHECKING:
     from typing import Self
-
-
-@dataclass(frozen=True)
-class ProblemTestPolicy:
-    """Artifact availability and shared-suite cost policy for one problem."""
-
-    artifacts_available: bool = True
-    artifacts_reason: str = ""
-    exercise_optimization: bool = True
-    optimization_reason: str = ""
-    supported_machines: tuple[str, ...] | None = None
-
-
-DEFAULT_TEST_POLICY = ProblemTestPolicy()
-PROBLEM_TEST_POLICIES = {
-    "problems.airfoil.v0.Airfoil": ProblemTestPolicy(
-        exercise_optimization=False,
-        optimization_reason="optimization is not part of the shared Airfoil smoke test",
-    ),
-    "problems.mto2d.v0.MTO2D": ProblemTestPolicy(
-        exercise_optimization=False,
-        optimization_reason="the external 200-step optimization is too expensive for the shared smoke test",
-        supported_machines=("x86_64", "amd64"),
-    ),
-}
-
-
-def problem_id(problem_class: type[Problem]) -> str:
-    """Return the stable versioned identifier used by reference files and test policy."""
-    return problem_class.__module__.removeprefix("engibench.") + "." + problem_class.__name__
-
-
-def problem_test_policy(problem_class: type[Problem]) -> ProblemTestPolicy:
-    """Return explicit shared-suite policy without broad module-prefix matching."""
-    return PROBLEM_TEST_POLICIES.get(problem_id(problem_class), DEFAULT_TEST_POLICY)
 
 
 @pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
@@ -107,10 +74,6 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     assert "reset" in class_methods, f"Problem {problem_class.__name__}: The reset method should be implemented."
     # optimize is optional, thus not checked
 
-    policy = problem_test_policy(problem_class)
-    if not policy.artifacts_available:
-        pytest.skip(f"{problem_class.__name__}: {policy.artifacts_reason}")
-
     # Test the dataset has the required splits
     dataset = problem.dataset
     assert "train" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'train' split."
@@ -137,7 +100,17 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     print(f"Done testing {problem_class.__name__}.")
 
 
-@pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
+def _problem_params() -> list[Any]:
+    """Parametrize over builtin problems, marking the expensive ones `slow`."""
+    params = []
+    for problem_class in BUILTIN_PROBLEMS.values():
+        policy = problem_test_policy(problem_class)
+        marks = [pytest.mark.slow] if policy.slow else []
+        params.append(pytest.param(problem_class, marks=marks, id=problem_class.__name__))
+    return params
+
+
+@pytest.mark.parametrize("problem_class", _problem_params())
 def test_python_problem_impl(
     problem_class: type[Problem], subtests: pytest.Subtests, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -153,8 +126,6 @@ def test_python_problem_impl(
     policy = problem_test_policy(problem_class)
     if policy.supported_machines is not None and platform.machine().lower() not in policy.supported_machines:
         pytest.skip(f"{problem_class.__name__}: published runtime supports {', '.join(policy.supported_machines)}")
-    if not policy.artifacts_available:
-        pytest.skip(f"{problem_class.__name__}: {policy.artifacts_reason}")
     if problem_class.__module__.startswith("engibench.problems.power_electronics") and sys.platform == "darwin":
         pytest.skip(f"Skipping {problem_class.__name__} on MacOs")
     ref_path = Path(__file__).parent / "reference" / "simulate" / (problem_id(problem_class) + ".json")
