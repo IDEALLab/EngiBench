@@ -119,8 +119,6 @@ def test_python_problem_impl(
     """
     if problem_class.container_id is not None and not sys.platform.startswith("linux"):
         pytest.skip(f"Skipping containerized problem {problem_class.__name__} on non-linux platform")
-    if problem_class.__module__.startswith("engibench.problems.power_electronics") and sys.platform == "darwin":
-        pytest.skip(f"Skipping {problem_class.__name__} on MacOs")
     ref_path = Path(__file__).parent / "reference" / "simulate" / (problem_id(problem_class) + ".json")
     if RefCreationMode.from_env() == RefCreationMode.Missing and ref_path.is_file():
         pytest.skip("Reference values already exist. Skipping test.")

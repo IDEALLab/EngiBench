@@ -8,18 +8,29 @@ import subprocess
 
 MIN_SUPPORTED_VERSION: int = 42  # Major version number of ngspice
 MAX_SUPPORTED_VERSION: int = 45  # Major version number of ngspice
+NGSPICE_PATH_ENV = "NGSPICE_PATH"
 
 
 class NgSpice:
     """A class to handle ngspice execution across different operating systems."""
 
-    def __init__(self, ngspice_windows_path: str | None = None) -> None:
+    def __init__(
+        self,
+        ngspice_path: str | None = None,
+        *,
+        ngspice_windows_path: str | None = None,
+    ) -> None:
         """Initialize the NgSpice wrapper.
 
         Args:
-            ngspice_windows_path: The path to the ngspice executable for Windows.
+            ngspice_path: Path to the ngspice executable on any supported platform.
+                Takes precedence over ``NGSPICE_PATH`` and ``PATH``.
+            ngspice_windows_path: Deprecated alias for ``ngspice_path``.
         """
-        self.ngspice_windows_path = os.path.normpath(ngspice_windows_path) if ngspice_windows_path else None
+        if ngspice_path is not None and ngspice_windows_path is not None:
+            raise ValueError("Pass either ngspice_path or ngspice_windows_path, not both.")
+
+        self.configured_path = ngspice_path or ngspice_windows_path or os.environ.get(NGSPICE_PATH_ENV)
         self.system = platform.system().lower()
         self._ngspice_path = self._get_ngspice_path()
         if not MIN_SUPPORTED_VERSION <= self.version <= MAX_SUPPORTED_VERSION:
@@ -31,40 +42,33 @@ class NgSpice:
         Returns:
             The path to the ngspice executable
         """
-        if self.system == "windows":
-            # For Windows, use the bundled ngspice.exe
-            # Look for ngspice in PATH (e.g. Chocolatey), Spice64 folder and common install locations
-            possible_paths = [
-                self.ngspice_windows_path,
-                shutil.which("ngspice"),
-                os.path.normpath(os.path.join("C:/Program Files/Spice64/bin/ngspice.exe")),
-                os.path.normpath(os.path.join("C:/Program Files (x86)/ngspice/bin/ngspice.exe")),
-            ]
+        if self.system not in {"darwin", "linux", "windows"}:
+            raise RuntimeError(
+                f"Unsupported operating system for ngspice: {self.system}. EngiBench supports Windows, macOS, and Linux."
+            )
 
-            ngspice_path: str | None = next((p for p in possible_paths if p and os.path.exists(p)), None)
-            if ngspice_path is None:
-                raise FileNotFoundError(
-                    "ngspice.exe not found. You can install it via Chocolatey "
-                    "(`choco install ngspice`) or download it from "
-                    "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/. "
-                    "You can also see our GitHub Actions workflow (test.yml) for how to automatically install it."
-                )
-            return ngspice_path
-        if self.system in ["darwin", "linux"]:
-            # For MacOS and Linux, use system-installed ngspice
-            try:
-                # Check if ngspice is installed
-                subprocess.run(["ngspice", "--version"], capture_output=True, check=True)
-            except (subprocess.CalledProcessError, FileNotFoundError):
-                raise RuntimeError(
-                    "ngspice is not installed on your system. "
-                    "Please install it using your package manager:\n"
-                    "  - MacOS: brew install ngspice\n"
-                    "  - Linux: sudo apt-get install ngspice"
-                ) from None
-            return "ngspice"
-        raise RuntimeError(
-            f"Unsupported operating system for ngspice: {self.system}, we only support Windows, MacOS and Linux."
+        if self.configured_path:
+            path = os.path.abspath(os.path.expanduser(self.configured_path))
+            if not os.path.isfile(path):
+                raise FileNotFoundError(f"Configured ngspice executable does not exist: {path}")
+            return path
+
+        path_from_env = shutil.which("ngspice")
+        if path_from_env:
+            return path_from_env
+
+        if self.system == "windows":
+            common_paths = (
+                "C:/Program Files/Spice64/bin/ngspice.exe",
+                "C:/Program Files (x86)/ngspice/bin/ngspice.exe",
+            )
+            installed_path = next((os.path.normpath(path) for path in common_paths if os.path.isfile(path)), None)
+            if installed_path:
+                return installed_path
+
+        raise FileNotFoundError(
+            f"ngspice was not found. Set {NGSPICE_PATH_ENV} to a supported ngspice executable "
+            "or add it to PATH. See engibench/problems/power_electronics/README.md for installation instructions."
         )
 
     def run(self, netlist_path: str, log_file_path: str, timeout: int = 30) -> None:
@@ -97,6 +101,11 @@ class NgSpice:
             raise
 
     @property
+    def executable_path(self) -> str:
+        """Return the resolved ngspice executable path."""
+        return self._ngspice_path
+
+    @property
     def version(self) -> int:
         """Get the version of ngspice.
 
@@ -126,8 +135,6 @@ class NgSpice:
         cmd = [self._ngspice_path, "--version"]
         result = subprocess.run(cmd, capture_output=True, text=True, check=True)
 
-        # Extract version number from second line of output and get only the major version
-
         # Example output:
         # ******
         # ** ngspice-44.2 : Circuit level simulation program
@@ -138,8 +145,11 @@ class NgSpice:
         # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
         # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
         # ******
-        full_version = result.stdout.splitlines()[1].split()[1].split("-")[1]
-        return int(full_version.split(".")[0])  # Return only the major version
+        output = f"{result.stdout}\n{result.stderr}"
+        match = re.search(r"\bngspice-(\d+)(?:\.\d+)*\b", output, flags=re.IGNORECASE)
+        if match is None:
+            raise RuntimeError(f"Could not determine ngspice version from: {output.strip()!r}")
+        return int(match.group(1))
 
 
 class NgSpiceManualNotFoundError(FileNotFoundError):

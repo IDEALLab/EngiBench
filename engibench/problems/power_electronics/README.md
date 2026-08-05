@@ -19,8 +19,18 @@ Available in Ubuntu 20, 22 and 24.
 
 Note: ``pip install`` won't work.
 
-### 3. MacOS
-`brew install ngspice`
+### 3. macOS
+
+EngiBench supports ngspice versions 42 through 45. Current Homebrew releases
+may be newer, so you can build the pinned CI version instead:
+
+```bash
+scripts/install_ngspice_macos.sh "$HOME/.local/ngspice-44.2"
+export NGSPICE_PATH="$HOME/.local/ngspice-44.2/bin/ngspice"
+```
+
+On every platform, an explicit `PowerElectronics(ngspice_path=...)` argument
+takes precedence over `NGSPICE_PATH`, which takes precedence over `PATH`.
 
 ## Example circuit graph
 ![5_4_3_6_10-dcdc_converter_1](../../../docs/_static/img/problems/power_electronics.png)
@@ -74,7 +84,7 @@ There is no condition for this problem.
 ### Simulator
 The simulator is ngSpice circuit simulator. You can download it based on your operating system:
 - Windows: https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/
-- MacOS: `brew install ngspice`
+- macOS: use `scripts/install_ngspice_macos.sh` and set `NGSPICE_PATH`
 - Linux: `sudo apt-get install ngspice`
 
 ### Dataset
