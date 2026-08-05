@@ -29,6 +29,10 @@ scripts/install_ngspice_macos.sh "$HOME/.local/ngspice-44.2"
 export NGSPICE_PATH="$HOME/.local/ngspice-44.2/bin/ngspice"
 ```
 
+The installer builds the validated x86_64 binary. On Apple Silicon, it runs
+through Rosetta 2 so that simulation results remain consistent with the
+EngiBench reference values.
+
 On every platform, an explicit `PowerElectronics(ngspice_path=...)` argument
 takes precedence over `NGSPICE_PATH`, which takes precedence over `PATH`.
 
