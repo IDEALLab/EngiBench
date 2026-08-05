@@ -33,6 +33,11 @@ The installer builds the validated x86_64 binary. On Apple Silicon, it runs
 through Rosetta 2 so that simulation results remain consistent with the
 EngiBench reference values.
 
+Architecture-dependent transient results have also been reported in the
+[ngspice issue tracker](https://sourceforge.net/p/ngspice/bugs/622/). That
+report concerns a different circuit, but documents significant AArch64 and
+x86_64 differences in a numerically sensitive simulation.
+
 On every platform, an explicit `PowerElectronics(ngspice_path=...)` argument
 takes precedence over `NGSPICE_PATH`, which takes precedence over `PATH`.
 

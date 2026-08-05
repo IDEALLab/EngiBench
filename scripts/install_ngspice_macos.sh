@@ -51,4 +51,9 @@ CXXFLAGS="-Wno-invalid-specialization" "${build_command[@]}" ./configure \
 "${build_command[@]}" make -j2 CXXFLAGS="-Wno-invalid-specialization"
 "${build_command[@]}" make install CXXFLAGS="-Wno-invalid-specialization"
 
+if ! lipo -archs "${EXECUTABLE}" | grep -qw "x86_64"; then
+    echo "Expected an x86_64 ngspice executable at ${EXECUTABLE}." >&2
+    exit 1
+fi
+
 "${EXECUTABLE}" --version
