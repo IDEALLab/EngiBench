@@ -123,7 +123,7 @@ def _order_segments(
     return np.array(ordered_ids)
 
 
-def _reorder_coordinates(  # noqa: PLR0913
+def _reorder_coordinates(
     coords_x: npt.NDArray[np.float32],
     coords_y: npt.NDArray[np.float32],
     indices: npt.NDArray[np.int32],
@@ -411,7 +411,7 @@ def scale_coords(
     return coords, blunted
 
 
-def calc_off_wall_distance(  # noqa: PLR0913
+def calc_off_wall_distance(
     mach: float,
     reynolds: float,
     freestreamTemp: float = 300.0,  # noqa: N803

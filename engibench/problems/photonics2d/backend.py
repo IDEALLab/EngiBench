@@ -29,7 +29,7 @@ class Slice(typing.NamedTuple):
 # --- Domain Initialization ---
 
 
-def init_domain(  # noqa: PLR0913
+def init_domain(
     num_elems_x: int, num_elems_y: int, num_elems_pml: int, space: int, wg_width: int, space_slice: int, wg_shift: int
 ) -> tuple[npt.NDArray, npt.NDArray, Slice, Slice, Slice]:
     """Initializes the background geometry, design region mask, and source/probe slices.
@@ -254,7 +254,7 @@ def mask_combine_rho(rho: npt.NDArray, bg_rho: npt.NDArray, design_region: npt.N
     return rho * design_region_f + bg_rho * (1.0 - design_region_f)
 
 
-def epsr_parameterization(  # noqa: PLR0913
+def epsr_parameterization(
     rho: npt.NDArray,
     bg_rho: npt.NDArray,
     design_region: npt.NDArray,
@@ -341,7 +341,7 @@ def design_to_epsr(
     return epsr_min + (epsr_max - epsr_min) * rho_combined
 
 
-def filter_and_project(  # noqa: PLR0913
+def filter_and_project(
     rho: npt.NDArray,
     bg_rho: npt.NDArray,
     design_region: npt.NDArray,

@@ -20,7 +20,7 @@ def pull(image: str) -> None:
     RUNTIME.pull(image)
 
 
-def run(  # noqa: PLR0913
+def run(
     command: list[str],
     image: str,
     mounts: Sequence[tuple[str, str]] = (),
@@ -90,7 +90,7 @@ class ContainerRuntime:
         raise NotImplementedError("Must be implemented by a subclass")
 
     @classmethod
-    def run(  # noqa: PLR0913
+    def run(
         cls,
         command: list[str],
         image: str,
@@ -169,7 +169,7 @@ class Docker(ContainerRuntime):
         subprocess.run([cls.executable, "pull", image], check=True)
 
     @classmethod
-    def run(  # noqa: PLR0913
+    def run(
         cls,
         command: list[str],
         image: str,
@@ -325,7 +325,7 @@ class Apptainer(ContainerRuntime):
         subprocess.run([cls.executable, "pull", docker_uri], check=True)
 
     @classmethod
-    def run(  # noqa: PLR0913
+    def run(
         cls,
         command: list[str],
         image: str,

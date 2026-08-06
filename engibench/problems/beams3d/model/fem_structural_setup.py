@@ -144,7 +144,7 @@ def build_structural_context_3d(
     )
 
 
-def fe_structural_bc_3d(  # noqa: PLR0913
+def fe_structural_bc_3d(
     nely: int,
     nelx: int,
     nelz: int,

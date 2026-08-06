@@ -140,7 +140,7 @@ class Photonics2D(Photonics2D_v0):
         _, _, ez2 = self._simulation2.solve(source2)
         return ez1, ez2, source1, source2, probe1, probe2
 
-    def _objective_from_fields(  # noqa: PLR0913
+    def _objective_from_fields(
         self,
         ez1: Any,
         ez2: Any,
