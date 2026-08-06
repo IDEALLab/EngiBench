@@ -109,6 +109,7 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         @constraint
         @staticmethod
         def bc_check(
+            *,
             nelx: int,
             nely: int,
             nelz: int,

@@ -126,6 +126,7 @@ def _order_segments(
 def _reorder_coordinates(
     coords_x: npt.NDArray[np.float32],
     coords_y: npt.NDArray[np.float32],
+    *,
     indices: npt.NDArray[np.int32],
     connectivities: npt.NDArray[np.int32],
     segment_ids: npt.NDArray[np.float32],
@@ -271,7 +272,12 @@ def reorder_coords_fields(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
 
     # Reorder coordinates
     coords_x_reordered, coords_y_reordered, indices_reordered = _reorder_coordinates(
-        coords_x, coords_y, indices, connectivities, segment_ids, new_seg_order
+        coords_x,
+        coords_y,
+        indices=indices,
+        connectivities=connectivities,
+        segment_ids=segment_ids,
+        new_seg_order=new_seg_order,
     )
 
     # Align coordinates
@@ -322,7 +328,12 @@ def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
 
     # Reorder coordinates
     coords_x_reordered, coords_y_reordered, indices_reordered = _reorder_coordinates(
-        coords_x, coords_y, indices, connectivities, segment_ids, new_seg_order
+        coords_x,
+        coords_y,
+        indices=indices,
+        connectivities=connectivities,
+        segment_ids=segment_ids,
+        new_seg_order=new_seg_order,
     )
 
     # Align coordinates
@@ -412,6 +423,7 @@ def scale_coords(
 
 
 def calc_off_wall_distance(
+    *,
     mach: float,
     reynolds: float,
     freestreamTemp: float = 300.0,  # noqa: N803

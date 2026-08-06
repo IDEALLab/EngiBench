@@ -492,7 +492,7 @@ class History:
             return
         return copy.deepcopy(self.callCounters)
 
-    def getValues(self, names=None, callCounters=None, major=True, scale=False, stack=False, allowSens=False):
+    def getValues(self, *, names=None, callCounters=None, major=True, scale=False, stack=False, allowSens=False):
         """
         Parses an existing history file and returns a data dictionary used to post-process optimization results, containing the requested optimization iteration history.
 

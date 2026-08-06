@@ -148,6 +148,7 @@ def fe_structural_bc_3d(
     nely: int,
     nelx: int,
     nelz: int,
+    *,
     penal: float,
     x: np.ndarray,
     ke: np.ndarray,

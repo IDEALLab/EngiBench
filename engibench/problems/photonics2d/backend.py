@@ -30,7 +30,7 @@ class Slice(typing.NamedTuple):
 
 
 def init_domain(
-    num_elems_x: int, num_elems_y: int, num_elems_pml: int, space: int, wg_width: int, space_slice: int, wg_shift: int
+    *, num_elems_x: int, num_elems_y: int, num_elems_pml: int, space: int, wg_width: int, space_slice: int, wg_shift: int
 ) -> tuple[npt.NDArray, npt.NDArray, Slice, Slice, Slice]:
     """Initializes the background geometry, design region mask, and source/probe slices.
 
@@ -255,6 +255,7 @@ def mask_combine_rho(rho: npt.NDArray, bg_rho: npt.NDArray, design_region: npt.N
 
 
 def epsr_parameterization(
+    *,
     rho: npt.NDArray,
     bg_rho: npt.NDArray,
     design_region: npt.NDArray,
@@ -342,6 +343,7 @@ def design_to_epsr(
 
 
 def filter_and_project(
+    *,
     rho: npt.NDArray,
     bg_rho: npt.NDArray,
     design_region: npt.NDArray,

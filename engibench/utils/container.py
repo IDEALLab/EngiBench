@@ -23,11 +23,11 @@ def pull(image: str) -> None:
 def run(
     command: list[str],
     image: str,
+    *,
     mounts: Sequence[tuple[str, str]] = (),
     env: dict[str, str] | None = None,
     name: str | None = None,
     stdin: bytes | None = None,
-    *,
     sync_uid: bool = False,
 ) -> None:
     """Run a command in a container using the selected runtime.
@@ -46,7 +46,7 @@ def run(
         raise FileNotFoundError(msg)
 
     try:
-        result = RUNTIME.run(command, image, mounts, env, name, stdin, sync_uid=sync_uid)
+        result = RUNTIME.run(command, image, mounts=mounts, env=env, name=name, stdin=stdin, sync_uid=sync_uid)
         result.check_returncode()
     except subprocess.CalledProcessError as e:
         msg = f"""Container command failed with exit code {e.returncode}:
@@ -94,11 +94,11 @@ class ContainerRuntime:
         cls,
         command: list[str],
         image: str,
+        *,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
         stdin: bytes | None = None,
-        *,
         sync_uid: bool = False,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
@@ -173,11 +173,11 @@ class Docker(ContainerRuntime):
         cls,
         command: list[str],
         image: str,
+        *,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
         stdin: bytes | None = None,
-        *,
         sync_uid: bool = False,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
@@ -329,11 +329,11 @@ class Apptainer(ContainerRuntime):
         cls,
         command: list[str],
         image: str,
+        *,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,  # noqa: ARG003
         stdin: bytes | None = None,
-        *,
         sync_uid: bool = False,  # noqa: ARG003
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
