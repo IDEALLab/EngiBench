@@ -5,6 +5,7 @@ import platform
 import re
 import shutil
 import subprocess
+import warnings
 
 MIN_SUPPORTED_VERSION: int = 42  # Major version number of ngspice
 MAX_SUPPORTED_VERSION: int = 45  # Major version number of ngspice
@@ -27,6 +28,13 @@ class NgSpice:
                 Takes precedence over ``NGSPICE_PATH`` and ``PATH``.
             ngspice_windows_path: Deprecated alias for ``ngspice_path``.
         """
+        if ngspice_windows_path is not None:
+            warnings.warn(
+                "ngspice_windows_path is deprecated; use ngspice_path instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+
         if ngspice_path is not None and ngspice_windows_path is not None:
             raise ValueError("Pass either ngspice_path or ngspice_windows_path, not both.")
 

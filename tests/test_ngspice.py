@@ -44,7 +44,8 @@ def test_legacy_windows_path_keyword_is_supported(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(ngspice_module.platform, "system", lambda: "Windows")
     mock_version(monkeypatch)
 
-    assert NgSpice(ngspice_windows_path=str(configured)).executable_path == str(configured)
+    with pytest.warns(DeprecationWarning, match="ngspice_windows_path is deprecated"):
+        assert NgSpice(ngspice_windows_path=str(configured)).executable_path == str(configured)
 
 
 def test_environment_path_works_on_macos(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
