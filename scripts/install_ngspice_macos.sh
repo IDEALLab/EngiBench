@@ -15,7 +15,7 @@ if [[ -x "${EXECUTABLE}" ]] \
     exit 0
 fi
 
-build_command=()
+build_command=(/usr/bin/env)
 case "$(uname -m)" in
     arm64)
         if ! arch -x86_64 /usr/bin/true 2>/dev/null; then
