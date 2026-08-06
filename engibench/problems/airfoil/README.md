@@ -86,5 +86,4 @@ val_spit = Dataset.from_list(dataset_val)
 test_spit = Dataset.from_list(dataset_testt)
 dataset_dict = DatasetDict({"train": train_spit, "val": val_spit, "test": test_spit})
 dataset_dict.push_to_hub("IDEALLab/airfoil_v0")
-
 ```
