@@ -1,13 +1,14 @@
 # engibench/problems/photonics2d/backend.py
 
 """Backend helper functions for the Photonics2D problem.
+
 Includes domain setup, parameterization, operators, and simulation utilities.
 
 This is essentially re-factored from the code at
 https://nbviewer.org/github/fancompute/workshop-invdesign/blob/master/04_Invdes_wdm_scheduling.ipynb
 
 Author: Mark Fuge @markfuge
-"""  # noqa: D205
+"""
 
 import typing
 
