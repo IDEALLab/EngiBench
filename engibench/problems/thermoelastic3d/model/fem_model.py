@@ -95,7 +95,7 @@ class FeaModel3D:
             Returns:
                 g_idx (int): The global index of an element.
             """
-            return (nely * nelz) * ix + (nelz) * iy + iz
+            return (iy * nelx + ix) * nelz + iz
 
         i_h: list[int] = []
         j_h: list[int] = []
