@@ -203,6 +203,7 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1"><a class="reference internal" href="../../../../introduction/install/">Installation</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../introduction/basic_usage/">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../introduction/dataset_generation_slurm/">Data Generation (Slurm)</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../introduction/api/">API</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Problems</span></p>
@@ -231,7 +232,7 @@
 <ul class="nav bd-sidenav">
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../utils/container/">Running in containers</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../../../../utils/slurm/">Parameter space discovery via slurm</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../../../utils/slurm/">Parameter space discovery via Slurm</a></li>
 </ul>
 </details></li>
 </ul>
@@ -646,7 +647,9 @@
 
 <span class="sd">        To prevent larger workloads running on a login node, this function will raise an exception if the resulting list in pickled</span>
 <span class="sd">        form takes more than `size_limit` bytes (recommendation: 10MB).</span>
-<span class="sd">        Only increase / set to 0 if you want to annoy the HPC team 😈.</span>
+<span class="sd">        Only increase this limit, or set it to ``None`` to disable the check, if you understand the impact on the login node</span>
+<span class="sd">        and your cluster policy allows it.</span>
+
 <span class="sd">        - :attr:`f_reduce` - The callable which performs the post processing on the list of return values for each job.</span>
 <span class="sd">        - :attr:`slurm_args` - Arguments passed to `sbatch`.</span>
 <span class="sd">        - :attr:`size_limit` - Upper limit for the allowed size of the post processed data in pickled form.</span>

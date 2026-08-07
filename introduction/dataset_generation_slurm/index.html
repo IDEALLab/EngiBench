@@ -8,7 +8,7 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
 
-    <title>PowerElectronics &#8212; EngiBench Documentation</title>
+    <title>Dataset Generation via Slurm &#8212; EngiBench Documentation</title>
   
   
   
@@ -43,15 +43,13 @@
     <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
     <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
     <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
-    <script>window.MathJax = {"options": {"processHtmlClass": "tex2jax_process|mathjax_process|math|output_area"}}</script>
-    <script defer="defer" src="https://cdn.jsdelivr.net/npm/mathjax@4/tex-mml-chtml.js"></script>
-    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/power_electronics';</script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'introduction/dataset_generation_slurm';</script>
     <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
     <link rel="icon" href="../../_static/logo_2.png"/>
     <link rel="index" title="Index" href="../../genindex/" />
     <link rel="search" title="Search" href="../../search/" />
-    <link rel="next" title="HeatConduction" href="../heatconduction/" />
-    <link rel="prev" title="Photonics2D" href="../photonics2d/" />
+    <link rel="next" title="API" href="../api/" />
+    <link rel="prev" title="Basic Usage" href="../basic_usage/" />
   <meta name="viewport" content="width=device-width, initial-scale=1"/>
   <meta name="docsearch:language" content="en"/>
   <meta name="docsearch:version" content="" />
@@ -207,30 +205,30 @@
         <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
     <div class="bd-toc-item navbar-nav active">
         <p aria-level="2" class="caption" role="heading"><span class="caption-text">Introduction</span></p>
-<ul class="nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../../introduction/install/">Installation</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../introduction/basic_usage/">Basic Usage</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../introduction/dataset_generation_slurm/">Data Generation (Slurm)</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../../introduction/api/">API</a></li>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../install/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../basic_usage/">Basic Usage</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">Data Generation (Slurm)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../api/">API</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Problems</span></p>
-<ul class="current nav bd-sidenav">
-<li class="toctree-l1"><a class="reference internal" href="../airfoil/">Airfoil</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../beams2d/">Beams2D</a></li>
-<li class="toctree-l1"><a class="reference internal" href="../beams3d/">Beams3D</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../thermoelastic3d/">Thermoelastic3D</a></li>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
-<li class="toctree-l1 current active"><a class="current reference internal" href="#">PowerElectronics</a></li>
-<li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">HeatConduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
-<li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">HeatConduction2D</a></li>
-<li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">HeatConduction3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/photonics2d/">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/power_electronics/">PowerElectronics</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/heatconduction/">HeatConduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction2d/">HeatConduction2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../problems/heatconduction3d/">HeatConduction3D</a></li>
 </ul>
 </details></li>
-<li class="toctree-l1"><a class="reference internal" href="../external/">External Problems</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/external/">External Problems</a></li>
 </ul>
 <p aria-level="2" class="caption" role="heading"><span class="caption-text">Algorithms</span></p>
 <ul class="nav bd-sidenav">
@@ -441,7 +439,7 @@
       
       
       
-      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/power_electronics.md" target="_blank"
+      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/introduction/dataset_generation_slurm.md" target="_blank"
    class="btn btn-sm btn-source-edit-button dropdown-item"
    title="Suggest edit"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -458,7 +456,7 @@
       
       
       
-      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/power_electronics.html&body=Your%20issue%20content%20here." target="_blank"
+      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fintroduction/dataset_generation_slurm.html&body=Your%20issue%20content%20here." target="_blank"
    class="btn btn-sm btn-source-issues-button dropdown-item"
    title="Open an issue"
    data-bs-placement="left" data-bs-toggle="tooltip"
@@ -571,7 +569,7 @@
               
 
 <div id="jb-print-docs-body" class="onlyprint">
-    <h1>PowerElectronics</h1>
+    <h1>Dataset Generation via Slurm</h1>
     <!-- Table of contents -->
     <div id="print-main-content">
         <div id="jb-print-toc">
@@ -581,20 +579,10 @@
             </div>
             <nav aria-label="Page">
                 <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-to-use-this-workflow">When to use this workflow</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#airfoil-example-submission-script">Airfoil example submission script</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#submit-the-job">Submit the job</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-specific-settings">Cluster-specific settings</a></li>
 </ul>
             </nav>
         </div>
@@ -606,135 +594,82 @@
 <div id="searchbox"></div>
                 <article class="bd-article">
                   
-  <section class="tex2jax_ignore mathjax_ignore" id="powerelectronics">
-<h1>PowerElectronics<a class="headerlink" href="#powerelectronics" title="Link to this heading">#</a></h1>
-<a class="reference internal image-reference" href="../../_images/power_electronics.png"><img alt="../../_images/power_electronics.png" class="align-center" src="../../_images/power_electronics.png" style="width: 450px;" />
-</a>
-<p>Power Electronics parameter optimization problem.</p>
-<div class="admonition note">
-<p class="admonition-title">Note</p>
-<p>This problem requires <code class="docutils literal notranslate"><span class="pre">ngspice</span></code> to be installed. See the simulator section for more details.</p>
-</div>
-<p>This problem simulates a power converter circuit which has a fixed circuit topology. There are 5 switches, 4 diodes, 3 inductors and 6 capacitors.
-The circuit topology is fixed. It is defined in the netlist file <code class="docutils literal notranslate"><span class="pre">5_4_3_6_10-dcdc_converter_1.net</span></code>.
-By changing circuit parameters such as capacitance, we rewrite the netlist file and use ngSpice to simulate the circuits to get the performance metrics, which are defined as the objectives of this problem.
-You can use this problem to train your regression model. You can also try to find the optimal circuit parameters that minimize objectives.</p>
-<div class="pst-scrollable-table-container"><table class="table">
-<tbody>
-<tr class="row-odd"><td><p>Version</p></td>
-<td><p>0</p></td>
-</tr>
-<tr class="row-even"><td><p>Design space</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">Box([1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-06</span> <span class="pre">1.e-01</span>
- <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00</span> <span class="pre">0.e+00],</span> <span class="pre">[2.e-05</span> <span class="pre">2.e-05</span> <span class="pre">2.e-05</span> <span class="pre">2.e-05</span> <span class="pre">2.e-05</span> <span class="pre">2.e-05</span> <span class="pre">1.e-03</span> <span class="pre">1.e-03</span> <span class="pre">1.e-03</span> <span class="pre">9.e-01</span>
- <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00</span> <span class="pre">1.e+00],</span> <span class="pre">(20,),</span> <span class="pre">float32)</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>Objectives</p></td>
-<td><p>DcGain: ↓</p>
-<p>Voltage_Ripple: ↑</p>
-</td>
-</tr>
-<tr class="row-even"><td><p>Conditions</p></td>
-<td><ul class="simple">
-</ul>
-</td>
-</tr>
-<tr class="row-odd"><td><p>Dataset</p></td>
-<td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/power_electronics_v0">IDEALLab/power_electronics_v0</a></p></td>
-</tr>
-<tr class="row-even"><td><p>Import</p></td>
-<td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.power_electronics.v0</span> <span class="pre">import</span> <span class="pre">PowerElectronics</span></code></p></td>
-</tr>
-<tr class="row-odd"><td><p>Lead</p></td>
-<td><p>Xuliang Dong <a class="reference external" href="https://github.com/ liangXD523">&#64; liangXD523</a></p></td>
-</tr>
-</tbody>
-</table>
-</div>
-<section id="motivation">
-<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
-<p>Optimizing circuit parameters is a critical aspect of circuit design but remains challenging, particularly for power converter circuits that contain diodes and switches,
-which introduce significant nonlinearity and discontinuity. These characteristics make key objectives such as <em>DcGain</em> and <em>Voltage Ripple</em> highly sensitive to even small parameter variations.</p>
-<p>Because the circuit simulator NgSpice operates as a black box and is non-differentiable, gradient-based optimization methods are not suitable.
-Bayesian optimization is commonly employed for parameter tuning, while surrogate models offer a promising alternative.
-Even under the constraint of a fixed topology, optimizing circuit parameters to minimize the objectives remains a difficult problem for surrogate models.</p>
-<p>NgSpice applies transient analysis by formulating the system as a set of differential equations based on Kirchhoff’s laws.
-These equations are discretized using numerical integration methods such as the Backward Euler or trapezoidal rule and solved iteratively at each time step to compute performance metrics.
-To ensure stable simulations, a specific on-off switching pattern is chosen for the circuit.
-Despite this simplification, determining the optimal parameter values remains highly challenging.</p>
-</section>
-<section id="design-space">
-<h2>Design Space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
-<p>The design space for this problem is represented as a 10-dimensional bounded box, where each dimension corresponds to a specific circuit parameter. These parameters include values for capacitors, inductors, and a shared duty cycle for all switches. Each design can be expressed as a vector <strong>x</strong> of the form:</p>
-<div class="math notranslate nohighlight">
-\[
-x = \begin{bmatrix} C_1,\dots,C_6,L_1,L_2,L_3,T_1 \end{bmatrix}^{\top} \in \mathcal{X},
-\quad
-\mathcal{X} = [1\text{e}{-6}, 2\text{e}{-5}]^6 \times [1\text{e}{-6}, 1\text{e}{-3}]^3 \times [0.1, 0.9]
-\]</div>
-<p>Here, <span class="math notranslate nohighlight">\(C_1,\dots,C_6\)</span> are the capacitance values (in Farads), <span class="math notranslate nohighlight">\(L_1,L_2,L_3\)</span> are the inductance values (in Henries), and <span class="math notranslate nohighlight">\(T_1\)</span> is the duty cycle shared across all 5 switches. The duty cycle <span class="math notranslate nohighlight">\(T_1\)</span> denotes the fraction of time during which the switches are in the “on” state and governs a periodic on-off pattern repeated at high frequency throughout the simulation.</p>
-</section>
-<section id="objectives">
-<h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
-<p>The simulation outputs two scalar values: <em>DcGain</em> and <em>Voltage Ripple</em>. The former represents the ratio of load to input voltage and should ideally approximate a predefined constant, such as <span class="math notranslate nohighlight">\(0.25\)</span>, as closely as possible. Meanwhile, the latter quantifies the voltage fluctuation at the load.</p>
-<p><strong>DcGain objective:</strong></p>
-<div class="math notranslate nohighlight">
-\[
-\min_{\mathbf{x} \in \mathcal{X}} \; \bigg|\frac{\overline{V_{load}(t)}}{V_{source}} - 0.25\bigg|
-= \bigg|\frac{1}{V_{source}} \cdot \frac{1}{T} \sum_{i=1}^{N-1} \frac{V_{load}(t_{i+1}) + V_{load}(t_i)}{2} \cdot (t_{i+1} - t_i) - 0.25\bigg|
-\]</div>
-<p>where <span class="math notranslate nohighlight">\(\overline{V_{load}(t)}\)</span> is the average load voltage, <span class="math notranslate nohighlight">\(V_{source} = 1000\)</span> volts, and <span class="math notranslate nohighlight">\(T = t_N - t_1\)</span> is the simulation duration.</p>
-<p><strong>Voltage Ripple objective:</strong></p>
-<div class="math notranslate nohighlight">
-\[
-\min_{\mathbf{x} \in \mathcal{X}} \; \text{Voltage Ripple}
-= \frac{V_{pp}(t)}{\overline{V_{load}(t)}}
-= \frac{\max_{i \in [1, N]} V_{load}(t_i) - \min_{i \in [1, N]} V_{load}(t_i)}{\overline{V_{load}(t)}}
-\]</div>
-<p>where <span class="math notranslate nohighlight">\(V_{pp}\)</span> is the peak-to-peak load voltage calculated during transient analysis.</p>
-</section>
-<section id="conditions">
-<h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
-<p>This problem does not include environmental or operational conditions as part of its input specification. Unlike other domains where the simulation setup may vary based on conditions (e.g., load configurations or external temperatures), the circuit is simulated under fixed source voltage and switching behavior. As a result, the design optimization task focuses solely on tuning internal circuit parameters, with no external conditions to vary. More complex variants of this problem — involving multiple topologies or variable source voltages — may be considered in future releases.</p>
-</section>
-<section id="simulator">
-<h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
-<p>The simulator is ngSpice circuit simulator. You can download it based on your operating system:</p>
-<ul class="simple">
-<li><p>Windows: <a class="reference external" href="https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/">https://sourceforge.net/projects/ngspice/files/ng-spice-rework/45.2/</a></p></li>
-<li><p>MacOS: <code class="docutils literal notranslate"><span class="pre">brew</span> <span class="pre">install</span> <span class="pre">ngspice</span></code></p></li>
-<li><p>Linux: <code class="docutils literal notranslate"><span class="pre">sudo</span> <span class="pre">apt-get</span> <span class="pre">install</span> <span class="pre">ngspice</span></code></p></li>
-</ul>
-</section>
-<section id="dataset">
-<h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
-<p>The dataset linked to this problem is hosted on the <a class="reference external" href="https://huggingface.co/datasets/IDEALLab/power_electronics">Hugging Face Datasets Hub</a>.</p>
-<section id="v0">
-<h3>v0<a class="headerlink" href="#v0" title="Link to this heading">#</a></h3>
-<section id="fields">
-<h4>Fields<a class="headerlink" href="#fields" title="Link to this heading">#</a></h4>
-<p>The dataset contains 3 fields:</p>
-<ul class="simple">
-<li><p><code class="docutils literal notranslate"><span class="pre">initial_design</span></code>: The 20-dimensional design variable defined above.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">DcGain</span></code>: The ratio of load vs. input voltage.</p></li>
-<li><p><code class="docutils literal notranslate"><span class="pre">Voltage_Ripple</span></code>: The fluctuation of voltage on the load <code class="docutils literal notranslate"><span class="pre">R0</span></code>.</p></li>
-</ul>
-</section>
-<section id="creation-method">
-<h4>Creation Method<a class="headerlink" href="#creation-method" title="Link to this heading">#</a></h4>
-<p>We created this dataset in 3 parts. All the 3 parts are simulated with {<code class="docutils literal notranslate"><span class="pre">GS0_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS1_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS2_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS3_L1</span></code>, <code class="docutils literal notranslate"><span class="pre">GS4_L1</span></code>} = {1, 0, 0, 1, 1} and {<code class="docutils literal notranslate"><span class="pre">GS0_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS1_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS2_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS3_L2</span></code>, <code class="docutils literal notranslate"><span class="pre">GS4_L2</span></code>} = {1, 0, 1, 1, 0}.
-Here are the 3 parts:</p>
+  <section class="tex2jax_ignore mathjax_ignore" id="dataset-generation-via-slurm">
+<h1>Dataset Generation via Slurm<a class="headerlink" href="#dataset-generation-via-slurm" title="Link to this heading">#</a></h1>
+<p>EngiBench ships ready-to-use datasets for most workflows. When you need to generate additional simulation or optimization samples, use a problem-provided dataset-generation entry point and submit it through your HPC cluster’s Slurm scheduler. This page shows the end-to-end pattern with the Airfoil dataset-generation script; for the lower-level callback API, see the <a class="reference internal" href="../../utils/slurm/"><span class="std std-doc">Slurm utilities</span></a>.</p>
+<section id="when-to-use-this-workflow">
+<h2>When to use this workflow<a class="headerlink" href="#when-to-use-this-workflow" title="Link to this heading">#</a></h2>
+<p>Use this workflow when you need to create new samples rather than only loading the published Hugging Face dataset through <code class="docutils literal notranslate"><span class="pre">problem.dataset</span></code>. The exact entry point and command-line arguments are problem-specific, but the overall pattern is:</p>
 <ol class="arabic simple">
-<li><p>6 capacitors and 3 inductors only take their min and max values. <code class="docutils literal notranslate"><span class="pre">T1</span></code> ranges {0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9}. There are 2^6 * 2^3 * 9 = 4608 samples.</p></li>
-<li><p>Random sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Min and max values in each dimension will not be sampled.</p></li>
-<li><p>Latin hypercube sample 4608 points in the 6 + 3 + 1 = 10 dimensional space. Each dimension is split into 10 intervals. Min and max values in each dimension will not be sampled.</p></li>
+<li><p>write a small shell script with the cluster resources and environment setup;</p></li>
+<li><p>activate an environment with EngiBench installed;</p></li>
+<li><p>call the problem’s dataset-generation Python script; and</p></li>
+<li><p>submit the shell script with <code class="docutils literal notranslate"><span class="pre">sbatch</span></code>.</p></li>
 </ol>
 </section>
+<section id="airfoil-example-submission-script">
+<h2>Airfoil example submission script<a class="headerlink" href="#airfoil-example-submission-script" title="Link to this heading">#</a></h2>
+<p>The Airfoil problem includes a dataset-generation entry point at <a class="reference external" href="https://github.com/IDEALLab/EngiBench/tree/main/engibench/problems/airfoil/dataset_slurm_airfoil.py"><code class="docutils literal notranslate"><span class="pre">engibench/problems/airfoil/dataset_slurm_airfoil.py</span></code></a>. The script below submits a small simulation dataset-generation run. Save it as <code class="docutils literal notranslate"><span class="pre">dataset_slurm_airfoil.sh</span></code> and adjust paths, module names, and resource settings for your cluster.</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span><span class="ch">#!/bin/bash</span>
+<span class="c1">#SBATCH -t 01:00:00</span>
+<span class="c1">#SBATCH -n 1</span>
+<span class="c1">#SBATCH -c 1</span>
+
+<span class="nb">export</span><span class="w"> </span><span class="nv">OMP_NUM_THREADS</span><span class="o">=</span><span class="m">1</span>
+
+<span class="c1"># Apptainer image cache. Using $HOME keeps the script portable across clusters.</span>
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPTAINER_HOME</span><span class="o">=</span><span class="nv">$HOME</span>/scratch/EngiBench
+<span class="nb">export</span><span class="w"> </span><span class="nv">APPTAINER_CACHEDIR</span><span class="o">=</span><span class="nv">$APPTAINER_HOME</span>/apptainer-cache
+
+<span class="c1"># Load the Apptainer module if your cluster requires it. For example, this is</span>
+<span class="c1"># not required on ETH&#39;s Euler cluster, where Apptainer is available by default</span>
+<span class="c1"># and no such module exists.</span>
+module<span class="w"> </span>load<span class="w"> </span>apptainer
+
+<span class="c1"># Activate a preconfigured Python environment with EngiBench installed.</span>
+<span class="c1"># Adjust the path to your virtual environment. The convention used by `uv` and</span>
+<span class="c1"># most Python tooling is `.venv`; this example assumes the virtual environment</span>
+<span class="c1"># lives in the parent directory.</span>
+<span class="nb">source</span><span class="w"> </span>../.venv/bin/activate
+
+<span class="c1"># Run the dataset-generation Python file. The CLI exposes many parameters of</span>
+<span class="c1"># the dataset generation, including the number of LHS samples and the Mach,</span>
+<span class="c1"># Reynolds, and angle-of-attack ranges. Further customization, such as changing</span>
+<span class="c1"># the sampling strategy or algorithm, requires editing the Python file.</span>
+python<span class="w"> </span>../engibench/problems/airfoil/dataset_slurm_airfoil.py<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-type<span class="w"> </span>simulate<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-account<span class="w"> </span><span class="s2">&quot;</span><span class="nv">$SLURM_JOB_ACCOUNT</span><span class="s2">&quot;</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-n_designs<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-n_flows<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-group_size<span class="w"> </span><span class="m">1</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-minutes_per_sim<span class="w"> </span><span class="m">5</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-n_slurm_array<span class="w"> </span><span class="m">1000</span><span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-min_ma<span class="w"> </span><span class="m">0</span>.25<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-max_ma<span class="w"> </span><span class="m">0</span>.75<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-min_re<span class="w"> </span><span class="m">1</span>.0e6<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-max_re<span class="w"> </span><span class="m">1</span>.0e7<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-min_aoa<span class="w"> </span><span class="m">0</span>.0<span class="w"> </span><span class="se">\</span>
+<span class="w">    </span>-max_aoa<span class="w"> </span><span class="m">10</span>.0
+</pre></div>
+</div>
 </section>
+<section id="submit-the-job">
+<h2>Submit the job<a class="headerlink" href="#submit-the-job" title="Link to this heading">#</a></h2>
+<p>Submit the script, passing your Slurm account on the command line:</p>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>sbatch<span class="w"> </span>-A<span class="w"> </span>&lt;your-account&gt;<span class="w"> </span>dataset_slurm_airfoil.sh
+</pre></div>
+</div>
+<p>The account is exposed inside the job via <code class="docutils literal notranslate"><span class="pre">$SLURM_JOB_ACCOUNT</span></code> and forwarded to <code class="docutils literal notranslate"><span class="pre">dataset_slurm_airfoil.py</span></code> through the <code class="docutils literal notranslate"><span class="pre">-account</span></code> flag. The dataset-generation script uses that account for the worker array jobs it spawns internally.</p>
 </section>
-<section id="references">
-<h2>References<a class="headerlink" href="#references" title="Link to this heading">#</a></h2>
-<p>If you use this problem in your research, please cite the following paper:</p>
+<section id="cluster-specific-settings">
+<h2>Cluster-specific settings<a class="headerlink" href="#cluster-specific-settings" title="Link to this heading">#</a></h2>
+<p>Before running a large dataset-generation job, check your cluster’s Slurm policy and start with a small test run. In particular:</p>
+<ul class="simple">
+<li><p>adjust the <code class="docutils literal notranslate"><span class="pre">module</span> <span class="pre">load</span> <span class="pre">apptainer</span></code> line to match your cluster, or remove it if Apptainer is available by default;</p></li>
+<li><p>adjust the virtual environment path so the job activates the environment where EngiBench is installed;</p></li>
+<li><p>start with small values for <code class="docutils literal notranslate"><span class="pre">-n_designs</span></code>, <code class="docutils literal notranslate"><span class="pre">-n_flows</span></code>, <code class="docutils literal notranslate"><span class="pre">-group_size</span></code>, and <code class="docutils literal notranslate"><span class="pre">-minutes_per_sim</span></code>; and</p></li>
+<li><p>keep <code class="docutils literal notranslate"><span class="pre">-n_slurm_array</span></code> within the job-array limit recommended by your cluster.</p></li>
+</ul>
 </section>
 </section>
 
@@ -750,20 +685,20 @@ Here are the 3 parts:</p>
                   
 <div class="prev-next-area">
     <a class="left-prev"
-       href="../photonics2d/"
+       href="../basic_usage/"
        title="previous page">
       <i class="fa-solid fa-angle-left"></i>
       <div class="prev-next-info">
         <p class="prev-next-subtitle">previous</p>
-        <p class="prev-next-title">Photonics2D</p>
+        <p class="prev-next-title">Basic Usage</p>
       </div>
     </a>
     <a class="right-next"
-       href="../heatconduction/"
+       href="../api/"
        title="next page">
       <div class="prev-next-info">
         <p class="prev-next-subtitle">next</p>
-        <p class="prev-next-title">HeatConduction</p>
+        <p class="prev-next-title">API</p>
       </div>
       <i class="fa-solid fa-angle-right"></i>
     </a>
@@ -785,20 +720,10 @@ Here are the 3 parts:</p>
   </div>
   <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
     <ul class="pst-show_toc_level nav section-nav flex-column">
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design Space</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a><ul class="nav section-nav flex-column">
-<li class="toc-h3 nav-item toc-entry"><a class="reference internal nav-link" href="#v0">v0</a><ul class="nav section-nav flex-column">
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#fields">Fields</a></li>
-<li class="toc-h4 nav-item toc-entry"><a class="reference internal nav-link" href="#creation-method">Creation Method</a></li>
-</ul>
-</li>
-</ul>
-</li>
-<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#references">References</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#when-to-use-this-workflow">When to use this workflow</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#airfoil-example-submission-script">Airfoil example submission script</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#submit-the-job">Submit the job</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#cluster-specific-settings">Cluster-specific settings</a></li>
 </ul>
   </nav></div>
 
