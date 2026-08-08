@@ -33,6 +33,7 @@ from engibench.problems.airfoil.templates import cli_interface
 from engibench.problems.airfoil.utils import calc_area
 from engibench.problems.airfoil.utils import calc_off_wall_distance
 from engibench.problems.airfoil.utils import reorder_coords
+from engibench.problems.airfoil.utils import reorder_coords_fields
 from engibench.problems.airfoil.utils import scale_coords
 from engibench.utils import container
 from engibench.utils.files import clone_dir
@@ -44,6 +45,19 @@ if find_spec("pyoptsparse") is None:
     sys.modules["pyoptsparse"] = fake_pyoptsparse
 
 DesignType = dict[str, Any]
+
+
+@dataclass
+class AirfoilSimulationResult(SimulationResult):
+    """Simulation result for the :class:`Airfoil` problem.
+
+    Extends :class:`SimulationResult` with the surface field data extracted from the simulator
+    slice output, in addition to the objective values (drag and lift).
+    """
+
+    surface_fields: npt.NDArray
+    """Surface geometry and field variables, shape ``(6, N)`` with rows
+    ``[CoordinateX, CoordinateY, VelocityX, VelocityY, VelocityZ, CoefPressure]``."""
 
 
 def self_intersect(curve: npt.NDArray[np.float64]) -> tuple[int, npt.NDArray[np.float64], npt.NDArray[np.float64]] | None:
@@ -270,14 +284,20 @@ class Airfoil(Problem[DesignType]):
 
         return filename
 
-    def simulator_output_to_design(self, simulator_output: str | None = None) -> npt.NDArray[np.float32]:
+    def simulator_output_to_design(
+        self, simulator_output: str | None = None, *, field_output: bool = False
+    ) -> npt.NDArray[np.float32]:
         """Converts a simulator output to a design.
 
         Args:
             simulator_output (str): The simulator output to convert. If None, the latest slice file is used.
+            field_output (bool): If True, returns ordered coordinates together with their corresponding
+                surface field variables (VelocityX, VelocityY, VelocityZ, CoefPressure) as an array of
+                shape ``(6, N)``. If False (default), returns only the ordered coordinates as shape ``(2, N)``.
 
         Returns:
-            np.ndarray: The corresponding design.
+            np.ndarray: The reordered airfoil coordinates, shape ``(2, N)``, or coordinates with field
+                variables, shape ``(6, N)``, when ``field_output=True``.
         """
         if simulator_output is None:
             # Take latest slice file
@@ -315,6 +335,8 @@ class Airfoil(Problem[DesignType]):
         # Concatenate node connections to the main data
         slice_df = pd.concat([slice_df, nodes_arr], axis=1)
 
+        if field_output:
+            return reorder_coords_fields(slice_df)
         return reorder_coords(slice_df)
 
     def simulate(self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4) -> npt.NDArray:
@@ -326,14 +348,17 @@ class Airfoil(Problem[DesignType]):
             mpicores (int): The number of MPI cores to use in the simulation.
 
         Returns:
-            Objective values as the performance of the design.
+            Objective values ``np.array([drag, lift])`` as the performance of the design.
         """
         return self.simulate_verbose(design, config, mpicores=mpicores).objective_values
 
     def simulate_verbose(
         self, design: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
-    ) -> SimulationResult:
-        """Simulates the performance of an airfoil design.
+    ) -> AirfoilSimulationResult:
+        """Simulates the performance of an airfoil design and returns the surface fields.
+
+        Runs the same simulation as :meth:`simulate` but additionally extracts the surface field
+        variables from the simulator slice output.
 
         Args:
             design (dict): The design to simulate.
@@ -341,7 +366,9 @@ class Airfoil(Problem[DesignType]):
             mpicores (int): The number of MPI cores to use in the simulation.
 
         Returns:
-            `SimulationResult` instance containing objective values as the performance of the design.
+            `AirfoilSimulationResult` instance containing the objective values ``np.array([drag, lift])``
+            and the ``surface_fields`` array of shape ``(6, N)`` with rows
+            ``[CoordinateX, CoordinateY, VelocityX, VelocityY, VelocityZ, CoefPressure]``.
         """
         if isinstance(design["angle_of_attack"], np.ndarray):
             design["angle_of_attack"] = design["angle_of_attack"][0]
@@ -380,7 +407,8 @@ class Airfoil(Problem[DesignType]):
         outputs = np.load(self.__local_study_dir + "/output/outputs.npy")
         lift = float(outputs[3])
         drag = float(outputs[4])
-        return SimulationResult(np.array([drag, lift]))
+        surface_fields = self.simulator_output_to_design(field_output=True)
+        return AirfoilSimulationResult(objective_values=np.array([drag, lift]), surface_fields=surface_fields)
 
     def optimize(
         self, starting_point: DesignType, config: dict[str, Any] | None = None, mpicores: int = 4
