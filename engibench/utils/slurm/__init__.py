@@ -162,7 +162,7 @@ The pickled data is still accessible here: {reduced_path}
         run_sbatch(cmd, slurm_args=slurm_args, job_dependency=self.job_id, wait=True)
 
 
-def sbatch_map(  # noqa: PLR0913
+def sbatch_map(
     f: Callable[..., R],
     args: Iterable[dict[str, Any]],
     slurm_args: SlurmConfig | None = None,

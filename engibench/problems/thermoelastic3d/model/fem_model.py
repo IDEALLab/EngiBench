@@ -274,7 +274,7 @@ class FeaModel3D:
             ABAQUS HOOK: Solve the linear systems using the Abaqus solver
             """
             # Forward FEA with BCs & assembly (3D)
-            res = fe_mthm_bc_3d(nely, nelx, nelz, penal, x, ke, k_eth, c_ethm, tref, bcs)
+            res = fe_mthm_bc_3d(nely, nelx, nelz, penal=penal, x=x, ke=ke, k_eth=k_eth, c_ethm=c_ethm, tref=tref, bcs=bcs)
 
             kth = res.kth
             um = res.um

@@ -58,7 +58,7 @@ def indices_to_binary_matrix(indices: list[int], nelx: int, nely: int) -> npt.ND
     return flat_matrix.reshape((nelx, nely))
 
 
-def plot_multi_physics(  # noqa: PLR0913, PLR0915
+def plot_multi_physics(  # noqa: PLR0915
     design: npt.NDArray,
     structural_bcs: npt.NDArray,
     thermal_bcs: npt.NDArray,

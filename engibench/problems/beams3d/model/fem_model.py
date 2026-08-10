@@ -216,7 +216,7 @@ class FeaModel3D:
             t0 = time.time()
             tcur = t0
 
-            res = fe_structural_bc_3d(nely, nelx, nelz, penal, x, ke, bcs, context=context)
+            res = fe_structural_bc_3d(nely, nelx, nelz, penal=penal, x=x, ke=ke, bcs=bcs, context=context)
             um = res.um
 
             t_forward = time.time() - tcur

@@ -44,10 +44,11 @@ class FEMthmBCResult3D:
     """External mechanical load vector (ndofm,)"""
 
 
-def fe_mthm_bc_3d(  # noqa: PLR0915, PLR0913
+def fe_mthm_bc_3d(  # noqa: PLR0915
     nely: int,
     nelx: int,
     nelz: int,
+    *,
     penal: float,
     x: np.ndarray,  # shape: (nely, nelx, nelz)
     ke: np.ndarray,  # (24, 24)  from fe_melthm_3d

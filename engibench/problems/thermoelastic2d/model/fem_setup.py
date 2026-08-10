@@ -31,9 +31,10 @@ class FEMthmBCResult:
     fp: np.ndarray  # Force vector used for mechanical loading.
 
 
-def fe_mthm_bc(  # noqa: PLR0915, PLR0913
+def fe_mthm_bc(  # noqa: PLR0915
     nely: int,
     nelx: int,
+    *,
     penal: float,
     x: np.ndarray,
     ke: np.ndarray,

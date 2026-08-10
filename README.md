@@ -52,7 +52,7 @@ problem = Beams2D(seed=0)
 problem.design_space  # Box(0.0, 1.0, (50, 100), float64)
 problem.objectives  # (("compliance", "MINIMIZE"),)
 problem.conditions  # (("volfrac", 0.35), ("forcedist", 0.0),...)
-problem.dataset # A HuggingFace Dataset object
+problem.dataset  # A HuggingFace Dataset object
 
 # Train your models, e.g., inverse design
 # inverse_model = train_inverse(problem.dataset)
@@ -64,11 +64,11 @@ random_design, _ = problem.random_design()
 violated_constraints = problem.check_constraints(design=random_design, config=desired_conds)
 
 if not violated_constraints:
-   # Only simulate to get objective values
-   objs = problem.simulate(design=random_design, config=desired_conds)
-   problem.reset(seed=42)
-   # Or run a gradient-based optimizer to polish the design
-   opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
+    # Only simulate to get objective values
+    objs = problem.simulate(design=random_design, config=desired_conds)
+    problem.reset(seed=42)
+    # Or run a gradient-based optimizer to polish the design
+    opt_design, history = problem.optimize(starting_point=random_design, config=desired_conds)
 ```
 
 You can also play with the API here: [![Open In Colab](https://colab.research.google.com/assets/colab-badge.svg)](https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb). We also provide good quality implementations of algorithms compatible with the API in [EngiOpt](https://github.com/IDEALLab/EngiOpt).
