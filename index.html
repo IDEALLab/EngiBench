@@ -613,7 +613,7 @@
 <span class="n">problem</span><span class="o">.</span><span class="n">design_space</span>  <span class="c1"># Box(0.0, 1.0, (50, 100), float64)</span>
 <span class="n">problem</span><span class="o">.</span><span class="n">objectives</span>  <span class="c1"># ((&quot;compliance&quot;, &quot;MINIMIZE&quot;),)</span>
 <span class="n">problem</span><span class="o">.</span><span class="n">conditions</span>  <span class="c1"># ((&quot;volfrac&quot;, 0.35), (&quot;forcedist&quot;, 0.0),...)</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">dataset</span> <span class="c1"># A HuggingFace Dataset object</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># A HuggingFace Dataset object</span>
 
 <span class="c1"># Train your models, e.g., inverse design</span>
 <span class="c1"># inverse_model = train_inverse(problem.dataset)</span>
@@ -625,11 +625,11 @@
 <span class="n">violated_constraints</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">check_constraints</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">random_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
 
 <span class="k">if</span> <span class="ow">not</span> <span class="n">violated_constraints</span><span class="p">:</span>
-   <span class="c1"># Only simulate to get objective values</span>
-   <span class="n">objs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">random_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
-   <span class="n">problem</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
-   <span class="c1"># Or run a gradient-based optimizer to polish the design</span>
-   <span class="n">opt_design</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">starting_point</span><span class="o">=</span><span class="n">random_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
+    <span class="c1"># Only simulate to get objective values</span>
+    <span class="n">objs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">simulate</span><span class="p">(</span><span class="n">design</span><span class="o">=</span><span class="n">random_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
+    <span class="n">problem</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="mi">42</span><span class="p">)</span>
+    <span class="c1"># Or run a gradient-based optimizer to polish the design</span>
+    <span class="n">opt_design</span><span class="p">,</span> <span class="n">history</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">optimize</span><span class="p">(</span><span class="n">starting_point</span><span class="o">=</span><span class="n">random_design</span><span class="p">,</span> <span class="n">config</span><span class="o">=</span><span class="n">desired_conds</span><span class="p">)</span>
 </pre></div>
 </div>
 <p>You can also play with the API here: <a class="reference external" href="https://colab.research.google.com/github/ideallab/engibench/blob/main/tutorial.ipynb"><img alt="Open In Colab" src="https://colab.research.google.com/assets/colab-badge.svg" /></a>. We also provide good quality implementations of algorithms compatible with the API in <a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a>.</p>
