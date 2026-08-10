@@ -6,7 +6,7 @@ from typing import Annotated, Any
 
 from datasets import Dataset
 from gymnasium import spaces
-import napari
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
@@ -23,6 +23,8 @@ from engibench.problems.thermoelastic3d.model.fem_model import FeaModel3D
 from engibench.utils.upcast import upcast
 
 NELX = NELY = NELZ = 16
+DENSITY_THRESHOLD = 0.5  # voxels denser than this are drawn solid by render()
+# design is indexed [y, x, z]; transpose to [x, y, z] so the axes read naturally.
 
 
 def _default_force_elements(nelx: int, nely: int, nelz: int) -> npt.NDArray[np.int64]:
@@ -203,7 +205,7 @@ class ThermoElastic3D(Problem[npt.NDArray]):
                 else:
                     boundary_dict[key] = value
 
-        results = FeaModel3D(plot=False, eval_only=True).run(boundary_dict, x_init=design)
+        results = FeaModel3D(eval_only=True).run(boundary_dict, x_init=design)
         return SimulationResult(
             np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
         )
@@ -222,14 +224,14 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         """
         boundary_dict = dataclasses.asdict(self.conditions)
         boundary_dict.update({k: v for k, v in (config or {}).items() if k in boundary_dict})
-        results = FeaModel3D(plot=False, eval_only=False, max_iter=(config or {}).get("max_iter", self.max_iter)).run(
+        results = FeaModel3D(eval_only=False, max_iter=(config or {}).get("max_iter", self.max_iter)).run(
             boundary_dict, x_init=starting_point
         )
         design = np.array(results["design"]).astype(np.float32)
         opti_steps = results["opti_steps"]
         return design, opti_steps
 
-    def render(self, design: np.ndarray, *, open_window: bool = False) -> np.ndarray:
+    def render(self, design: np.ndarray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -239,16 +241,18 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         Returns:
             fig (np.ndarray): The rendered design.
         """
-        design = np.array(design)
-        design = np.transpose(design, (2, 0, 1))
+        solid = np.asarray(design).transpose(1, 0, 2) > DENSITY_THRESHOLD
 
-        viewer = napari.Viewer()
-        viewer.add_image(design, name="rho", rendering="attenuated_mip")
-        viewer.dims.ndisplay = 3  # switch to 3D view
-        export = viewer.export_figure(flash=False)
-        if open_window is True:
-            napari.run()
-        return export
+        fig = plt.figure()
+        ax = fig.add_subplot(projection="3d")
+        ax.voxels(solid, edgecolor="gray")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+
+        if open_window:
+            plt.show()
+        return fig, ax
 
     def random_design(self, dataset_split: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.
