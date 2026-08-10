@@ -78,7 +78,8 @@ class PowerElectronics(Problem[npt.NDArray]):
             original_netlist_path: The path to the original netlist file. Accepts both relative and absolute paths.
             bucket_id: The bucket ID for the netlist file. E.g. "5_4_3_6_10".
             mode: The mode for the simulation. Default to "control". mode = "batch" is for development.
-            ngspice_path: The path to the ngspice executable for Windows.
+            ngspice_path: Optional path to the ngspice executable. When omitted,
+                ``NGSPICE_PATH`` and then ``PATH`` are used.
         """
         super().__init__(seed=seed)
 
@@ -110,7 +111,7 @@ class PowerElectronics(Problem[npt.NDArray]):
         self.config = process_sweep_data(config=self.config, sweep_data=design.tolist())
         rewrite_netlist(self.config, rewrite_netlist_str, edge_map)
         # Use the ngspice wrapper to run the simulation
-        ngspice = NgSpice(ngspice_windows_path=self.ngspice_path)
+        ngspice = NgSpice(ngspice_path=self.ngspice_path)
         ngspice.run(self.config.rewrite_netlist_path, self.config.log_file_path)
         DcGain, VoltageRipple = process_log_file(self.config.log_file_path)
         return SimulationResult(np.array([DcGain, VoltageRipple]))
