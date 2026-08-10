@@ -69,7 +69,7 @@ def fe_mthm_bc_3d(  # noqa: PLR0915
         nelx (int): Number of horizontal elements.
         nelz (int): Number of z-axis elements.
         penal (Union[int, float]): SIMP penalty factor used to penalize intermediate densities.
-        x (np.ndarray): 2D array of design variables (densities) with shape (nely, nelx).
+        x (np.ndarray): 3D array of design variables (densities) with shape (nely, nelx, nelz).
         ke (np.ndarray): Element stiffness matrix.
         k_eth (np.ndarray): Element conductivity matrix.
         c_ethm (np.ndarray): Element coupling matrix between the thermal and mechanical fields.
