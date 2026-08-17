@@ -42,7 +42,7 @@ VOLUME_FRACTION_TOLERANCE = 0.01
 """Warning tolerance for the raw all-cell fluid-volume constraint."""
 
 DEFAULT_CONTAINER_IMAGE = (
-    "ghcr.io/arthurdrake1/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131"
+    "ghcr.io/ideallab/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131"
 )
 """Published OCI image pinned by immutable manifest digest."""
 

@@ -781,13 +781,13 @@ def test_container_backend_exports_image_case_template(
         (case / "src_TF").mkdir()
 
     monkeypatch.setattr("engibench.problems.mto2d.model.runner.container.run", fake_container_run)
-    runner = MTO2DRunner(image="ghcr.io/arthurdrake1/engibench-mto2d:test")
+    runner = MTO2DRunner(image="ghcr.io/ideallab/engibench-mto2d:test")
 
     runner._export_case_template(run_root, case)  # noqa: SLF001
 
     assert captured["args"] == (
         ["mto2d-export-case", "/work/case"],
-        "ghcr.io/arthurdrake1/engibench-mto2d:test",
+        "ghcr.io/ideallab/engibench-mto2d:test",
     )
     assert captured["kwargs"]["mounts"] == ((str(run_root), "/work"),)
     assert captured["kwargs"]["env"] == {
