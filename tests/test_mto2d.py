@@ -11,6 +11,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pytest
 
+from engibench.constraint import Criticality
 from engibench.problems.mto2d import MTO2D
 from engibench.problems.mto2d.model.design_io import DESIGN_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
@@ -23,6 +24,7 @@ from engibench.problems.mto2d.model.runner import SCHEDULE_RUNTIME_MARKER
 from engibench.problems.mto2d.model.runner import SCHEDULE_RUNTIME_VERSION
 from engibench.problems.mto2d.model.runner import SolverRun
 from engibench.problems.mto2d.model.runner import SolverRunError
+from engibench.problems.mto2d.v0 import main as mto2d_main
 from tests.problem_policies import PROBLEM_TEST_POLICIES
 
 OPTIMIZATION_STEPS = 3
@@ -273,6 +275,21 @@ def test_uniform_start_and_render_use_native_half_domain() -> None:
     plt.close(fig)
 
 
+def test_check_constraints_warns_when_fluid_volume_exceeds_bound() -> None:
+    problem = MTO2D(volfrac=0.25)
+    feasible = problem.uniform_starting_design(0.25)
+
+    assert not problem.check_constraints(feasible, {})
+
+    violations = problem.check_constraints(np.ones(HALF_DESIGN_SHAPE, dtype=np.float32), {})
+
+    assert not violations.by_criticality(Criticality.Error)
+    warnings = violations.by_criticality(Criticality.Warning)
+    assert len(warnings) == 1
+    assert "fluid_volume_bound" in str(warnings)
+    assert "All-cell fluid fraction 1" in str(warnings)
+
+
 def test_random_design_uses_injected_dataset_and_reset() -> None:
     first = np.full(HALF_DESIGN_SHAPE, 0.2, dtype=np.float32)
     second = np.full(HALF_DESIGN_SHAPE, 0.8, dtype=np.float32)
@@ -285,6 +302,45 @@ def test_random_design_uses_injected_dataset_and_reset() -> None:
 
     assert index_a == index_b
     np.testing.assert_array_equal(design_a, design_b)
+
+
+def test_main_uses_sampled_conditions_without_hub_or_container_access(capsys: pytest.CaptureFixture[str]) -> None:
+    runner = FakeRunner()
+    render_open_window: list[bool] = []
+    design = np.full(HALF_DESIGN_SHAPE, 0.2, dtype=np.float32)
+    dataset = {
+        "train": [
+            {
+                "optimal_design": design.ravel(),
+                "inlet_velocity": -0.0569,
+                "max_power_dissipation": 57.5,
+                "volfrac": 0.26,
+                "mean_temperature": 22.171801,
+                "power_dissipation": 57.488201,
+            }
+        ]
+    }
+
+    class ExampleMTO2D(MTO2D):
+        def __init__(self, seed: int = 0) -> None:
+            super().__init__(seed=seed, dataset=dataset, runner=runner)  # type: ignore[arg-type]
+
+        def render(self, design: np.ndarray, *, open_window: bool = False) -> tuple[Any, Any]:
+            render_open_window.append(open_window)
+            return None, None
+
+    mto2d_main(ExampleMTO2D)
+
+    output = capsys.readouterr().out
+    _recorded_design, settings, kind = runner.calls[-1]
+    assert kind == "simulate"
+    assert settings.inlet_velocity == pytest.approx(-0.0569)
+    assert settings.max_power_dissipation == pytest.approx(57.5)
+    assert settings.volume_fraction == pytest.approx(0.26)
+    assert render_open_window == [False]
+    assert "Stored objectives: mean_temperature=22.171801, power_dissipation=57.488201" in output
+    assert "Simulated objectives: mean_temperature=9, power_dissipation=61" in output
+    assert "Simulation diagnostics:" in output
 
 
 def test_default_solver_config_uses_configured_container_reference() -> None:
@@ -307,11 +363,22 @@ def test_default_solver_config_uses_configured_container_reference() -> None:
     [
         ({"mode": "invalid"}, "mode"),
         ({"optimization_schedule": "invalid"}, "optimization_schedule"),
+        ({"continuation_profile": "quadratic"}, "continuation_profile"),
+        ({"power_bound_start": 0.0}, "power_bound_start"),
+        ({"volfrac": 0.01}, "volfrac"),
+    ],
+)
+def test_invalid_problem_config_is_rejected(config: dict[str, Any], message: str) -> None:
+    with pytest.raises(ValueError, match=message):
+        MTO2D(**config)
+
+
+@pytest.mark.parametrize(
+    ("config", "message"),
+    [
         ({"mode": "warm"}, "warm repair"),
         ({"max_iter": 201}, "shorter exact prefix"),
         ({"continuation_steps": 1}, "continuation_steps"),
-        ({"continuation_profile": "quadratic"}, "continuation_profile"),
-        ({"power_bound_start": 0.0}, "power_bound_start"),
         (
             {
                 "max_iter": 5,
@@ -320,12 +387,24 @@ def test_default_solver_config_uses_configured_container_reference() -> None:
             },
             "divisible",
         ),
-        ({"volfrac": 0.01}, "volfrac"),
+        ({"qu_start": 0.0}, "qu_start"),
+        ({"alpha_max_start": -1.0}, "alpha_max_start"),
+        ({"heaviside_start": 0.0}, "heaviside_start"),
     ],
 )
-def test_invalid_problem_config_is_rejected(config: dict[str, Any], message: str) -> None:
+def test_invalid_optimization_config_is_rejected_only_by_optimize(
+    config: dict[str, Any],
+    message: str,
+) -> None:
+    runner = FakeRunner()
+    problem = MTO2D(**config, runner=runner)  # type: ignore[arg-type]
+    design = problem.uniform_starting_design(problem.conditions.volfrac)
+
+    problem.simulate(design)
+
     with pytest.raises(ValueError, match=message):
-        MTO2D(**config)
+        problem.optimize(design)
+    assert [kind for _design, _settings, kind in runner.calls] == ["simulate"]
 
 
 def test_runner_prepares_and_parses_isolated_frozen_case(tmp_path: Path) -> None:
@@ -396,6 +475,7 @@ def test_legacy_schedule_prepares_source_initialization_and_endpoints(tmp_path: 
         optimization_schedule="legacy",
     )
 
+    MTO2DRunner.validate_settings(settings, "optimize")
     MTO2DRunner()._prepare_case(template, design, settings, "optimize")  # noqa: SLF001
 
     transport = (template / "app" / "constant" / "transportProperties").read_text(encoding="utf-8")
@@ -778,18 +858,23 @@ def test_simulation_rejects_unpatched_solver_gamma(
         problem.simulate(problem.uniform_starting_design(0.61))
 
 
-def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:
+@pytest.mark.parametrize("retention", ["discard", "retain"])
+def test_solver_failure_reports_log_tail_and_retained_artifacts(
+    tmp_path: Path,
+    retention: str,
+) -> None:
+    retain_on_failure = retention == "retain"
     template = _make_case_template(tmp_path)
 
     def failing_execute(case_dir: Path, _settings: RunnerSettings, _kind: str) -> None:
-        (case_dir / "run.log").write_text("solver crashed\n", encoding="utf-8")
+        (case_dir / "run.log").write_text("fatal solver marker\n", encoding="utf-8")
         raise RuntimeError("solver returned non-zero exit status 7")
 
     problem = MTO2D(
         runner=MTO2DRunner(
             case_template=str(template),
             work_dir=str(tmp_path),
-            retain_on_failure=True,
+            retain_on_failure=retain_on_failure,
             execute=failing_execute,
         )
     )
@@ -798,8 +883,14 @@ def test_solver_failure_reports_retained_artifacts(tmp_path: Path) -> None:
     with pytest.raises(SolverRunError, match="returned non-zero exit status 7") as error:
         problem.simulate(design)
 
-    assert error.value.artifacts_path is not None
-    assert (error.value.artifacts_path / "case" / "run.log").is_file()
+    message = str(error.value)
+    assert "Solver log:" in message
+    assert "fatal solver marker" in message
+    if retain_on_failure:
+        assert error.value.artifacts_path is not None
+        assert (error.value.artifacts_path / "case" / "run.log").is_file()
+    else:
+        assert error.value.artifacts_path is None
 
 
 def test_shared_suite_policy_keeps_optimization_out() -> None:

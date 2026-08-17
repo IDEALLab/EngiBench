@@ -1,6 +1,6 @@
 # MTO2D
 
-```{problem:table}
+``` {problem:table}
 :lead: Arthur Drake @arthurdrake1
 ```
 

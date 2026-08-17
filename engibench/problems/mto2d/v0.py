@@ -38,10 +38,26 @@ from engibench.utils.upcast import upcast
 MIN_VOLUME_FRACTION = FIXED_CELL_COUNT / GAMMA_CELL_COUNT
 """Smallest feasible all-cell volume fraction when the design domain is solid."""
 
+VOLUME_FRACTION_TOLERANCE = 0.01
+"""Warning tolerance for the raw all-cell fluid-volume constraint."""
+
 DEFAULT_CONTAINER_IMAGE = (
     "ghcr.io/arthurdrake1/engibench-mto2d@sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131"
 )
 """Published OCI image pinned by immutable manifest digest."""
+
+
+@constraint(categories=THEORY, criticality=Criticality.Warning)
+def fluid_volume_bound(design: npt.NDArray, volfrac: float) -> None:
+    """Warn when the raw design exceeds the maximum all-cell fluid fraction."""
+    density = np.asarray(design, dtype=np.float64)
+    if density.shape != HALF_DESIGN_SHAPE:
+        return
+    actual_volume_fraction = float((density.sum() + FIXED_CELL_COUNT) / GAMMA_CELL_COUNT)
+    assert actual_volume_fraction <= volfrac + VOLUME_FRACTION_TOLERANCE, (
+        f"All-cell fluid fraction {actual_volume_fraction:.6g} exceeds maximum volfrac={volfrac:.6g} "
+        f"by more than the {VOLUME_FRACTION_TOLERANCE:.2g} warning tolerance."
+    )
 
 
 @dataclass
@@ -113,6 +129,7 @@ class MTO2D(Problem[npt.NDArray]):
         """Maximum all-cell fluid volume fraction."""
 
     conditions = Conditions()
+    design_constraints = (fluid_volume_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=HALF_DESIGN_SHAPE, dtype=np.float32)
     dataset_id = "IDEALLab/mto_2d_v0"
     container_id = DEFAULT_CONTAINER_IMAGE
@@ -150,37 +167,12 @@ class MTO2D(Problem[npt.NDArray]):
 
         @constraint(categories=IMPL)
         @staticmethod
-        def valid_optimization_schedule(
-            mode: str,
-            max_iter: int,
-            continuation_steps: int | None,
-            optimization_schedule: str,
-        ) -> None:
-            """Keep the named legacy schedule exact instead of approximating it."""
+        def valid_optimization_schedule(optimization_schedule: str) -> None:
+            """Require a supported optimization schedule."""
             assert optimization_schedule in {
                 "legacy",
                 "strict",
             }, "Config.optimization_schedule must be 'legacy' or 'strict'"
-            if optimization_schedule == "legacy":
-                assert mode == "cold", (
-                    "Config.optimization_schedule='legacy' is only valid for cold source reproduction; "
-                    "warm repair must pass Config.optimization_schedule='strict'"
-                )
-                assert max_iter <= LEGACY_OPTIMIZATION_ITERATIONS, (
-                    "Config.optimization_schedule='legacy' supports 200 steps or a shorter exact prefix"
-                )
-                assert continuation_steps is None, (
-                    "Config.continuation_steps is not configurable with Config.optimization_schedule='legacy'"
-                )
-
-        @constraint(categories=IMPL)
-        @staticmethod
-        def valid_continuation(max_iter: int, continuation_steps: int | None) -> None:
-            """Require continuation intervals supported by the legacy solver."""
-            if continuation_steps is None:
-                return
-            assert 1 <= continuation_steps <= max_iter, "Config.continuation_steps must be between 1 and max_iter"
-            assert max_iter % continuation_steps == 0, "Config.max_iter must be divisible by continuation_steps"
 
         @constraint(categories=IMPL)
         @staticmethod
@@ -280,6 +272,8 @@ class MTO2D(Problem[npt.NDArray]):
         """
         density = self._coerce_design(starting_point)
         resolved = self._resolve_config(config)
+        settings = self._runner_settings(resolved)
+        MTO2DRunner.validate_settings(settings, "optimize")
         active_power_bounds = self.active_power_bounds(resolved)
         if resolved.optimization_schedule == "legacy" and resolved.max_iter < LEGACY_OPTIMIZATION_ITERATIONS:
             warnings.warn(
@@ -297,7 +291,7 @@ class MTO2D(Problem[npt.NDArray]):
                 UserWarning,
                 stacklevel=2,
             )
-        run = self._runner.run(density, self._runner_settings(resolved), kind="optimize")
+        run = self._runner.run(density, settings, kind="optimize")
         self.last_solver_run = run
         history = [
             OptiStep(
