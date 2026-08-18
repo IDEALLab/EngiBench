@@ -123,7 +123,9 @@ class SubmittedJobArray(Generic[R]):
 
         To prevent larger workloads running on a login node, this function will raise an exception if the resulting list in pickled
         form takes more than `size_limit` bytes (recommendation: 10MB).
-        Only increase / set to 0 if you want to annoy the HPC team 😈.
+        Only increase this limit, or set it to ``None`` to disable the check, if you understand the impact on the login node
+        and your cluster policy allows it.
+
         - :attr:`f_reduce` - The callable which performs the post processing on the list of return values for each job.
         - :attr:`slurm_args` - Arguments passed to `sbatch`.
         - :attr:`size_limit` - Upper limit for the allowed size of the post processed data in pickled form.
@@ -160,7 +162,7 @@ The pickled data is still accessible here: {reduced_path}
         run_sbatch(cmd, slurm_args=slurm_args, job_dependency=self.job_id, wait=True)
 
 
-def sbatch_map(  # noqa: PLR0913
+def sbatch_map(
     f: Callable[..., R],
     args: Iterable[dict[str, Any]],
     slurm_args: SlurmConfig | None = None,

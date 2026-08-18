@@ -200,7 +200,7 @@ class MTO2DRunner:
     the same seam used by the other containerized EngiBench problems.
     """
 
-    def __init__(  # noqa: PLR0913
+    def __init__(
         self,
         image: str | None = None,
         *,

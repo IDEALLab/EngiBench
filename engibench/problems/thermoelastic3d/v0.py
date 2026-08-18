@@ -2,11 +2,11 @@
 
 import dataclasses
 from dataclasses import dataclass
-from dataclasses import field
 from typing import Annotated, Any
 
+from datasets import Dataset
 from gymnasium import spaces
-import napari
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
 
@@ -20,20 +20,32 @@ from engibench.core import Problem
 from engibench.core import SimulationResult
 from engibench.problems.thermoelastic3d.model import fem_model
 from engibench.problems.thermoelastic3d.model.fem_model import FeaModel3D
+from engibench.utils.upcast import upcast
 
 NELX = NELY = NELZ = 16
-FIXED_ELEMENTS = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
-FIXED_ELEMENTS[0, 0, 0] = 1
-FIXED_ELEMENTS[0, -1, -1] = 1
-FIXED_ELEMENTS[0, -1, 0] = 1
-FORCE_ELEMENTS_X = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
-FORCE_ELEMENTS_X[-1, -1, -1] = 1
-FORCE_ELEMENTS_Y = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
-FORCE_ELEMENTS_Y[-1, -1, -1] = 1
-FORCE_ELEMENTS_Z = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
-FORCE_ELEMENTS_Z[-1, -1, -1] = 1
-HEATSINK_ELEMENTS = np.zeros((NELX + 1, NELY + 1, NELZ + 1), dtype=int)
-HEATSINK_ELEMENTS[-1, -1, 0] = 1
+DENSITY_THRESHOLD = 0.5  # voxels denser than this are drawn solid by render()
+# design is indexed [y, x, z]; transpose to [x, y, z] so the axes read naturally.
+
+
+def _default_force_elements(nelx: int, nely: int, nelz: int) -> npt.NDArray[np.int64]:
+    """Build a vertical-load node mask from fractional load coordinates."""
+    out = np.zeros((nelx + 1, nely + 1, nelz + 1), dtype=np.int64)
+    out[-1, -1, -1] = 1
+    return out
+
+
+def _fixed_elements(nelx: int, nely: int, nelz: int) -> npt.NDArray[np.int64]:
+    """Default fixed elements: clamp 3 bottom corners."""
+    out = np.zeros((nelx + 1, nely + 1, nelz + 1), dtype=np.int64)
+    out[0, 0, 0] = out[0, -1, 0] = out[0, -1, -1] = 1
+    return out
+
+
+def _default_heatsink_elements(nelx: int, nely: int, nelz: int) -> npt.NDArray[np.int64]:
+    """Default fixed elements: clamp 3 bottom corners."""
+    out = np.zeros((nelx + 1, nely + 1, nelz + 1), dtype=np.int64)
+    out[-1, -1, 0] = 1
+    return out
 
 
 class ThermoElastic3D(Problem[npt.NDArray]):
@@ -53,25 +65,15 @@ class ThermoElastic3D(Problem[npt.NDArray]):
     class Conditions:
         """Conditions."""
 
-        fixed_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
-            default_factory=lambda: FIXED_ELEMENTS
-        )
+        fixed_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)]
         """Binary NxNxN array of the structurally fixed elements in the domain"""
-        force_elements_x: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
-            default_factory=lambda: FORCE_ELEMENTS_X
-        )
+        force_elements_x: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)]
         """Binary NxNxN array specifying elements that have a structural load in the x-direction"""
-        force_elements_y: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
-            default_factory=lambda: FORCE_ELEMENTS_Y
-        )
+        force_elements_y: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)]
         """Binary NxNxN array specifying elements that have a structural load in the y-direction"""
-        force_elements_z: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
-            default_factory=lambda: FORCE_ELEMENTS_Z
-        )
+        force_elements_z: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)]
         """Binary NxNxN array specifying elements that have a structural load in the z-direction"""
-        heatsink_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)] = field(
-            default_factory=lambda: HEATSINK_ELEMENTS
-        )
+        heatsink_elements: Annotated[npt.NDArray[np.int64], bounded(lower=0.0, upper=1.0).category(THEORY)]
         """Binary NxNxN array specifying elements that have a heat sink"""
         volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
         """Target volume fraction for the volume fraction constraint"""
@@ -85,7 +87,6 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         weight: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
         """Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization"""
 
-    conditions = Conditions()
     design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY, NELZ), dtype=np.float32)
     dataset_id = "IDEALLab/thermoelastic_3d_v0"
     container_id = None
@@ -108,7 +109,8 @@ class ThermoElastic3D(Problem[npt.NDArray]):
 
         @constraint
         @staticmethod
-        def bc_check(  # noqa: PLR0913
+        def bc_check(
+            *,
             nelx: int,
             nely: int,
             nelz: int,
@@ -125,6 +127,42 @@ class ThermoElastic3D(Problem[npt.NDArray]):
             assert force_elements_z.shape == (nelx + 1, nely + 1, nelz + 1), "Params.force_elements_z has invalid shape."
             assert heatsink_elements.shape == (nelx + 1, nely + 1, nelz + 1), "Params.heatsink_elements has invalid shape."
 
+        def __init__(
+            self,
+            nelx: int = NELX,
+            nely: int = NELY,
+            nelz: int = NELZ,
+            max_iter: int = fem_model.MAX_ITERATIONS,
+            **kwargs: Any,
+        ) -> None:
+            """Manual __init__ which handles fixed / force / heatsink elements."""
+            super().__init__(
+                **{
+                    "fixed_elements": _fixed_elements(nelx, nely, nelz),
+                    "force_elements_x": _default_force_elements(nelx, nely, nelz),
+                    "force_elements_y": _default_force_elements(nelx, nely, nelz),
+                    "force_elements_z": _default_force_elements(nelx, nely, nelz),
+                    "heatsink_elements": _default_heatsink_elements(nelx, nely, nelz),
+                    **kwargs,
+                }
+            )
+            self.max_iter = max_iter
+            self.nelx = nelx
+            self.nely = nely
+            self.nelz = nelz
+
+    conditions = upcast(Config())
+
+    @property
+    def dataset(self) -> Dataset:
+        """Pull a supported cubic dataset, failing early for unsupported grids."""
+        if not self.dataset_id:
+            raise ValueError(
+                "Thermoelastic3D dataset access is implemented only for cubic grids "
+                f"with nelx = nely = nelz = {NELX}. Got ({self.nelx}, {self.nely}, {self.nelz})."
+            )
+        return super().dataset
+
     def reset(self, seed: int | None = None) -> None:
         """Resets the simulator and numpy random to a given seed.
 
@@ -132,6 +170,22 @@ class ThermoElastic3D(Problem[npt.NDArray]):
             seed (int, optional): The seed to reset to. If None, a random seed is used.
         """
         super().reset(seed)
+
+    def __init__(self, seed: int = 0, config: dict[str, Any] | None = None) -> None:
+        """Initialize the problem, sizing default masks and design space to the grid."""
+        super().__init__(seed=seed)
+        raw_config: dict[str, Any] = {
+            key: (np.asarray(value) if isinstance(value, list) else value) for key, value in (config or {}).items()
+        }
+        self.config = self.Config(**raw_config)
+
+        self.conditions = upcast(self.config)
+        self.nelx, self.nely, self.nelz = self.config.nelx, self.config.nely, self.config.nelz
+        self.max_iter = self.config.max_iter
+        # Note: nely before nelx, as the solver stores it:
+        self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.nely, self.nelx, self.nelz), dtype=np.float32)
+        if (self.nelx, self.nely, self.nelz) != (NELX, NELY, NELZ):
+            self.dataset_id = ""
 
     def simulate_verbose(self, design: npt.NDArray, config: dict[str, Any] | None = None) -> SimulationResult:
         r"""Launch a simulation on the given design topology and return the performance.
@@ -151,7 +205,7 @@ class ThermoElastic3D(Problem[npt.NDArray]):
                 else:
                     boundary_dict[key] = value
 
-        results = FeaModel3D(plot=False, eval_only=True).run(boundary_dict, x_init=design)
+        results = FeaModel3D(eval_only=True).run(boundary_dict, x_init=design)
         return SimulationResult(
             np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
         )
@@ -170,14 +224,14 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         """
         boundary_dict = dataclasses.asdict(self.conditions)
         boundary_dict.update({k: v for k, v in (config or {}).items() if k in boundary_dict})
-        results = FeaModel3D(
-            plot=False, eval_only=False, max_iter=(config or {}).get("max_iter", self.Config.max_iter)
-        ).run(boundary_dict, x_init=starting_point)
+        results = FeaModel3D(eval_only=False, max_iter=(config or {}).get("max_iter", self.max_iter)).run(
+            boundary_dict, x_init=starting_point
+        )
         design = np.array(results["design"]).astype(np.float32)
         opti_steps = results["opti_steps"]
         return design, opti_steps
 
-    def render(self, design: np.ndarray, *, open_window: bool = False) -> np.ndarray:
+    def render(self, design: np.ndarray, *, open_window: bool = False) -> Any:
         """Renders the design in a human-readable format.
 
         Args:
@@ -187,15 +241,18 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         Returns:
             fig (np.ndarray): The rendered design.
         """
-        design = np.array(design)
-        design = np.transpose(design, (2, 0, 1))
+        solid = np.asarray(design).transpose(1, 0, 2) > DENSITY_THRESHOLD
 
-        viewer = napari.Viewer()
-        viewer.add_image(design, name="rho", rendering="attenuated_mip")
-        viewer.dims.ndisplay = 3  # switch to 3D view
-        if open_window is True:
-            napari.run()
-        return viewer.export_figure(flash=False)
+        fig = plt.figure()
+        ax = fig.add_subplot(projection="3d")
+        ax.voxels(solid, edgecolor="gray")
+        ax.set_xlabel("x")
+        ax.set_ylabel("y")
+        ax.set_zlabel("z")
+
+        if open_window:
+            plt.show()
+        return fig, ax
 
     def random_design(self, dataset_split: str = "train", design_key: str = "optimal_design") -> tuple[npt.NDArray, int]:
         """Samples a valid random design.

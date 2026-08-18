@@ -131,8 +131,6 @@ def test_python_problem_impl(
     policy = problem_test_policy(problem_class)
     if policy.supported_machines is not None and platform.machine().lower() not in policy.supported_machines:
         pytest.skip(f"{problem_class.__name__}: published runtime supports {', '.join(policy.supported_machines)}")
-    if problem_class.__module__.startswith("engibench.problems.power_electronics") and sys.platform == "darwin":
-        pytest.skip(f"Skipping {problem_class.__name__} on MacOs")
     ref_path = Path(__file__).parent / "reference" / "simulate" / (problem_id(problem_class) + ".json")
     if RefCreationMode.from_env() == RefCreationMode.Missing and ref_path.is_file():
         pytest.skip("Reference values already exist. Skipping test.")

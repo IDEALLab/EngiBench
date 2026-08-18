@@ -19,8 +19,27 @@ Available in Ubuntu 20, 22 and 24.
 
 Note: ``pip install`` won't work.
 
-### 3. MacOS
-`brew install ngspice`
+### 3. macOS
+
+EngiBench supports ngspice versions 42 through 45. Current Homebrew releases
+may be newer, so you can build the pinned CI version instead:
+
+```bash
+scripts/install_ngspice_macos.sh "$HOME/.local/ngspice-44.2"
+export NGSPICE_PATH="$HOME/.local/ngspice-44.2/bin/ngspice"
+```
+
+The installer builds the validated x86_64 binary. On Apple Silicon, it runs
+through Rosetta 2 so that simulation results remain consistent with the
+EngiBench reference values.
+
+Architecture-dependent transient results have also been reported in the
+[ngspice issue tracker](https://sourceforge.net/p/ngspice/bugs/622/). That
+report concerns a different circuit, but documents significant AArch64 and
+x86_64 differences in a numerically sensitive simulation.
+
+On every platform, an explicit `PowerElectronics(ngspice_path=...)` argument
+takes precedence over `NGSPICE_PATH`, which takes precedence over `PATH`.
 
 ## Example circuit graph
 ![5_4_3_6_10-dcdc_converter_1](../../../docs/_static/img/problems/power_electronics.png)
@@ -74,7 +93,7 @@ There is no condition for this problem.
 ### Simulator
 The simulator is ngSpice circuit simulator. You can download it based on your operating system:
 - Windows: https://sourceforge.net/projects/ngspice/files/ng-spice-rework/44.2/
-- MacOS: `brew install ngspice`
+- macOS: use `scripts/install_ngspice_macos.sh` and set `NGSPICE_PATH`
 - Linux: `sudo apt-get install ngspice`
 
 ### Dataset
@@ -105,6 +124,7 @@ Here are the scripts that I used to load from/upload to Hugging Face.
 ### 1. Load from HF
 ``` python
 from datasets import load_dataset
+
 # HF_dataset = load_dataset("IDEALLab/power_electronics_v0")
 # train_dataset = HF_dataset["train"]
 train_dataset = load_dataset("IDEALLab/power_electronics_v0", split="train")
@@ -122,6 +142,7 @@ For more information, please refer to [datasets/process](https://huggingface.co/
 ### 3. Upload to HF
 ``` python
 from datasets import DatasetDict
+
 dataset_dict = DatasetDict({"train": train_dataset, "val": val_dataset, "test": test_dataset})
 dataset_dict.push_to_hub("IDEALLab/power_electronics_v0")
 ```

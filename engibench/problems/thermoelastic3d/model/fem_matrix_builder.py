@@ -67,14 +67,13 @@ def fe_melthm_3d(
         [
             [lam + 2 * mu, lam, lam, 0, 0, 0],
             [lam, lam + 2 * mu, lam, 0, 0, 0],
-            [lam, lam + 2 * mu, lam + 2 * mu, 0, 0, 0],
+            [lam, lam, lam + 2 * mu, 0, 0, 0],
             [0, 0, 0, mu, 0, 0],
             [0, 0, 0, 0, mu, 0],
             [0, 0, 0, 0, 0, mu],
         ],
         dtype=float,
     )
-    d[2, 1] = lam
 
     # Thermal "volumetric" strain direction in Voigt
     e_th = np.array([1.0, 1.0, 1.0, 0.0, 0.0, 0.0])

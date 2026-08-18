@@ -24,14 +24,14 @@ def pull(image: str) -> None:
     RUNTIME.pull(image)
 
 
-def run(  # noqa: PLR0913
+def run(
     command: list[str],
     image: str,
+    *,
     mounts: Sequence[tuple[str, str]] = (),
     env: dict[str, str] | None = None,
     name: str | None = None,
     stdin: bytes | None = None,
-    *,
     sync_uid: bool = False,
     timeout: float | None = None,
 ) -> None:
@@ -61,7 +61,16 @@ def run(  # noqa: PLR0913
         raise ValueError(msg)
 
     try:
-        result = RUNTIME.run(command, image, mounts, env, name, stdin, sync_uid=sync_uid, timeout=timeout)
+        result = RUNTIME.run(
+            command,
+            image,
+            mounts=mounts,
+            env=env,
+            name=name,
+            stdin=stdin,
+            sync_uid=sync_uid,
+            timeout=timeout,
+        )
         result.check_returncode()
     except subprocess.TimeoutExpired as e:
         msg = f"Container command timed out after {e.timeout} seconds:\nCommand: {' '.join(command)}"
@@ -108,15 +117,15 @@ class ContainerRuntime:
         raise NotImplementedError("Must be implemented by a subclass")
 
     @classmethod
-    def run(  # noqa: PLR0913
+    def run(
         cls,
         command: list[str],
         image: str,
+        *,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
         stdin: bytes | None = None,
-        *,
         sync_uid: bool = False,
         timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
@@ -189,15 +198,15 @@ class Docker(ContainerRuntime):
         subprocess.run([cls.executable, "pull", image], check=True)
 
     @classmethod
-    def run(  # noqa: PLR0913
+    def run(
         cls,
         command: list[str],
         image: str,
+        *,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,
         stdin: bytes | None = None,
-        *,
         sync_uid: bool = False,
         timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
@@ -385,15 +394,15 @@ class Apptainer(ContainerRuntime):
         subprocess.run([cls.executable, "pull", docker_uri], check=True)
 
     @classmethod
-    def run(  # noqa: PLR0913
+    def run(
         cls,
         command: list[str],
         image: str,
+        *,
         mounts: Sequence[tuple[str, str]] = (),
         env: dict[str, str] | None = None,
         name: str | None = None,  # noqa: ARG003
         stdin: bytes | None = None,
-        *,
         sync_uid: bool = False,  # noqa: ARG003
         timeout: float | None = None,
     ) -> subprocess.CompletedProcess:

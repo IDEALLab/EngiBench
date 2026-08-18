@@ -123,9 +123,10 @@ def _order_segments(
     return np.array(ordered_ids)
 
 
-def _reorder_coordinates(  # noqa: PLR0913
+def _reorder_coordinates(
     coords_x: npt.NDArray[np.float32],
     coords_y: npt.NDArray[np.float32],
+    *,
     indices: npt.NDArray[np.int32],
     connectivities: npt.NDArray[np.int32],
     segment_ids: npt.NDArray[np.float32],
@@ -239,6 +240,67 @@ def _clean_coordinates(
     return coords_x_reordered, coords_y_reordered, indices_reordered
 
 
+def reorder_coords_fields(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
+    """Reorder the coordinates and surface field variables of a slice of a dataframe.
+
+    Mirrors :func:`reorder_coords` but additionally extracts velocity components
+    and the pressure coefficient, returning them aligned to the same point ordering.
+
+    Args:
+        df_slice (pd.DataFrame): A slice of a dataframe containing coordinates,
+            velocity components (VelocityX/Y/Z), and CoefPressure.
+
+    Returns:
+        npt.NDArray[np.float32]: Array of shape ``(6, N)`` with rows
+            ``[CoordinateX, CoordinateY, VelocityX, VelocityY, VelocityZ, CoefPressure]``.
+    """
+    # Extract connectivities
+    node_c1, node_c2 = _extract_connectivities(df_slice)
+    connectivities = np.concatenate((node_c1.reshape(-1, 1), node_c2.reshape(-1, 1)), axis=1)
+
+    # Get coordinates
+    coords_x = df_slice["CoordinateX"].to_numpy()
+    coords_y = df_slice["CoordinateY"].to_numpy()
+    indices = np.arange(len(df_slice), dtype=np.int32)
+
+    # Identify segments
+    id_breaks_start, id_breaks_end, segment_ids = _identify_segments(connectivities)
+    unique_segment_ids = np.arange(len(id_breaks_start), dtype=np.int32)
+
+    # Order segments
+    new_seg_order = _order_segments(coords_x, coords_y, id_breaks_start, id_breaks_end, unique_segment_ids)
+
+    # Reorder coordinates
+    coords_x_reordered, coords_y_reordered, indices_reordered = _reorder_coordinates(
+        coords_x,
+        coords_y,
+        indices=indices,
+        connectivities=connectivities,
+        segment_ids=segment_ids,
+        new_seg_order=new_seg_order,
+    )
+
+    # Align coordinates
+    coords_x_reordered, coords_y_reordered, indices_reordered = _align_coordinates(
+        coords_x_reordered, coords_y_reordered, indices_reordered
+    )
+
+    # Clean coordinates
+    coords_x_reordered, coords_y_reordered, indices_reordered = _clean_coordinates(
+        coords_x_reordered, coords_y_reordered, indices_reordered
+    )
+
+    # Extract field data using the reordered indices (indices_reordered already has the
+    # closing point appended by _clean_coordinates, so field values close the loop too)
+    idx = indices_reordered.astype(int)
+    velocity_x = df_slice["VelocityX"].to_numpy()[idx]
+    velocity_y = df_slice["VelocityY"].to_numpy()[idx]
+    velocity_z = df_slice["VelocityZ"].to_numpy()[idx]
+    coef_pressure = df_slice["CoefPressure"].to_numpy()[idx]
+
+    return np.array([coords_x_reordered, coords_y_reordered, velocity_x, velocity_y, velocity_z, coef_pressure])
+
+
 def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
     """Reorder the coordinates of a slice of a dataframe.
 
@@ -266,7 +328,12 @@ def reorder_coords(df_slice: pd.DataFrame) -> npt.NDArray[np.float32]:
 
     # Reorder coordinates
     coords_x_reordered, coords_y_reordered, indices_reordered = _reorder_coordinates(
-        coords_x, coords_y, indices, connectivities, segment_ids, new_seg_order
+        coords_x,
+        coords_y,
+        indices=indices,
+        connectivities=connectivities,
+        segment_ids=segment_ids,
+        new_seg_order=new_seg_order,
     )
 
     # Align coordinates
@@ -355,7 +422,8 @@ def scale_coords(
     return coords, blunted
 
 
-def calc_off_wall_distance(  # noqa: PLR0913
+def calc_off_wall_distance(
+    *,
     mach: float,
     reynolds: float,
     freestreamTemp: float = 300.0,  # noqa: N803

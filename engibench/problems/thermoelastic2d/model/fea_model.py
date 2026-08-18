@@ -241,7 +241,7 @@ class FeaModel:
             curr_time = time.time()
 
             # FE-ANALYSIS
-            results = fe_mthm_bc(nely, nelx, penal, x, ke, k_eth, c_ethm, tref, bcs)
+            results = fe_mthm_bc(nely, nelx, penal=penal, x=x, ke=ke, k_eth=k_eth, c_ethm=c_ethm, tref=tref, bcs=bcs)
             km = results.km
             kth = results.kth
             um = results.um

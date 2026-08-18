@@ -1,4 +1,4 @@
-"""This module contains the dataclass for updating an opti-step in the thermoelastic2d problem."""
+"""This module contains the dataclass for updating an opti-step in the thermoelastic3d problem."""
 
 from dataclasses import dataclass
 

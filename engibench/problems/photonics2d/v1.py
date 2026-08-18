@@ -140,8 +140,9 @@ class Photonics2D(Photonics2D_v0):
         _, _, ez2 = self._simulation2.solve(source2)
         return ez1, ez2, source1, source2, probe1, probe2
 
-    def _objective_from_fields(  # noqa: PLR0913
+    def _objective_from_fields(
         self,
+        *,
         ez1: Any,
         ez2: Any,
         probe1: npt.NDArray,
@@ -190,7 +191,9 @@ class Photonics2D(Photonics2D_v0):
         self._last_Ez1 = ez1.copy()
         self._last_Ez2 = ez2.copy()
 
-        obj = self._objective_from_fields(ez1, ez2, probe1, probe2, design, penalty_weight)
+        obj = self._objective_from_fields(
+            ez1=ez1, ez2=ez2, probe1=probe1, probe2=probe2, rho_phys=design, penalty_weight=penalty_weight
+        )
         return SimulationResult(np.array([float(obj)], dtype=np.float64))
 
     # ------------------------------------------------------------------ optimize
@@ -244,7 +247,11 @@ class Photonics2D(Photonics2D_v0):
         # Sources/probes live in the fixed waveguides; compute once and reuse for all steps.
         self._source1, self._source2 = source1, source2
         self._probe1, self._probe2 = probe1, probe2
-        obj0 = float(self._objective_from_fields(ez1, ez2, probe1, probe2, starting_point, penalty_weight))
+        obj0 = float(
+            self._objective_from_fields(
+                ez1=ez1, ez2=ez2, probe1=probe1, probe2=probe2, rho_phys=starting_point, penalty_weight=penalty_weight
+            )
+        )
         history.append(OptiStep(obj_values=np.array([obj0], dtype=np.float64), step=0))
 
         if save_frame_interval and save_frame_interval > 0:
@@ -255,13 +262,17 @@ class Photonics2D(Photonics2D_v0):
 
         def objective(rho_flat: Any) -> Any:
             rho = rho_flat.reshape((nx, ny))
-            rho_phys = filter_and_project(rho, bg_rho, design_region, blur_radius, beta_state["beta"], eta)
+            rho_phys = filter_and_project(
+                rho=rho, bg_rho=bg_rho, design_region=design_region, radius=blur_radius, beta=beta_state["beta"], eta=eta
+            )
             epsr = epsr_min + (epsr_max - epsr_min) * rho_phys
             self._simulation1.eps_r = epsr
             self._simulation2.eps_r = epsr
             _, _, ez1 = self._simulation1.solve(self._source1)
             _, _, ez2 = self._simulation2.solve(self._source2)
-            return self._objective_from_fields(ez1, ez2, self._probe1, self._probe2, rho_phys, penalty_weight)
+            return self._objective_from_fields(
+                ez1=ez1, ez2=ez2, probe1=self._probe1, probe2=self._probe2, rho_phys=rho_phys, penalty_weight=penalty_weight
+            )
 
         objective_grad = jacobian(objective, mode="reverse")
 
@@ -278,7 +289,14 @@ class Photonics2D(Photonics2D_v0):
 
             # Physical design evaluated at this step (matches what `objective` uses internally).
             rho_phys = np.asarray(
-                filter_and_project(rho.reshape((nx, ny)), bg_rho, design_region, blur_radius, beta_state["beta"], eta)
+                filter_and_project(
+                    rho=rho.reshape((nx, ny)),
+                    bg_rho=bg_rho,
+                    design_region=design_region,
+                    radius=blur_radius,
+                    beta=beta_state["beta"],
+                    eta=eta,
+                )
             )
             obj_t = float(objective(rho))
             grad = np.asarray(objective_grad(rho)).flatten()

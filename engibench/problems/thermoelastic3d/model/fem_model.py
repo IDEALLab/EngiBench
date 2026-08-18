@@ -9,7 +9,6 @@ from scipy.sparse import coo_matrix
 
 from engibench.core import OptiStep
 from engibench.problems.thermoelastic3d.model.fem_matrix_builder import fe_melthm_3d
-from engibench.problems.thermoelastic3d.model.fem_plotting import plot_fem_3d
 from engibench.problems.thermoelastic3d.model.fem_setup import fe_mthm_bc_3d
 from engibench.problems.thermoelastic3d.model.linear_solver import solve_spd_with_amg
 from engibench.problems.thermoelastic3d.model.mma_subroutine import MMAInputs
@@ -26,15 +25,13 @@ UPDATE_THRESHOLD = 0.01
 class FeaModel3D:
     """Finite Element Analysis (FEA) model for coupled 3D thermoelastic topology optimization."""
 
-    def __init__(self, *, plot: bool = False, eval_only: bool = False, max_iter: int = MAX_ITERATIONS) -> None:
+    def __init__(self, *, eval_only: bool = False, max_iter: int = MAX_ITERATIONS) -> None:
         """Instantiates a new 3D thermoelastic model.
 
         Args:
-            plot: If True, you can hook in your own plotting / volume rendering each iteration.
             eval_only: If True, evaluate the given design once and return objective components only.
             max_iter: Maximal number of iterations for the `run` method.
         """
-        self.plot = plot
         self.eval_only = eval_only
         self.max_iter = max_iter
 
@@ -98,7 +95,7 @@ class FeaModel3D:
             Returns:
                 g_idx (int): The global index of an element.
             """
-            return (nely * nelz) * ix + (nelz) * iy + iz
+            return (iy * nelx + ix) * nelz + iz
 
         i_h: list[int] = []
         j_h: list[int] = []
@@ -274,16 +271,13 @@ class FeaModel3D:
             ABAQUS HOOK: Solve the linear systems using the Abaqus solver
             """
             # Forward FEA with BCs & assembly (3D)
-            res = fe_mthm_bc_3d(nely, nelx, nelz, penal, x, ke, k_eth, c_ethm, tref, bcs)
+            res = fe_mthm_bc_3d(nely, nelx, nelz, penal=penal, x=x, ke=ke, k_eth=k_eth, c_ethm=c_ethm, tref=tref, bcs=bcs)
 
             kth = res.kth
             um = res.um
             uth = res.uth
             fth = res.fth
             d_cthm = res.d_cthm
-
-            if self.plot is True and (iterr % 50 == 0):
-                plot_fem_3d(bcs, x)
 
             t_forward = time.time() - tcur
             tcur = time.time()

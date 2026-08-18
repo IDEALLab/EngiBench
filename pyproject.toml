@@ -36,7 +36,7 @@ electronics = ["networkx >= 3.2.1"]
 beams2d = ["cvxopt >= 1.3.2", "seaborn", "scipy"]
 beams3d = ["mmapy >= 0.3.0", "pyamg", "scipy"]
 thermoelastic2d = ["cvxopt >= 1.3.2", "mmapy >= 0.3.0"]
-thermoelastic3d = ["cvxopt >= 1.3.2", "mmapy >= 0.3.0", "napari", "pyamg"]
+thermoelastic3d = ["cvxopt >= 1.3.2", "mmapy >= 0.3.0", "pyamg"]
 photonics2d = ["ceviche >= 0.1.3"]
 transforms = ["xeltofab >= 0.3.0; python_version >= '3.13'"]
 all = [
@@ -135,13 +135,13 @@ ignore = [
   "E741",     # ambiguous-variable-name
   "FIX002",   # flake8-fixme (flake8-todos is enough)
   "PTH",      # flake8-use-pathlib
-  "PLR0917",  # preserve established public APIs with more than five positional parameters
   "S101",     # flake8-bandit: assert
   "S301",     # suspicious-pickle-usage
   "S603",     # subprocess-without-shell-equals-true
   "S607",     # start-process-with-partial-path
   "T201",     # print
-  "TRY003",     # print
+  "TRY003",   # print
+  "PLR0913",  # too-many-arguments
 ]
 
 # Allow fix for all enabled rules (when `--fix`) is provided.

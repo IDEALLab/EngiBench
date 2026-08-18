@@ -30,17 +30,22 @@ if __name__ == "__main__":
     be generalized to other problems as well. It includes functions for simulation of designs.
 
     Command Line Arguments:
-    -n_designs, --num_designs: How many airfoil designs should we use?
-    -n_flows, --num_flow_conditions: How many flow conditions should we use per design?
-    -n_aoas, --num_angles_of_attack: How many angles of attack should we use per design & flow condition pairing?
-    -group_size, --group_size: How many simulations should we group together on a single cpu?
-    -n_slurm_array, --num_slurm_array: How many slurm jobs to spawn and submit via slurm arrays? Note this may be limited by the HPC system.
-    -min_ma, --min_mach_number: Lower bound for mach number
-    -max_ma, --max_mach_number: Upper bound for mach number
-    -min_re, --min_reynolds_number: Lower bound for reynolds number
-    -max_re, --max_reynolds_number: Upper bound for reynolds number
-    -min_aoa, --min_angle_of_attack: Lower bound for angle of attack
-    -max_aoa, --max_angle_of_attack: Upper bound for angle of attack
+    -account,  --hpc_account:           HPC account allocation to charge for job submission (required)
+    -type,     --job_type:              Engibench job type to submit: 'simulate' or 'optimize' (required)
+    -n_designs, --num_designs:          Number of airfoil designs to use (default: 10)
+    -n_flows,  --num_flow_conditions:   Number of flow conditions (Mach, Reynolds, AoA) sampled per design via LHS (default: 1)
+    -group_size, --group_size:          Number of simulations batched within each individual SLURM job (default: 2)
+    -minutes_per_sim, --minutes_per_simulation: Estimated runtime per simulation in minutes, used to set SLURM job walltime (default: 15)
+    -n_slurm_array, --num_slurm_array:  Maximum SLURM array size; varies by HPC system (default: 1000)
+    -min_ma,   --min_mach_number:       Lower bound for Mach number sampling (default: 0.5)
+    -max_ma,   --max_mach_number:       Upper bound for Mach number sampling (default: 0.9)
+    -min_re,   --min_reynolds_number:   Lower bound for Reynolds number sampling (default: 1.0e6)
+    -max_re,   --max_reynolds_number:   Upper bound for Reynolds number sampling (default: 2.0e7)
+    -min_aoa,  --min_angle_of_attack:   Lower bound for angle of attack sampling in degrees (default: 0.0)
+    -max_aoa,  --max_angle_of_attack:   Upper bound for angle of attack sampling in degrees (default: 20.0)
+    --verbose:                          Flag to use the verbose simulation path, including surface field variables
+                                        (VelocityX, VelocityY, VelocityZ, CoefPressure) in simulation output under
+                                        the 'surface_fields' key (default: False)
     """
     # Fetch command line arguments for render and simulate to know whether to run those functions
     parser = ArgumentParser()
@@ -135,6 +140,12 @@ if __name__ == "__main__":
         default=20.0,
         help="Minimum sampling bound for angle of attack.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        default=False,
+        help="Use the verbose simulation path, including surface field variables (VelocityX, VelocityY, VelocityZ, CoefPressure) in simulation output.",
+    )
     args = parser.parse_args()
 
     # HPC account for job submission
@@ -153,6 +164,9 @@ if __name__ == "__main__":
     group_size = args.group_size
     n_slurm_array = args.num_slurm_array
     minutes_per_sim = args.minutes_per_simulation
+
+    # Verbose simulation flag (include surface fields)
+    verbose = args.verbose
 
     # Flow parameter and angle of attack ranges
     min_ma = args.min_mach_number
@@ -200,6 +214,7 @@ if __name__ == "__main__":
             problem_configuration = {"mach": ma, "reynolds": re, "alpha": alpha}
             config = {"problem_configuration": problem_configuration, "configuration_id": config_id}
             config["design"] = design["coords"]
+            config["verbose"] = verbose
             simulate_configs_designs.append(config)
             config_id += 1
 
