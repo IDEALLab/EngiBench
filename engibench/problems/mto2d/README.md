@@ -26,6 +26,11 @@ dataset has `train`, `val`, and `test` splits and six columns:
 - `inlet_velocity`, `max_power_dissipation`, and `volfrac`; and
 - `mean_temperature` and `power_dissipation`.
 
+The historical solver recorded both objectives before each MMA update, then
+saved the updated gamma field. Thus a row's stored objectives and
+`optimal_design` describe adjacent solver states rather than an exact frozen
+simulation pair.
+
 `MTO2D().dataset` and the demo load that Hub dataset by default. For offline
 use, load a saved Hugging Face `DatasetDict` with `datasets.load_from_disk()`
 and pass it as `MTO2D(dataset=dataset)`.
@@ -48,7 +53,8 @@ solver time, and retained artifacts when requested.
 from engibench.problems.mto2d import MTO2D
 
 problem = MTO2D()
-design, _ = problem.random_design()
+# Historical homogeneous cold start; MMA has not enforced volume yet.
+design = problem.uniform_starting_design(problem.conditions.volfrac)
 objectives = problem.simulate(design)
 ```
 
@@ -57,7 +63,7 @@ one dataset design, renders it, and re-evaluates it in the published
 container.
 
 Solver settings are ordinary `Config` fields, passed as keyword arguments like
-every other EngiBench problem (`MTO2D(max_iter=20, mode="warm")`) or per call
+`MTO2D(max_iter=20, mode="warm", optimization_schedule="strict")` or per call
 (`problem.simulate(design, config={"volfrac": 0.4})`).
 
 Host settings -- which image to run, where to work, how long to allow, what to
@@ -68,11 +74,17 @@ configuration:
 from engibench.problems.mto2d import MTO2D
 from engibench.problems.mto2d.model.runner import MTO2DRunner
 
-problem = MTO2D(runner=MTO2DRunner(timeout=3600.0, retain_artifacts=True))
+runner = MTO2DRunner(
+    image=MTO2D.container_id,
+    timeout=3600.0,
+    retain_artifacts=True,
+)
+problem = MTO2D(runner=runner)
 ```
 
-`$ENGIBENCH_MTO2D_IMAGE` overrides the pinned `container_id` for the default
-runner; see `MTO2D.resolved_container_image()`.
+Passing a runner explicitly is also the supported way to use a different image
+and/or a local case template; normal local-template runs still need the image's
+solver runtime.
 
 ## Optimization
 
@@ -87,15 +99,18 @@ the base `Problem` contract. `optimization_schedule="legacy"` reproduces the
 original 200-step cold schedule; `"strict"` supports configurable cold or warm
 continuation.
 
-Per-iteration residuals and timings are on `problem.last_solver_run` after the
-call, and `problem.active_power_bounds(...)` reproduces the bound MMA actually
-saw at each iteration:
+Each optimization-history entry carries the active power bound, volume and
+power residuals, and cumulative solver time:
 
 ```python
 design, history = problem.optimize(starting_design)
-run = problem.last_solver_run
-residuals = run.power_dissipation / problem.active_power_bounds() - 1.0
+residuals = [step.power_constraint_residual for step in history]
 ```
+
+`uniform_starting_design(volfrac)` reproduces the historical cold start: all
+80,000 design cells begin at `volfrac`, while the 6,400 fixed inlet/outlet
+cells remain fluid. The initial all-cell volume therefore exceeds `volfrac`
+until MMA updates the design.
 
 Full optimization is intentionally absent from the shared EngiBench smoke
 suite because it takes hours. It remains available through the API for

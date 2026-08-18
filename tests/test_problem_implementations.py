@@ -74,29 +74,6 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     assert "reset" in class_methods, f"Problem {problem_class.__name__}: The reset method should be implemented."
     # optimize is optional, thus not checked
 
-    # Test the dataset has the required splits
-    dataset = problem.dataset
-    assert "train" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'train' split."
-    assert "test" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'test' split."
-    assert "val" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'val' split."
-    # Test the dataset fields match `optimal_design`, `problem.conditions`, and `problem.objectives`
-    if len(problem.objectives) > 1:
-        for o, _ in problem.objectives:
-            assert o in dataset["train"].column_names, (
-                f"Problem {problem_class.__name__}: The dataset should contain the field {o}."
-            )
-
-    for f in dataclasses.fields(problem.Conditions):
-        assert f.name in dataset["train"].column_names, (
-            f"Problem {problem_class.__name__}: The dataset should contain the field {f.name}."
-        )
-    if problem_class.__module__.startswith("engibench.problems.power_electronics"):
-        print(f"Skipping optimal design test for power electronics problem {problem_class.__name__}")
-        return
-
-    assert "optimal_design" in dataset["train"].column_names, (
-        f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
-    )
     print(f"Done testing {problem_class.__name__}.")
 
 
@@ -108,6 +85,34 @@ def _problem_params() -> list[Any]:
         marks = [pytest.mark.slow] if policy.slow else []
         params.append(pytest.param(problem_class, marks=marks, id=problem_class.__name__))
     return params
+
+
+@pytest.mark.parametrize("problem_class", _problem_params())
+def test_problem_dataset(problem_class: type[Problem]) -> None:
+    """Check that each published dataset has the required splits and fields."""
+    problem: Problem = problem_class()
+    dataset = problem.dataset
+    assert "train" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'train' split."
+    assert "test" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'test' split."
+    assert "val" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'val' split."
+
+    if len(problem.objectives) > 1:
+        for objective, _direction in problem.objectives:
+            assert objective in dataset["train"].column_names, (
+                f"Problem {problem_class.__name__}: The dataset should contain the field {objective}."
+            )
+
+    for field in dataclasses.fields(problem.Conditions):
+        assert field.name in dataset["train"].column_names, (
+            f"Problem {problem_class.__name__}: The dataset should contain the field {field.name}."
+        )
+    if problem_class.__module__.startswith("engibench.problems.power_electronics"):
+        print(f"Skipping optimal design test for power electronics problem {problem_class.__name__}")
+        return
+
+    assert "optimal_design" in dataset["train"].column_names, (
+        f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
+    )
 
 
 @pytest.mark.parametrize("problem_class", _problem_params())

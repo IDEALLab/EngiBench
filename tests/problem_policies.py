@@ -28,10 +28,7 @@ class ProblemTestPolicy:
     """`platform.machine()` values the published runtime supports, or None for any."""
 
     slow: bool = False
-    """Mark the problem's simulation test `slow`, deselected by the default `addopts`."""
-
-    slow_reason: str = ""
-    """Why the problem is slow, for the marker description."""
+    """Mark the problem's dataset and simulation tests as `slow`."""
 
 
 DEFAULT_TEST_POLICY = ProblemTestPolicy()
@@ -46,7 +43,6 @@ PROBLEM_TEST_POLICIES = {
         optimization_reason="the external 200-step optimization is too expensive for the shared smoke test",
         supported_machines=("x86_64", "amd64"),
         slow=True,
-        slow_reason="pulls a 0.77 GB OpenFOAM image and runs a full 86,400-cell simulation",
     ),
 }
 

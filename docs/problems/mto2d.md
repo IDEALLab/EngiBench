@@ -44,6 +44,13 @@ storing the non-redundant left half of the symmetric design domain:
 - `render()` mirrors the half-domain horizontally into a symmetric
   `(400, 400)` image.
 
+```{figure} ../_static/img/problems/mto2d.png
+:alt: Smooth symmetric MTO2D heat-sink design with sparse fluid channels
+:name: mto2d-example-design
+:width: 500px
+:align: center
+```
+
 The example above is a mirrored `400 x 400` rendering of public dataset row
 `train[1977]` (`volfrac = 0.26`), selected for its sparse, smooth fluid
 channels.
@@ -119,17 +126,20 @@ belong to the input design exactly.
 continuation timing used to generate the published dataset; an alternative
 `"strict"` schedule exposes configurable interpolation profiles and endpoints.
 Cold starts run 200 iterations by default; warm starts from a good initial
-design commonly use 20. The retained legacy optimization history for the case
+design commonly use 20. `mode="cold"` selects a continuation schedule but does
+not construct the starting design. For exact historical initialization, use a
+constant `(400, 200)` field whose value is `volfrac`; the separate 6,400 fixed
+cells remain fluid, so the initial all-cell volume is temporarily above the
+bound. The retained legacy optimization history for the case
 with `inlet_velocity = -0.074`, `max_power_dissipation = 63.1`, and
 `volfrac = 0.61` reaches `mean_temperature = 9.45825` and
 `power_dissipation = 62.2588`. Those historical values describe the
 pre-update optimizer field, not the committed frozen-simulation reference.
 
 `optimize()` returns `(design, history)` exactly as the base `Problem`
-contract specifies. Constraint residuals, elapsed times and retained artifacts
-are read from `problem.last_solver_run` after the call, and
-`problem.active_power_bounds()` reproduces the bound supplied to MMA at each
-iteration.
+contract specifies. Each history entry includes the active power bound,
+constraint residuals, and elapsed solver time. Retained artifacts remain
+available through `problem.last_solver_run`.
 
 See the package `README.md` in `engibench/problems/mto2d/` for runner
 settings, runtime-image preparation, and usage.
@@ -141,19 +151,25 @@ The dataset is hosted at
 Rows contain the flat `optimal_design`, the three condition fields, and both
 objective fields.
 
+For every historical run, the solver wrote mean temperature and power
+dissipation before the MMA update, then saved the updated gamma field. The
+published objectives and `optimal_design` therefore describe adjacent solver
+states and are not expected to match a frozen re-simulation exactly.
+
 Retained rows satisfy the fluid-volume constraint tightly (median all-cell
-residual `-4.6e-5`), but satisfy the power-dissipation constraint only to
+residual approximately `-7.15e-5`), but satisfy the power-dissipation constraint only to
 within MMA's convergence tolerance: 3,149 of the 5,666 rows report
 `power_dissipation` above their own `max_power_dissipation`, by at most 0.98%.
-Treat `power_constraint_residual` as a small two-sided quantity rather than a
-hard feasibility flag.
+Positive violations are therefore small; negative residuals simply indicate
+slack and reach about -23.3%.
 
 The paper sampled 10,000 condition combinations with Latin hypercube
 sampling. An initial 5,000-case sweep used `J̄/J1` from 5 to 75; after many
 low-bound cases violated the power constraint, a second roughly 5,000-case
 sweep concentrated on 50 to 75. Both sweeps used `volfrac` from 0.25 to 0.70
 and Reynolds number from 50 to 190. Retaining only converged,
-constraint-satisfying runs produced 5,666 designs. Their
+constraint-satisfying runs within the source study's convergence tolerance
+produced 5,666 designs. Their
 4,249/283/1,134 train/validation/test splits follow the paper's 75/5/20 policy.
 
 ```{figure} ../_static/img/problems/mto2d_pareto.png
