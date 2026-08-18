@@ -62,6 +62,23 @@ def test_docker_timeout_warns_if_force_removal_fails(monkeypatch: pytest.MonkeyP
         container.run(["sleep", "60"], "alpine", timeout=TEST_TIMEOUT)
 
 
+def test_podman_inherits_host_environment(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Podman inherits the host settings needed by rootless helpers."""
+    calls: list[dict[str, object]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        calls.append(kwargs)
+        return subprocess.CompletedProcess(command, 0, stdout=b"", stderr=b"")
+
+    monkeypatch.setenv("PATH", "/usr/local/bin:/usr/bin")
+    monkeypatch.setattr(container.shutil, "which", lambda executable: f"/usr/local/bin/{executable}")
+    monkeypatch.setattr(subprocess, "run", fake_run)
+
+    container.Podman.run(["true"], "alpine")
+
+    assert calls[0]["env"] is None
+
+
 @pytest.mark.parametrize("runtime", available_runtimes)
 @pytest.mark.skipif(sys.platform == "win32", reason="Skip Singularity tests on Windows")
 def test_run_singularity_sets_correct_environment(runtime: type[container.ContainerRuntime]) -> None:

@@ -324,13 +324,13 @@ class Podman(Docker):
 
     @classmethod
     def _env(cls) -> dict[str, str] | None:
-        # podman needs to have pasta in the PATH variable to configure
-        # network namespaces
-        pasta_executable = shutil.which("pasta")
-        if pasta_executable is None:
+        # Rootless Podman invokes host helpers such as pasta and newuidmap.
+        # Validate pasta explicitly, then inherit the full host environment so
+        # every helper path and runtime setting remains available.
+        if shutil.which("pasta") is None:
             msg = "pasta executable not available. This is needed for podman to work properly"
             raise RuntimeError(msg)
-        return {"PATH": os.path.dirname(pasta_executable)}
+        return None
 
 
 DOCKER_PREFIX = "docker://"
