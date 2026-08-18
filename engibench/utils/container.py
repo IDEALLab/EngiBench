@@ -1,10 +1,14 @@
 """Abstraction over container runtimes."""
 
 from collections.abc import Sequence
+from contextlib import nullcontext
+from contextlib import suppress
 import os
 import shutil
 import subprocess
 import tempfile
+import uuid
+import warnings
 
 
 def pull(image: str) -> None:
@@ -209,29 +213,66 @@ class Docker(ContainerRuntime):
             sync_uid: Use the uid of the current process as uid inside the container.
             timeout: Optional wall-clock limit in seconds for the containerized command.
         """
-        name_args = [] if name is None else ["--name", name]
+        run_name = name
+        generated_name = timeout is not None and run_name is None
+        if generated_name:
+            run_name = f"engibench-{uuid.uuid4().hex}"
+        name_args = [] if run_name is None else ["--name", run_name]
         user_args = cls._user_args() if sync_uid else ()
         stdin_args = () if stdin is None else ("-i",)
 
-        return subprocess.run(
-            [
-                cls.executable,
-                "run",
-                "--rm",
-                *name_args,
-                *_mount_args(mounts),
-                *_env_args(env or {}),
-                *stdin_args,
-                *user_args,
-                image,
-                *command,
-            ],
-            check=False,
-            capture_output=True,
-            env=cls._env(),
-            input=stdin,
-            timeout=timeout,
-        )
+        cid_context = tempfile.TemporaryDirectory(prefix="engibench-cid-") if timeout is not None else nullcontext(None)
+        with cid_context as cid_dir:
+            cidfile = os.path.join(cid_dir, "container.cid") if cid_dir is not None else None
+            cid_args = [] if cidfile is None else ["--cidfile", cidfile]
+            try:
+                return subprocess.run(
+                    [
+                        cls.executable,
+                        "run",
+                        "--rm",
+                        *name_args,
+                        *cid_args,
+                        *_mount_args(mounts),
+                        *_env_args(env or {}),
+                        *stdin_args,
+                        *user_args,
+                        image,
+                        *command,
+                    ],
+                    check=False,
+                    capture_output=True,
+                    env=cls._env(),
+                    input=stdin,
+                    timeout=timeout,
+                )
+            except subprocess.TimeoutExpired:
+                # Killing the attached Docker/Podman client does not reliably
+                # stop the daemon-owned container. Prefer its exact CID; the
+                # generated name is a safe fallback if the CID was not written.
+                cleanup_target = None
+                if cidfile is not None:
+                    with suppress(OSError), open(cidfile, encoding="ascii") as cid_stream:
+                        cleanup_target = cid_stream.read().strip() or None
+                if cleanup_target is None and generated_name:
+                    cleanup_target = run_name
+                if cleanup_target is not None:
+                    try:
+                        cleanup = subprocess.run(
+                            [cls.executable, "rm", "--force", cleanup_target],
+                            check=False,
+                            capture_output=True,
+                            env=cls._env(),
+                            timeout=30.0,
+                        )
+                        cleanup.check_returncode()
+                    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                        warnings.warn(
+                            f"Timed-out container {cleanup_target!r} may still be running: {error}",
+                            RuntimeWarning,
+                            stacklevel=2,
+                        )
+                raise
 
     @classmethod
     def _user_args(cls) -> tuple[str, ...]:

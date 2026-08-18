@@ -1,3 +1,5 @@
+from pathlib import Path
+import subprocess
 import sys
 
 import pytest
@@ -5,6 +7,59 @@ import pytest
 from engibench.utils import container
 
 available_runtimes = [rt for rt in container.RUNTIMES if rt.is_available()]
+TEST_TIMEOUT = 12.0
+
+
+def test_run_rejects_nonpositive_timeout(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Reject invalid timeouts before invoking a runtime."""
+    monkeypatch.setattr(container, "RUNTIME", container.Docker)
+
+    with pytest.raises(ValueError, match="timeout must be positive"):
+        container.run(["true"], "alpine", timeout=0.0)
+
+
+def test_docker_timeout_force_removes_container_by_cid(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A client-side timeout must also stop the daemon-owned container."""
+    calls: list[tuple[list[str], dict[str, object]]] = []
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        calls.append((command, kwargs))
+        if command[1] == "run":
+            cidfile = Path(command[command.index("--cidfile") + 1])
+            cidfile.write_text("abc123\n", encoding="ascii")
+            timeout = kwargs["timeout"]
+            assert isinstance(timeout, float)
+            raise subprocess.TimeoutExpired(command, timeout)
+        return subprocess.CompletedProcess(command, 0, stdout=b"", stderr=b"")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(container, "RUNTIME", container.Docker)
+
+    with pytest.raises(TimeoutError, match="timed out after 12"):
+        container.run(["sleep", "60"], "alpine", timeout=TEST_TIMEOUT)
+
+    run_command, run_kwargs = calls[0]
+    name = run_command[run_command.index("--name") + 1]
+    assert name.startswith("engibench-")
+    assert run_kwargs["timeout"] == TEST_TIMEOUT
+    assert calls[1][0] == ["docker", "rm", "--force", "abc123"]
+
+
+def test_docker_timeout_warns_if_force_removal_fails(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Do not hide a daemon-side cleanup failure after a client timeout."""
+
+    def fake_run(command: list[str], **kwargs: object) -> subprocess.CompletedProcess[bytes]:
+        if command[1] == "run":
+            cidfile = Path(command[command.index("--cidfile") + 1])
+            cidfile.write_text("abc123\n", encoding="ascii")
+            raise subprocess.TimeoutExpired(command, TEST_TIMEOUT)
+        return subprocess.CompletedProcess(command, 1, stdout=b"", stderr=b"cleanup failed")
+
+    monkeypatch.setattr(subprocess, "run", fake_run)
+    monkeypatch.setattr(container, "RUNTIME", container.Docker)
+
+    with pytest.warns(RuntimeWarning, match="may still be running"), pytest.raises(TimeoutError):
+        container.run(["sleep", "60"], "alpine", timeout=TEST_TIMEOUT)
 
 
 @pytest.mark.parametrize("runtime", available_runtimes)
