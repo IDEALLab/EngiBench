@@ -18,8 +18,8 @@ import numpy.typing as npt
 from engibench.problems.mto2d.model.design_io import DESIGN_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import FIXED_CELL_COUNT
 from engibench.problems.mto2d.model.design_io import GAMMA_CELL_COUNT
+from engibench.problems.mto2d.model.design_io import gamma_to_half_design
 from engibench.problems.mto2d.model.design_io import parse_internal_field
-from engibench.problems.mto2d.model.design_io import read_half_design
 from engibench.problems.mto2d.model.design_io import write_half_design
 from engibench.utils import container
 
@@ -92,16 +92,16 @@ class RunnerSettings:
     """Solver-facing values for one case.
 
     These mirror :class:`engibench.problems.mto2d.v0.MTO2D.Config` and describe the
-    *physics and schedule* of a run. Host concerns -- which image, where to work,
-    what to retain -- belong to :class:`MTO2DRunner` and are deliberately absent
-    here, so that every field is validated exactly once, by ``Config``. The rules
-    that bind only an optimization are checked separately, by
+    physics, schedule, and MPI process count of a run. Image selection, working
+    directory, timeout, and artifact retention belong to :class:`MTO2DRunner`.
+    Field constraints are validated by ``Config``; rules that bind only an
+    optimization are checked separately by
     :meth:`MTO2DRunner.validate_settings`, and so never reject a simulation.
     """
 
     inlet_velocity: float
     max_power_dissipation: float
-    volume_fraction: float
+    volfrac: float
     max_iter: int = 200
     mode: OptimizationMode = "cold"
     optimization_schedule: OptimizationSchedule = "legacy"
@@ -216,8 +216,9 @@ class MTO2DRunner:
         Args:
             image: Container image to run.
             case_template: Optional path to a local case, used instead of the one
-                bundled in the image. Validated on use; the image-provided case is
-                trusted because the image is pinned by digest.
+                bundled in the image. The image still supplies the runtime unless
+                a test execution callback is injected. Every materialized case is
+                validated before use.
             work_dir: Parent directory for the isolated run directory.
             timeout: Optional wall-clock limit in seconds for the solver.
             retain_artifacts: Keep the run directory after a successful run.
@@ -226,6 +227,8 @@ class MTO2DRunner:
                 tests that exercise case preparation and result parsing without a
                 container runtime.
         """
+        if timeout is not None and timeout <= 0.0:
+            raise ValueError("timeout must be positive")
         self.image = image
         self.case_template = case_template
         self.work_dir = work_dir
@@ -252,6 +255,7 @@ class MTO2DRunner:
         try:
             if case_template is None:
                 self._export_case_template(run_root, case_dir)
+                self._validate_case_template(case_dir)
             else:
                 shutil.copytree(case_template, case_dir)
             self._validate_runtime_marker(
@@ -268,7 +272,7 @@ class MTO2DRunner:
             final_design = (
                 np.asarray(design, dtype=np.float32).copy()
                 if kind == "simulate"
-                else read_half_design(self._latest_gamma(case_dir / "app"))
+                else self._read_final_design(case_dir / "app")
             )
             succeeded = True
             return SolverRun(
@@ -324,7 +328,7 @@ class MTO2DRunner:
             if settings.continuation_steps is not None:
                 raise ValueError("continuation_steps is not configurable when optimization_schedule='legacy'")
             return
-        n_steps = settings.continuation_steps or settings.max_iter
+        n_steps = settings.max_iter if settings.continuation_steps is None else settings.continuation_steps
         if not 1 <= n_steps <= settings.max_iter:
             raise ValueError("continuation_steps must be between 1 and max_iter")
         if settings.max_iter % n_steps:
@@ -341,10 +345,7 @@ class MTO2DRunner:
     def _export_case_template(self, run_root: Path, case_dir: Path) -> None:
         """Materialize the pristine case bundled in the published OCI image."""
         if self.image is None:
-            raise FileNotFoundError(
-                "No MTO2D container image configured. Pass MTO2DRunner(image=...), set "
-                "$ENGIBENCH_MTO2D_IMAGE, or supply a local case_template."
-            )
+            raise FileNotFoundError("No MTO2D container image configured. Pass MTO2DRunner(image=...).")
         container_home = run_root / "container-home"
         container_tmp = run_root / "container-tmp"
         container_home.mkdir(exist_ok=True)
@@ -372,7 +373,8 @@ class MTO2DRunner:
         except OSError as error:
             raise FileNotFoundError(
                 f"{required_by} requires a case rebuilt with the EngiBench runtime "
-                "patches. Use the published MTO2D image or rebuild Dockerfile.source; "
+                "patches. Use the published MTO2D image or rebuild it from "
+                "https://github.com/IDEALLab/engibench-mto2d-image; "
                 f"missing capability marker: {marker}"
             ) from error
         if version != SCHEDULE_RUNTIME_VERSION:
@@ -385,12 +387,11 @@ class MTO2DRunner:
     @staticmethod
     def _validate_case_template(case_template: Path) -> None:
         """Require the mesh, area switches, and gamma tail assumed by the API mapping."""
-        continuation_source = case_template / "src_TF" / "continuation.H"
-        if not continuation_source.is_file():
+        executable = case_template / "src_TF" / "EXEC"
+        if not executable.is_file():
             raise FileNotFoundError(
-                "MTO2D requires the continuation-aware warm-ready solver source; "
-                f"missing {continuation_source}. The older solver silently ignores "
-                "continuationProperties and cannot run the strict schedule."
+                "MTO2D requires its compiled solver executable; "
+                f"missing {executable}. Use the published image or a complete local case."
             )
 
         app = case_template / "app"
@@ -398,15 +399,7 @@ class MTO2DRunner:
         gamma = parse_internal_field(gamma_path.read_text(encoding="ascii"), expected_count=GAMMA_CELL_COUNT)
         if np.any((gamma < 0.0) | (gamma > 1.0)):
             raise ValueError(f"MTO2D gamma template values must lie in [0, 1]: {gamma_path}")
-        fixed_tail = gamma[DESIGN_CELL_COUNT:]
-        if fixed_tail.size != FIXED_CELL_COUNT or not np.all(fixed_tail == 1.0):
-            tail_min = float(np.min(fixed_tail)) if fixed_tail.size else math.nan
-            tail_max = float(np.max(fixed_tail)) if fixed_tail.size else math.nan
-            raise ValueError(
-                "MTO2D requires the final 6,400 gamma cells to be the fixed-fluid region "
-                f"(all gamma=1); got count={fixed_tail.size}, min={tail_min:.8g}, max={tail_max:.8g} "
-                f"in {gamma_path}"
-            )
+        MTO2DRunner._validate_fixed_gamma_tail(gamma, gamma_path)
 
         transport = app / "constant" / "transportProperties"
         transport_text = _mask_foam_comments(transport.read_text(encoding="utf-8"))
@@ -469,7 +462,7 @@ class MTO2DRunner:
         transport = app / "constant" / "transportProperties"
         control = app / "system" / "controlDict"
         decompose = app / "system" / "decomposeParDict"
-        self._replace_dictionary_value(transport, "voluse", settings.volume_fraction)
+        self._replace_dictionary_value(transport, "voluse", settings.volfrac)
         power_bound_start = settings.power_bound_start
         if power_bound_start is None:
             power_bound_start = settings.max_power_dissipation if kind == "simulate" or settings.mode == "warm" else 90.0
@@ -535,7 +528,7 @@ class MTO2DRunner:
             heaviside_start = settings.heaviside_start if settings.heaviside_start is not None else 1.0
         continuation = ContinuationSettings(
             optimization_schedule="strict",
-            steps=settings.continuation_steps or settings.max_iter,
+            steps=settings.max_iter if settings.continuation_steps is None else settings.continuation_steps,
             profile=settings.continuation_profile,
             qu=(qu_start, qu_final),
             alpha_max=(alpha_start, alpha_final),
@@ -587,7 +580,7 @@ class MTO2DRunner:
                 right_hand_side = str(value)
             return f"{match.group(1)}{right_hand_side}{match.group(3)}"
 
-        updated, count = pattern.subn(replace, text, count=1)
+        updated, count = pattern.subn(replace, text)
         if count != 1:
             raise ValueError(f"Could not find exactly one {key!r} entry in {path}")
         path.write_text(updated, encoding="utf-8")
@@ -710,9 +703,7 @@ Heaviside
 
     def _run_container(self, case_dir: Path, settings: RunnerSettings, _kind: RunKind) -> None:
         if self.image is None:
-            raise FileNotFoundError(
-                "No MTO2D container image configured. Pass MTO2DRunner(image=...) or set $ENGIBENCH_MTO2D_IMAGE."
-            )
+            raise FileNotFoundError("No MTO2D container image configured. Pass MTO2DRunner(image=...).")
         container_home = case_dir.parent / "container-home"
         container_tmp = case_dir.parent / "container-tmp"
         container_home.mkdir(exist_ok=True)
@@ -755,10 +746,29 @@ Heaviside
         return max(candidates, key=lambda path: int(path.parent.name))
 
     @staticmethod
+    def _read_final_design(app: Path) -> npt.NDArray[np.float32]:
+        gamma_path = MTO2DRunner._latest_gamma(app)
+        gamma = parse_internal_field(gamma_path.read_text(encoding="ascii"), expected_count=GAMMA_CELL_COUNT)
+        MTO2DRunner._validate_fixed_gamma_tail(gamma, gamma_path)
+        return gamma_to_half_design(gamma)
+
+    @staticmethod
+    def _validate_fixed_gamma_tail(gamma: npt.NDArray[np.float64], path: Path) -> None:
+        fixed_tail = gamma[DESIGN_CELL_COUNT:]
+        if fixed_tail.size == FIXED_CELL_COUNT and np.all(fixed_tail == 1.0):
+            return
+        tail_min = float(np.min(fixed_tail)) if fixed_tail.size else math.nan
+        tail_max = float(np.max(fixed_tail)) if fixed_tail.size else math.nan
+        raise ValueError(
+            "MTO2D requires the final 6,400 gamma cells to be the fixed-fluid region "
+            f"(all gamma=1); got count={fixed_tail.size}, min={tail_min:.8g}, max={tail_max:.8g} in {path}"
+        )
+
+    @staticmethod
     def _validate_frozen_output(app: Path, design: npt.NDArray[np.float32]) -> None:
         """Require a frozen solver step to preserve a finite input design."""
         try:
-            written_design = read_half_design(MTO2DRunner._latest_gamma(app))
+            written_design = MTO2DRunner._read_final_design(app)
         except (OSError, ValueError) as error:
             raise ValueError(
                 "Frozen simulation wrote a non-finite or invalid gamma. The solver executable "

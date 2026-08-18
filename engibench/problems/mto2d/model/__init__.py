@@ -1,1 +1,1 @@
-"""Solver and dataset utilities for MTO2D."""
+"""Solver and design-conversion utilities for MTO2D."""

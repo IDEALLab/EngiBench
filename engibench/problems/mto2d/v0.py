@@ -2,7 +2,6 @@
 
 import dataclasses
 from dataclasses import dataclass
-import os
 from typing import Annotated, Any
 import warnings
 
@@ -77,6 +76,23 @@ class MTO2DSimulationResult(SimulationResult):
     """Retained isolated run directory, when requested."""
 
 
+@dataclass(kw_only=True)
+class MTO2DOptiStep(OptiStep):
+    """One MTO2D optimization step with its constraint diagnostics."""
+
+    volume_constraint_residual: float
+    """Solver-reported ``mean(gamma) - volfrac`` over all cells."""
+
+    active_power_bound: float
+    """Power-dissipation bound supplied to MMA for this iteration."""
+
+    power_constraint_residual: float
+    """Relative residual against ``active_power_bound``."""
+
+    elapsed_time: float
+    """Cumulative solver wall time in seconds."""
+
+
 class MTO2D(Problem[npt.NDArray]):
     """OpenFOAM-based 2D thermofluid topology optimization.
 
@@ -138,10 +154,10 @@ class MTO2D(Problem[npt.NDArray]):
     class Config(Conditions):
         """Solver configuration not treated as a physical dataset condition.
 
-        Every field here describes the *physics or schedule* of a run. Host
-        concerns -- image, working directory, timeout, artifact retention -- are
-        constructor arguments of :class:`~engibench.problems.mto2d.model.runner.MTO2DRunner`
-        and are deliberately not part of the benchmark's configuration surface.
+        These fields describe the physics, optimization schedule, and MPI
+        process count. Image selection, working directory, timeout, and artifact
+        retention belong to
+        :class:`~engibench.problems.mto2d.model.runner.MTO2DRunner`.
         """
 
         max_iter: Annotated[int, greater_than(0).category(IMPL)] = 200
@@ -190,6 +206,8 @@ class MTO2D(Problem[npt.NDArray]):
             """Require a positive optional initial power-dissipation bound."""
             assert power_bound_start is None or power_bound_start > 0.0, "Config.power_bound_start must be positive"
 
+    config: Config
+
     def __init__(
         self,
         seed: int = 0,
@@ -211,19 +229,10 @@ class MTO2D(Problem[npt.NDArray]):
         self.config = self.Config(**kwargs)
         self._raise_config_errors(self.config)
         self.conditions = upcast(self.config)
-        self._runner = runner if runner is not None else MTO2DRunner(image=self.resolved_container_image())
+        self._runner = runner if runner is not None else MTO2DRunner(image=self.container_id)
         self.last_solver_run: SolverRun | None = None
         if dataset is not None:
             self._dataset = dataset
-
-    @classmethod
-    def resolved_container_image(cls) -> str | None:
-        """Return the image the default runner uses, honouring `$ENGIBENCH_MTO2D_IMAGE`.
-
-        This is the single place the environment is consulted, so that the
-        override applies to the demo, the release verifier, and user code alike.
-        """
-        return os.environ.get("ENGIBENCH_MTO2D_IMAGE") or cls.container_id
 
     def reset(self, seed: int | None = None) -> None:
         """Reset the EngiBench random-number generator.
@@ -258,7 +267,7 @@ class MTO2D(Problem[npt.NDArray]):
         self,
         starting_point: npt.NDArray,
         config: dict[str, Any] | None = None,
-    ) -> tuple[npt.NDArray[np.float32], list[OptiStep]]:
+    ) -> tuple[npt.NDArray[np.float32], list[MTO2DOptiStep]]:
         """Optimize a topology with adjoint sensitivities and MMA.
 
         Solver history row ``k`` describes the pre-update design evaluated in
@@ -266,15 +275,15 @@ class MTO2D(Problem[npt.NDArray]):
         so call :meth:`simulate` when exact objectives for that returned field
         are required.
 
-        Per-iteration constraint residuals, elapsed times and the retained
-        artifacts directory are available on :attr:`last_solver_run` afterwards;
-        :meth:`active_power_bounds` reproduces the bound MMA actually saw.
+        Each history entry carries the corresponding volume and active-power
+        residuals. The retained artifacts directory is available on
+        :attr:`last_solver_run` afterwards.
         """
         density = self._coerce_design(starting_point)
         resolved = self._resolve_config(config)
         settings = self._runner_settings(resolved)
         MTO2DRunner.validate_settings(settings, "optimize")
-        active_power_bounds = self.active_power_bounds(resolved)
+        active_power_bounds = self._active_power_bounds(resolved)
         if resolved.optimization_schedule == "legacy" and resolved.max_iter < LEGACY_OPTIMIZATION_ITERATIONS:
             warnings.warn(
                 f"A {resolved.max_iter}-step legacy optimization is an exact prefix of the "
@@ -294,27 +303,33 @@ class MTO2D(Problem[npt.NDArray]):
         run = self._runner.run(density, settings, kind="optimize")
         self.last_solver_run = run
         history = [
-            OptiStep(
+            MTO2DOptiStep(
                 obj_values=np.array([mean_temperature, power_dissipation], dtype=np.float64),
                 step=step,
+                volume_constraint_residual=float(volume_residual),
+                active_power_bound=float(active_power_bound),
+                power_constraint_residual=float(power_dissipation / active_power_bound - 1.0),
+                elapsed_time=float(elapsed_time),
             )
-            for step, (mean_temperature, power_dissipation) in enumerate(
-                zip(run.mean_temperature, run.power_dissipation, strict=True),
+            for step, (
+                mean_temperature,
+                power_dissipation,
+                volume_residual,
+                elapsed_time,
+                active_power_bound,
+            ) in enumerate(
+                zip(
+                    run.mean_temperature,
+                    run.power_dissipation,
+                    run.volume_residual,
+                    run.elapsed_time,
+                    active_power_bounds,
+                    strict=True,
+                ),
                 start=1,
             )
         ]
         return np.asarray(run.final_design, dtype=np.float32), history
-
-    def active_power_bounds(self, config: Config | dict[str, Any] | None = None) -> npt.NDArray[np.float64]:
-        """Return the power bound actually supplied to MMA at every iteration.
-
-        The legacy schedule walks the bound down from ``power_bound_start``
-        towards ``max_power_dissipation``, so a short run never reaches the
-        requested bound. Combine with `last_solver_run.power_dissipation` to
-        recover per-iteration constraint residuals after :meth:`optimize`.
-        """
-        resolved = config if isinstance(config, self.Config) else self._resolve_config(config)
-        return self._active_power_bounds(resolved)
 
     @staticmethod
     def _active_power_bounds(config: Config) -> npt.NDArray[np.float64]:
@@ -371,15 +386,16 @@ class MTO2D(Problem[npt.NDArray]):
 
     @staticmethod
     def uniform_starting_design(volfrac: float) -> npt.NDArray[np.float32]:
-        """Create a uniform design whose all-cell mean equals the requested volume.
+        """Create the historical cold start with every design cell at ``volfrac``.
 
-        The correction accounts for the 6,400 fixed-fluid cells outside the
-        80,000-cell design domain.
+        The source solver initializes the 80,000 design cells uniformly and
+        leaves the 6,400 fixed inlet/outlet cells at one. Consequently, the
+        initial all-cell fluid fraction is higher than ``volfrac``; MMA corrects
+        that initial volume violation during optimization.
         """
-        design_fraction = (GAMMA_CELL_COUNT * volfrac - FIXED_CELL_COUNT) / int(np.prod(HALF_DESIGN_SHAPE))
-        if not 0.0 <= design_fraction <= 1.0:
-            raise ValueError("volfrac is incompatible with the fixed-fluid region")
-        return np.full(HALF_DESIGN_SHAPE, design_fraction, dtype=np.float32)
+        if not 0.0 <= volfrac <= 1.0:
+            raise ValueError("volfrac must lie in [0, 1]")
+        return np.full(HALF_DESIGN_SHAPE, volfrac, dtype=np.float32)
 
     @staticmethod
     def _raise_config_errors(config: Config) -> None:
@@ -410,9 +426,6 @@ class MTO2D(Problem[npt.NDArray]):
     @staticmethod
     def _runner_settings(config: Config, *, max_iter: int | None = None) -> RunnerSettings:
         values = dataclasses.asdict(config)
-        values["volume_fraction"] = values.pop("volfrac")
-        fields = {field.name for field in dataclasses.fields(RunnerSettings)}
-        values = {key: value for key, value in values.items() if key in fields}
         if max_iter is not None:
             values["max_iter"] = max_iter
         return RunnerSettings(**values)

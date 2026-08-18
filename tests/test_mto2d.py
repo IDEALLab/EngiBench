@@ -1,6 +1,7 @@
 """Tests for the MTO2D problem API and isolated runner."""
 
 from collections.abc import Callable
+from dataclasses import asdict
 from dataclasses import replace
 from pathlib import Path
 import re
@@ -92,7 +93,7 @@ def _make_case_template(root: Path) -> Path:
     (app / "constant").mkdir()
     (app / "system").mkdir()
     (case / "src_TF").mkdir()
-    (case / "src_TF" / "continuation.H").write_text("// warm-ready fixture\n", encoding="utf-8")
+    (case / "src_TF" / "EXEC").write_text("fixture executable\n", encoding="utf-8")
     (case / SCHEDULE_RUNTIME_MARKER).write_text(f"{SCHEDULE_RUNTIME_VERSION}\n", encoding="ascii")
 
     gamma = np.concatenate(
@@ -229,7 +230,7 @@ def test_problem_simulation_and_optimization_objective_order() -> None:
     assert runner.calls[1][2] == "optimize"
 
 
-def test_optimize_distinguishes_active_and_final_power_bounds() -> None:
+def test_optimization_history_carries_active_power_diagnostics() -> None:
     runner = FakeRunner()
     problem = MTO2D(
         max_iter=OPTIMIZATION_STEPS,
@@ -239,34 +240,35 @@ def test_optimize_distinguishes_active_and_final_power_bounds() -> None:
     design = problem.uniform_starting_design(problem.conditions.volfrac)
 
     with pytest.warns(UserWarning, match="exact prefix|final active bound") as legacy_warnings:
-        problem.optimize(design, {"mode": "cold"})
+        _optimized, cold_history = problem.optimize(design, {"mode": "cold"})
     warning_messages = [str(warning.message) for warning in legacy_warnings]
     assert any("exact prefix" in message for message in warning_messages)
     assert any("final active bound is 89.4" in message for message in warning_messages)
 
-    cold_bounds = problem.active_power_bounds({"mode": "cold"})
+    cold_bounds = np.array([step.active_power_bound for step in cold_history])
     np.testing.assert_allclose(cold_bounds, [89.8, 89.6, 89.4])
-    assert problem.last_solver_run is not None
     np.testing.assert_allclose(
-        problem.last_solver_run.power_dissipation / cold_bounds - 1.0,
+        [step.power_constraint_residual for step in cold_history],
         [61.0 / 89.8 - 1.0, 60.5 / 89.6 - 1.0, 60.0 / 89.4 - 1.0],
     )
-    np.testing.assert_allclose(
-        problem.last_solver_run.power_dissipation / 63.1 - 1.0,
-        np.array([61.0, 60.5, 60.0]) / 63.1 - 1.0,
-    )
+    np.testing.assert_allclose([step.volume_constraint_residual for step in cold_history], [-0.01, -0.015, -0.02])
+    np.testing.assert_allclose([step.elapsed_time for step in cold_history], [5.0, 10.0, 15.0])
 
     warm_overrides = {"mode": "warm", "optimization_schedule": "strict"}
-    problem.optimize(design, warm_overrides)
-    np.testing.assert_allclose(problem.active_power_bounds(warm_overrides), [63.1, 63.1, 63.1])
+    _optimized, warm_history = problem.optimize(design, warm_overrides)
+    np.testing.assert_allclose([step.active_power_bound for step in warm_history], [63.1, 63.1, 63.1])
+
+    problem.simulate(design)
+    np.testing.assert_allclose([step.active_power_bound for step in warm_history], [63.1, 63.1, 63.1])
 
 
-def test_uniform_start_and_render_use_native_half_domain() -> None:
+def test_historical_uniform_start_and_render_use_native_half_domain() -> None:
     problem = MTO2D()
     design = problem.uniform_starting_design(0.61)
 
     assert problem.design_space.contains(design)
-    assert problem.design_volume_residual(design, 0.61) == pytest.approx(0.0, abs=3e-8)
+    np.testing.assert_array_equal(design, np.full(HALF_DESIGN_SHAPE, 0.61, dtype=np.float32))
+    assert problem.design_volume_residual(design, 0.61) == pytest.approx(0.0288889, abs=1e-7)
     fig, ax = problem.render(design)
     rendered = np.asarray(ax.images[0].get_array())
     assert rendered.shape == (400, 400)
@@ -277,7 +279,7 @@ def test_uniform_start_and_render_use_native_half_domain() -> None:
 
 def test_check_constraints_warns_when_fluid_volume_exceeds_bound() -> None:
     problem = MTO2D(volfrac=0.25)
-    feasible = problem.uniform_starting_design(0.25)
+    feasible = np.zeros(HALF_DESIGN_SHAPE, dtype=np.float32)
 
     assert not problem.check_constraints(feasible, {})
 
@@ -336,7 +338,7 @@ def test_main_uses_sampled_conditions_without_hub_or_container_access(capsys: py
     assert kind == "simulate"
     assert settings.inlet_velocity == pytest.approx(-0.0569)
     assert settings.max_power_dissipation == pytest.approx(57.5)
-    assert settings.volume_fraction == pytest.approx(0.26)
+    assert settings.volfrac == pytest.approx(0.26)
     assert render_open_window == [False]
     assert "Stored objectives: mean_temperature=22.171801, power_dissipation=57.488201" in output
     assert "Simulated objectives: mean_temperature=9, power_dissipation=61" in output
@@ -355,7 +357,7 @@ def test_default_solver_config_uses_configured_container_reference() -> None:
     assert settings.max_iter == 1
     assert MTO2D()._runner.image == problem.container_id  # noqa: SLF001
     assert MTO2D()._runner.case_template is None  # noqa: SLF001
-    assert MTO2D.resolved_container_image() == MTO2D.container_id
+    assert asdict(problem._runner_settings(problem.config)) == asdict(problem.config)  # noqa: SLF001
 
 
 @pytest.mark.parametrize(
@@ -386,6 +388,13 @@ def test_invalid_problem_config_is_rejected(config: dict[str, Any], message: str
                 "optimization_schedule": "strict",
             },
             "divisible",
+        ),
+        (
+            {
+                "continuation_steps": 0,
+                "optimization_schedule": "strict",
+            },
+            "between 1 and max_iter",
         ),
         ({"qu_start": 0.0}, "qu_start"),
         ({"alpha_max_start": -1.0}, "alpha_max_start"),
@@ -470,7 +479,7 @@ def test_legacy_schedule_prepares_source_initialization_and_endpoints(tmp_path: 
     settings = RunnerSettings(
         inlet_velocity=-0.074,
         max_power_dissipation=63.1,
-        volume_fraction=0.61,
+        volfrac=0.61,
         max_iter=1,
         optimization_schedule="legacy",
     )
@@ -578,11 +587,11 @@ def test_case_template_rejects_wrong_gamma_cell_count(tmp_path: Path) -> None:
         MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
-def test_case_template_rejects_solver_that_ignores_continuation(tmp_path: Path) -> None:
+def test_case_template_requires_solver_executable(tmp_path: Path) -> None:
     template = _make_case_template(tmp_path)
-    (template / "src_TF" / "continuation.H").unlink()
+    (template / "src_TF" / "EXEC").unlink()
 
-    with pytest.raises(FileNotFoundError, match="silently ignores continuationProperties"):
+    with pytest.raises(FileNotFoundError, match="compiled solver executable"):
         MTO2DRunner(case_template=str(template))._resolve_case_template()  # noqa: SLF001
 
 
@@ -667,6 +676,14 @@ def test_update_design_dictionary_value_is_replaced_without_duplication(tmp_path
     assert "updateDesign false;" in updated
 
 
+def test_dictionary_replacement_rejects_duplicate_keys(tmp_path: Path) -> None:
+    dictionary = tmp_path / "transportProperties"
+    dictionary.write_text("D1 50;\nD1 60;\n", encoding="utf-8")
+
+    with pytest.raises(ValueError, match="exactly one 'D1'"):
+        MTO2DRunner._replace_dictionary_value(dictionary, "D1", 63.1)  # noqa: SLF001
+
+
 @pytest.mark.parametrize(
     ("mode", "configured_power_bound_start", "expected_power_bound_start"),
     [
@@ -731,7 +748,7 @@ def test_container_backend_uses_isolated_writable_home(
     settings = RunnerSettings(
         inlet_velocity=-0.074,
         max_power_dissipation=63.1,
-        volume_fraction=0.61,
+        volfrac=0.61,
     )
     runner = MTO2DRunner(image="engibench-mto2d:test")
 
@@ -797,10 +814,32 @@ def test_container_backend_exports_image_case_template(
     assert captured["kwargs"]["sync_uid"] is True
 
 
+def test_runner_validates_a_case_exported_by_a_custom_image(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fake_container_run(*_args: Any, **kwargs: Any) -> None:
+        case = Path(kwargs["mounts"][0][0]) / "case"
+        (case / "app").mkdir(parents=True)
+        (case / "src_TF").mkdir()
+
+    monkeypatch.setattr("engibench.problems.mto2d.model.runner.container.run", fake_container_run)
+    runner = MTO2DRunner(
+        image="custom-mto2d:test",
+        work_dir=str(tmp_path),
+        retain_on_failure=False,
+    )
+    settings = RunnerSettings(inlet_velocity=-0.074, max_power_dissipation=63.1, volfrac=0.61)
+
+    with pytest.raises(SolverRunError, match="compiled solver executable"):
+        runner.run(np.full(HALF_DESIGN_SHAPE, 0.61, dtype=np.float32), settings, kind="simulate")
+
+
 def test_frozen_output_validation_rejects_nonfinite_gamma(tmp_path: Path) -> None:
     app = tmp_path / "app"
     (app / "1").mkdir(parents=True)
     values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
+    values[DESIGN_CELL_COUNT:] = 1.0
     values[0] = np.nan
     (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
 
@@ -815,6 +854,7 @@ def test_frozen_output_validation_rejects_finite_design_change(tmp_path: Path) -
     app = tmp_path / "app"
     (app / "1").mkdir(parents=True)
     values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
+    values[DESIGN_CELL_COUNT:] = 1.0
     values[0] = 2e-7
     (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
 
@@ -825,9 +865,19 @@ def test_frozen_output_validation_rejects_finite_design_change(tmp_path: Path) -
         )
 
 
+def test_final_design_rejects_changed_fixed_fluid_cells(tmp_path: Path) -> None:
+    app = tmp_path / "app"
+    (app / "1").mkdir(parents=True)
+    values = np.ones(GAMMA_CELL_COUNT, dtype=np.float64)
+    values[-1] = 0.0
+    (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
+
+    with pytest.raises(ValueError, match="final 6,400 gamma cells"):
+        MTO2DRunner._read_final_design(app)  # noqa: SLF001
+
+
 def test_simulation_rejects_unpatched_solver_gamma(
     tmp_path: Path,
-    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     template = _make_case_template(tmp_path)
 
@@ -835,6 +885,7 @@ def test_simulation_rejects_unpatched_solver_gamma(
         app = case_dir / "app"
         (app / "1").mkdir()
         values = np.zeros(GAMMA_CELL_COUNT, dtype=np.float64)
+        values[DESIGN_CELL_COUNT:] = 1.0
         values[0] = np.nan
         (app / "1" / "gamma").write_text(_foam_gamma(values), encoding="ascii")
         for filename, value in {
