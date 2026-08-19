@@ -232,8 +232,7 @@ class Problem(Generic[DesignType]):
         If the class instance holds an attribute `config` which is not `None`,
         the fields of `config` will be used as default values.
         """
-        defaults = dataclasses.asdict(self.config) if self.config is not None else {}
-        checked_config = self.Config(**{**defaults, **config})
+        checked_config = self.Config(**config) if self.config is None else dataclasses.replace(self.config, **config)
         violations = constraint.check_field_constraints(checked_config)
 
         @constraint.constraint

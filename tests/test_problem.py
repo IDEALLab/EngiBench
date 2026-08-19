@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from dataclasses import field
 from typing import Annotated
 
 from gymnasium import spaces
@@ -30,6 +31,10 @@ class FakeProblem(Problem[NDArray[np.float64]]):
     class Config(Conditions):
         x: Annotated[int, bounded(lower=10)]
         y: Annotated[float, bounded(upper=-1.0)] = -1.0
+        derived: int = field(init=False)
+
+        def __post_init__(self) -> None:
+            self.derived = 2 * self.x
 
 
 def causes(violations: Violations) -> list[str]:
@@ -66,6 +71,8 @@ def test_check_constraints_overrides_default_values() -> None:
     config = {"y": 1.0}
     violations = fake_problem.check_constraints(design, config)
     assert causes(violations) == ["Config.y: 1.0 ∉ [-∞, -1.0]"]
+    expected_derived = 20
+    assert fake_problem.config.derived == expected_derived
 
 
 def test_check_constraints_handles_constraints_on_design_and_config() -> None:
