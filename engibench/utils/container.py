@@ -1,10 +1,14 @@
 """Abstraction over container runtimes."""
 
 from collections.abc import Sequence
+from contextlib import nullcontext
+from contextlib import suppress
 import os
 import shutil
 import subprocess
 import tempfile
+import uuid
+import warnings
 
 
 def pull(image: str) -> None:
@@ -29,6 +33,7 @@ def run(
     name: str | None = None,
     stdin: bytes | None = None,
     sync_uid: bool = False,
+    timeout: float | None = None,
 ) -> None:
     """Run a command in a container using the selected runtime.
 
@@ -40,14 +45,36 @@ def run(
         name: Optional name for the container (not supported by all runtimes).
         stdin: Optional data to feed to stdin of the process inside the container.
         sync_uid: Use the uid of the current process as uid inside the container.
+        timeout: Optional wall-clock limit in seconds for the containerized command.
+
+    Raises:
+        FileNotFoundError: If no container runtime is available.
+        TimeoutError: If the command does not finish within `timeout` seconds.
+        RuntimeError: If the command exits with a non-zero status.
     """
     if RUNTIME is None:
         msg = "No container runtime found. Please ensure Docker, Podman, or Singularity is installed and running."
         raise FileNotFoundError(msg)
 
+    if timeout is not None and timeout <= 0.0:
+        msg = f"timeout must be positive, got {timeout}"
+        raise ValueError(msg)
+
     try:
-        result = RUNTIME.run(command, image, mounts=mounts, env=env, name=name, stdin=stdin, sync_uid=sync_uid)
+        result = RUNTIME.run(
+            command,
+            image,
+            mounts=mounts,
+            env=env,
+            name=name,
+            stdin=stdin,
+            sync_uid=sync_uid,
+            timeout=timeout,
+        )
         result.check_returncode()
+    except subprocess.TimeoutExpired as e:
+        msg = f"Container command timed out after {e.timeout} seconds:\nCommand: {' '.join(command)}"
+        raise TimeoutError(msg) from None
     except subprocess.CalledProcessError as e:
         msg = f"""Container command failed with exit code {e.returncode}:
 Command: {" ".join(command)}
@@ -100,6 +127,7 @@ class ContainerRuntime:
         name: str | None = None,
         stdin: bytes | None = None,
         sync_uid: bool = False,
+        timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -111,6 +139,7 @@ class ContainerRuntime:
             name: Optional name for the container (not supported by all runtimes).
             stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
+            timeout: Optional wall-clock limit in seconds for the containerized command.
         """
         raise NotImplementedError("Must be implemented by a subclass")
 
@@ -179,6 +208,7 @@ class Docker(ContainerRuntime):
         name: str | None = None,
         stdin: bytes | None = None,
         sync_uid: bool = False,
+        timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -190,29 +220,68 @@ class Docker(ContainerRuntime):
             name: Optional name for the container (not supported by all runtimes).
             stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
+            timeout: Optional wall-clock limit in seconds for the containerized command.
         """
-        name_args = [] if name is None else ["--name", name]
+        run_name = name
+        generated_name = timeout is not None and run_name is None
+        if generated_name:
+            run_name = f"engibench-{uuid.uuid4().hex}"
+        name_args = [] if run_name is None else ["--name", run_name]
         user_args = cls._user_args() if sync_uid else ()
         stdin_args = () if stdin is None else ("-i",)
 
-        return subprocess.run(
-            [
-                cls.executable,
-                "run",
-                "--rm",
-                *name_args,
-                *_mount_args(mounts),
-                *_env_args(env or {}),
-                *stdin_args,
-                *user_args,
-                image,
-                *command,
-            ],
-            check=False,
-            capture_output=True,
-            env=cls._env(),
-            input=stdin,
-        )
+        cid_context = tempfile.TemporaryDirectory(prefix="engibench-cid-") if timeout is not None else nullcontext(None)
+        with cid_context as cid_dir:
+            cidfile = os.path.join(cid_dir, "container.cid") if cid_dir is not None else None
+            cid_args = [] if cidfile is None else ["--cidfile", cidfile]
+            try:
+                return subprocess.run(
+                    [
+                        cls.executable,
+                        "run",
+                        "--rm",
+                        *name_args,
+                        *cid_args,
+                        *_mount_args(mounts),
+                        *_env_args(env or {}),
+                        *stdin_args,
+                        *user_args,
+                        image,
+                        *command,
+                    ],
+                    check=False,
+                    capture_output=True,
+                    env=cls._env(),
+                    input=stdin,
+                    timeout=timeout,
+                )
+            except subprocess.TimeoutExpired:
+                # Killing the attached Docker/Podman client does not reliably
+                # stop the daemon-owned container. Prefer its exact CID; the
+                # generated name is a safe fallback if the CID was not written.
+                cleanup_target = None
+                if cidfile is not None:
+                    with suppress(OSError), open(cidfile, encoding="ascii") as cid_stream:
+                        cleanup_target = cid_stream.read().strip() or None
+                if cleanup_target is None and generated_name:
+                    cleanup_target = run_name
+                if cleanup_target is not None:
+                    try:
+                        cleanup = subprocess.run(
+                            [cls.executable, "rm", "--force", cleanup_target],
+                            check=False,
+                            capture_output=True,
+                            env=cls._env(),
+                            timeout=30.0,
+                        )
+                        cleanup.check_returncode()
+                    except (OSError, subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+                        warnings.warn(
+                            f"Timed-out container {cleanup_target!r} may still be running: {error}",
+                            RuntimeWarning,
+                            stacklevel=2,
+                        )
+                raise
 
     @classmethod
     def _user_args(cls) -> tuple[str, ...]:
@@ -255,13 +324,13 @@ class Podman(Docker):
 
     @classmethod
     def _env(cls) -> dict[str, str] | None:
-        # podman needs to have pasta in the PATH variable to configure
-        # network namespaces
-        pasta_executable = shutil.which("pasta")
-        if pasta_executable is None:
+        # Rootless Podman invokes host helpers such as pasta and newuidmap.
+        # Validate pasta explicitly, then inherit the full host environment so
+        # every helper path and runtime setting remains available.
+        if shutil.which("pasta") is None:
             msg = "pasta executable not available. This is needed for podman to work properly"
             raise RuntimeError(msg)
-        return {"PATH": os.path.dirname(pasta_executable)}
+        return None
 
 
 DOCKER_PREFIX = "docker://"
@@ -335,6 +404,7 @@ class Apptainer(ContainerRuntime):
         name: str | None = None,  # noqa: ARG003
         stdin: bytes | None = None,
         sync_uid: bool = False,  # noqa: ARG003
+        timeout: float | None = None,
     ) -> subprocess.CompletedProcess:
         """Run a command in a container.
 
@@ -346,6 +416,7 @@ class Apptainer(ContainerRuntime):
             name: Optional name for the container (not supported by all runtimes).
             stdin: Optional data to feed to stdin of the process inside the container.
             sync_uid: Use the uid of the current process as uid inside the container.
+            timeout: Optional wall-clock limit in seconds for the containerized command.
         """
         # Set Apptainer environment variables
         cls._set_apptainer_env()
@@ -366,6 +437,7 @@ class Apptainer(ContainerRuntime):
             ],
             check=False,
             input=stdin,
+            timeout=timeout,
         )
 
 

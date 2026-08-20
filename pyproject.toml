@@ -223,6 +223,15 @@ docstring-code-line-length = "dynamic"
 
 
 ###################################### PYRIGHT ########################################
+[tool.pytest.ini_options]
+# `slow` covers tests that download large datasets or images, or run long
+# external simulations. They are deselected by default so the standard CI job
+# stays inside its time budget; run them explicitly with `pytest -m slow`.
+markers = [
+    "slow: downloads large artifacts or runs long simulations",
+]
+addopts = "-m 'not slow'"
+
 [tool.pyright]
 include = ["engibench/**"]
 exclude = ["**/node_modules", "**/__pycache__", "**/study*", "**/pyopt_history.py"]

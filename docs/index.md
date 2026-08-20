@@ -56,6 +56,7 @@ introduction/api
 problems/airfoil
 problems/beams2d
 problems/beams3d
+problems/mto2d
 problems/thermoelastic
 problems/photonics2d
 problems/power_electronics
