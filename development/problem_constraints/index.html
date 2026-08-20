@@ -215,6 +215,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -687,7 +688,7 @@ where the annotation is one or multiple <a class="reference internal" href="#eng
 <p>Example:</p>
 <div class="highlight-py notranslate"><div class="highlight"><pre><span></span>    <span class="nd">@dataclass</span>
     <span class="k">class</span><span class="w"> </span><span class="nc">Conditions</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Conditions.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Conditions."""</span>
 
         <span class="n">volfrac</span><span class="p">:</span> <span class="n">Annotated</span><span class="p">[</span>
             <span class="nb">float</span><span class="p">,</span>
@@ -704,7 +705,7 @@ where the annotation is one or multiple <a class="reference internal" href="#eng
 <p>Example:</p>
 <div class="highlight-py notranslate"><div class="highlight"><pre><span></span>    <span class="nd">@dataclass</span>
     <span class="k">class</span><span class="w"> </span><span class="nc">Config</span><span class="p">(</span><span class="n">Conditions</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Structured representation of conditions.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Structured representation of conditions."""</span>
 
         <span class="n">rmin</span><span class="p">:</span> <span class="nb">float</span> <span class="o">=</span> <span class="mf">2.0</span>
         <span class="n">nelx</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">100</span>
@@ -713,8 +714,8 @@ where the annotation is one or multiple <a class="reference internal" href="#eng
         <span class="nd">@constraint</span>
         <span class="nd">@staticmethod</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">rmin_bound</span><span class="p">(</span><span class="n">rmin</span><span class="p">:</span> <span class="nb">float</span><span class="p">,</span> <span class="n">nelx</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="n">nely</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">            </span><span class="sd">&quot;&quot;&quot;Constraint for rmin ∈ (0.0, max{ nelx, nely }].&quot;&quot;&quot;</span>
-            <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">rmin</span> <span class="o">&lt;=</span> <span class="nb">max</span><span class="p">(</span><span class="n">nelx</span><span class="p">,</span> <span class="n">nely</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;Params.rmin: </span><span class="si">{</span><span class="n">rmin</span><span class="si">}</span><span class="s2"> ∉ (0, max(nelx, nely)]&quot;</span>
+<span class="w">            </span><span class="sd">"""Constraint for rmin ∈ (0.0, max{ nelx, nely }]."""</span>
+            <span class="k">assert</span> <span class="mi">0</span> <span class="o">&lt;</span> <span class="n">rmin</span> <span class="o">&lt;=</span> <span class="nb">max</span><span class="p">(</span><span class="n">nelx</span><span class="p">,</span> <span class="n">nely</span><span class="p">),</span> <span class="sa">f</span><span class="s2">"Params.rmin: </span><span class="si">{</span><span class="n">rmin</span><span class="si">}</span><span class="s2"> ∉ (0, max(nelx, nely)]"</span>
 </pre></div>
 </div>
 <p>This declares a constraint for the 3 parameters (<code class="docutils literal notranslate"><span class="pre">rmin</span></code>, <code class="docutils literal notranslate"><span class="pre">nelx</span></code>, <code class="docutils literal notranslate"><span class="pre">nely</span></code>) with custom logic. This constraint does not have any category.
@@ -753,10 +754,10 @@ The simplest case is an unparametrized constraint:</p>
 <div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.constraint</span><span class="w"> </span><span class="kn">import</span> <span class="n">Constraint</span>
 
 <span class="k">def</span><span class="w"> </span><span class="nf">not_equal_to</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="nb">int</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Constraint</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a constraint which checks that the specified parameter is not equal to `value`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Create a constraint which checks that the specified parameter is not equal to `value`."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">actual_value</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">actual_value</span> <span class="o">!=</span> <span class="n">value</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;value == </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">assert</span> <span class="n">actual_value</span> <span class="o">!=</span> <span class="n">value</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"value == </span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span>
 
     <span class="k">return</span> <span class="n">Constraint</span><span class="p">(</span><span class="n">check</span><span class="p">)</span>
 </pre></div>

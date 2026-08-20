@@ -211,6 +211,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -512,7 +513,7 @@
                 <article class="bd-article">
                   
   <h1>Source code for engibench.constraint</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Constraints for parameters of Problem classes.&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""Constraints for parameters of Problem classes."""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
@@ -531,25 +532,25 @@
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Category</span><span class="p">(</span><span class="n">Flag</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Category of a constraint.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Category of a constraint."""</span>
 
     <span class="n">Theory</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
     <span class="n">Implementation</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
 
 
 <span class="n">IMPL</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">Implementation</span>
-<span class="sd">&quot;&quot;&quot;Violating the constraint, will cause runtime errors / undefined behavior</span>
-<span class="sd">  due to the implementation.&quot;&quot;&quot;</span>
+<span class="sd">"""Violating the constraint, will cause runtime errors / undefined behavior</span>
+<span class="sd">  due to the implementation."""</span>
 <span class="n">THEORY</span> <span class="o">=</span> <span class="n">Category</span><span class="o">.</span><span class="n">Theory</span>
-<span class="sd">&quot;&quot;&quot;The constraint is not known to cause a runtime error, values outside of</span>
-<span class="sd"> the constraint domain are unphysical and might lead to unphysical domains.&quot;&quot;&quot;</span>
+<span class="sd">"""The constraint is not known to cause a runtime error, values outside of</span>
+<span class="sd"> the constraint domain are unphysical and might lead to unphysical domains."""</span>
 <span class="n">UNCATEGORIZED</span> <span class="o">=</span> <span class="n">Category</span><span class="p">(</span><span class="mi">0</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="Criticality">
 <a class="viewcode-back" href="../../../development/problem_constraints/#engibench.constraint.Criticality">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Criticality</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Criticality of a constraint violation.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Criticality of a constraint violation."""</span>
 
     <span class="n">Error</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
     <span class="ne">Warning</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span></div>
@@ -560,33 +561,33 @@
 <a class="viewcode-back" href="../../../development/problem_constraints/#engibench.constraint.Constraint">[docs]</a>
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Constraint</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Constraint for parameters passed to e.g. :py:meth:`engibench.core.Problem.optimize()`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Constraint for parameters passed to e.g. :py:meth:`engibench.core.Problem.optimize()`."""</span>
 
     <span class="n">check</span><span class="p">:</span> <span class="n">Check</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check callback raising an AssertError if the constraint is violated.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Check callback raising an AssertError if the constraint is violated."""</span>
     <span class="n">categories</span><span class="p">:</span> <span class="n">Category</span> <span class="o">=</span> <span class="n">UNCATEGORIZED</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Categories of the constraint.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Categories of the constraint."""</span>
     <span class="n">criticality</span><span class="p">:</span> <span class="n">Criticality</span> <span class="o">=</span> <span class="n">Criticality</span><span class="o">.</span><span class="n">Error</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Criticality of a violation of the constraint.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Criticality of a violation of the constraint."""</span>
 
 <div class="viewcode-block" id="Constraint.category">
 <a class="viewcode-back" href="../../../development/problem_constraints/#engibench.constraint.Constraint.category">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">category</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="n">Category</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Constraint&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a copy of the constraint which has the specified category added.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">category</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="n">Category</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Constraint"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a copy of the constraint which has the specified category added."""</span>
         <span class="k">return</span> <span class="n">Constraint</span><span class="p">(</span><span class="n">check</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">check</span><span class="p">,</span> <span class="n">criticality</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">criticality</span><span class="p">,</span> <span class="n">categories</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">categories</span> <span class="o">|</span> <span class="n">category</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Constraint.warning">
 <a class="viewcode-back" href="../../../development/problem_constraints/#engibench.constraint.Constraint.warning">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">warning</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Constraint&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Return a copy of the constraint with the criticality level set to &quot;warning&quot;.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">warning</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Constraint"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Return a copy of the constraint with the criticality level set to "warning"."""</span>
         <span class="k">return</span> <span class="n">Constraint</span><span class="p">(</span><span class="n">check</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">check</span><span class="p">,</span> <span class="n">criticality</span><span class="o">=</span><span class="n">Criticality</span><span class="o">.</span><span class="n">Warning</span><span class="p">,</span> <span class="n">categories</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">categories</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="Constraint.check_dict">
 <a class="viewcode-back" href="../../../development/problem_constraints/#engibench.constraint.Constraint.check_dict">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">check_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">&quot;Violation | None&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check for a violation of the given constraint for the given parameters.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_dict</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">parameter_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="s2">"Violation | None"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Check for a violation of the given constraint for the given parameters."""</span>
         <span class="c1"># We first inspect the arguments of check callback:</span>
         <span class="n">sig</span> <span class="o">=</span> <span class="n">inspect</span><span class="o">.</span><span class="n">signature</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">check</span><span class="p">)</span>
         <span class="n">required_args</span> <span class="o">=</span> <span class="p">{</span>
@@ -596,7 +597,7 @@
         <span class="p">}</span>
         <span class="n">missing_args</span> <span class="o">=</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">required_args</span><span class="p">)</span> <span class="o">-</span> <span class="nb">frozenset</span><span class="p">(</span><span class="n">parameter_args</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">missing_args</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Missing argument(s) </span><span class="si">{</span><span class="s1">&#39;, &#39;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing_args</span><span class="p">)</span><span class="si">}</span><span class="s2"> for constraint </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">check</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">&quot;</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Missing argument(s) </span><span class="si">{</span><span class="s1">', '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">missing_args</span><span class="p">)</span><span class="si">}</span><span class="s2"> for constraint </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">check</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">"</span>
             <span class="k">raise</span> <span class="ne">TypeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
         <span class="c1"># If self.check() accepts `**kwargs`, we feed in **parameter_args:</span>
@@ -614,8 +615,8 @@
 
 <div class="viewcode-block" id="Constraint.check_value">
 <a class="viewcode-back" href="../../../development/problem_constraints/#engibench.constraint.Constraint.check_value">[docs]</a>
-    <span class="k">def</span><span class="w"> </span><span class="nf">check_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Violation | None&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check for a violation for the given single positional value.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">check_value</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Violation | None"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Check for a violation for the given single positional value."""</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="n">value</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">AssertionError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
@@ -644,7 +645,7 @@
     <span class="n">categories</span><span class="p">:</span> <span class="n">Category</span> <span class="o">=</span> <span class="n">UNCATEGORIZED</span><span class="p">,</span>
     <span class="n">criticality</span><span class="p">:</span> <span class="n">Criticality</span> <span class="o">=</span> <span class="n">Criticality</span><span class="o">.</span><span class="n">Error</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Callable</span><span class="p">[[</span><span class="n">Check</span><span class="p">],</span> <span class="n">Constraint</span><span class="p">]</span> <span class="o">|</span> <span class="n">Constraint</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Decorator for check callbacks to convert the callback to a :class:`Constraint`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Decorator for check callbacks to convert the callback to a :class:`Constraint`."""</span>
     <span class="k">if</span> <span class="n">check</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">Constraint</span><span class="p">(</span><span class="n">check</span><span class="p">)</span>
 
@@ -656,20 +657,20 @@
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Var</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Helper class to bind variable names to a constraint.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Helper class to bind variable names to a constraint."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="o">*</span><span class="n">names</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">names</span> <span class="o">=</span> <span class="n">names</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">constraint</span><span class="p">:</span> <span class="n">Constraint</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Constraint</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Bind the variable names to `constraint`.&quot;&quot;&quot;</span>
-        <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;_&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">,</span> <span class="n">constraint</span><span class="o">.</span><span class="n">check</span><span class="o">.</span><span class="vm">__name__</span><span class="p">])</span>
+<span class="w">        </span><span class="sd">"""Bind the variable names to `constraint`."""</span>
+        <span class="n">name</span> <span class="o">=</span> <span class="s2">"_"</span><span class="o">.</span><span class="n">join</span><span class="p">([</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">,</span> <span class="n">constraint</span><span class="o">.</span><span class="n">check</span><span class="o">.</span><span class="vm">__name__</span><span class="p">])</span>
 
         <span class="k">def</span><span class="w"> </span><span class="nf">extracting_check</span><span class="p">(</span><span class="o">**</span><span class="n">kwargs</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">try</span><span class="p">:</span>
                 <span class="n">values</span> <span class="o">=</span> <span class="p">[</span><span class="n">kwargs</span><span class="p">[</span><span class="n">name</span><span class="p">]</span> <span class="k">for</span> <span class="n">name</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">names</span><span class="p">]</span>
             <span class="k">except</span> <span class="ne">KeyError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-                <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;Missing argument </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> for constraint </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">&quot;</span>
+                <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Missing argument </span><span class="si">{</span><span class="n">e</span><span class="si">}</span><span class="s2"> for constraint </span><span class="si">{</span><span class="n">name</span><span class="si">}</span><span class="s2">"</span>
                 <span class="k">raise</span> <span class="ne">AssertionError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
             <span class="n">constraint</span><span class="o">.</span><span class="n">check</span><span class="p">(</span><span class="o">*</span><span class="n">values</span><span class="p">)</span>
 
@@ -679,30 +680,30 @@
 
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">Violation</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Representation of a violation of a constraint.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Representation of a violation of a constraint."""</span>
 
     <span class="n">constraint</span><span class="p">:</span> <span class="n">Constraint</span>
     <span class="n">cause</span><span class="p">:</span> <span class="nb">str</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">constraint</span><span class="o">.</span><span class="n">check</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cause</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">constraint</span><span class="o">.</span><span class="n">check</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">cause</span><span class="si">}</span><span class="s2">"</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">Violations</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Filterable collection of :class:`Violation` instances returned by :function:`check_constraints`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Filterable collection of :class:`Violation` instances returned by :function:`check_constraints`."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">violations</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="n">Violation</span><span class="p">],</span> <span class="n">n_constraints</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">violations</span> <span class="o">=</span> <span class="n">violations</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">n_constraints</span> <span class="o">=</span> <span class="n">n_constraints</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">by_category</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="n">Category</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Violations&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter the violations by the category of the constraint causing the violation.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">by_category</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">category</span><span class="p">:</span> <span class="n">Category</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Violations"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Filter the violations by the category of the constraint causing the violation."""</span>
         <span class="k">return</span> <span class="n">Violations</span><span class="p">(</span>
             <span class="p">[</span><span class="n">violation</span> <span class="k">for</span> <span class="n">violation</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">violations</span> <span class="k">if</span> <span class="n">category</span> <span class="ow">in</span> <span class="n">violation</span><span class="o">.</span><span class="n">constraint</span><span class="o">.</span><span class="n">categories</span><span class="p">],</span> <span class="bp">self</span><span class="o">.</span><span class="n">n_constraints</span>
         <span class="p">)</span>
 
-    <span class="k">def</span><span class="w"> </span><span class="nf">by_criticality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criticality</span><span class="p">:</span> <span class="n">Criticality</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">&quot;Violations&quot;</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Filter the violations by criticality.&quot;&quot;&quot;</span>
+    <span class="k">def</span><span class="w"> </span><span class="nf">by_criticality</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">criticality</span><span class="p">:</span> <span class="n">Criticality</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="s2">"Violations"</span><span class="p">:</span>
+<span class="w">        </span><span class="sd">"""Filter the violations by criticality."""</span>
         <span class="k">return</span> <span class="n">Violations</span><span class="p">(</span>
             <span class="p">[</span><span class="n">violation</span> <span class="k">for</span> <span class="n">violation</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">violations</span> <span class="k">if</span> <span class="n">violation</span><span class="o">.</span><span class="n">constraint</span><span class="o">.</span><span class="n">criticality</span> <span class="o">==</span> <span class="n">criticality</span><span class="p">],</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">n_constraints</span><span class="p">,</span>
@@ -715,17 +716,17 @@
         <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">violations</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="k">return</span> <span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">violations</span><span class="p">)</span>
+        <span class="k">return</span> <span class="s2">"</span><span class="se">\n</span><span class="s2">"</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="nb">str</span><span class="p">(</span><span class="n">v</span><span class="p">)</span> <span class="k">for</span> <span class="n">v</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">violations</span><span class="p">)</span>
 
 
-<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;T&quot;</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
+<span class="n">T</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">"T"</span><span class="p">,</span> <span class="nb">int</span><span class="p">,</span> <span class="nb">float</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">bounded</span><span class="p">(</span><span class="o">*</span><span class="p">,</span> <span class="n">lower</span><span class="p">:</span> <span class="n">T</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">upper</span><span class="p">:</span> <span class="n">T</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Constraint</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a constraint which checks that the specified parameter is contained in an interval `[lower, upper]`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Create a constraint which checks that the specified parameter is contained in an interval `[lower, upper]`."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> ∉ [</span><span class="si">{</span><span class="n">lower</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">lower</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="kc">None</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;-∞&#39;</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">upper</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">upper</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="kc">None</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">&#39;∞&#39;</span><span class="si">}</span><span class="s2">]&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> ∉ [</span><span class="si">{</span><span class="n">lower</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">lower</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="kc">None</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">'-∞'</span><span class="si">}</span><span class="s2">, </span><span class="si">{</span><span class="n">upper</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">upper</span><span class="w"> </span><span class="ow">is</span><span class="w"> </span><span class="ow">not</span><span class="w"> </span><span class="kc">None</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s1">'∞'</span><span class="si">}</span><span class="s2">]"</span>
         <span class="k">assert</span> <span class="n">lower</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">lower</span> <span class="o">&lt;=</span> <span class="n">value</span><span class="p">),</span> <span class="n">msg</span>
         <span class="k">assert</span> <span class="n">upper</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">or</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">value</span> <span class="o">&lt;=</span> <span class="n">upper</span><span class="p">),</span> <span class="n">msg</span>
 
@@ -733,19 +734,19 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">greater_than</span><span class="p">(</span><span class="n">lower</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Constraint</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a constraint which checks that the specified parameter is greater than `lower`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Create a constraint which checks that the specified parameter is greater than `lower`."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">value</span> <span class="o">&gt;</span> <span class="n">lower</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> ∉ (</span><span class="si">{</span><span class="n">lower</span><span class="si">}</span><span class="s2">, ∞)&quot;</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">value</span> <span class="o">&gt;</span> <span class="n">lower</span><span class="p">),</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> ∉ (</span><span class="si">{</span><span class="n">lower</span><span class="si">}</span><span class="s2">, ∞)"</span>
 
     <span class="k">return</span> <span class="n">Constraint</span><span class="p">(</span><span class="n">check</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">less_than</span><span class="p">(</span><span class="n">upper</span><span class="p">:</span> <span class="n">T</span><span class="p">,</span> <span class="o">/</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Constraint</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Create a constraint which checks that the specified parameter is less than `upper`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Create a constraint which checks that the specified parameter is less than `upper`."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">check</span><span class="p">(</span><span class="n">value</span><span class="p">:</span> <span class="n">T</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">value</span> <span class="o">&lt;</span> <span class="n">upper</span><span class="p">),</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> ∉ (-∞, </span><span class="si">{</span><span class="n">upper</span><span class="si">}</span><span class="s2">)&quot;</span>
+        <span class="k">assert</span> <span class="n">np</span><span class="o">.</span><span class="n">all</span><span class="p">(</span><span class="n">value</span> <span class="o">&lt;</span> <span class="n">upper</span><span class="p">),</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2"> ∉ (-∞, </span><span class="si">{</span><span class="n">upper</span><span class="si">}</span><span class="s2">)"</span>
 
     <span class="k">return</span> <span class="n">Constraint</span><span class="p">(</span><span class="n">check</span><span class="p">)</span>
 
@@ -755,15 +756,15 @@
     <span class="n">design</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
     <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Violations</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Specifically check the arguments of :meth:`engibench.core.Problem.optimize()`.&quot;&quot;&quot;</span>
-    <span class="k">return</span> <span class="n">check_constraints</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="p">{</span><span class="s2">&quot;design&quot;</span><span class="p">:</span> <span class="n">design</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">})</span>
+<span class="w">    </span><span class="sd">"""Specifically check the arguments of :meth:`engibench.core.Problem.optimize()`."""</span>
+    <span class="k">return</span> <span class="n">check_constraints</span><span class="p">(</span><span class="n">constraints</span><span class="p">,</span> <span class="p">{</span><span class="s2">"design"</span><span class="p">:</span> <span class="n">design</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">})</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">check_constraints</span><span class="p">(</span>
     <span class="n">constraints</span><span class="p">:</span> <span class="n">Iterable</span><span class="p">[</span><span class="n">Constraint</span><span class="p">],</span>
     <span class="n">parameter_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">],</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Violations</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check for violations of the given constraints for the given parameters.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Check for violations of the given constraints for the given parameters."""</span>
     <span class="n">constraints</span> <span class="o">=</span> <span class="nb">list</span><span class="p">(</span><span class="n">constraints</span><span class="p">)</span>
     <span class="n">violations</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">violation</span>
@@ -776,7 +777,7 @@
 <span class="k">def</span><span class="w"> </span><span class="nf">check_field_constraints</span><span class="p">(</span>
     <span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Violations</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check for violations of constraints for fields of a dataclass which declare constraints via :function:`field_constraints`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Check for violations of constraints for fields of a dataclass which declare constraints via :function:`field_constraints`."""</span>
     <span class="k">assert</span> <span class="n">is_dataclass</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
     <span class="k">assert</span> <span class="ow">not</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">data</span><span class="p">,</span> <span class="nb">type</span><span class="p">)</span>
     <span class="n">violations</span> <span class="o">=</span> <span class="p">[]</span>
@@ -790,14 +791,14 @@
         <span class="p">)</span>
         <span class="k">if</span> <span class="n">violation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
             <span class="k">if</span> <span class="n">f_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
-                <span class="n">violation</span> <span class="o">=</span> <span class="n">Violation</span><span class="p">(</span><span class="n">violation</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">f_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">violation</span><span class="o">.</span><span class="n">cause</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">)</span>
+                <span class="n">violation</span> <span class="o">=</span> <span class="n">Violation</span><span class="p">(</span><span class="n">violation</span><span class="o">.</span><span class="n">constraint</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">)</span><span class="o">.</span><span class="vm">__name__</span><span class="si">}</span><span class="s2">.</span><span class="si">{</span><span class="n">f_name</span><span class="si">}</span><span class="s2">: </span><span class="si">{</span><span class="n">violation</span><span class="o">.</span><span class="n">cause</span><span class="si">}</span><span class="s2">"</span><span class="p">)</span>
             <span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">violation</span><span class="p">)</span>
 
     <span class="k">return</span> <span class="n">Violations</span><span class="p">(</span><span class="n">violations</span><span class="p">,</span> <span class="n">n_constraints</span><span class="p">)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">field_constraints</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Iterable</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span><span class="p">,</span> <span class="n">Constraint</span><span class="p">]]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Iterate over all constraints declared on the dataclass instance `data`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Iterate over all constraints declared on the dataclass instance `data`."""</span>
     <span class="k">assert</span> <span class="n">is_dataclass</span><span class="p">(</span><span class="n">data</span><span class="p">)</span>
     <span class="c1"># Check for annotated ClassVar:</span>
     <span class="k">for</span> <span class="n">f_name</span><span class="p">,</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">data</span><span class="o">.</span><span class="vm">__annotations__</span><span class="o">.</span><span class="n">items</span><span class="p">():</span>
@@ -807,15 +808,15 @@
             <span class="p">(</span><span class="n">annotation</span><span class="p">,)</span> <span class="o">=</span> <span class="n">typing</span><span class="o">.</span><span class="n">get_args</span><span class="p">(</span><span class="n">f</span><span class="p">)</span>
         <span class="k">except</span> <span class="ne">TypeError</span><span class="p">:</span>
             <span class="k">continue</span>
-        <span class="k">yield from</span> <span class="p">((</span><span class="n">f_name</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">annotation</span><span class="p">,</span> <span class="s2">&quot;__metadata__&quot;</span><span class="p">,</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">Constraint</span><span class="p">))</span>
+        <span class="k">yield from</span> <span class="p">((</span><span class="n">f_name</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">annotation</span><span class="p">,</span> <span class="s2">"__metadata__"</span><span class="p">,</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">Constraint</span><span class="p">))</span>
     <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="n">data</span><span class="p">):</span>
         <span class="c1"># Check for typing.Annotated:</span>
-        <span class="k">yield from</span> <span class="p">((</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="s2">&quot;__metadata__&quot;</span><span class="p">,</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">Constraint</span><span class="p">))</span>
+        <span class="k">yield from</span> <span class="p">((</span><span class="n">f</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">getattr</span><span class="p">(</span><span class="n">f</span><span class="o">.</span><span class="n">type</span><span class="p">,</span> <span class="s2">"__metadata__"</span><span class="p">,</span> <span class="p">())</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">Constraint</span><span class="p">))</span>
     <span class="k">yield from</span> <span class="p">((</span><span class="kc">None</span><span class="p">,</span> <span class="n">c</span><span class="p">)</span> <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="nb">vars</span><span class="p">(</span><span class="nb">type</span><span class="p">(</span><span class="n">data</span><span class="p">))</span><span class="o">.</span><span class="n">values</span><span class="p">()</span> <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">c</span><span class="p">,</span> <span class="n">Constraint</span><span class="p">))</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">count_field_constraints</span><span class="p">(</span><span class="n">data</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">int</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the number of constraints declared on the dataclass `data`.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Return the number of constraints declared on the dataclass `data`."""</span>
     <span class="k">return</span> <span class="nb">len</span><span class="p">(</span><span class="nb">list</span><span class="p">(</span><span class="n">field_constraints</span><span class="p">(</span><span class="n">data</span><span class="p">)))</span>
 </pre></div>
 

@@ -216,6 +216,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -637,9 +638,9 @@ Slurm, see <a class="reference internal" href="../../introduction/dataset_genera
 </div>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="n">parameter_space</span> <span class="o">=</span> <span class="p">[</span>
     <span class="p">{</span>
-        <span class="s2">&quot;config&quot;</span><span class="p">:</span> <span class="p">{</span>
-            <span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="n">volfrac</span><span class="p">,</span>
-            <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="n">forcedist</span><span class="p">,</span>
+        <span class="s2">"config"</span><span class="p">:</span> <span class="p">{</span>
+            <span class="s2">"volfrac"</span><span class="p">:</span> <span class="n">volfrac</span><span class="p">,</span>
+            <span class="s2">"forcedist"</span><span class="p">:</span> <span class="n">forcedist</span><span class="p">,</span>
         <span class="p">}</span>
     <span class="p">}</span>
     <span class="k">for</span> <span class="n">forcedist</span> <span class="ow">in</span> <span class="p">[</span><span class="mf">0.0</span><span class="p">,</span> <span class="mf">0.5</span><span class="p">]</span>
@@ -649,7 +650,7 @@ Slurm, see <a class="reference internal" href="../../introduction/dataset_genera
 </div>
 <p><strong>Step 2:</strong> Specify arguments to be passed to slurm:</p>
 <div class="highlight-python notranslate"><div class="highlight"><pre><span></span><span class="kn">from</span><span class="w"> </span><span class="nn">engibench.utils</span><span class="w"> </span><span class="kn">import</span> <span class="n">slurm</span>
-<span class="n">slurm_args</span> <span class="o">=</span> <span class="n">slurm</span><span class="o">.</span><span class="n">SlurmConfig</span><span class="p">(</span><span class="n">runtime</span><span class="o">=</span><span class="s2">&quot;1:00:00&quot;</span><span class="p">)</span>
+<span class="n">slurm_args</span> <span class="o">=</span> <span class="n">slurm</span><span class="o">.</span><span class="n">SlurmConfig</span><span class="p">(</span><span class="n">runtime</span><span class="o">=</span><span class="s2">"1:00:00"</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><strong>Step 3:</strong> Submit a slurm job array</p>
@@ -661,12 +662,12 @@ Slurm, see <a class="reference internal" href="../../introduction/dataset_genera
 </pre></div>
 </div>
 <p>For example this would submit a slurm array with 6 elements running</p>
-<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span> <span class="c1"># element 1</span>
-<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span> <span class="c1"># element 2</span>
-<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span> <span class="c1"># element 3</span>
-<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">})</span> <span class="c1"># element 4</span>
-<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">})</span> <span class="c1"># element 5</span>
-<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">})</span> <span class="c1"># element 6</span>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span> <span class="c1"># element 1</span>
+<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span> <span class="c1"># element 2</span>
+<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.0</span><span class="p">})</span> <span class="c1"># element 3</span>
+<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.1</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">})</span> <span class="c1"># element 4</span>
+<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.25</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">})</span> <span class="c1"># element 5</span>
+<span class="n">run_job</span><span class="p">(</span><span class="n">config</span><span class="o">=</span><span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.8</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.5</span><span class="p">})</span> <span class="c1"># element 6</span>
 </pre></div>
 </div>
 <p>By default, <a class="reference internal" href="#engibench.utils.slurm.sbatch_map" title="engibench.utils.slurm.sbatch_map"><span class="xref myst py py-func">sbatch_map()</span></a> submits the job array in the background. That means that the execution flow of the python script will continue while the jobs are running.
@@ -684,12 +685,12 @@ If the calling python scripts needs to load results from the jobs, <code class="
 </pre></div>
 </div>
 <p><strong>Step 4b:</strong> Save all results in one <a class="reference external" href="https://docs.python.org/3/library/pickle.html">pickle</a> archive</p>
-<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">&quot;results.pkl&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">=</span><span class="n">slurm_args</span><span class="p">)</span>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">job</span><span class="o">.</span><span class="n">save</span><span class="p">(</span><span class="s2">"results.pkl"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">=</span><span class="n">slurm_args</span><span class="p">)</span>
 </pre></div>
 </div>
 <p><a class="reference internal" href="#engibench.utils.slurm.SubmittedJobArray.save" title="engibench.utils.slurm.SubmittedJobArray.save"><span class="xref myst py py-meth">job.save()</span></a> will submit another slurm job using <code class="docutils literal notranslate"><span class="pre">slurm_args</span></code> (can be chosen independently from the arguments passed to <a class="reference internal" href="#engibench.utils.slurm.sbatch_map" title="engibench.utils.slurm.sbatch_map"><span class="xref myst py py-func">sbatch_map()</span></a>) which will wait until all parallel jobs submitted by <a class="reference internal" href="#engibench.utils.slurm.sbatch_map" title="engibench.utils.slurm.sbatch_map"><span class="xref myst py py-func">sbatch_map()</span></a> have completed.</p>
 <p>The module contains a convenience wrapper around <a class="reference external" href="https://docs.python.org/3/library/pickle.html#pickle.load">pickle.load()</a> to load result archives:</p>
-<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">slurm</span><span class="o">.</span><span class="n">load_results</span><span class="p">(</span><span class="s2">&quot;results.pkl&quot;</span><span class="p">)</span>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="n">results</span> <span class="o">=</span> <span class="n">slurm</span><span class="o">.</span><span class="n">load_results</span><span class="p">(</span><span class="s2">"results.pkl"</span><span class="p">)</span>
 </pre></div>
 </div>
 <div class="admonition note">

@@ -211,6 +211,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -512,7 +513,7 @@
                 <article class="bd-article">
                   
   <h1>Source code for engibench.utils.slurm</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Slurm executor for parameter space discovery.&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""Slurm executor for parameter space discovery."""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Callable</span><span class="p">,</span> <span class="n">Iterable</span><span class="p">,</span> <span class="n">Sequence</span>
 <span class="kn">from</span><span class="w"> </span><span class="nn">dataclasses</span><span class="w"> </span><span class="kn">import</span> <span class="n">asdict</span>
@@ -536,13 +537,13 @@
 <div class="viewcode-block" id="JobError">
 <a class="viewcode-back" href="../../../../utils/slurm/#engibench.utils.slurm.JobError">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">JobError</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;User error happening during execution of a slurm job.</span>
+<span class="w">    </span><span class="sd">"""User error happening during execution of a slurm job.</span>
 
 <span class="sd">    - :attr:`origin` - Original exception instance.</span>
 <span class="sd">    - :attr:`context` - Info (string) about which step failed (e.g. map, reduce or save).</span>
 <span class="sd">    - :attr:`job_args` - dict containing the arguments passed to the job callback if the exception occurred during a job.</span>
 <span class="sd">    - :attr:`traceback` - `TracebackException &lt;https://docs.python.org/3/library/traceback.html#traceback.TracebackException&gt;`_ object.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">origin</span><span class="p">:</span> <span class="ne">Exception</span><span class="p">,</span> <span class="n">context</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">job_args</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">origin</span> <span class="o">=</span> <span class="n">origin</span>
@@ -551,27 +552,27 @@
         <span class="bp">self</span><span class="o">.</span><span class="n">traceback</span> <span class="o">=</span> <span class="n">TracebackException</span><span class="o">.</span><span class="n">from_exception</span><span class="p">(</span><span class="n">origin</span><span class="p">)</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-        <span class="n">args</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">args = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_args</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_args</span> <span class="k">else</span> <span class="s2">&quot;&quot;</span>
-        <span class="k">return</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;💥 JobError(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="si">}</span><span class="s2">):</span>
+        <span class="n">args</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="se">\n</span><span class="s2">args = </span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">job_args</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">job_args</span> <span class="k">else</span> <span class="s2">""</span>
+        <span class="k">return</span> <span class="sa">f</span><span class="s2">"""💥 JobError(</span><span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">context</span><span class="si">}</span><span class="s2">):</span>
 <span class="si">{</span><span class="bp">self</span><span class="o">.</span><span class="n">origin</span><span class="si">}{</span><span class="n">args</span><span class="si">}</span>
 
-<span class="si">{</span><span class="s2">&quot;&quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">traceback</span><span class="o">.</span><span class="n">format</span><span class="p">())</span><span class="si">}</span>
-<span class="s2">&quot;&quot;&quot;</span></div>
+<span class="si">{</span><span class="s2">""</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">traceback</span><span class="o">.</span><span class="n">format</span><span class="p">())</span><span class="si">}</span>
+<span class="s2">"""</span></div>
 
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">dump_with_job_error</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">,</span> <span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pickle objects to a file which might contain a :py:class:`JobError` instance.&quot;&quot;&quot;</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Pickle objects to a file which might contain a :py:class:`JobError` instance."""</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
         <span class="n">pickler</span> <span class="o">=</span> <span class="n">TracebackPickler</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
         <span class="n">pickler</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">obj</span><span class="p">)</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">TracebackPickler</span><span class="p">(</span><span class="n">pickle</span><span class="o">.</span><span class="n">Pickler</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Custom pickler to avoid pickling code objects when pickling tracebacks.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Custom pickler to avoid pickling code objects when pickling tracebacks."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="nf">reducer_override</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">):</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Custom reducer for StackSummary.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Custom reducer for StackSummary."""</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="n">StackSummary</span><span class="p">):</span>
             <span class="k">return</span> <span class="n">StackSummary</span><span class="o">.</span><span class="n">from_list</span><span class="p">,</span> <span class="p">([(</span><span class="n">s</span><span class="o">.</span><span class="n">filename</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">lineno</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">name</span><span class="p">,</span> <span class="n">s</span><span class="o">.</span><span class="n">line</span><span class="p">)</span> <span class="k">for</span> <span class="n">s</span> <span class="ow">in</span> <span class="n">obj</span><span class="p">],)</span>
         <span class="c1"># For any other object, fallback to usual reduction</span>
@@ -581,7 +582,7 @@
 <span class="k">if</span> <span class="n">sys</span><span class="o">.</span><span class="n">version_info</span> <span class="o">&lt;</span> <span class="p">(</span><span class="mi">3</span><span class="p">,</span> <span class="mi">11</span><span class="p">):</span>
 
     <span class="k">class</span><span class="w"> </span><span class="nc">ExceptionGroup</span><span class="p">(</span><span class="ne">Exception</span><span class="p">):</span>  <span class="c1"># noqa: N818</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Backport of ExceptionGroup added in python 3.11.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Backport of ExceptionGroup added in python 3.11."""</span>
 
         <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">msg</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">excs</span><span class="p">:</span> <span class="nb">list</span><span class="p">[</span><span class="ne">Exception</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">message</span> <span class="o">=</span> <span class="n">msg</span>
@@ -592,42 +593,42 @@
 <a class="viewcode-back" href="../../../../utils/slurm/#engibench.utils.slurm.SlurmConfig">[docs]</a>
 <span class="nd">@dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SlurmConfig</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Collection of slurm parameters passed to sbatch.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Collection of slurm parameters passed to sbatch."""</span>
 
-    <span class="n">sbatch_executable</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">&quot;sbatch&quot;</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Path to the sbatch executable if not in PATH&quot;&quot;&quot;</span>
+    <span class="n">sbatch_executable</span><span class="p">:</span> <span class="nb">str</span> <span class="o">=</span> <span class="s2">"sbatch"</span>
+<span class="w">    </span><span class="sd">"""Path to the sbatch executable if not in PATH"""</span>
     <span class="n">log_dir</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Path of the log directory&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Path of the log directory"""</span>
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Optional name for the jobs&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Optional name for the jobs"""</span>
     <span class="n">account</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Slurm account to use&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Slurm account to use"""</span>
     <span class="n">runtime</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Optional runtime in the format ``hh:mm:ss``. &quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Optional runtime in the format ``hh:mm:ss``. """</span>
     <span class="n">constraint</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Optional constraint&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Optional constraint"""</span>
     <span class="n">mem_per_cpu</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;E.g. &quot;4G&quot;.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""E.g. "4G"."""</span>
     <span class="n">mem</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;E.g. &quot;4G&quot;.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""E.g. "4G"."""</span>
     <span class="n">nodes</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">ntasks</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">cpus_per_task</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="n">extra_args</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">str</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Extra arguments passed to sbatch.&quot;&quot;&quot;</span></div>
+<span class="w">    </span><span class="sd">"""Extra arguments passed to sbatch."""</span></div>
 
 
 
-<span class="n">R</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;R&quot;</span><span class="p">)</span>
-<span class="n">S</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;S&quot;</span><span class="p">)</span>
+<span class="n">R</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">"R"</span><span class="p">)</span>
+<span class="n">S</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">"S"</span><span class="p">)</span>
 
-<span class="n">WORKER</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">&quot;run_job.py&quot;</span><span class="p">)</span>
+<span class="n">WORKER</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="vm">__file__</span><span class="p">),</span> <span class="s2">"run_job.py"</span><span class="p">)</span>
 
 
 <div class="viewcode-block" id="SubmittedJobArray">
 <a class="viewcode-back" href="../../../../utils/slurm/#engibench.utils.slurm.SubmittedJobArray">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">SubmittedJobArray</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">R</span><span class="p">]):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Representation for a submitted slurm job array.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Representation for a submitted slurm job array."""</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">job_id</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">work_dir</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">n_jobs</span><span class="p">:</span> <span class="nb">int</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">job_id</span> <span class="o">=</span> <span class="n">job_id</span>
@@ -639,7 +640,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">reduce</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">f_reduce</span><span class="p">:</span> <span class="n">Callable</span><span class="p">[[</span><span class="nb">list</span><span class="p">[</span><span class="n">R</span><span class="p">]],</span> <span class="n">S</span><span class="p">],</span> <span class="n">slurm_args</span><span class="p">:</span> <span class="n">SlurmConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span> <span class="n">size_limit</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="mi">10000000</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">S</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Reduce the results of a slurm job array.</span>
+<span class="w">        </span><span class="sd">"""Reduce the results of a slurm job array.</span>
 
 <span class="sd">        The return values of the callable `f` passed to :py:func:`sbatch_map` will be collected into a list and passed as</span>
 <span class="sd">        the single argument to `f_reduce`.</span>
@@ -653,22 +654,22 @@
 <span class="sd">        - :attr:`f_reduce` - The callable which performs the post processing on the list of return values for each job.</span>
 <span class="sd">        - :attr:`slurm_args` - Arguments passed to `sbatch`.</span>
 <span class="sd">        - :attr:`size_limit` - Upper limit for the allowed size of the post processed data in pickled form.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">&quot;jobs&quot;</span><span class="p">,</span> <span class="s2">&quot;reduce.pkl&quot;</span><span class="p">),</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+<span class="sd">        """</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">"jobs"</span><span class="p">,</span> <span class="s2">"reduce.pkl"</span><span class="p">),</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
             <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">MemorizeModule</span><span class="p">(</span><span class="n">f_reduce</span><span class="p">),</span> <span class="n">stream</span><span class="p">)</span>
 
         <span class="c1"># Submit reduce job:</span>
-        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="n">WORKER</span><span class="p">,</span> <span class="s2">&quot;reduce&quot;</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">)))</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="n">WORKER</span><span class="p">,</span> <span class="s2">"reduce"</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">)))</span>
         <span class="n">run_sbatch</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">=</span><span class="n">slurm_args</span> <span class="ow">or</span> <span class="n">SlurmConfig</span><span class="p">(),</span> <span class="n">job_dependency</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
         <span class="c1"># Try to load and return the reduced result if it is not too large:</span>
-        <span class="n">reduced_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">&quot;reduced.pkl&quot;</span><span class="p">)</span>
+        <span class="n">reduced_path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">"reduced.pkl"</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">size_limit</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">getsize</span><span class="p">(</span><span class="n">reduced_path</span><span class="p">)</span> <span class="o">&gt;</span> <span class="n">size_limit</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;&quot;&quot;Pickled data is too large to be processed by a login node.</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="sa">f</span><span class="s2">"""Pickled data is too large to be processed by a login node.</span>
 <span class="s2">Please submit a separate slurm job for postprocessing.</span>
 <span class="s2">The pickled data is still accessible here: </span><span class="si">{</span><span class="n">reduced_path</span><span class="si">}</span>
-<span class="s2">&quot;&quot;&quot;</span><span class="p">)</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">reduced_path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+<span class="s2">"""</span><span class="p">)</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">reduced_path</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
             <span class="n">result</span> <span class="o">=</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
         <span class="n">shutil</span><span class="o">.</span><span class="n">rmtree</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">)</span>
         <span class="k">if</span> <span class="nb">isinstance</span><span class="p">(</span><span class="n">result</span><span class="p">,</span> <span class="n">JobError</span><span class="p">):</span>
@@ -679,13 +680,13 @@
 <div class="viewcode-block" id="SubmittedJobArray.save">
 <a class="viewcode-back" href="../../../../utils/slurm/#engibench.utils.slurm.SubmittedJobArray.save">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">save</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">out</span><span class="p">:</span> <span class="nb">str</span><span class="p">,</span> <span class="n">slurm_args</span><span class="p">:</span> <span class="n">SlurmConfig</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Save the collected results of a slurm job array.</span>
+<span class="w">        </span><span class="sd">"""Save the collected results of a slurm job array.</span>
 
 <span class="sd">        The return values of the callable `f` passed to :py:func:`sbatch_map` will be collected into a list and saved to disk.</span>
 
 <span class="sd">        - :attr:`out` - Path to store the pickle archive.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="n">WORKER</span><span class="p">,</span> <span class="s2">&quot;save&quot;</span><span class="p">,</span> <span class="s2">&quot;-o&quot;</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">)))</span>
+<span class="sd">        """</span>
+        <span class="n">cmd</span> <span class="o">=</span> <span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">((</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="n">WORKER</span><span class="p">,</span> <span class="s2">"save"</span><span class="p">,</span> <span class="s2">"-o"</span><span class="p">,</span> <span class="n">out</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">work_dir</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">n_jobs</span><span class="p">)))</span>
         <span class="n">run_sbatch</span><span class="p">(</span><span class="n">cmd</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">=</span><span class="n">slurm_args</span><span class="p">,</span> <span class="n">job_dependency</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">job_id</span><span class="p">,</span> <span class="n">wait</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span></div>
 </div>
 
@@ -702,7 +703,7 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">wait</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SubmittedJobArray</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Submit a job array for a parameter discovery to slurm.</span>
+<span class="w">    </span><span class="sd">"""Submit a job array for a parameter discovery to slurm.</span>
 
 <span class="sd">    The returned :py:class:`SubmittedJobArray` object can be used to</span>
 <span class="sd">    start a post processing job which will run after all jobs of the array are done.</span>
@@ -718,21 +719,21 @@
 <span class="sd">    Details: The individual jobs of the jobarray will be processed in</span>
 <span class="sd">    individual python instances running the `engibench.utils.slurm.run_job`</span>
 <span class="sd">    standalone script.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">work_dir</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">work_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SCRATCH&quot;</span><span class="p">))</span>
-    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">&quot;jobs&quot;</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
-    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">&quot;results&quot;</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">work_dir</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">mkdtemp</span><span class="p">(</span><span class="nb">dir</span><span class="o">=</span><span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SCRATCH"</span><span class="p">))</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">"jobs"</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+    <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">"results"</span><span class="p">),</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="n">n_jobs</span> <span class="o">=</span> <span class="mi">0</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">&quot;jobs&quot;</span><span class="p">,</span> <span class="s2">&quot;map_callback.pkl&quot;</span><span class="p">),</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">"jobs"</span><span class="p">,</span> <span class="s2">"map_callback.pkl"</span><span class="p">),</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
         <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">MemorizeModule</span><span class="p">(</span><span class="n">f</span><span class="p">),</span> <span class="n">stream</span><span class="p">)</span>
     <span class="c1"># Dump jobs:</span>
     <span class="k">for</span> <span class="n">job_no</span><span class="p">,</span> <span class="n">arg</span> <span class="ow">in</span> <span class="nb">enumerate</span><span class="p">(</span><span class="n">args</span><span class="p">):</span>
-        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">&quot;jobs&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">job_no</span><span class="si">}</span><span class="s2">.pkl&quot;</span><span class="p">),</span> <span class="s2">&quot;wb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+        <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">work_dir</span><span class="p">,</span> <span class="s2">"jobs"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">job_no</span><span class="si">}</span><span class="s2">.pkl"</span><span class="p">),</span> <span class="s2">"wb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
             <span class="n">pickle</span><span class="o">.</span><span class="n">dump</span><span class="p">(</span><span class="n">MemorizeModule</span><span class="p">(</span><span class="n">arg</span><span class="p">),</span> <span class="n">stream</span><span class="p">)</span>
         <span class="n">n_jobs</span> <span class="o">+=</span> <span class="mi">1</span>
 
-    <span class="n">map_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">WORKER</span><span class="si">}</span><span class="s2"> run </span><span class="si">{</span><span class="n">work_dir</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">n_jobs</span><span class="si">}</span><span class="s2">&quot;</span>
+    <span class="n">map_cmd</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">sys</span><span class="o">.</span><span class="n">executable</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">WORKER</span><span class="si">}</span><span class="s2"> run </span><span class="si">{</span><span class="n">work_dir</span><span class="si">}</span><span class="s2"> </span><span class="si">{</span><span class="n">n_jobs</span><span class="si">}</span><span class="s2">"</span>
     <span class="n">job_id</span> <span class="o">=</span> <span class="n">run_sbatch</span><span class="p">(</span>
         <span class="n">cmd</span><span class="o">=</span><span class="n">map_cmd</span><span class="p">,</span>
         <span class="n">slurm_args</span><span class="o">=</span><span class="n">slurm_args</span> <span class="ow">or</span> <span class="n">SlurmConfig</span><span class="p">(),</span>
@@ -751,57 +752,57 @@
     <span class="o">*</span><span class="p">,</span>
     <span class="n">wait</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Execute sbatch with the given arguments, returning the job id of the submitted job.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Execute sbatch with the given arguments, returning the job id of the submitted job."""</span>
     <span class="k">if</span> <span class="n">slurm_args</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">slurm_args</span> <span class="o">=</span> <span class="n">SlurmConfig</span><span class="p">()</span>
-    <span class="n">log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">slurm_args</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span> <span class="s2">&quot;%j.log&quot;</span><span class="p">)</span> <span class="k">if</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">log_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+    <span class="n">log_file</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">slurm_args</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span> <span class="s2">"%j.log"</span><span class="p">)</span> <span class="k">if</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">log_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">log_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="n">os</span><span class="o">.</span><span class="n">makedirs</span><span class="p">(</span><span class="n">slurm_args</span><span class="o">.</span><span class="n">log_dir</span><span class="p">,</span> <span class="n">exist_ok</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="n">optional_args</span> <span class="o">=</span> <span class="p">(</span>
-        <span class="p">(</span><span class="s2">&quot;--output&quot;</span><span class="p">,</span> <span class="n">log_file</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--comment&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--time&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">runtime</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--account&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">account</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--constraint&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">constraint</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--mem-per-cpu&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">mem_per_cpu</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--mem&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">mem</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--nodes&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">nodes</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--ntasks&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">ntasks</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--cpus-per-task&quot;</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">cpus_per_task</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--array&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;1-</span><span class="si">{</span><span class="n">array_len</span><span class="si">}</span><span class="s2">%1000&quot;</span> <span class="k">if</span> <span class="n">array_len</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
-        <span class="p">(</span><span class="s2">&quot;--dependency&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;afterany:</span><span class="si">{</span><span class="n">job_dependency</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">if</span> <span class="n">job_dependency</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--output"</span><span class="p">,</span> <span class="n">log_file</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--comment"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">name</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--time"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">runtime</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--account"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">account</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--constraint"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">constraint</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--mem-per-cpu"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">mem_per_cpu</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--mem"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">mem</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--nodes"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">nodes</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--ntasks"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">ntasks</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--cpus-per-task"</span><span class="p">,</span> <span class="n">slurm_args</span><span class="o">.</span><span class="n">cpus_per_task</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--array"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"1-</span><span class="si">{</span><span class="n">array_len</span><span class="si">}</span><span class="s2">%1000"</span> <span class="k">if</span> <span class="n">array_len</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="p">(</span><span class="s2">"--dependency"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"afterany:</span><span class="si">{</span><span class="n">job_dependency</span><span class="si">}</span><span class="s2">"</span> <span class="k">if</span> <span class="n">job_dependency</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span><span class="p">),</span>
     <span class="p">)</span>
     <span class="n">sbatch_cmd</span> <span class="o">=</span> <span class="p">[</span>
         <span class="n">slurm_args</span><span class="o">.</span><span class="n">sbatch_executable</span><span class="p">,</span>
-        <span class="s2">&quot;--parsable&quot;</span><span class="p">,</span>
-        <span class="s2">&quot;--export=ALL&quot;</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">arg</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span> <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">optional_args</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
+        <span class="s2">"--parsable"</span><span class="p">,</span>
+        <span class="s2">"--export=ALL"</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">(</span><span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">arg</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span> <span class="k">for</span> <span class="n">arg</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="n">optional_args</span> <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">),</span>
         <span class="o">*</span><span class="n">slurm_args</span><span class="o">.</span><span class="n">extra_args</span><span class="p">,</span>
-        <span class="o">*</span><span class="p">((</span><span class="s2">&quot;--wait&quot;</span><span class="p">,)</span> <span class="k">if</span> <span class="n">wait</span> <span class="k">else</span> <span class="p">()),</span>
-        <span class="s2">&quot;--wrap&quot;</span><span class="p">,</span>
+        <span class="o">*</span><span class="p">((</span><span class="s2">"--wait"</span><span class="p">,)</span> <span class="k">if</span> <span class="n">wait</span> <span class="k">else</span> <span class="p">()),</span>
+        <span class="s2">"--wrap"</span><span class="p">,</span>
         <span class="n">cmd</span><span class="p">,</span>
     <span class="p">]</span>
     <span class="k">try</span><span class="p">:</span>
         <span class="n">proc</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">sbatch_cmd</span><span class="p">,</span> <span class="n">shell</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span> <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
     <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;sbatch job submission failed: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="si">}</span><span class="s2">&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"sbatch job submission failed: </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="si">}</span><span class="s2">"</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="nn">e</span>
     <span class="k">return</span> <span class="n">proc</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">load_results</span><span class="p">(</span><span class="n">path</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="n">Any</span><span class="p">]:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Load the pickled results produced by :func:`sbatch_map`.&quot;&quot;&quot;</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">&quot;rb&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+<span class="w">    </span><span class="sd">"""Load the pickled results produced by :func:`sbatch_map`."""</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="s2">"rb"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">pickle</span><span class="o">.</span><span class="n">load</span><span class="p">(</span><span class="n">stream</span><span class="p">)</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">MemorizeModule</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Wrapper which allows unpickling the wrapped object even when its module is not in PYTHONPATH.</span>
+<span class="w">    </span><span class="sd">"""Wrapper which allows unpickling the wrapped object even when its module is not in PYTHONPATH.</span>
 
 <span class="sd">    Use it like `pickle.dumps(MemorizeModule(obj))`.</span>
 <span class="sd">    The resulting pickle archive will directly unpickle to obj.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">obj</span> <span class="o">=</span> <span class="n">obj</span>
@@ -825,33 +826,33 @@
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">module_path</span><span class="p">(</span><span class="n">obj</span><span class="p">:</span> <span class="n">Any</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Return the path of the toplevel module of the module containing `obj`.&quot;&quot;&quot;</span>
-    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">&quot;__module__&quot;</span><span class="p">):</span>
+<span class="w">    </span><span class="sd">"""Return the path of the toplevel module of the module containing `obj`."""</span>
+    <span class="k">if</span> <span class="ow">not</span> <span class="nb">hasattr</span><span class="p">(</span><span class="n">obj</span><span class="p">,</span> <span class="s2">"__module__"</span><span class="p">):</span>
         <span class="k">return</span> <span class="kc">None</span>
-    <span class="n">top_level_module</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__module__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">&quot;.&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
-    <span class="k">if</span> <span class="n">top_level_module</span> <span class="o">==</span> <span class="s2">&quot;builtins&quot;</span><span class="p">:</span>
+    <span class="n">top_level_module</span> <span class="o">=</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__module__</span><span class="o">.</span><span class="n">split</span><span class="p">(</span><span class="s2">"."</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span>
+    <span class="k">if</span> <span class="n">top_level_module</span> <span class="o">==</span> <span class="s2">"builtins"</span><span class="p">:</span>
         <span class="k">return</span> <span class="kc">None</span>
     <span class="n">path</span> <span class="o">=</span> <span class="n">sys</span><span class="o">.</span><span class="n">modules</span><span class="p">[</span><span class="n">top_level_module</span><span class="p">]</span><span class="o">.</span><span class="vm">__file__</span>
     <span class="k">if</span> <span class="n">path</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;Got a module without path&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"Got a module without path"</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-    <span class="k">if</span> <span class="n">top_level_module</span> <span class="o">==</span> <span class="s2">&quot;__main__&quot;</span><span class="p">:</span>
-        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">removesuffix</span><span class="p">(</span><span class="s2">&quot;.py&quot;</span><span class="p">),</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__name__</span>
-    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">==</span> <span class="s2">&quot;__init__.py&quot;</span><span class="p">:</span>
+    <span class="k">if</span> <span class="n">top_level_module</span> <span class="o">==</span> <span class="s2">"__main__"</span><span class="p">:</span>
+        <span class="k">return</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span><span class="o">.</span><span class="n">removesuffix</span><span class="p">(</span><span class="s2">".py"</span><span class="p">),</span> <span class="n">obj</span><span class="o">.</span><span class="vm">__name__</span>
+    <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">basename</span><span class="p">(</span><span class="n">path</span><span class="p">)</span> <span class="o">==</span> <span class="s2">"__init__.py"</span><span class="p">:</span>
         <span class="n">path</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">)</span>
     <span class="k">return</span> <span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">path</span><span class="p">),)</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">check_main_guard</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mod_name</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Check that a python main script as a __main__ guard.</span>
+<span class="w">    </span><span class="sd">"""Check that a python main script as a __main__ guard.</span>
 
 <span class="sd">    If this is not the case and pickle tries to load from that file,</span>
 <span class="sd">    this will run the whole script during unpickling.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
-    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mod_name</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.py&quot;</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
+<span class="sd">    """</span>
+    <span class="k">with</span> <span class="nb">open</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">path</span><span class="p">,</span> <span class="n">mod_name</span><span class="p">)</span> <span class="o">+</span> <span class="s2">".py"</span><span class="p">)</span> <span class="k">as</span> <span class="n">stream</span><span class="p">:</span>
         <span class="n">content</span> <span class="o">=</span> <span class="n">stream</span><span class="o">.</span><span class="n">read</span><span class="p">()</span>
-        <span class="k">if</span> <span class="s1">&#39;if __name__ == &quot;__main__&quot;&#39;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span> <span class="ow">and</span> <span class="s2">&quot;if __name__ == &#39;__main__&#39;&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
-            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">&quot;Main script does not have a __main__ guard. This will lead to infinite recurson&quot;</span><span class="p">)</span>
+        <span class="k">if</span> <span class="s1">'if __name__ == "__main__"'</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span> <span class="ow">and</span> <span class="s2">"if __name__ == '__main__'"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">content</span><span class="p">:</span>
+            <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="s2">"Main script does not have a __main__ guard. This will lead to infinite recurson"</span><span class="p">)</span>
 </pre></div>
 
                 </article>

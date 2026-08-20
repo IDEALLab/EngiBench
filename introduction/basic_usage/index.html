@@ -212,6 +212,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -587,23 +588,23 @@
 
 <span class="c1"># Inspect problem</span>
 <span class="n">problem</span><span class="o">.</span><span class="n">design_space</span>  <span class="c1"># Box(0.0, 1.0, (50, 100), float64)</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">objectives</span>  <span class="c1"># ((&quot;compliance&quot;, &quot;MINIMIZE&quot;),)</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">conditions</span>  <span class="c1"># ((&quot;volfrac&quot;, 0.35), (&quot;forcedist&quot;, 0.0),...)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">objectives</span>  <span class="c1"># (("compliance", "MINIMIZE"),)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">conditions</span>  <span class="c1"># (("volfrac", 0.35), ("forcedist", 0.0),...)</span>
 <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span> <span class="c1"># A HuggingFace Dataset object</span>
 
 <span class="c1"># Train your inverse design model or surrogate model</span>
-<span class="n">conditions</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">conditions_keys</span><span class="p">)</span>
-<span class="n">designs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="s2">&quot;optimal_design&quot;</span><span class="p">)</span>
-<span class="n">cond_designs_keys</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">conditions_keys</span> <span class="o">+</span> <span class="p">[</span><span class="s2">&quot;optimal_design&quot;</span><span class="p">]</span>
-<span class="n">cond_designs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="n">cond_designs_keys</span><span class="p">)</span>
-<span class="n">objs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">&quot;train&quot;</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">objectives_keys</span><span class="p">)</span>
+<span class="n">conditions</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">"train"</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">conditions_keys</span><span class="p">)</span>
+<span class="n">designs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">"train"</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="s2">"optimal_design"</span><span class="p">)</span>
+<span class="n">cond_designs_keys</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">conditions_keys</span> <span class="o">+</span> <span class="p">[</span><span class="s2">"optimal_design"</span><span class="p">]</span>
+<span class="n">cond_designs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">"train"</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="n">cond_designs_keys</span><span class="p">)</span>
+<span class="n">objs</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span><span class="p">[</span><span class="s2">"train"</span><span class="p">]</span><span class="o">.</span><span class="n">select_columns</span><span class="p">(</span><span class="n">problem</span><span class="o">.</span><span class="n">objectives_keys</span><span class="p">)</span>
 
 <span class="c1"># Train your models</span>
 <span class="n">inverse_model</span> <span class="o">=</span> <span class="n">train_inverse</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="n">conditions</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="n">designs</span><span class="p">)</span>
 <span class="n">surr_model</span> <span class="o">=</span> <span class="n">train_surrogate</span><span class="p">(</span><span class="n">inputs</span><span class="o">=</span><span class="n">cond_designs</span><span class="p">,</span> <span class="n">outputs</span><span class="o">=</span><span class="n">objs</span><span class="p">)</span>
 
 <span class="c1"># Use the model predictions, inverse design here</span>
-<span class="n">desired_conds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">}</span>
+<span class="n">desired_conds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">}</span>
 <span class="n">generated_design</span> <span class="o">=</span> <span class="n">inverse_model</span><span class="o">.</span><span class="n">predict</span><span class="p">(</span><span class="n">desired_conds</span><span class="p">)</span>
 
 <span class="n">violated_constraints</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">check_constraints</span><span class="p">(</span><span class="n">generated_design</span><span class="p">,</span> <span class="n">desired_conds</span><span class="p">)</span>

@@ -216,6 +216,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -607,7 +608,7 @@ Read our <a class="reference external" href="https://github.com/IDEALLab/EngiBen
 <div class="highlight-sh notranslate"><div class="highlight"><pre><span></span>git<span class="w"> </span>clone<span class="w"> </span>git@github.com:IDEALLab/EngiBench.git
 <span class="nb">cd</span><span class="w"> </span>EngiBench
 pre-commit<span class="w"> </span>install
-pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">&quot;.[dev]&quot;</span>
+pip<span class="w"> </span>install<span class="w"> </span>-e<span class="w"> </span><span class="s2">".[dev]"</span>
 </pre></div>
 </div>
 <p>Our pre-commit config also includes a hook to ensure compliance with <a class="reference external" href="https://www.conventionalcommits.org">conventional commit</a>
@@ -626,11 +627,11 @@ formatting (see <a class="reference internal" href="#./CONTRIBUTING.md#commit-me
 </pre></div>
 </div>
 <p><code class="docutils literal notranslate"><span class="pre">__init__.py</span></code></p>
-<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="sd">&quot;&quot;&quot;NewProblem problem module.&quot;&quot;&quot;</span>
+<div class="highlight-py notranslate"><div class="highlight"><pre><span></span><span class="sd">"""NewProblem problem module."""</span>
 
  <span class="kn">from</span><span class="w"> </span><span class="nn">engibench.problems.new_problem.v0</span><span class="w"> </span><span class="kn">import</span> <span class="n">NewProblem</span>
 
- <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;NewProblem&quot;</span><span class="p">]</span>
+ <span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">"NewProblem"</span><span class="p">]</span>
 </pre></div>
 </div>
 <p>The <code class="docutils literal notranslate"><span class="pre">v0</span></code> module already proactively introduces versioning.</p>

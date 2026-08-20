@@ -216,6 +216,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -803,9 +804,9 @@ class which is derived from <code class="xref py py-class docutils literal notra
 <dd><p>Objective names and types (minimize or maximize)</p>
 <p>This attribute is a list of objectives that can be optimized. The objectives are defined as tuples where the first member is the objective name, and the second member is an enum saying ‘maximize’ or ‘minimize’.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">objectives</span>
-<span class="go">((&quot;c&quot;, ObjectiveDirection.MINIMIZE),)</span>
+<span class="go">(("c", ObjectiveDirection.MINIMIZE),)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">objectives_keys</span>
-<span class="go">[&quot;c&quot;]</span>
+<span class="go">["c"]</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -816,9 +817,9 @@ class which is derived from <code class="xref py py-class docutils literal notra
 <dd><p>Conditions for the design problem</p>
 <p>This attribute list the conditions of the problem. The conditions are defined as tuples where the first member is the boundary condition name, and the second member is the value. You can also access the condition keys only through problem.condition_keys.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">conditions</span>
-<span class="go">((&quot;volfrac&quot;, 0.35), (&quot;forcedist&quot;, 0.0),...)</span>
+<span class="go">(("volfrac", 0.35), ("forcedist", 0.0),...)</span>
 <span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">conditions_keys</span>
-<span class="go">[&quot;marchDist&quot;, &quot;forcedist&quot;]</span>
+<span class="go">["marchDist", "forcedist"]</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -840,7 +841,7 @@ class which is derived from <code class="xref py py-class docutils literal notra
 <dd><p>String identifier for the problem (useful to pull datasets)</p>
 <p>This attribute is a string that defines the dataset id of the problem. This is typically useful to fetch the dataset from our [dataset registry](<a class="reference external" href="https://huggingface.co/IDEALLab">https://huggingface.co/IDEALLab</a>).</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">dataset_id</span>
-<span class="go">&#39;IDEALLab/beams_2d_50_100_v0&#39;</span>
+<span class="go">'IDEALLab/beams_2d_50_100_v0'</span>
 </pre></div>
 </div>
 </dd></dl>
@@ -852,7 +853,7 @@ class which is derived from <code class="xref py py-class docutils literal notra
 <p>This attribute is a HuggingFace <cite>Dataset</cite> object that defines the dataset of the problem. This is typically useful to train your neural network.</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">dataset</span>
 <span class="go">Dataset({</span>
-<span class="go">    features: [&quot;optimal_design&quot;, &quot;volfrac&quot;, &quot;forcedist&quot;, &quot;c&quot;],</span>
+<span class="go">    features: ["optimal_design", "volfrac", "forcedist", "c"],</span>
 <span class="go">    num_rows: 1000</span>
 <span class="go">})</span>
 </pre></div>
@@ -865,7 +866,7 @@ class which is derived from <code class="xref py py-class docutils literal notra
 <dd><p>String identifier for the singularity container</p>
 <p>This attribute is a string that defines the container id of the problem. We use it to fetch the simulator containers (generally from DockerHub).</p>
 <div class="highlight-default notranslate"><div class="highlight"><pre><span></span><span class="gp">&gt;&gt;&gt; </span><span class="n">problem</span><span class="o">.</span><span class="n">dataset_id</span>
-<span class="go">&#39;mdolab/public:u22-gcc-ompi-stable&#39;</span>
+<span class="go">'mdolab/public:u22-gcc-ompi-stable'</span>
 </pre></div>
 </div>
 </dd></dl>

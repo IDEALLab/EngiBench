@@ -211,6 +211,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -512,7 +513,7 @@
                 <article class="bd-article">
                   
   <h1>Source code for engibench.core</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Core API for Problem and other base classes.&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""Core API for Problem and other base classes."""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">dataclasses</span>
@@ -528,29 +529,29 @@
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">engibench</span><span class="w"> </span><span class="kn">import</span> <span class="n">constraint</span>
 
-<span class="n">DesignType</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">&quot;DesignType&quot;</span><span class="p">)</span>
+<span class="n">DesignType</span> <span class="o">=</span> <span class="n">TypeVar</span><span class="p">(</span><span class="s2">"DesignType"</span><span class="p">)</span>
 
 
 <span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">OptiStep</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Optimization step.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Optimization step."""</span>
 
     <span class="n">obj_values</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span>
     <span class="n">step</span><span class="p">:</span> <span class="nb">int</span>
 
     <span class="c1"># Additional Gradient Fields</span>
     <span class="n">x</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;the current design before the gradient update&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""the current design before the gradient update"""</span>
     <span class="n">x_sensitivities</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;the sensitivities of the design variables&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""the sensitivities of the design variables"""</span>
     <span class="n">x_update</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;the gradient update step taken by the optimizer&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""the gradient update step taken by the optimizer"""</span>
     <span class="n">obj_values_update</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;how the objective values change after the update step&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""how the objective values change after the update step"""</span>
 
 
 <span class="k">class</span><span class="w"> </span><span class="nc">ObjectiveDirection</span><span class="p">(</span><span class="n">Enum</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Direction of the objective function.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Direction of the objective function."""</span>
 
     <span class="n">MINIMIZE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
     <span class="n">MAXIMIZE</span> <span class="o">=</span> <span class="n">auto</span><span class="p">()</span>
@@ -558,19 +559,19 @@
 
 <span class="nd">@dataclasses</span><span class="o">.</span><span class="n">dataclass</span>
 <span class="k">class</span><span class="w"> </span><span class="nc">SimulationResult</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Base type for the return value of `Problem.simulate_with_details()`.</span>
+<span class="w">    </span><span class="sd">"""Base type for the return value of `Problem.simulate_with_details()`.</span>
 
 <span class="sd">    Derived problem classes may return instances of derived `SimulationResult` classes, to return more fields.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="n">objective_values</span><span class="p">:</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Performance of the simulated design -- each entry corresponds to an objective value.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Performance of the simulated design -- each entry corresponds to an objective value."""</span>
 
 
 <div class="viewcode-block" id="Problem">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Problem</span><span class="p">(</span><span class="n">Generic</span><span class="p">[</span><span class="n">DesignType</span><span class="p">]):</span>
-<span class="w">    </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Main class for defining an engineering design problem.</span>
+<span class="w">    </span><span class="sa">r</span><span class="sd">"""Main class for defining an engineering design problem.</span>
 
 <span class="sd">    This class assumes there is:</span>
 
@@ -608,60 +609,60 @@
 <span class="sd">        Some simulators also ask for simulator related configurations. These configurations are generally defined in the</span>
 <span class="sd">        problem implementation, do not appear in the `problem.conditions`, but sometimes appear in the dataset (for</span>
 <span class="sd">        advanced usage). You can override them by using the `config` argument in the `simulate` or `optimize` method.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
 
     <span class="c1"># Must be defined in subclasses</span>
     <span class="n">version</span><span class="p">:</span> <span class="nb">int</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Version of the problem&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Version of the problem"""</span>
     <span class="n">objectives</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">ObjectiveDirection</span><span class="p">],</span> <span class="o">...</span><span class="p">]</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Objective names and types (minimize or maximize)&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Objective names and types (minimize or maximize)"""</span>
     <span class="n">Conditions</span><span class="p">:</span> <span class="nb">type</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Conditions for the design problem as a dataclass declaring types, defaults and constraints&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Conditions for the design problem as a dataclass declaring types, defaults and constraints"""</span>
     <span class="n">conditions</span><span class="p">:</span> <span class="n">Any</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Conditions for the design problem&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Conditions for the design problem"""</span>
     <span class="n">design_space</span><span class="p">:</span> <span class="n">spaces</span><span class="o">.</span><span class="n">Space</span><span class="p">[</span><span class="n">DesignType</span><span class="p">]</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Design space (algorithm output)&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Design space (algorithm output)"""</span>
     <span class="n">Config</span><span class="p">:</span> <span class="nb">type</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataclass declaring types, defaults (optional) and constraints&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Dataclass declaring types, defaults (optional) and constraints"""</span>
     <span class="n">config</span><span class="p">:</span> <span class="n">Any</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Instance of :class:`Config` held by an instance of `Problem`&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Instance of :class:`Config` held by an instance of `Problem`"""</span>
     <span class="n">dataset_id</span><span class="p">:</span> <span class="nb">str</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;String identifier for the problem (useful to pull datasets)&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""String identifier for the problem (useful to pull datasets)"""</span>
     <span class="n">design_constraints</span><span class="p">:</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">constraint</span><span class="o">.</span><span class="n">Constraint</span><span class="p">,</span> <span class="o">...</span><span class="p">]</span> <span class="o">=</span> <span class="p">()</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Additional constraints for designs&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Additional constraints for designs"""</span>
     <span class="n">_dataset</span><span class="p">:</span> <span class="n">Dataset</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Dataset with designs and performances&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Dataset with designs and performances"""</span>
     <span class="n">container_id</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;String identifier for the singularity container&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""String identifier for the singularity container"""</span>
 
     <span class="c1"># This handles the RNG properly</span>
     <span class="n">np_random</span><span class="p">:</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">Generator</span>
 
     <span class="k">def</span><span class="w"> </span><span class="fm">__init__</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">=</span> <span class="mi">0</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Initialize the problem.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Initialize the problem."""</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">reset</span><span class="p">(</span><span class="n">seed</span><span class="o">=</span><span class="n">seed</span><span class="p">)</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">dataset</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Dataset</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pulls the dataset if it is not already loaded.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Pulls the dataset if it is not already loaded."""</span>
         <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
             <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span> <span class="o">=</span> <span class="n">load_dataset</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">dataset_id</span><span class="p">)</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_dataset</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">objectives_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the objective names as a list.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Returns the objective names as a list."""</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">name</span> <span class="k">for</span> <span class="n">name</span><span class="p">,</span> <span class="n">_</span> <span class="ow">in</span> <span class="bp">self</span><span class="o">.</span><span class="n">objectives</span><span class="p">]</span>
 
     <span class="nd">@property</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">conditions_keys</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Returns the condition names as a list.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Returns the condition names as a list."""</span>
         <span class="k">return</span> <span class="p">[</span><span class="n">f</span><span class="o">.</span><span class="n">name</span> <span class="k">for</span> <span class="n">f</span> <span class="ow">in</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">fields</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">conditions</span><span class="p">)]</span>
 
 <div class="viewcode-block" id="Problem.simulate_verbose">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.simulate_verbose">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">simulate_verbose</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">SimulationResult</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Launch a simulation on the given design and return the performance.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Launch a simulation on the given design and return the performance.</span>
 
 <span class="sd">        Similar to :py:meth:`Problem.simulate()` but usually returns more values, which can lead to</span>
 <span class="sd">        an increase of computational intensity when compared to :py:meth:`Problem.simulate()`.</span>
@@ -676,14 +677,14 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            An instance of `SimulationResult` or a derived class.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
 <div class="viewcode-block" id="Problem.simulate">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.simulate">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">simulate</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">npt</span><span class="o">.</span><span class="n">NDArray</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Launch a simulation on the given design and return the performance.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Launch a simulation on the given design and return the performance.</span>
 
 <span class="sd">        The default implementation just calls :py:meth:`Problem.simulate_verbose()` and only returns the objective values.</span>
 <span class="sd">        If the problem allows to determine the objective values in a simpler, less computationally intensive way than</span>
@@ -696,7 +697,7 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            np.array: The performance of the design -- each entry corresponds to an objective value.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">simulate_verbose</span><span class="p">(</span><span class="n">design</span><span class="p">,</span> <span class="n">config</span><span class="p">)</span><span class="o">.</span><span class="n">objective_values</span></div>
 
 
@@ -705,7 +706,7 @@
     <span class="k">def</span><span class="w"> </span><span class="nf">optimize</span><span class="p">(</span>
         <span class="bp">self</span><span class="p">,</span> <span class="n">starting_point</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">DesignType</span><span class="p">,</span> <span class="n">Sequence</span><span class="p">[</span><span class="n">OptiStep</span><span class="p">]]:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Some simulators have built-in optimization. This function optimizes the design starting from `starting_point`.</span>
 
 <span class="sd">        This is optional and will probably be implemented only for some problems.</span>
 
@@ -715,18 +716,18 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Tuple[DesignType, list[OptiStep]]: The optimized design and the optimization history.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
 <div class="viewcode-block" id="Problem.reset">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.reset">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">reset</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">seed</span><span class="p">:</span> <span class="nb">int</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Reset the simulator and numpy random to a given seed.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Reset the simulator and numpy random to a given seed.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            seed (int, optional): The seed to reset to. If None, a random seed is used.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">seed</span> <span class="o">=</span> <span class="n">seed</span>
         <span class="bp">self</span><span class="o">.</span><span class="n">np_random</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">random</span><span class="o">.</span><span class="n">default_rng</span><span class="p">(</span><span class="n">seed</span><span class="p">)</span></div>
 
@@ -734,7 +735,7 @@
 <div class="viewcode-block" id="Problem.render">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.render">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">render</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="o">*</span><span class="p">,</span> <span class="n">open_window</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="n">Any</span><span class="p">:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Render the design in a human-readable format.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Render the design in a human-readable format.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            design (DesignType): The design to render.</span>
@@ -742,43 +743,44 @@
 
 <span class="sd">        Returns:</span>
 <span class="sd">            Any: The rendered design.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
 <div class="viewcode-block" id="Problem.random_design">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.random_design">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">random_design</span><span class="p">(</span><span class="bp">self</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="n">DesignType</span><span class="p">,</span> <span class="nb">int</span><span class="p">]:</span>
-<span class="w">        </span><span class="sa">r</span><span class="sd">&quot;&quot;&quot;Generate a random design.</span>
+<span class="w">        </span><span class="sa">r</span><span class="sd">"""Generate a random design.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            DesignType: The random design.</span>
 <span class="sd">            idx: The index of the design in the dataset.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">raise</span> <span class="ne">NotImplementedError</span></div>
 
 
 <div class="viewcode-block" id="Problem.check_constraints">
 <a class="viewcode-back" href="../../../introduction/api/#engibench.core.Problem.check_constraints">[docs]</a>
     <span class="k">def</span><span class="w"> </span><span class="nf">check_constraints</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">,</span> <span class="n">config</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="n">Any</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="n">constraint</span><span class="o">.</span><span class="n">Violations</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if config and design violate any constraints declared in `Config` and `design_space`.</span>
+<span class="w">        </span><span class="sd">"""Check if config and design violate any constraints declared in `Config` and `design_space`.</span>
 
 <span class="sd">        Return a :class:`constraint.Violations` object containing all violations.</span>
 
 <span class="sd">        If the class instance holds an attribute `config` which is not `None`,</span>
 <span class="sd">        the fields of `config` will be used as default values.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="n">defaults</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">asdict</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">config</span><span class="p">)</span> <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">config</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">{}</span>
         <span class="n">checked_config</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">Config</span><span class="p">(</span><span class="o">**</span><span class="p">{</span><span class="o">**</span><span class="n">defaults</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">})</span>
+        <span class="n">effective_config</span> <span class="o">=</span> <span class="n">dataclasses</span><span class="o">.</span><span class="n">asdict</span><span class="p">(</span><span class="n">checked_config</span><span class="p">)</span>
         <span class="n">violations</span> <span class="o">=</span> <span class="n">constraint</span><span class="o">.</span><span class="n">check_field_constraints</span><span class="p">(</span><span class="n">checked_config</span><span class="p">)</span>
 
         <span class="nd">@constraint</span><span class="o">.</span><span class="n">constraint</span>
         <span class="k">def</span><span class="w"> </span><span class="nf">design_constraint</span><span class="p">(</span><span class="n">design</span><span class="p">:</span> <span class="n">DesignType</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">design</span><span class="p">),</span> <span class="s2">&quot;design ∉ design_space&quot;</span>
+            <span class="k">assert</span> <span class="bp">self</span><span class="o">.</span><span class="n">design_space</span><span class="o">.</span><span class="n">contains</span><span class="p">(</span><span class="n">design</span><span class="p">),</span> <span class="s2">"design ∉ design_space"</span>
 
         <span class="n">violations</span><span class="o">.</span><span class="n">n_constraints</span> <span class="o">+=</span> <span class="mi">1</span> <span class="o">+</span> <span class="nb">len</span><span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">design_constraints</span><span class="p">)</span>
         <span class="k">for</span> <span class="n">c</span> <span class="ow">in</span> <span class="p">(</span><span class="n">design_constraint</span><span class="p">,</span> <span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">design_constraints</span><span class="p">):</span>
-            <span class="n">design_violation</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">check_dict</span><span class="p">({</span><span class="s2">&quot;design&quot;</span><span class="p">:</span> <span class="n">design</span><span class="p">,</span> <span class="o">**</span><span class="n">config</span><span class="p">})</span>
+            <span class="n">design_violation</span> <span class="o">=</span> <span class="n">c</span><span class="o">.</span><span class="n">check_dict</span><span class="p">({</span><span class="s2">"design"</span><span class="p">:</span> <span class="n">design</span><span class="p">,</span> <span class="o">**</span><span class="n">effective_config</span><span class="p">})</span>
             <span class="k">if</span> <span class="n">design_violation</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
                 <span class="n">violations</span><span class="o">.</span><span class="n">violations</span><span class="o">.</span><span class="n">append</span><span class="p">(</span><span class="n">design_violation</span><span class="p">)</span>
 

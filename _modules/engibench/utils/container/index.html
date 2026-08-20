@@ -211,6 +211,7 @@
 <li class="toctree-l1"><a class="reference internal" href="../../../../problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="../../../../problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../../../problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="../../../../problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="../../../../problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="../../../../problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -512,25 +513,29 @@
                 <article class="bd-article">
                   
   <h1>Source code for engibench.utils.container</h1><div class="highlight"><pre>
-<span></span><span class="sd">&quot;&quot;&quot;Abstraction over container runtimes.&quot;&quot;&quot;</span>
+<span></span><span class="sd">"""Abstraction over container runtimes."""</span>
 
 <span class="kn">from</span><span class="w"> </span><span class="nn">collections.abc</span><span class="w"> </span><span class="kn">import</span> <span class="n">Sequence</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">nullcontext</span>
+<span class="kn">from</span><span class="w"> </span><span class="nn">contextlib</span><span class="w"> </span><span class="kn">import</span> <span class="n">suppress</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">os</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">shutil</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">subprocess</span>
 <span class="kn">import</span><span class="w"> </span><span class="nn">tempfile</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">uuid</span>
+<span class="kn">import</span><span class="w"> </span><span class="nn">warnings</span>
 
 
 <div class="viewcode-block" id="pull">
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.pull">[docs]</a>
 <span class="k">def</span><span class="w"> </span><span class="nf">pull</span><span class="p">(</span><span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Pull an image using the selected runtime.</span>
+<span class="w">    </span><span class="sd">"""Pull an image using the selected runtime.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        image: Container image to pull.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">RUNTIME</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;No container runtime found&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"No container runtime found"</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
     <span class="n">RUNTIME</span><span class="o">.</span><span class="n">pull</span><span class="p">(</span><span class="n">image</span><span class="p">)</span></div>
@@ -548,8 +553,9 @@
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+    <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
 <span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Run a command in a container using the selected runtime.</span>
+<span class="w">    </span><span class="sd">"""Run a command in a container using the selected runtime.</span>
 
 <span class="sd">    Args:</span>
 <span class="sd">        command: Command (as a list of strings) to run inside the container.</span>
@@ -559,19 +565,41 @@
 <span class="sd">        name: Optional name for the container (not supported by all runtimes).</span>
 <span class="sd">        stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">        sync_uid: Use the uid of the current process as uid inside the container.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">        timeout: Optional wall-clock limit in seconds for the containerized command.</span>
+
+<span class="sd">    Raises:</span>
+<span class="sd">        FileNotFoundError: If no container runtime is available.</span>
+<span class="sd">        TimeoutError: If the command does not finish within `timeout` seconds.</span>
+<span class="sd">        RuntimeError: If the command exits with a non-zero status.</span>
+<span class="sd">    """</span>
     <span class="k">if</span> <span class="n">RUNTIME</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;No container runtime found. Please ensure Docker, Podman, or Singularity is installed and running.&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="s2">"No container runtime found. Please ensure Docker, Podman, or Singularity is installed and running."</span>
         <span class="k">raise</span> <span class="ne">FileNotFoundError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
 
+    <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">timeout</span> <span class="o">&lt;=</span> <span class="mf">0.0</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"timeout must be positive, got </span><span class="si">{</span><span class="n">timeout</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">raise</span> <span class="ne">ValueError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
+
     <span class="k">try</span><span class="p">:</span>
-        <span class="n">result</span> <span class="o">=</span> <span class="n">RUNTIME</span><span class="o">.</span><span class="n">run</span><span class="p">(</span><span class="n">command</span><span class="p">,</span> <span class="n">image</span><span class="p">,</span> <span class="n">mounts</span><span class="o">=</span><span class="n">mounts</span><span class="p">,</span> <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span> <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span> <span class="n">stdin</span><span class="o">=</span><span class="n">stdin</span><span class="p">,</span> <span class="n">sync_uid</span><span class="o">=</span><span class="n">sync_uid</span><span class="p">)</span>
+        <span class="n">result</span> <span class="o">=</span> <span class="n">RUNTIME</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+            <span class="n">command</span><span class="p">,</span>
+            <span class="n">image</span><span class="p">,</span>
+            <span class="n">mounts</span><span class="o">=</span><span class="n">mounts</span><span class="p">,</span>
+            <span class="n">env</span><span class="o">=</span><span class="n">env</span><span class="p">,</span>
+            <span class="n">name</span><span class="o">=</span><span class="n">name</span><span class="p">,</span>
+            <span class="n">stdin</span><span class="o">=</span><span class="n">stdin</span><span class="p">,</span>
+            <span class="n">sync_uid</span><span class="o">=</span><span class="n">sync_uid</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+        <span class="p">)</span>
         <span class="n">result</span><span class="o">.</span><span class="n">check_returncode</span><span class="p">()</span>
+    <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"Container command timed out after </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">timeout</span><span class="si">}</span><span class="s2"> seconds:</span><span class="se">\n</span><span class="s2">Command: </span><span class="si">{</span><span class="s1">' '</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="si">}</span><span class="s2">"</span>
+        <span class="k">raise</span> <span class="ne">TimeoutError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span>
     <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span> <span class="k">as</span> <span class="n">e</span><span class="p">:</span>
-        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;&quot;&quot;Container command failed with exit code </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">:</span>
-<span class="s2">Command: </span><span class="si">{</span><span class="s2">&quot; &quot;</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="si">}</span>
-<span class="s2">stdout: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s2">&quot;No output&quot;</span><span class="si">}</span>
-<span class="s2">stderr: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s2">&quot;No output&quot;</span><span class="si">}</span><span class="s2">&quot;&quot;&quot;</span>
+        <span class="n">msg</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"""Container command failed with exit code </span><span class="si">{</span><span class="n">e</span><span class="o">.</span><span class="n">returncode</span><span class="si">}</span><span class="s2">:</span>
+<span class="s2">Command: </span><span class="si">{</span><span class="s2">" "</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">command</span><span class="p">)</span><span class="si">}</span>
+<span class="s2">stdout: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stdout</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s2">"No output"</span><span class="si">}</span>
+<span class="s2">stderr: </span><span class="si">{</span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="o">.</span><span class="n">decode</span><span class="p">()</span><span class="w"> </span><span class="k">if</span><span class="w"> </span><span class="n">result</span><span class="o">.</span><span class="n">stderr</span><span class="w"> </span><span class="k">else</span><span class="w"> </span><span class="s2">"No output"</span><span class="si">}</span><span class="s2">"""</span>
         <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span> <span class="kn">from</span><span class="w"> </span><span class="kc">None</span></div>
 
 
@@ -579,7 +607,7 @@
 <div class="viewcode-block" id="ContainerRuntime">
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.ContainerRuntime">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">ContainerRuntime</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Abstraction over container runtimes.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Abstraction over container runtimes."""</span>
 
     <span class="n">name</span><span class="p">:</span> <span class="nb">str</span>
     <span class="n">executable</span><span class="p">:</span> <span class="nb">str</span>
@@ -588,16 +616,16 @@
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.ContainerRuntime.is_available">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_available</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the container runtime is installed and executable.</span>
+<span class="w">        </span><span class="sd">"""Check if the container runtime is installed and executable.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            `True` if the container runtime appears to be installed on the system and if required daemons are running,</span>
 <span class="sd">            `false` otherwise.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span>
                 <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-                    <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;--help&quot;</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span>
+                    <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">"--help"</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">returncode</span>
                 <span class="o">==</span> <span class="mi">0</span>
             <span class="p">)</span>
@@ -609,12 +637,12 @@
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.ContainerRuntime.pull">[docs]</a>
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">pull</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pull an image.</span>
+<span class="w">        </span><span class="sd">"""Pull an image.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image: Container image to pull.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Must be implemented by a subclass&quot;</span><span class="p">)</span></div>
+<span class="sd">        """</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"Must be implemented by a subclass"</span><span class="p">)</span></div>
 
 
 <div class="viewcode-block" id="ContainerRuntime.run">
@@ -630,8 +658,9 @@
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a command in a container.</span>
+<span class="w">        </span><span class="sd">"""Run a command in a container.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            command: Command (as a list of strings) to run inside the container.</span>
@@ -641,23 +670,24 @@
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
 <span class="sd">            stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">&quot;Must be implemented by a subclass&quot;</span><span class="p">)</span></div>
+<span class="sd">            timeout: Optional wall-clock limit in seconds for the containerized command.</span>
+<span class="sd">        """</span>
+        <span class="k">raise</span> <span class="ne">NotImplementedError</span><span class="p">(</span><span class="s2">"Must be implemented by a subclass"</span><span class="p">)</span></div>
 </div>
 
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">runtime</span><span class="p">()</span> <span class="o">-&gt;</span> <span class="nb">type</span><span class="p">[</span><span class="n">ContainerRuntime</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Determine the container runtime to use according to the environment variable `CONTAINER_RUNTIME`.</span>
+<span class="w">    </span><span class="sd">"""Determine the container runtime to use according to the environment variable `CONTAINER_RUNTIME`.</span>
 
 <span class="sd">    If not set, check for availability.</span>
 
 <span class="sd">    Returns:</span>
 <span class="sd">        Class object of the first available container runtime or the container runtime selected by the</span>
 <span class="sd">        `CONTAINER_RUNTIME` environment variable if set.</span>
-<span class="sd">    &quot;&quot;&quot;</span>
+<span class="sd">    """</span>
     <span class="n">runtimes_by_name</span> <span class="o">=</span> <span class="p">{</span><span class="n">rt</span><span class="o">.</span><span class="n">name</span><span class="o">.</span><span class="n">lower</span><span class="p">():</span> <span class="n">rt</span> <span class="k">for</span> <span class="n">rt</span> <span class="ow">in</span> <span class="n">RUNTIMES</span><span class="p">}</span>
-    <span class="n">rt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;CONTAINER_RUNTIME&quot;</span><span class="p">)</span>
+    <span class="n">rt_name</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"CONTAINER_RUNTIME"</span><span class="p">)</span>
     <span class="n">rt</span> <span class="o">=</span> <span class="n">runtimes_by_name</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="n">rt_name</span><span class="o">.</span><span class="n">lower</span><span class="p">())</span> <span class="k">if</span> <span class="n">rt_name</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
     <span class="k">if</span> <span class="n">rt</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
         <span class="k">return</span> <span class="n">rt</span>
@@ -670,23 +700,23 @@
 <div class="viewcode-block" id="Docker">
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.Docker">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Docker</span><span class="p">(</span><span class="n">ContainerRuntime</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Docker 🐋 runtime.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Docker 🐋 runtime."""</span>
 
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;docker&quot;</span>
-    <span class="n">executable</span> <span class="o">=</span> <span class="s2">&quot;docker&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">"docker"</span>
+    <span class="n">executable</span> <span class="o">=</span> <span class="s2">"docker"</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_available</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the container runtime is installed and executable.</span>
+<span class="w">        </span><span class="sd">"""Check if the container runtime is installed and executable.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            `True` if the container runtime appears to be installed on the system and if required daemons are running,</span>
 <span class="sd">            `false` otherwise.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span>
                 <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-                    <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;info&quot;</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span>
+                    <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">"info"</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">returncode</span>
                 <span class="o">==</span> <span class="mi">0</span>
             <span class="p">)</span>
@@ -695,12 +725,12 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">pull</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pull an image.</span>
+<span class="w">        </span><span class="sd">"""Pull an image.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image: Container image to pull.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;pull&quot;</span><span class="p">,</span> <span class="n">image</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+<span class="sd">        """</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">"pull"</span><span class="p">,</span> <span class="n">image</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
@@ -713,8 +743,9 @@
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a command in a container.</span>
+<span class="w">        </span><span class="sd">"""Run a command in a container.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            command: Command (as a list of strings) to run inside the container.</span>
@@ -724,33 +755,72 @@
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
 <span class="sd">            stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
-        <span class="n">name_args</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="s2">&quot;--name&quot;</span><span class="p">,</span> <span class="n">name</span><span class="p">]</span>
+<span class="sd">            timeout: Optional wall-clock limit in seconds for the containerized command.</span>
+<span class="sd">        """</span>
+        <span class="n">run_name</span> <span class="o">=</span> <span class="n">name</span>
+        <span class="n">generated_name</span> <span class="o">=</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">run_name</span> <span class="ow">is</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">generated_name</span><span class="p">:</span>
+            <span class="n">run_name</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"engibench-</span><span class="si">{</span><span class="n">uuid</span><span class="o">.</span><span class="n">uuid4</span><span class="p">()</span><span class="o">.</span><span class="n">hex</span><span class="si">}</span><span class="s2">"</span>
+        <span class="n">name_args</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">run_name</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="s2">"--name"</span><span class="p">,</span> <span class="n">run_name</span><span class="p">]</span>
         <span class="n">user_args</span> <span class="o">=</span> <span class="bp">cls</span><span class="o">.</span><span class="n">_user_args</span><span class="p">()</span> <span class="k">if</span> <span class="n">sync_uid</span> <span class="k">else</span> <span class="p">()</span>
-        <span class="n">stdin_args</span> <span class="o">=</span> <span class="p">()</span> <span class="k">if</span> <span class="n">stdin</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="s2">&quot;-i&quot;</span><span class="p">,)</span>
+        <span class="n">stdin_args</span> <span class="o">=</span> <span class="p">()</span> <span class="k">if</span> <span class="n">stdin</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">(</span><span class="s2">"-i"</span><span class="p">,)</span>
 
-        <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-            <span class="p">[</span>
-                <span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
-                <span class="s2">&quot;run&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;--rm&quot;</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">name_args</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">),</span>
-                <span class="o">*</span><span class="n">_env_args</span><span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{}),</span>
-                <span class="o">*</span><span class="n">stdin_args</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">user_args</span><span class="p">,</span>
-                <span class="n">image</span><span class="p">,</span>
-                <span class="o">*</span><span class="n">command</span><span class="p">,</span>
-            <span class="p">],</span>
-            <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
-            <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
-            <span class="n">env</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_env</span><span class="p">(),</span>
-            <span class="nb">input</span><span class="o">=</span><span class="n">stdin</span><span class="p">,</span>
-        <span class="p">)</span>
+        <span class="n">cid_context</span> <span class="o">=</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">TemporaryDirectory</span><span class="p">(</span><span class="n">prefix</span><span class="o">=</span><span class="s2">"engibench-cid-"</span><span class="p">)</span> <span class="k">if</span> <span class="n">timeout</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="n">nullcontext</span><span class="p">(</span><span class="kc">None</span><span class="p">)</span>
+        <span class="k">with</span> <span class="n">cid_context</span> <span class="k">as</span> <span class="n">cid_dir</span><span class="p">:</span>
+            <span class="n">cidfile</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">join</span><span class="p">(</span><span class="n">cid_dir</span><span class="p">,</span> <span class="s2">"container.cid"</span><span class="p">)</span> <span class="k">if</span> <span class="n">cid_dir</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span> <span class="k">else</span> <span class="kc">None</span>
+            <span class="n">cid_args</span> <span class="o">=</span> <span class="p">[]</span> <span class="k">if</span> <span class="n">cidfile</span> <span class="ow">is</span> <span class="kc">None</span> <span class="k">else</span> <span class="p">[</span><span class="s2">"--cidfile"</span><span class="p">,</span> <span class="n">cidfile</span><span class="p">]</span>
+            <span class="k">try</span><span class="p">:</span>
+                <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+                    <span class="p">[</span>
+                        <span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
+                        <span class="s2">"run"</span><span class="p">,</span>
+                        <span class="s2">"--rm"</span><span class="p">,</span>
+                        <span class="o">*</span><span class="n">name_args</span><span class="p">,</span>
+                        <span class="o">*</span><span class="n">cid_args</span><span class="p">,</span>
+                        <span class="o">*</span><span class="n">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">),</span>
+                        <span class="o">*</span><span class="n">_env_args</span><span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{}),</span>
+                        <span class="o">*</span><span class="n">stdin_args</span><span class="p">,</span>
+                        <span class="o">*</span><span class="n">user_args</span><span class="p">,</span>
+                        <span class="n">image</span><span class="p">,</span>
+                        <span class="o">*</span><span class="n">command</span><span class="p">,</span>
+                    <span class="p">],</span>
+                    <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                    <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                    <span class="n">env</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_env</span><span class="p">(),</span>
+                    <span class="nb">input</span><span class="o">=</span><span class="n">stdin</span><span class="p">,</span>
+                    <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
+                <span class="p">)</span>
+            <span class="k">except</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">:</span>
+                <span class="c1"># Killing the attached Docker/Podman client does not reliably</span>
+                <span class="c1"># stop the daemon-owned container. Prefer its exact CID; the</span>
+                <span class="c1"># generated name is a safe fallback if the CID was not written.</span>
+                <span class="n">cleanup_target</span> <span class="o">=</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">cidfile</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">with</span> <span class="n">suppress</span><span class="p">(</span><span class="ne">OSError</span><span class="p">),</span> <span class="nb">open</span><span class="p">(</span><span class="n">cidfile</span><span class="p">,</span> <span class="n">encoding</span><span class="o">=</span><span class="s2">"ascii"</span><span class="p">)</span> <span class="k">as</span> <span class="n">cid_stream</span><span class="p">:</span>
+                        <span class="n">cleanup_target</span> <span class="o">=</span> <span class="n">cid_stream</span><span class="o">.</span><span class="n">read</span><span class="p">()</span><span class="o">.</span><span class="n">strip</span><span class="p">()</span> <span class="ow">or</span> <span class="kc">None</span>
+                <span class="k">if</span> <span class="n">cleanup_target</span> <span class="ow">is</span> <span class="kc">None</span> <span class="ow">and</span> <span class="n">generated_name</span><span class="p">:</span>
+                    <span class="n">cleanup_target</span> <span class="o">=</span> <span class="n">run_name</span>
+                <span class="k">if</span> <span class="n">cleanup_target</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+                    <span class="k">try</span><span class="p">:</span>
+                        <span class="n">cleanup</span> <span class="o">=</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
+                            <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">"rm"</span><span class="p">,</span> <span class="s2">"--force"</span><span class="p">,</span> <span class="n">cleanup_target</span><span class="p">],</span>
+                            <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
+                            <span class="n">capture_output</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+                            <span class="n">env</span><span class="o">=</span><span class="bp">cls</span><span class="o">.</span><span class="n">_env</span><span class="p">(),</span>
+                            <span class="n">timeout</span><span class="o">=</span><span class="mf">30.0</span><span class="p">,</span>
+                        <span class="p">)</span>
+                        <span class="n">cleanup</span><span class="o">.</span><span class="n">check_returncode</span><span class="p">()</span>
+                    <span class="k">except</span> <span class="p">(</span><span class="ne">OSError</span><span class="p">,</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CalledProcessError</span><span class="p">,</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">TimeoutExpired</span><span class="p">)</span> <span class="k">as</span> <span class="n">error</span><span class="p">:</span>
+                        <span class="n">warnings</span><span class="o">.</span><span class="n">warn</span><span class="p">(</span>
+                            <span class="sa">f</span><span class="s2">"Timed-out container </span><span class="si">{</span><span class="n">cleanup_target</span><span class="si">!r}</span><span class="s2"> may still be running: </span><span class="si">{</span><span class="n">error</span><span class="si">}</span><span class="s2">"</span><span class="p">,</span>
+                            <span class="ne">RuntimeWarning</span><span class="p">,</span>
+                            <span class="n">stacklevel</span><span class="o">=</span><span class="mi">2</span><span class="p">,</span>
+                        <span class="p">)</span>
+                <span class="k">raise</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_user_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;--user&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">"--user"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()))</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_env</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
@@ -761,25 +831,25 @@
 <div class="viewcode-block" id="Podman">
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.Podman">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Podman</span><span class="p">(</span><span class="n">Docker</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Podman 🦭 runtime.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Podman 🦭 runtime."""</span>
 
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;podman&quot;</span>
-    <span class="n">executable</span> <span class="o">=</span> <span class="s2">&quot;podman&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">"podman"</span>
+    <span class="n">executable</span> <span class="o">=</span> <span class="s2">"podman"</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">is_available</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">bool</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Check if the container runtime is installed and executable.</span>
+<span class="w">        </span><span class="sd">"""Check if the container runtime is installed and executable.</span>
 
 <span class="sd">        Returns:</span>
 <span class="sd">            `True` if the container runtime appears to be installed on the system and if required daemons are running,</span>
 <span class="sd">            `false` otherwise.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="c1"># `podman info` seems to take some more time than `docker info`.</span>
         <span class="c1"># Just use `podman --help` here.</span>
         <span class="k">try</span><span class="p">:</span>
             <span class="k">return</span> <span class="p">(</span>
                 <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
-                    <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;--help&quot;</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span>
+                    <span class="p">[</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">"--help"</span><span class="p">],</span> <span class="n">stdout</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">stderr</span><span class="o">=</span><span class="n">subprocess</span><span class="o">.</span><span class="n">DEVNULL</span><span class="p">,</span> <span class="n">check</span><span class="o">=</span><span class="kc">False</span>
                 <span class="p">)</span><span class="o">.</span><span class="n">returncode</span>
                 <span class="o">==</span> <span class="mi">0</span>
             <span class="p">)</span>
@@ -788,68 +858,68 @@
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_user_args</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="o">...</span><span class="p">]:</span>
-        <span class="k">return</span> <span class="p">(</span><span class="s2">&quot;--userns=keep-id&quot;</span><span class="p">,</span> <span class="s2">&quot;--user&quot;</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()))</span>
+        <span class="k">return</span> <span class="p">(</span><span class="s2">"--userns=keep-id"</span><span class="p">,</span> <span class="s2">"--user"</span><span class="p">,</span> <span class="nb">str</span><span class="p">(</span><span class="n">os</span><span class="o">.</span><span class="n">getuid</span><span class="p">()))</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_env</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]</span> <span class="o">|</span> <span class="kc">None</span><span class="p">:</span>
-        <span class="c1"># podman needs to have pasta in the PATH variable to configure</span>
-        <span class="c1"># network namespaces</span>
-        <span class="n">pasta_executable</span> <span class="o">=</span> <span class="n">shutil</span><span class="o">.</span><span class="n">which</span><span class="p">(</span><span class="s2">&quot;pasta&quot;</span><span class="p">)</span>
-        <span class="k">if</span> <span class="n">pasta_executable</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
-            <span class="n">msg</span> <span class="o">=</span> <span class="s2">&quot;pasta executable not available. This is needed for podman to work properly&quot;</span>
+        <span class="c1"># Rootless Podman invokes host helpers such as pasta and newuidmap.</span>
+        <span class="c1"># Validate pasta explicitly, then inherit the full host environment so</span>
+        <span class="c1"># every helper path and runtime setting remains available.</span>
+        <span class="k">if</span> <span class="n">shutil</span><span class="o">.</span><span class="n">which</span><span class="p">(</span><span class="s2">"pasta"</span><span class="p">)</span> <span class="ow">is</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="n">msg</span> <span class="o">=</span> <span class="s2">"pasta executable not available. This is needed for podman to work properly"</span>
             <span class="k">raise</span> <span class="ne">RuntimeError</span><span class="p">(</span><span class="n">msg</span><span class="p">)</span>
-        <span class="k">return</span> <span class="p">{</span><span class="s2">&quot;PATH&quot;</span><span class="p">:</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">dirname</span><span class="p">(</span><span class="n">pasta_executable</span><span class="p">)}</span></div>
+        <span class="k">return</span> <span class="kc">None</span></div>
 
 
 
-<span class="n">DOCKER_PREFIX</span> <span class="o">=</span> <span class="s2">&quot;docker://&quot;</span>
+<span class="n">DOCKER_PREFIX</span> <span class="o">=</span> <span class="s2">"docker://"</span>
 
 
 <div class="viewcode-block" id="Apptainer">
 <a class="viewcode-back" href="../../../../utils/container/#engibench.utils.container.Apptainer">[docs]</a>
 <span class="k">class</span><span class="w"> </span><span class="nc">Apptainer</span><span class="p">(</span><span class="n">ContainerRuntime</span><span class="p">):</span>
-<span class="w">    </span><span class="sd">&quot;&quot;&quot;Apptainer.&quot;&quot;&quot;</span>
+<span class="w">    </span><span class="sd">"""Apptainer."""</span>
 
-    <span class="n">name</span> <span class="o">=</span> <span class="s2">&quot;apptainer&quot;</span>
-    <span class="n">executable</span> <span class="o">=</span> <span class="s2">&quot;apptainer&quot;</span>
+    <span class="n">name</span> <span class="o">=</span> <span class="s2">"apptainer"</span>
+    <span class="n">executable</span> <span class="o">=</span> <span class="s2">"apptainer"</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">_set_apptainer_env</span><span class="p">(</span><span class="bp">cls</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Set Apptainer environment variables.&quot;&quot;&quot;</span>
+<span class="w">        </span><span class="sd">"""Set Apptainer environment variables."""</span>
         <span class="c1"># See https://scicomp.ethz.ch/wiki/Apptainer#Settings</span>
         <span class="c1"># Set cache directory to SCRATCH if available, otherwise use default</span>
-        <span class="n">scratch_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;SCRATCH&quot;</span><span class="p">)</span>
+        <span class="n">scratch_dir</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"SCRATCH"</span><span class="p">)</span>
         <span class="k">if</span> <span class="n">scratch_dir</span><span class="p">:</span>
             <span class="c1"># stores apptainer images in your $SCRATCH directory</span>
-            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;APPTAINER_CACHEDIR&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">scratch_dir</span><span class="si">}</span><span class="s2">/.apptainer&quot;</span>
+            <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"APPTAINER_CACHEDIR"</span><span class="p">]</span> <span class="o">=</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">scratch_dir</span><span class="si">}</span><span class="s2">/.apptainer"</span>
 
         <span class="c1"># uses the local temporary directory to store temporary data when building images</span>
-        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">&quot;APPTAINER_TMPDIR&quot;</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">&quot;TMPDIR&quot;</span><span class="p">,</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">())</span>
+        <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="p">[</span><span class="s2">"APPTAINER_TMPDIR"</span><span class="p">]</span> <span class="o">=</span> <span class="n">os</span><span class="o">.</span><span class="n">environ</span><span class="o">.</span><span class="n">get</span><span class="p">(</span><span class="s2">"TMPDIR"</span><span class="p">,</span> <span class="n">tempfile</span><span class="o">.</span><span class="n">gettempdir</span><span class="p">())</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">sif_filename</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="nb">str</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Construct the sif filename from an image specifier.&quot;&quot;&quot;</span>
-        <span class="c1"># Extract just the image part if it&#39;s a docker URI</span>
+<span class="w">        </span><span class="sd">"""Construct the sif filename from an image specifier."""</span>
+        <span class="c1"># Extract just the image part if it's a docker URI</span>
         <span class="n">image</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">removeprefix</span><span class="p">(</span><span class="n">DOCKER_PREFIX</span><span class="p">)</span>
 
-        <span class="c1"># Parse the image name to match Singularity&#39;s naming convention</span>
-        <span class="c1"># For &quot;mdolab/public:u22-gcc-ompi-stable&quot;, Singularity creates &quot;public_u22-gcc-ompi-stable.sif&quot;</span>
-        <span class="n">image_name</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">&quot;/&quot;</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">&quot;/&quot;</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
+        <span class="c1"># Parse the image name to match Singularity's naming convention</span>
+        <span class="c1"># For "mdolab/public:u22-gcc-ompi-stable", Singularity creates "public_u22-gcc-ompi-stable.sif"</span>
+        <span class="n">image_name</span> <span class="o">=</span> <span class="n">image</span><span class="o">.</span><span class="n">rsplit</span><span class="p">(</span><span class="s2">"/"</span><span class="p">,</span> <span class="mi">1</span><span class="p">)[</span><span class="o">-</span><span class="mi">1</span><span class="p">]</span> <span class="k">if</span> <span class="s2">"/"</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
 
-        <span class="c1"># An untagged image resolves to its implicit &quot;:latest&quot; tag, e.g. &quot;alpine&quot; -&gt; &quot;alpine_latest.sif&quot;</span>
-        <span class="k">if</span> <span class="s2">&quot;:&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image_name</span><span class="p">:</span>
-            <span class="n">image_name</span> <span class="o">+=</span> <span class="s2">&quot;:latest&quot;</span>
+        <span class="c1"># An untagged image resolves to its implicit ":latest" tag, e.g. "alpine" -&gt; "alpine_latest.sif"</span>
+        <span class="k">if</span> <span class="s2">":"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image_name</span><span class="p">:</span>
+            <span class="n">image_name</span> <span class="o">+=</span> <span class="s2">":latest"</span>
 
-        <span class="c1"># Replace &quot;:&quot; with &quot;_&quot; in the image name</span>
-        <span class="k">return</span> <span class="n">image_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">,</span> <span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">+</span> <span class="s2">&quot;.sif&quot;</span>
+        <span class="c1"># Replace ":" with "_" in the image name</span>
+        <span class="k">return</span> <span class="n">image_name</span><span class="o">.</span><span class="n">replace</span><span class="p">(</span><span class="s2">":"</span><span class="p">,</span> <span class="s2">"_"</span><span class="p">)</span> <span class="o">+</span> <span class="s2">".sif"</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">pull</span><span class="p">(</span><span class="bp">cls</span><span class="p">,</span> <span class="n">image</span><span class="p">:</span> <span class="nb">str</span><span class="p">)</span> <span class="o">-&gt;</span> <span class="kc">None</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Pull an image.</span>
+<span class="w">        </span><span class="sd">"""Pull an image.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            image: Container image to pull.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">        """</span>
         <span class="c1"># Set Apptainer environment variables</span>
         <span class="bp">cls</span><span class="o">.</span><span class="n">_set_apptainer_env</span><span class="p">()</span>
         <span class="c1"># Get sif filename</span>
@@ -857,12 +927,12 @@
 
         <span class="c1"># Check if the image already exists</span>
         <span class="k">if</span> <span class="n">os</span><span class="o">.</span><span class="n">path</span><span class="o">.</span><span class="n">exists</span><span class="p">(</span><span class="n">sif_filename</span><span class="p">):</span>
-            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">&quot;Image file already exists: </span><span class="si">{</span><span class="n">sif_filename</span><span class="si">}</span><span class="s2"> - skipping pull&quot;</span><span class="p">)</span>
+            <span class="nb">print</span><span class="p">(</span><span class="sa">f</span><span class="s2">"Image file already exists: </span><span class="si">{</span><span class="n">sif_filename</span><span class="si">}</span><span class="s2"> - skipping pull"</span><span class="p">)</span>
             <span class="k">return</span>
         <span class="c1"># Convert to docker URI if needed</span>
-        <span class="n">docker_uri</span> <span class="o">=</span> <span class="n">DOCKER_PREFIX</span> <span class="o">+</span> <span class="n">image</span> <span class="k">if</span> <span class="s2">&quot;://&quot;</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
-        <span class="c1"># Image doesn&#39;t exist, proceed with pull</span>
-        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">&quot;pull&quot;</span><span class="p">,</span> <span class="n">docker_uri</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
+        <span class="n">docker_uri</span> <span class="o">=</span> <span class="n">DOCKER_PREFIX</span> <span class="o">+</span> <span class="n">image</span> <span class="k">if</span> <span class="s2">"://"</span> <span class="ow">not</span> <span class="ow">in</span> <span class="n">image</span> <span class="k">else</span> <span class="n">image</span>
+        <span class="c1"># Image doesn't exist, proceed with pull</span>
+        <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">([</span><span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span> <span class="s2">"pull"</span><span class="p">,</span> <span class="n">docker_uri</span><span class="p">],</span> <span class="n">check</span><span class="o">=</span><span class="kc">True</span><span class="p">)</span>
 
     <span class="nd">@classmethod</span>
     <span class="k">def</span><span class="w"> </span><span class="nf">run</span><span class="p">(</span>
@@ -875,8 +945,9 @@
         <span class="n">name</span><span class="p">:</span> <span class="nb">str</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>  <span class="c1"># noqa: ARG003</span>
         <span class="n">stdin</span><span class="p">:</span> <span class="nb">bytes</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
         <span class="n">sync_uid</span><span class="p">:</span> <span class="nb">bool</span> <span class="o">=</span> <span class="kc">False</span><span class="p">,</span>  <span class="c1"># noqa: ARG003</span>
+        <span class="n">timeout</span><span class="p">:</span> <span class="nb">float</span> <span class="o">|</span> <span class="kc">None</span> <span class="o">=</span> <span class="kc">None</span><span class="p">,</span>
     <span class="p">)</span> <span class="o">-&gt;</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">CompletedProcess</span><span class="p">:</span>
-<span class="w">        </span><span class="sd">&quot;&quot;&quot;Run a command in a container.</span>
+<span class="w">        </span><span class="sd">"""Run a command in a container.</span>
 
 <span class="sd">        Args:</span>
 <span class="sd">            command: Command (as a list of strings) to run inside the container.</span>
@@ -886,7 +957,8 @@
 <span class="sd">            name: Optional name for the container (not supported by all runtimes).</span>
 <span class="sd">            stdin: Optional data to feed to stdin of the process inside the container.</span>
 <span class="sd">            sync_uid: Use the uid of the current process as uid inside the container.</span>
-<span class="sd">        &quot;&quot;&quot;</span>
+<span class="sd">            timeout: Optional wall-clock limit in seconds for the containerized command.</span>
+<span class="sd">        """</span>
         <span class="c1"># Set Apptainer environment variables</span>
         <span class="bp">cls</span><span class="o">.</span><span class="n">_set_apptainer_env</span><span class="p">()</span>
 
@@ -897,8 +969,8 @@
         <span class="k">return</span> <span class="n">subprocess</span><span class="o">.</span><span class="n">run</span><span class="p">(</span>
             <span class="p">[</span>
                 <span class="bp">cls</span><span class="o">.</span><span class="n">executable</span><span class="p">,</span>
-                <span class="s2">&quot;run&quot;</span><span class="p">,</span>
-                <span class="s2">&quot;--compat&quot;</span><span class="p">,</span>
+                <span class="s2">"run"</span><span class="p">,</span>
+                <span class="s2">"--compat"</span><span class="p">,</span>
                 <span class="o">*</span><span class="n">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">),</span>
                 <span class="o">*</span><span class="n">_env_args</span><span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{}),</span>
                 <span class="n">sif_image</span><span class="p">,</span>
@@ -906,16 +978,17 @@
             <span class="p">],</span>
             <span class="n">check</span><span class="o">=</span><span class="kc">False</span><span class="p">,</span>
             <span class="nb">input</span><span class="o">=</span><span class="n">stdin</span><span class="p">,</span>
+            <span class="n">timeout</span><span class="o">=</span><span class="n">timeout</span><span class="p">,</span>
         <span class="p">)</span></div>
 
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_mount_args</span><span class="p">(</span><span class="n">mounts</span><span class="p">:</span> <span class="n">Sequence</span><span class="p">[</span><span class="nb">tuple</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">]])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-    <span class="k">return</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="p">([</span><span class="s2">&quot;--mount&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mounts</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="p">([</span><span class="s2">"--mount"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"type=bind,src=</span><span class="si">{</span><span class="n">src</span><span class="si">}</span><span class="s2">,target=</span><span class="si">{</span><span class="n">target</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="k">for</span> <span class="n">src</span><span class="p">,</span> <span class="n">target</span> <span class="ow">in</span> <span class="n">mounts</span><span class="p">)</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
 
 
 <span class="k">def</span><span class="w"> </span><span class="nf">_env_args</span><span class="p">(</span><span class="n">env</span><span class="p">:</span> <span class="nb">dict</span><span class="p">[</span><span class="nb">str</span><span class="p">,</span> <span class="nb">str</span><span class="p">])</span> <span class="o">-&gt;</span> <span class="nb">list</span><span class="p">[</span><span class="nb">str</span><span class="p">]:</span>
-    <span class="k">return</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="p">([</span><span class="s2">&quot;--env&quot;</span><span class="p">,</span> <span class="sa">f</span><span class="s2">&quot;</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">&quot;</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">())</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
+    <span class="k">return</span> <span class="p">[</span><span class="n">arg</span> <span class="k">for</span> <span class="n">args</span> <span class="ow">in</span> <span class="p">([</span><span class="s2">"--env"</span><span class="p">,</span> <span class="sa">f</span><span class="s2">"</span><span class="si">{</span><span class="n">var</span><span class="si">}</span><span class="s2">=</span><span class="si">{</span><span class="n">value</span><span class="si">}</span><span class="s2">"</span><span class="p">]</span> <span class="k">for</span> <span class="n">var</span><span class="p">,</span> <span class="n">value</span> <span class="ow">in</span> <span class="p">(</span><span class="n">env</span> <span class="ow">or</span> <span class="p">{})</span><span class="o">.</span><span class="n">items</span><span class="p">())</span> <span class="k">for</span> <span class="n">arg</span> <span class="ow">in</span> <span class="n">args</span><span class="p">]</span>
 
 
 <span class="n">RUNTIMES</span> <span class="o">=</span> <span class="p">[</span>

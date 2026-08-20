@@ -217,6 +217,7 @@
 <li class="toctree-l1"><a class="reference internal" href="problems/airfoil/">Airfoil</a></li>
 <li class="toctree-l1"><a class="reference internal" href="problems/beams2d/">Beams2D</a></li>
 <li class="toctree-l1"><a class="reference internal" href="problems/beams3d/">Beams3D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="problems/mto2d/">MTO2D</a></li>
 <li class="toctree-l1 has-children"><a class="reference internal" href="problems/thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
 <li class="toctree-l2"><a class="reference internal" href="problems/thermoelastic2d/">Thermoelastic2D</a></li>
 <li class="toctree-l2"><a class="reference internal" href="problems/thermoelastic3d/">Thermoelastic3D</a></li>
@@ -611,13 +612,13 @@
 
 <span class="c1"># Inspect problem</span>
 <span class="n">problem</span><span class="o">.</span><span class="n">design_space</span>  <span class="c1"># Box(0.0, 1.0, (50, 100), float64)</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">objectives</span>  <span class="c1"># ((&quot;compliance&quot;, &quot;MINIMIZE&quot;),)</span>
-<span class="n">problem</span><span class="o">.</span><span class="n">conditions</span>  <span class="c1"># ((&quot;volfrac&quot;, 0.35), (&quot;forcedist&quot;, 0.0),...)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">objectives</span>  <span class="c1"># (("compliance", "MINIMIZE"),)</span>
+<span class="n">problem</span><span class="o">.</span><span class="n">conditions</span>  <span class="c1"># (("volfrac", 0.35), ("forcedist", 0.0),...)</span>
 <span class="n">problem</span><span class="o">.</span><span class="n">dataset</span>  <span class="c1"># A HuggingFace Dataset object</span>
 
 <span class="c1"># Train your models, e.g., inverse design</span>
 <span class="c1"># inverse_model = train_inverse(problem.dataset)</span>
-<span class="n">desired_conds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">&quot;volfrac&quot;</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span> <span class="s2">&quot;forcedist&quot;</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">}</span>
+<span class="n">desired_conds</span> <span class="o">=</span> <span class="p">{</span><span class="s2">"volfrac"</span><span class="p">:</span> <span class="mf">0.7</span><span class="p">,</span> <span class="s2">"forcedist"</span><span class="p">:</span> <span class="mf">0.3</span><span class="p">}</span>
 <span class="c1"># generated_design = inverse_model.predict(desired_conds)</span>
 
 <span class="n">random_design</span><span class="p">,</span> <span class="n">_</span> <span class="o">=</span> <span class="n">problem</span><span class="o">.</span><span class="n">random_design</span><span class="p">()</span>
@@ -640,11 +641,11 @@
 </pre></div>
 </div>
 <p>You can also specify additional dependencies for specific problems:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;engibench[beams2d]&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"engibench[beams2d]"</span>
 </pre></div>
 </div>
 <p>Or you can install all dependencies for all problems:</p>
-<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">&quot;engibench[all]&quot;</span>
+<div class="highlight-bash notranslate"><div class="highlight"><pre><span></span>pip<span class="w"> </span>install<span class="w"> </span><span class="s2">"engibench[all]"</span>
 </pre></div>
 </div>
 </section>

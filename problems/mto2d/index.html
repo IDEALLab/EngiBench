@@ -1,0 +1,975 @@
+
+<!DOCTYPE html>
+
+
+<html lang="en" data-content_root="../../" >
+
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" /><meta name="viewport" content="width=device-width, initial-scale=1" />
+
+    <title>MTO2D &#8212; EngiBench Documentation</title>
+  
+  
+  
+  <script data-cfasync="false">
+    document.documentElement.dataset.mode = localStorage.getItem("mode") || "";
+    document.documentElement.dataset.theme = localStorage.getItem("theme") || "";
+  </script>
+  <!--
+    this give us a css class that will be invisible only if js is disabled
+  -->
+  <noscript>
+    <style>
+      .pst-js-only { display: none !important; }
+
+    </style>
+  </noscript>
+  
+  <!-- Loaded before other Sphinx assets -->
+  <link href="../../_static/styles/theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+<link href="../../_static/styles/pydata-sphinx-theme.css?digest=90905a2f556bf617f1a9" rel="stylesheet" />
+
+    <link rel="stylesheet" type="text/css" href="../../_static/pygments.css?v=8f2a1f02" />
+    <link rel="stylesheet" type="text/css" href="../../_static/styles/sphinx-book-theme.css?v=4418a689" />
+  
+  <!-- So that users can add custom icons -->
+  <script defer src="../../_static/scripts/fontawesome.js?digest=90905a2f556bf617f1a9"></script>
+  <!-- Pre-loaded scripts that we'll load fully later -->
+  <link rel="preload" as="script" href="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9" />
+<link rel="preload" as="script" href="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9" />
+
+    <script src="../../_static/documentation_options.js?v=238f96fa"></script>
+    <script src="../../_static/doctools.js?v=fd6eb6e6"></script>
+    <script src="../../_static/sphinx_highlight.js?v=6ffebe34"></script>
+    <script src="../../_static/scripts/sphinx-book-theme.js?v=fab101a9"></script>
+    <script>DOCUMENTATION_OPTIONS.pagename = 'problems/mto2d';</script>
+    <script>DOCUMENTATION_OPTIONS.search_as_you_type = false;</script>
+    <link rel="icon" href="../../_static/logo_2.png"/>
+    <link rel="index" title="Index" href="../../genindex/" />
+    <link rel="search" title="Search" href="../../search/" />
+    <link rel="next" title="Thermoelastic" href="../thermoelastic/" />
+    <link rel="prev" title="Beams3D" href="../beams3d/" />
+  <meta name="viewport" content="width=device-width, initial-scale=1"/>
+  <meta name="docsearch:language" content="en"/>
+  <meta name="docsearch:version" content="" />
+  
+    
+    <script src="../../_static/searchtools.js"></script>
+    <script src="../../_static/language_data.js"></script>
+    <script src="../../searchindex.js"></script>
+  
+  </head>
+  <body data-default-mode="">
+  
+  
+  <div id="pst-skip-link" class="skip-link d-print-none"><a href="#main-content">Skip to main content</a></div>
+
+  
+  <div id="pst-scroll-pixel-helper"></div>
+  
+  <button type="button" class="btn rounded-pill" id="pst-back-to-top">
+    <i class="fa-solid fa-arrow-up"></i>Back to top</button>
+  
+  
+  
+  
+  <dialog id="pst-search-dialog">
+    
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form>
+  </dialog>
+
+  <div class="pst-async-banner-revealer d-none">
+  <aside id="bd-header-version-warning" class="d-none d-print-none" aria-label="Version warning"></aside>
+</div>
+
+  
+    <header id="pst-header" class="bd-header navbar navbar-expand-lg bd-navbar d-print-none">
+<div class="bd-header__inner bd-page-width">
+  <button class="pst-navbar-icon sidebar-toggle primary-toggle" aria-label="Site navigation">
+    <span class="fa-solid fa-bars"></span>
+  </button>
+  
+  
+  <div class="col-lg-9 navbar-header-items">
+    
+    
+    <div class="navbar-header-items__end">
+      
+        <div class="navbar-item navbar-persistent--container">
+          
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+        </div>
+      
+      
+    </div>
+    
+  </div>
+  
+  
+    <div class="navbar-persistent--mobile">
+
+<button class="btn search-button-field search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+ <i class="fa-solid fa-magnifying-glass"></i>
+ <span class="search-button__default-text">Search</span>
+ <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd class="kbd-shortcut__modifier">K</kbd></span>
+</button>
+    </div>
+  
+
+  
+    <button class="pst-navbar-icon sidebar-toggle secondary-toggle" aria-label="On this page">
+      <span class="fa-solid fa-outdent"></span>
+    </button>
+  
+</div>
+
+    </header>
+  
+
+  <div class="bd-container">
+    <div class="bd-container__inner bd-page-width">
+      
+      
+      
+      <dialog id="pst-primary-sidebar-modal"></dialog>
+      <div id="pst-primary-sidebar" class="bd-sidebar-primary bd-sidebar">
+        
+
+  
+  <div class="sidebar-header-items sidebar-primary__section">
+    
+    
+    
+    
+  </div>
+  
+    <div class="sidebar-primary-items__start sidebar-primary__section">
+        <div class="sidebar-primary-item">
+
+  
+    
+  
+
+<a class="navbar-brand logo" href="../../">
+  
+  
+  
+  
+  
+    
+    
+      
+    
+    
+    <img src="../../_static/logo_2.png" class="logo__image only-light" alt="EngiBench Documentation - Home"/>
+    <img src="../../_static/logo_2.png" class="logo__image only-dark pst-js-only" alt="EngiBench Documentation - Home"/>
+  
+  
+</a></div>
+        <div class="sidebar-primary-item">
+<form class="bd-search d-flex align-items-center"
+      action="../../search/"
+      method="get">
+  <i class="fa-solid fa-magnifying-glass"></i>
+  <input type="search"
+         class="form-control"
+         name="q"
+         placeholder="Search..."
+         aria-label="Search..."
+         autocomplete="off"
+         autocorrect="off"
+         autocapitalize="off"
+         spellcheck="false"/>
+  <span class="search-button__kbd-shortcut"><kbd class="kbd-shortcut__modifier">Ctrl</kbd>+<kbd>K</kbd></span>
+</form></div>
+        <div class="sidebar-primary-item"><nav class="bd-links bd-docs-nav" aria-label="Main">
+    <div class="bd-toc-item navbar-nav active">
+        <p aria-level="2" class="caption" role="heading"><span class="caption-text">Introduction</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/install/">Installation</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/basic_usage/">Basic Usage</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/dataset_generation_slurm/">Data Generation (Slurm)</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../introduction/api/">API</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Problems</span></p>
+<ul class="current nav bd-sidenav">
+<li class="toctree-l1"><a class="reference internal" href="../airfoil/">Airfoil</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../beams2d/">Beams2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../beams3d/">Beams3D</a></li>
+<li class="toctree-l1 current active"><a class="current reference internal" href="#">MTO2D</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../thermoelastic/">Thermoelastic</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../thermoelastic2d/">Thermoelastic2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../thermoelastic3d/">Thermoelastic3D</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../photonics2d/">Photonics2D</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../power_electronics/">PowerElectronics</a></li>
+<li class="toctree-l1 has-children"><a class="reference internal" href="../heatconduction/">HeatConduction</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../heatconduction2d/">HeatConduction2D</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../heatconduction3d/">HeatConduction3D</a></li>
+</ul>
+</details></li>
+<li class="toctree-l1"><a class="reference internal" href="../external/">External Problems</a></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Algorithms</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiOpt">EngiOpt</a></li>
+</ul>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1 has-children"><a class="reference internal" href="../../utils/">Utils</a><details><summary><span class="toctree-toggle" role="presentation"><i class="fa-solid fa-chevron-down"></i></span></summary><ul>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/container/">Running in containers</a></li>
+<li class="toctree-l2"><a class="reference internal" href="../../utils/slurm/">Parameter space discovery via Slurm</a></li>
+</ul>
+</details></li>
+</ul>
+<p aria-level="2" class="caption" role="heading"><span class="caption-text">Development</span></p>
+<ul class="nav bd-sidenav">
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench">Github</a></li>
+<li class="toctree-l1"><a class="reference external" href="https://github.com/IDEALLab/EngiBench/blob/main/docs/README.md">Contribute to the Docs</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../development/new_problem/">Adding a new problem</a></li>
+<li class="toctree-l1"><a class="reference internal" href="../../development/problem_constraints/">Problem constraints</a></li>
+
+</ul>
+
+    </div>
+</nav></div>
+        <div class="sidebar-primary-item">
+<div class="sidebar-versions">
+  <div class="sidebar-group">
+    <div class="sidebar-heading">
+      <span>Versions</span>
+    </div>
+    <ul class="version-list">
+      
+      <li class="version-item">
+        <a href="/" class="version-link">
+          main
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1/" class="version-link">
+          v0.0.1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha0/" class="version-link">
+          v0.0.1-alpha0
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha1/" class="version-link">
+          v0.0.1-alpha1
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha2/" class="version-link">
+          v0.0.1-alpha2
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.0.1-alpha3/" class="version-link">
+          v0.0.1-alpha3
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.1.0/" class="version-link">
+          v0.1.0
+          
+        </a>
+      </li>
+      
+      <li class="version-item">
+        <a href="/v0.2.0/" class="version-link">
+          v0.2.0
+          
+        </a>
+      </li>
+      
+    </ul>
+  </div>
+</div>
+
+<style>
+.sidebar-versions {
+  margin: 1rem 0;
+  padding: 0.5rem;
+  background: var(--color-sidebar-background);
+  border-radius: 4px;
+}
+
+.sidebar-heading {
+  font-weight: 600;
+  margin-bottom: 0.5rem;
+  color: var(--color-sidebar-caption-text);
+}
+
+.version-list {
+  list-style: none;
+  padding-left: 0.5rem;
+  margin: 0;
+}
+
+.version-item {
+  margin: 0.25rem 0;
+}
+
+.version-link {
+  color: var(--color-sidebar-link-text);
+  text-decoration: none;
+  display: block;
+  padding: 0.25rem 0;
+}
+
+.version-link:hover {
+  color: var(--color-sidebar-link-text--hover);
+}
+
+.version-current {
+  font-size: 0.875em;
+  opacity: 0.7;
+  margin-left: 0.3em;
+}
+
+.current .version-link {
+  font-weight: 600;
+  color: var(--color-sidebar-link-text--active);
+}
+</style>
+</div>
+    </div>
+  
+  
+  <div class="sidebar-primary-items__end sidebar-primary__section">
+      <div class="sidebar-primary-item">
+<div id="ethical-ad-placement"
+      class="flat"
+      data-ea-publisher="readthedocs"
+      data-ea-type="readthedocs-sidebar"
+      data-ea-manual="true">
+</div></div>
+  </div>
+
+
+      </div>
+      
+      <main id="main-content" class="bd-main" role="main">
+        
+        
+
+<div class="sbt-scroll-pixel-helper"></div>
+
+          <div class="bd-content">
+            <div class="bd-article-container">
+              
+              <div class="bd-header-article d-print-none">
+<div class="header-article-items header-article__inner">
+  
+    <div class="header-article-items__start">
+      
+        <div class="header-article-item"><button class="sidebar-toggle primary-toggle btn btn-sm" title="Toggle primary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+  <span class="fa-solid fa-bars"></span>
+</button></div>
+      
+    </div>
+  
+  
+    <div class="header-article-items__end">
+      
+        <div class="header-article-item">
+
+<div class="article-header-buttons">
+
+
+
+
+
+<div class="dropdown dropdown-source-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Source repositories">
+    <i class="fab fa-github"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench" target="_blank"
+   class="btn btn-sm btn-source-repository-button dropdown-item"
+   title="Source repository"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fab fa-github"></i>
+  </span>
+<span class="btn__text-container">Repository</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/edit/main/docs/problems/mto2d.md" target="_blank"
+   class="btn btn-sm btn-source-edit-button dropdown-item"
+   title="Suggest edit"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-pencil-alt"></i>
+  </span>
+<span class="btn__text-container">Suggest edit</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li><a href="https://github.com/IDEALLab/EngiBench/issues/new?title=Issue%20on%20page%20%2Fproblems/mto2d.html&body=Your%20issue%20content%20here." target="_blank"
+   class="btn btn-sm btn-source-issues-button dropdown-item"
+   title="Open an issue"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-lightbulb"></i>
+  </span>
+<span class="btn__text-container">Open issue</span>
+</a>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+
+
+<div class="dropdown dropdown-download-buttons">
+  <button class="btn dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" aria-label="Download this page">
+    <i class="fas fa-download"></i>
+  </button>
+  <ul class="dropdown-menu">
+      
+      
+      
+      <li><a href="../../_sources/" target="_blank"
+   class="btn btn-sm btn-download-source-button dropdown-item"
+   title="Download source file"
+   data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file"></i>
+  </span>
+<span class="btn__text-container">.md</span>
+</a>
+</li>
+      
+      
+      
+      
+      <li>
+<button onclick="window.print()"
+  class="btn btn-sm btn-download-pdf-button dropdown-item"
+  title="Print to PDF"
+  data-bs-placement="left" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-file-pdf"></i>
+  </span>
+<span class="btn__text-container">.pdf</span>
+</button>
+</li>
+      
+  </ul>
+</div>
+
+
+
+
+<button onclick="toggleFullScreen()"
+  class="btn btn-sm btn-fullscreen-button pst-navbar-icon"
+  title="Fullscreen mode"
+  data-bs-placement="bottom" data-bs-toggle="tooltip"
+>
+  
+
+<span class="btn__icon-container">
+  <i class="fas fa-expand"></i>
+  </span>
+
+</button>
+
+
+
+<div class="theme-switch-container dropdown pst-js-only" data-bs-toggle="tooltip" data-bs-placement="bottom" title="Color mode">
+  <button class="btn btn-sm nav-link pst-navbar-icon theme-switch-button dropdown-toggle" aria-label="Color mode" data-bs-toggle="dropdown">
+    <i class="theme-switch fa-solid fa-sun fa-lg fa-fw" data-mode="light" title="Light"></i>
+    <i class="theme-switch fa-solid fa-moon fa-lg fa-fw" data-mode="dark" title="Dark"></i>
+    <i class="theme-switch fa-solid fa-circle-half-stroke fa-lg fa-fw" data-mode="auto" title="System Settings"></i>
+  </button>
+  <ul class="dropdown-menu dropdown-menu-end">
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="auto"><i class="fa-solid fa-circle-half-stroke fa-lg fa-fw me-1"></i>System Settings</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="light"><i class="fa-solid fa-sun fa-lg fa-fw me-1"></i>Light</button></li>
+    <li><button class="dropdown-item d-flex align-items-center theme-change-button" data-mode="dark"><i class="fa-solid fa-moon fa-lg fa-fw me-1"></i>Dark</button></li>
+  </ul>
+</div>
+
+
+<button class="btn btn-sm pst-navbar-icon search-button search-button__button pst-js-only" title="Search" aria-label="Search" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <i class="fa-solid fa-magnifying-glass fa-lg"></i>
+</button>
+<button class="sidebar-toggle secondary-toggle btn btn-sm pst-navbar-icon" title="Toggle secondary sidebar" data-bs-placement="bottom" data-bs-toggle="tooltip">
+    <span class="fa-solid fa-list"></span>
+</button>
+</div></div>
+      
+    </div>
+  
+</div>
+</div>
+              
+              
+
+<div id="jb-print-docs-body" class="onlyprint">
+    <h1>MTO2D</h1>
+    <!-- Table of contents -->
+    <div id="print-main-content">
+        <div id="jb-print-toc">
+            
+            <div>
+                <h2> Contents </h2>
+            </div>
+            <nav aria-label="Page">
+                <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-setup">Problem setup</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
+</ul>
+            </nav>
+        </div>
+    </div>
+</div>
+
+              
+                
+<div id="searchbox"></div>
+                <article class="bd-article">
+                  
+  <section class="tex2jax_ignore mathjax_ignore" id="mto2d">
+<h1>MTO2D<a class="headerlink" href="#mto2d" title="Link to this heading">#</a></h1>
+<a class="reference internal image-reference" href="../../_images/mto2d.png"><img alt="../../_images/mto2d.png" class="align-center" src="../../_images/mto2d.png" style="width: 450px;" />
+</a>
+<p>OpenFOAM-based 2D thermofluid topology optimization.</p>
+<p>A design is the non-redundant, visually oriented <code class="docutils literal notranslate"><span class="pre">(400,</span> <span class="pre">200)</span></code>
+fluid-density half-domain. <code class="docutils literal notranslate"><span class="pre">gamma=0</span></code> is solid and <code class="docutils literal notranslate"><span class="pre">gamma=1</span></code> is fluid.
+The right half is implied by symmetry and is created only for rendering.</p>
+<p>The built-in optimizer minimizes mean temperature with MMA while treating
+fluid volume and power dissipation as constraints. Power dissipation is
+nevertheless exposed as a second EngiBench objective for Pareto analysis.</p>
+<div class="pst-scrollable-table-container"><table class="table">
+<tbody>
+<tr class="row-odd"><td><p>Version</p></td>
+<td><p>0</p></td>
+</tr>
+<tr class="row-even"><td><p>Design space</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">Box(0.0,</span> <span class="pre">1.0,</span> <span class="pre">(400,</span> <span class="pre">200),</span> <span class="pre">float32)</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Objectives</p></td>
+<td><p>mean_temperature: ↓</p>
+<p>power_dissipation: ↓</p>
+</td>
+</tr>
+<tr class="row-even"><td><p>Conditions</p></td>
+<td><ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">inlet_velocity</span></code>: Signed inlet y-velocity in m/s; the nominal dataset range is [-0.095, -0.025].</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_power_dissipation</span></code>: Dimensionless normalized power-dissipation bound.
+
+        The retained solver divides physical dissipation by its exact
+        ``D_normalization = 1.57572e-7``. The paper denotes the rounded
+        reference scale ``J1 ≈ 1.58e-7``.
+
+        The nominal dataset range is [47.7, 75]. The second sweep targeted
+        [50, 75], but 17 of the 5,666 retained rows fall below 50.
+        </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Maximum all-cell fluid volume fraction.</p></li>
+</ul>
+</td>
+</tr>
+<tr class="row-odd"><td><p>Dataset</p></td>
+<td><p><a class="reference external" href="https://huggingface.co/datasets/IDEALLab/mto_2d_v0">IDEALLab/mto_2d_v0</a></p></td>
+</tr>
+<tr class="row-even"><td><p>Container</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">ghcr.io/ideallab/engibench-mto2d&#64;sha256:2887a5c8eaa3fba2d2738188757aeb66fe69d8ef7060698cb8512252aacaa131</span></code></p></td>
+</tr>
+<tr class="row-odd"><td><p>Import</p></td>
+<td><p><code class="docutils literal notranslate"><span class="pre">from</span> <span class="pre">engibench.problems.mto2d.v0</span> <span class="pre">import</span> <span class="pre">MTO2D</span></code></p></td>
+</tr>
+<tr class="row-even"><td><p>Lead</p></td>
+<td><p>Arthur Drake <a class="reference external" href="https://github.com/arthurdrake1">&#64;arthurdrake1</a></p></td>
+</tr>
+</tbody>
+</table>
+</div>
+<section id="motivation">
+<h2>Motivation<a class="headerlink" href="#motivation" title="Link to this heading">#</a></h2>
+<p>Multiphysics topology optimization (MTO) couples fluid flow, heat transfer, and
+design sensitivities in a single optimization loop, making it one of the most
+expensive problem families in density-based topology optimization. MTO2D
+distributes fluid and solid material inside a two-dimensional heat sink so that
+coolant entering at the top carries heat out at the bottom. Each cold-start
+optimization solves the incompressible Navier–Stokes and energy-balance
+equations with adjoint sensitivities for 200 iterations, which is why this
+problem is a strong benchmark for surrogate and generative approaches that try
+to warm-start or replace the solver.</p>
+<p>The problem, solver, and dataset follow the VQGAN-for-MTO study by Drake et
+al., which generated thousands of optimized heat sinks over a range of inlet
+velocities, power-dissipation limits, and fluid volume fractions.</p>
+</section>
+<section id="problem-setup">
+<h2>Problem setup<a class="headerlink" href="#problem-setup" title="Link to this heading">#</a></h2>
+<p>MTO2D models one symmetric half of a water-cooled rectangular heat sink.
+Coolant enters through a channel at the top, flows through channels placed by
+the optimizer, and leaves through a channel at the bottom. The paper uses a
+10 mm design-domain length, a 2 mm inlet scale, and a uniform heat source of
+<code class="docutils literal notranslate"><span class="pre">1e8</span> <span class="pre">W/m²</span></code>.</p>
+<p>The inlet has fixed velocity and reference temperature (<code class="docutils literal notranslate"><span class="pre">T</span> <span class="pre">=</span> <span class="pre">0</span></code>). The outlet
+has zero pressure and no normal temperature gradient. The remaining outer
+walls are no-slip and adiabatic, and the centerline is a symmetry boundary.
+For every proposed material layout, the solver computes steady incompressible
+flow and heat transfer.</p>
+</section>
+<section id="design-space">
+<h2>Design space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
+<p>A design is a <code class="docutils literal notranslate"><span class="pre">float32</span></code> array with shape <code class="docutils literal notranslate"><span class="pre">(400,</span> <span class="pre">200)</span></code> and values in <code class="docutils literal notranslate"><span class="pre">[0,</span> <span class="pre">1]</span></code>,
+storing the non-redundant left half of the symmetric design domain:</p>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">gamma</span> <span class="pre">=</span> <span class="pre">0</span></code> means solid material.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">gamma</span> <span class="pre">=</span> <span class="pre">1</span></code> means fluid.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">render()</span></code> mirrors the half-domain horizontally into a symmetric
+<code class="docutils literal notranslate"><span class="pre">(400,</span> <span class="pre">400)</span></code> image.</p></li>
+</ul>
+<figure class="align-center" id="mto2d-example-design">
+<a class="reference internal image-reference" href="../../_images/mto2d.png"><img alt="Smooth symmetric MTO2D heat-sink design with sparse fluid channels" src="../../_images/mto2d.png" style="width: 500px;" />
+</a>
+</figure>
+<p>The example above is a mirrored <code class="docutils literal notranslate"><span class="pre">400</span> <span class="pre">x</span> <span class="pre">400</span></code> rendering of public dataset row
+<code class="docutils literal notranslate"><span class="pre">train[1977]</span></code> (<code class="docutils literal notranslate"><span class="pre">volfrac</span> <span class="pre">=</span> <span class="pre">0.26</span></code>), selected for its sparse, smooth fluid
+channels.</p>
+<p>The underlying OpenFOAM field has 86,400 cells: the first 80,000 encode the
+<code class="docutils literal notranslate"><span class="pre">(400,</span> <span class="pre">200)</span></code> design in two solver-specific mesh blocks, and the remaining
+6,400 are fixed fluid cells (inlet and outlet channels) copied unchanged from
+the case template. The <code class="docutils literal notranslate"><span class="pre">design_io</span></code> module owns this mapping so that simulation
+never silently resizes a design.</p>
+<p>Datasets store <code class="docutils literal notranslate"><span class="pre">optimal_design</span></code> as a flat <code class="docutils literal notranslate"><span class="pre">list&lt;float32&gt;</span></code> of length 80,000 in
+C order, following the Beams3D Hub convention; <code class="docutils literal notranslate"><span class="pre">random_design()</span></code> reshapes rows
+back to the native <code class="docutils literal notranslate"><span class="pre">(400,</span> <span class="pre">200)</span></code> representation.</p>
+<p>The earlier
+<a class="reference external" href="https://huggingface.co/datasets/IDEALLab/MTO-2D"><code class="docutils literal notranslate"><span class="pre">IDEALLab/MTO-2D</span></code></a> NumPy
+dataset stores each design as a <code class="docutils literal notranslate"><span class="pre">(256,</span> <span class="pre">256)</span></code> image of the whole left
+half-domain, produced by a lossy anisotropic bicubic resize of the native
+field. MTO2D v0 deliberately accepts only the native representation so
+simulation never silently resizes a topology.</p>
+</section>
+<section id="objectives">
+<h2>Objectives<a class="headerlink" href="#objectives" title="Link to this heading">#</a></h2>
+<p>EngiBench minimizes both reported objectives, in this order:</p>
+<ol class="arabic simple" start="0">
+<li><p><code class="docutils literal notranslate"><span class="pre">mean_temperature</span></code>: mean temperature over the domain, reported in degrees
+Celsius.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">power_dissipation</span></code>: measured fluid power dissipation, reported as the
+factor <code class="docutils literal notranslate"><span class="pre">J/J1</span></code>.</p></li>
+</ol>
+<p>The native MMA formulation uses mean temperature as its scalar objective and
+enforces fluid volume and <code class="docutils literal notranslate"><span class="pre">J</span> <span class="pre">&lt;</span> <span class="pre">J̄</span></code> as constraints. EngiBench also exposes the
+measured <code class="docutils literal notranslate"><span class="pre">J</span></code> as a second objective so designs can be compared on a Pareto
+front. The condition <code class="docutils literal notranslate"><span class="pre">max_power_dissipation</span></code> is the input bound <code class="docutils literal notranslate"><span class="pre">J̄/J1</span></code>, not
+the measured objective. Because that constraint depends on simulation output,
+<code class="docutils literal notranslate"><span class="pre">simulate_verbose()</span></code> reports its relative residual as
+<code class="docutils literal notranslate"><span class="pre">power_dissipation</span> <span class="pre">/</span> <span class="pre">max_power_dissipation</span> <span class="pre">-</span> <span class="pre">1</span></code>.</p>
+</section>
+<section id="conditions">
+<h2>Conditions<a class="headerlink" href="#conditions" title="Link to this heading">#</a></h2>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">inlet_velocity</span></code>: Signed inlet y-velocity in m/s; the nominal dataset range is [-0.095, -0.025].</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_power_dissipation</span></code>: Dimensionless normalized power-dissipation bound.
+
+        The retained solver divides physical dissipation by its exact
+        ``D_normalization = 1.57572e-7``. The paper denotes the rounded
+        reference scale ``J1 ≈ 1.58e-7``.
+
+        The nominal dataset range is [47.7, 75]. The second sweep targeted
+        [50, 75], but 17 of the 5,666 retained rows fall below 50.
+        </p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: Maximum all-cell fluid volume fraction.</p></li>
+</ul>
+<ul class="simple">
+<li><p><code class="docutils literal notranslate"><span class="pre">inlet_velocity</span></code>: signed inlet velocity, nominally from <code class="docutils literal notranslate"><span class="pre">-0.095</span></code> to
+<code class="docutils literal notranslate"><span class="pre">-0.025</span></code> m/s, corresponding to Reynolds numbers from 50 to 190; the negative
+sign denotes flow direction.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">max_power_dissipation</span></code>: input bound <code class="docutils literal notranslate"><span class="pre">J̄/J1</span></code>, primarily sampled from <code class="docutils literal notranslate"><span class="pre">50</span></code> to
+<code class="docutils literal notranslate"><span class="pre">75</span></code> in the stable sweep; the full published range is <code class="docutils literal notranslate"><span class="pre">[47.7,</span> <span class="pre">75]</span></code>. The
+paper defines <code class="docutils literal notranslate"><span class="pre">J1</span> <span class="pre">=</span> <span class="pre">1.58e-7</span></code> as the reference dissipation of a straight,
+uniform-width channel from inlet to outlet. The solver uses the more precise
+normalization <code class="docutils literal notranslate"><span class="pre">1.57572e-7</span></code>.</p></li>
+<li><p><code class="docutils literal notranslate"><span class="pre">volfrac</span></code>: maximum all-cell fluid fraction, nominally from <code class="docutils literal notranslate"><span class="pre">0.25</span></code>
+to <code class="docutils literal notranslate"><span class="pre">0.70</span></code>.</p></li>
+</ul>
+</section>
+<section id="simulator">
+<h2>Simulator<a class="headerlink" href="#simulator" title="Link to this heading">#</a></h2>
+<p>The solver is an adjoint-based OpenFOAM 5 application: steady incompressible
+Navier–Stokes and energy-conservation equations with a Brinkman penalization
+for solid regions, RAMP material interpolation, a distance-based density
+filter with Heaviside projection, and the method of moving asymptotes (MMA)
+for design updates. It runs in an external containerized runtime and supports
+MPI decomposition.</p>
+<p><code class="docutils literal notranslate"><span class="pre">simulate()</span></code> performs one frozen final-physics evaluation: the design is
+written into a pristine copy of the case, design updates are disabled, and the
+final continuation parameters (<code class="docutils literal notranslate"><span class="pre">qu</span> <span class="pre">=</span> <span class="pre">0.01</span></code>, <code class="docutils literal notranslate"><span class="pre">alphaMax</span> <span class="pre">=</span> <span class="pre">5.0252e6</span></code>,
+<code class="docutils literal notranslate"><span class="pre">Heaviside</span> <span class="pre">=</span> <span class="pre">59.8</span></code>, movement limit <code class="docutils literal notranslate"><span class="pre">0</span></code>) are applied so the reported objectives
+belong to the input design exactly.</p>
+<p><code class="docutils literal notranslate"><span class="pre">optimize()</span></code> runs the full adjoint/MMA loop. The default
+<code class="docutils literal notranslate"><span class="pre">optimization_schedule=&quot;legacy&quot;</span></code> reproduces the source optimizer’s exact
+continuation timing used to generate the published dataset; an alternative
+<code class="docutils literal notranslate"><span class="pre">&quot;strict&quot;</span></code> schedule exposes configurable interpolation profiles and endpoints.
+Cold starts run 200 iterations by default; warm starts from a good initial
+design commonly use 20. <code class="docutils literal notranslate"><span class="pre">mode=&quot;cold&quot;</span></code> selects a continuation schedule but does
+not construct the starting design. For exact historical initialization, use a
+constant <code class="docutils literal notranslate"><span class="pre">(400,</span> <span class="pre">200)</span></code> field whose value is <code class="docutils literal notranslate"><span class="pre">volfrac</span></code>; the separate 6,400 fixed
+cells remain fluid, so the initial all-cell volume is temporarily above the
+bound. The retained legacy optimization history for the case
+with <code class="docutils literal notranslate"><span class="pre">inlet_velocity</span> <span class="pre">=</span> <span class="pre">-0.074</span></code>, <code class="docutils literal notranslate"><span class="pre">max_power_dissipation</span> <span class="pre">=</span> <span class="pre">63.1</span></code>, and
+<code class="docutils literal notranslate"><span class="pre">volfrac</span> <span class="pre">=</span> <span class="pre">0.61</span></code> reaches <code class="docutils literal notranslate"><span class="pre">mean_temperature</span> <span class="pre">=</span> <span class="pre">9.45825</span></code> and
+<code class="docutils literal notranslate"><span class="pre">power_dissipation</span> <span class="pre">=</span> <span class="pre">62.2588</span></code>. Those historical values describe the
+pre-update optimizer field, not the committed frozen-simulation reference.</p>
+<p><code class="docutils literal notranslate"><span class="pre">optimize()</span></code> returns <code class="docutils literal notranslate"><span class="pre">(design,</span> <span class="pre">history)</span></code> exactly as the base <code class="docutils literal notranslate"><span class="pre">Problem</span></code>
+contract specifies. Each history entry includes the active power bound,
+constraint residuals, and elapsed solver time. Retained artifacts remain
+available through <code class="docutils literal notranslate"><span class="pre">problem.last_solver_run</span></code>.</p>
+<p>See the package <code class="docutils literal notranslate"><span class="pre">README.md</span></code> in <code class="docutils literal notranslate"><span class="pre">engibench/problems/mto2d/</span></code> for runner
+settings, runtime-image preparation, and usage.</p>
+</section>
+<section id="dataset">
+<h2>Dataset<a class="headerlink" href="#dataset" title="Link to this heading">#</a></h2>
+<p>The dataset is hosted at
+<a class="reference external" href="https://huggingface.co/datasets/IDEALLab/mto_2d_v0"><code class="docutils literal notranslate"><span class="pre">IDEALLab/mto_2d_v0</span></code></a>.
+Rows contain the flat <code class="docutils literal notranslate"><span class="pre">optimal_design</span></code>, the three condition fields, and both
+objective fields.</p>
+<p>For every historical run, the solver wrote mean temperature and power
+dissipation before the MMA update, then saved the updated gamma field. The
+published objectives and <code class="docutils literal notranslate"><span class="pre">optimal_design</span></code> therefore describe adjacent solver
+states and are not expected to match a frozen re-simulation exactly.</p>
+<p>Retained rows satisfy the fluid-volume constraint tightly (median all-cell
+residual approximately <code class="docutils literal notranslate"><span class="pre">-7.15e-5</span></code>), but satisfy the power-dissipation constraint only to
+within MMA’s convergence tolerance: 3,149 of the 5,666 rows report
+<code class="docutils literal notranslate"><span class="pre">power_dissipation</span></code> above their own <code class="docutils literal notranslate"><span class="pre">max_power_dissipation</span></code>, by at most 0.98%.
+Positive violations are therefore small; negative residuals simply indicate
+slack and reach about -23.3%.</p>
+<p>The paper sampled 10,000 condition combinations with Latin hypercube
+sampling. An initial 5,000-case sweep used <code class="docutils literal notranslate"><span class="pre">J̄/J1</span></code> from 5 to 75; after many
+low-bound cases violated the power constraint, a second roughly 5,000-case
+sweep concentrated on 50 to 75. Both sweeps used <code class="docutils literal notranslate"><span class="pre">volfrac</span></code> from 0.25 to 0.70
+and Reynolds number from 50 to 190. Retaining only converged,
+constraint-satisfying runs within the source study’s convergence tolerance
+produced 5,666 designs. Their
+4,249/283/1,134 train/validation/test splits follow the paper’s 75/5/20 policy.</p>
+<figure class="align-center" id="mto2d-pareto-front">
+<a class="reference internal image-reference" href="../../_images/mto2d_pareto.png"><img alt="Pareto front of mean temperature and fluid power dissipation for the MTO2D dataset" src="../../_images/mto2d_pareto.png" style="width: 700px;" />
+</a>
+<figcaption>
+<p><span class="caption-text">The global dataset front contains 12 Pareto-optimal designs across all three
+splits and operating conditions. Both axes are minimized. Fluid power
+dissipation is shown in multiples of <code class="docutils literal notranslate"><span class="pre">J1</span></code>, where <code class="docutils literal notranslate"><span class="pre">J1</span> <span class="pre">=</span> <span class="pre">1.58e-7</span></code> is the paper’s
+reference value. One 71.3 °C outlier lies above the displayed temperature
+range.</span><a class="headerlink" href="#mto2d-pareto-front" title="Link to this image">#</a></p>
+</figcaption>
+</figure>
+</section>
+<section id="citation">
+<h2>Citation<a class="headerlink" href="#citation" title="Link to this heading">#</a></h2>
+<p>If you use this problem or dataset, please cite the source study:</p>
+<div class="highlight-bibtex notranslate"><div class="highlight"><pre><span></span><span class="nc">@article</span><span class="p">{</span><span class="nl">drake2026quantize</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{To Quantize or Not to Quantize: Effects on Generative Models for Topology Optimization Problems}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Drake, Arthur and Chen, Qiuyi and Wang, Jun and Nejat, Ardalan and Guest, James K. and Fuge, Mark}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{Journal of Mechanical Design}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2026}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{148}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">number</span><span class="p">=</span><span class="s">{10}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{101704}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">doi</span><span class="p">=</span><span class="s">{10.1115/1.4071440}</span>
+<span class="p">}</span>
+
+<span class="nc">@article</span><span class="p">{</span><span class="nl">yu2020three</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{Three-dimensional topology optimization of thermal-fluid-structural problems for cooling system design}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Yu, M. and Ruan, S. and Gu, J. and Ren, M. and Li, Z. and Wang, X. and Shen, C.}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{Structural and Multidisciplinary Optimization}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{62}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">number</span><span class="p">=</span><span class="s">{6}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{3347--3366}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{2020}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{Springer}</span>
+<span class="p">}</span>
+
+<span class="nc">@article</span><span class="p">{</span><span class="nl">svanberg1987method</span><span class="p">,</span>
+<span class="w">  </span><span class="na">title</span><span class="p">=</span><span class="s">{The method of moving asymptotes -- a new method for structural optimization}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">author</span><span class="p">=</span><span class="s">{Svanberg, Krister}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">journal</span><span class="p">=</span><span class="s">{International Journal for Numerical Methods in Engineering}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">volume</span><span class="p">=</span><span class="s">{24}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">number</span><span class="p">=</span><span class="s">{2}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">pages</span><span class="p">=</span><span class="s">{359--373}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">year</span><span class="p">=</span><span class="s">{1987}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">publisher</span><span class="p">=</span><span class="s">{Wiley}</span><span class="p">,</span>
+<span class="w">  </span><span class="na">doi</span><span class="p">=</span><span class="s">{10.1002/nme.1620240207}</span>
+<span class="p">}</span>
+</pre></div>
+</div>
+</section>
+</section>
+
+
+                </article>
+              
+
+              
+              
+              
+              
+                <footer class="prev-next-footer d-print-none">
+                  
+<div class="prev-next-area">
+    <a class="left-prev"
+       href="../beams3d/"
+       title="previous page">
+      <i class="fa-solid fa-angle-left"></i>
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">previous</p>
+        <p class="prev-next-title">Beams3D</p>
+      </div>
+    </a>
+    <a class="right-next"
+       href="../thermoelastic/"
+       title="next page">
+      <div class="prev-next-info">
+        <p class="prev-next-subtitle">next</p>
+        <p class="prev-next-title">Thermoelastic</p>
+      </div>
+      <i class="fa-solid fa-angle-right"></i>
+    </a>
+</div>
+                </footer>
+              
+            </div>
+            
+            
+              
+                <dialog id="pst-secondary-sidebar-modal"></dialog>
+                <div id="pst-secondary-sidebar" class="bd-sidebar-secondary bd-toc"><div class="sidebar-secondary-items sidebar-secondary__inner">
+
+
+  <div class="sidebar-secondary-item"><div
+    id="pst-page-navigation-heading-2"
+    class="page-toc tocsection onthispage">
+    <i class="fa-solid fa-list"></i> Contents
+  </div>
+  <nav id="pst-page-toc-nav" class="page-toc" aria-labelledby="pst-page-navigation-heading-2">
+    <ul class="pst-show_toc_level nav section-nav flex-column">
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#motivation">Motivation</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#problem-setup">Problem setup</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#design-space">Design space</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#objectives">Objectives</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#conditions">Conditions</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#simulator">Simulator</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#dataset">Dataset</a></li>
+<li class="toc-h2 nav-item toc-entry"><a class="reference internal nav-link" href="#citation">Citation</a></li>
+</ul>
+  </nav></div>
+
+</div></div>
+              
+            
+          </div>
+          <footer class="bd-footer-content">
+            
+<div class="bd-footer-content__inner container">
+  
+  <div class="footer-item">
+    
+<p class="component-author">
+By ETH Zurich's IDEAL Lab
+</p>
+
+  </div>
+  
+  <div class="footer-item">
+    
+
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+  <div class="footer-item">
+    
+  </div>
+  
+</div>
+          </footer>
+        
+
+      </main>
+    </div>
+  </div>
+  
+  <!-- Scripts loaded after <body> so the DOM is not blocked -->
+  <script defer src="../../_static/scripts/bootstrap.js?digest=90905a2f556bf617f1a9"></script>
+<script defer src="../../_static/scripts/pydata-sphinx-theme.js?digest=90905a2f556bf617f1a9"></script>
+
+  <footer class="bd-footer">
+  </footer>
+  </body>
+</html>
