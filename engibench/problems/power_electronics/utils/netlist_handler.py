@@ -85,7 +85,9 @@ def rewrite_netlist(config: Config, rewrite_netlist_str: str, edge_map: dict[str
         for i in range(config.n_L):
             cmp_edg_str += f".PARAM L{i}_value = {config.inductor_val[i]}\n"
 
-        cmp_edg_str += ".PARAM R0_value = 10\n\n.model Ideal_switch SW (Ron=1m Roff=10Meg Vt=0.5 Vh=0 Lser=0 Vser=0)\n.model Ideal_D D\n\n"
+        cmp_edg_str += (
+            ".PARAM R0_value = 10\n\n.model Ideal_switch SW (Ron=1m Roff=10Meg Vt=0.5 Vh=0)\n.model Ideal_D D\n\n"
+        )
 
         cmp_edg_str += "V_GSref_D  gs_ref_D 0 pwl(0 1 {GS0_T1-10e-9} 1 {GS0_T1} 0 {GS0_T2-10e-9} 0 {GS0_Ts} 1) r=0\nV_GSref_Dc  gs_ref_Dc 0 pwl(0 0 {GS0_T1-10e-9} 0 {GS0_T1} 1 {GS0_T2-10e-9} 1 {GS0_Ts} 0) r=0\n"
 

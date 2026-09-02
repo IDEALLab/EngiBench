@@ -14,6 +14,9 @@ import networkx as nx
 import numpy as np
 import numpy.typing as npt
 
+from engibench.constraint import constraint
+from engibench.constraint import IMPL
+from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
 from engibench.core import Problem
 from engibench.core import SimulationResult
@@ -23,6 +26,56 @@ from engibench.problems.power_electronics.utils.netlist_handler import rewrite_n
 from engibench.problems.power_electronics.utils.ngspice import NgSpice
 from engibench.problems.power_electronics.utils.process_log_file import process_log_file
 from engibench.problems.power_electronics.utils.process_sweep_data import process_sweep_data
+
+PASSIVE_COMPONENTS = slice(0, 9)
+DUTY_CYCLE = 9
+SWITCH_LEVELS = slice(10, 20)
+SWITCHING_PERIOD = 5e-6
+TRANSITION_TIME = 10e-9
+MIN_PWL_DUTY_CYCLE = TRANSITION_TIME / SWITCHING_PERIOD
+MAX_PWL_DUTY_CYCLE = 1.0 - MIN_PWL_DUTY_CYCLE
+
+
+def has_expected_shape(design: npt.NDArray) -> bool:
+    """Return whether a design has the shape required by the indexed constraints."""
+    return np.shape(design) == (20,)
+
+
+@constraint(categories=THEORY)
+def passive_components_are_positive(design: npt.NDArray) -> None:
+    """Require every capacitor and inductor to have a positive value."""
+    if not has_expected_shape(design):
+        return
+    assert np.all(design[PASSIVE_COMPONENTS] > 0.0), "Capacitance and inductance values must be positive."
+
+
+@constraint(categories=THEORY)
+def duty_cycle_is_fraction(design: npt.NDArray) -> None:
+    """Require the duty cycle to be a valid fraction."""
+    if not has_expected_shape(design):
+        return
+    duty_cycle = design[DUTY_CYCLE]
+    assert 0.0 <= duty_cycle <= 1.0, f"Duty cycle {duty_cycle} is not in [0, 1]."
+
+
+@constraint(categories=IMPL)
+def duty_cycle_has_valid_pwl_timing(design: npt.NDArray) -> None:
+    """Keep the generated PWL voltage-source time points increasing."""
+    if not has_expected_shape(design):
+        return
+    duty_cycle = design[DUTY_CYCLE]
+    assert MIN_PWL_DUTY_CYCLE <= duty_cycle < MAX_PWL_DUTY_CYCLE, (
+        f"Duty cycle {duty_cycle} is not in [{MIN_PWL_DUTY_CYCLE}, {MAX_PWL_DUTY_CYCLE})."
+    )
+
+
+@constraint(categories=THEORY)
+def switch_levels_are_binary(design: npt.NDArray) -> None:
+    """Require each switch level to represent an on or off state."""
+    if not has_expected_shape(design):
+        return
+    switch_levels = design[SWITCH_LEVELS]
+    assert np.all(np.isin(switch_levels, (0.0, 1.0))), "Switch levels must be binary (0 or 1)."
 
 
 class PowerElectronics(Problem[npt.NDArray]):
@@ -49,6 +102,12 @@ class PowerElectronics(Problem[npt.NDArray]):
         """Conditions."""
 
     conditions = Conditions()
+    design_constraints = (
+        passive_components_are_positive,
+        duty_cycle_is_fraction,
+        duty_cycle_has_valid_pwl_timing,
+        switch_levels_are_binary,
+    )
     design_space = spaces.Box(
         low=np.array([1e-6] * 6 + [1e-6] * 3 + [0.1] + [0] * 10),
         high=np.array([2e-5] * 6 + [1e-3] * 3 + [0.9] + [1] * 10),

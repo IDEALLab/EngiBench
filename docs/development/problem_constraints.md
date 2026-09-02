@@ -82,7 +82,7 @@ Example:
 ```
 
 This declares a constraint for the 3 parameters (`rmin`, `nelx`, `nely`) with custom logic. This constraint does not have any category.
-If we would want to add a category, `@constraint` could be replaced by `@constraint(category=ERROR)` for example.
+If we would want to add a category, `@constraint` could be replaced by `@constraint(categories=THEORY)` for example.
 
 
 ## Example: Beams2D
