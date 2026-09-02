@@ -8,6 +8,7 @@ import inspect
 import json
 import os
 from pathlib import Path
+import platform
 import sys
 from typing import Any, get_args, get_origin, TYPE_CHECKING
 
@@ -19,6 +20,8 @@ import pytest
 
 from engibench import Problem
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
+from tests.problem_policies import problem_id
+from tests.problem_policies import problem_test_policy
 
 if TYPE_CHECKING:
     from typing import Self
@@ -71,21 +74,37 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     assert "reset" in class_methods, f"Problem {problem_class.__name__}: The reset method should be implemented."
     # optimize is optional, thus not checked
 
-    # Test the dataset has the required splits
+    print(f"Done testing {problem_class.__name__}.")
+
+
+def _problem_params() -> list[Any]:
+    """Parametrize over builtin problems, marking the expensive ones `slow`."""
+    params = []
+    for problem_class in BUILTIN_PROBLEMS.values():
+        policy = problem_test_policy(problem_class)
+        marks = [pytest.mark.slow] if policy.slow else []
+        params.append(pytest.param(problem_class, marks=marks, id=problem_class.__name__))
+    return params
+
+
+@pytest.mark.parametrize("problem_class", _problem_params())
+def test_problem_dataset(problem_class: type[Problem]) -> None:
+    """Check that each published dataset has the required splits and fields."""
+    problem: Problem = problem_class()
     dataset = problem.dataset
     assert "train" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'train' split."
     assert "test" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'test' split."
     assert "val" in dataset, f"Problem {problem_class.__name__}: The dataset should contain a 'val' split."
-    # Test the dataset fields match `optimal_design`, `problem.conditions`, and `problem.objectives`
+
     if len(problem.objectives) > 1:
-        for o, _ in problem.objectives:
-            assert o in dataset["train"].column_names, (
-                f"Problem {problem_class.__name__}: The dataset should contain the field {o}."
+        for objective, _direction in problem.objectives:
+            assert objective in dataset["train"].column_names, (
+                f"Problem {problem_class.__name__}: The dataset should contain the field {objective}."
             )
 
-    for f in dataclasses.fields(problem.Conditions):
-        assert f.name in dataset["train"].column_names, (
-            f"Problem {problem_class.__name__}: The dataset should contain the field {f.name}."
+    for field in dataclasses.fields(problem.Conditions):
+        assert field.name in dataset["train"].column_names, (
+            f"Problem {problem_class.__name__}: The dataset should contain the field {field.name}."
         )
     if problem_class.__module__.startswith("engibench.problems.power_electronics"):
         print(f"Skipping optimal design test for power electronics problem {problem_class.__name__}")
@@ -94,19 +113,9 @@ def test_problem_impl(problem_class: type[Problem]) -> None:
     assert "optimal_design" in dataset["train"].column_names, (
         f"Problem {problem_class.__name__}: The dataset should contain the field 'optimal_design'."
     )
-    print(f"Done testing {problem_class.__name__}.")
 
 
-def problem_slug(problem_class: type[Problem]) -> str:
-    slug, _ = problem_class.__module__.removeprefix("engibench.problems.").split(".", 1)
-    return slug
-
-
-def problem_id(problem_class: type[Problem]) -> str:
-    return problem_class.__module__.removeprefix("engibench.") + "." + problem_class.__name__
-
-
-@pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
+@pytest.mark.parametrize("problem_class", _problem_params())
 def test_python_problem_impl(
     problem_class: type[Problem], subtests: pytest.Subtests, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -119,6 +128,9 @@ def test_python_problem_impl(
     """
     if problem_class.container_id is not None and not sys.platform.startswith("linux"):
         pytest.skip(f"Skipping containerized problem {problem_class.__name__} on non-linux platform")
+    policy = problem_test_policy(problem_class)
+    if policy.supported_machines is not None and platform.machine().lower() not in policy.supported_machines:
+        pytest.skip(f"{problem_class.__name__}: published runtime supports {', '.join(policy.supported_machines)}")
     ref_path = Path(__file__).parent / "reference" / "simulate" / (problem_id(problem_class) + ".json")
     if RefCreationMode.from_env() == RefCreationMode.Missing and ref_path.is_file():
         pytest.skip("Reference values already exist. Skipping test.")
@@ -135,9 +147,8 @@ def test_python_problem_impl(
     with subtests.test("verify objective values"):
         np.testing.assert_allclose(objs, expected.performance, rtol=expected.rtol)
 
-    # Skip optimization test for power electronics, airfoil, and heat conduction problems
-    if problem_slug(problem_class) == "airfoil":
-        print(f"Skipping optimization test for {problem_class.__name__}")
+    if not policy.exercise_optimization:
+        print(f"Skipping optimization test for {problem_class.__name__}: {policy.optimization_reason}")
         return
 
     problem.reset(seed=1)
@@ -163,6 +174,7 @@ def test_python_problem_impl(
             assert optimal_design.shape == problem.design_space.shape, (
                 f"Problem {problem_class.__name__}: The optimal design should have the same shape as the design space."
             )
+            assert problem.design_space.dtype is not None
             assert np.can_cast(optimal_design.dtype, problem.design_space.dtype), (
                 f"Problem {problem_class.__name__}: The optimal design should have the same dtype as the design space."
             )

@@ -233,6 +233,7 @@ class Problem(Generic[DesignType]):
         the fields of `config` will be used as default values.
         """
         checked_config = self.Config(**config) if self.config is None else dataclasses.replace(self.config, **config)
+        effective_config = dataclasses.asdict(checked_config)
         violations = constraint.check_field_constraints(checked_config)
 
         @constraint.constraint
@@ -241,7 +242,7 @@ class Problem(Generic[DesignType]):
 
         violations.n_constraints += 1 + len(self.design_constraints)
         for c in (design_constraint, *self.design_constraints):
-            design_violation = c.check_dict({"design": design, **config})
+            design_violation = c.check_dict({"design": design, **effective_config})
             if design_violation is not None:
                 violations.violations.append(design_violation)
 
