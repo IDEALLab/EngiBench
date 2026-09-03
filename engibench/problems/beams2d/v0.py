@@ -226,12 +226,9 @@ class Beams2D(Problem[npt.NDArray]):
             self.reset_called = True  # override for multiple reset calls in optimize
             c = self.simulate(xPrint, ce=ce, config=dataclasses.asdict(simulate_config))
 
-            # Record the current state in optisteps_history
-            current_step = ExtendedOptiStep(obj_values=np.array(c), step=loop)
-            current_step.design = np.array(xPrint)
-            optisteps_history.append(current_step)
-
-            loop += 1
+            # The design this step was evaluated at, taken before the overhang
+            # filter below rebinds xPrint to the next one.
+            design = np.array(xPrint)
 
             dc = (-base_config.penal * xPrint ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
             dv = np.ones(base_config.nely * base_config.nelx)
@@ -252,6 +249,40 @@ class Beams2D(Problem[npt.NDArray]):
                 xnew.reshape(base_config.nelx * base_config.nely, 1) - x.reshape(base_config.nelx * base_config.nely, 1),
                 np.inf,
             )
+
+            # Record the current state in optisteps_history, now that the move
+            # this design led to is known.
+            #
+            # x_sensitivities is the filtered objective sensitivity alone, one
+            # value per design variable, so that it has the same shape as the
+            # design it belongs to. The volume sensitivity dv is deliberately not
+            # stacked alongside it: consumers flatten this field, so an extra
+            # channel doubles its length with nothing recording that it did, and
+            # photonics2d -- the other 2D problem that reports sensitivities --
+            # reports the objective gradient by itself.
+            #
+            # The move is measured in printed density, the space the recorded
+            # design is in, so that design + update is the next step's design;
+            # inner_opt also returns the raw density field, and differencing that
+            # instead would mix the two spaces. The objective delta needs the
+            # *next* step's objective, so it is filled in on the following pass,
+            # and the last step keeps None rather than costing an extra solve.
+            obj_values = np.array(c)
+            if optisteps_history:
+                previous = optisteps_history[-1]
+                previous.obj_values_update = obj_values - previous.obj_values
+            current_step = ExtendedOptiStep(
+                obj_values=obj_values,
+                step=loop,
+                x=design,
+                x_sensitivities=dc.copy(),
+                x_update=xPrint - design,
+            )
+            current_step.design = design
+            optisteps_history.append(current_step)
+
+            loop += 1
+
             x = deepcopy(xnew)
 
         return design_to_image(xPrint, base_config.nelx, base_config.nely), optisteps_history
