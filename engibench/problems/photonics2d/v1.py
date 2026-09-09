@@ -57,6 +57,7 @@ from engibench.problems.photonics2d.backend import filter_and_project
 from engibench.problems.photonics2d.backend import insert_mode
 from engibench.problems.photonics2d.backend import mode_overlap
 from engibench.problems.photonics2d.backend import poly_ramp
+from engibench.problems.photonics2d.backend import wavelength_to_frequency
 from engibench.problems.photonics2d.v0 import Photonics2D as Photonics2D_v0
 
 
@@ -102,6 +103,17 @@ class Photonics2D(Photonics2D_v0):
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(self.num_elems_x, self.num_elems_y), dtype=np.float64)
 
     # ------------------------------------------------------------------ helpers
+
+    def _setup_simulation(self, config: dict[str, Any] | None = None) -> dict[str, Any]:
+        """Set up the simulation and update the frequencies from ``lambda1`` / ``lambda2``.
+
+        v0 only computes ``omega1`` / ``omega2`` in ``__init__``, so wavelengths passed in ``config``
+        were ignored.
+        """
+        conditions = super()._setup_simulation(config)
+        self.omega1 = wavelength_to_frequency(conditions["lambda1"])
+        self.omega2 = wavelength_to_frequency(conditions["lambda2"])
+        return conditions
 
     def _check_design(self, design: npt.NDArray, config: dict[str, Any] | None) -> None:
         """Validate ``design`` (and any overridden config) against the declared constraints.

@@ -12,6 +12,8 @@ as-is (no projection), and ``optimize`` returns the physical (projected) density
 These tests use a small grid and few optimization steps to stay fast.
 """
 
+import dataclasses
+
 import numpy as np
 import pytest
 
@@ -157,3 +159,25 @@ def test_design_to_epsr_is_linear_scaling(problem: Photonics2D) -> None:
     design_mask = problem._design_region.astype(bool)
     assert np.allclose(epsr_zeros[design_mask], problem._epsr_min)
     assert np.allclose(epsr_ones[design_mask], problem._epsr_max)
+
+
+# --------------------------------------------------------------------- conditions
+
+
+def test_simulate_honors_wavelengths_passed_per_call(problem: Photonics2D, start_design: np.ndarray) -> None:
+    """Wavelengths passed per call must give the same result as wavelengths passed to the constructor."""
+    wavelengths = {"lambda1": 0.7, "lambda2": 1.4}
+    built = Photonics2D(num_elems_x=NUM_X, num_elems_y=NUM_Y, config=wavelengths)
+    per_call = float(problem.simulate(start_design, config=wavelengths)[0])
+    at_construction = float(built.simulate(start_design)[0])
+    assert per_call == pytest.approx(at_construction, rel=1e-9)
+
+
+def test_dataset_row_reproduces_its_own_objective() -> None:
+    """Simulating a stored design under its own conditions returns the objective stored beside it."""
+    problem = Photonics2D()
+    for row in problem.dataset["test"].select(range(2)):
+        conditions = {f.name: row[f.name] for f in dataclasses.fields(Photonics2D.Conditions)}
+        design = np.asarray(row["optimal_design"], dtype=float)
+        got = float(problem.simulate(design, config=conditions)[0])
+        assert got == pytest.approx(row["total_overlap"], rel=1e-6)
