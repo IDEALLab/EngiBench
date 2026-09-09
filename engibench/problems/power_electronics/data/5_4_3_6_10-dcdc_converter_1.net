@@ -39,7 +39,7 @@ V_GS4 GS4 0 pulse (-1 1 0 0 0 5u 10u 10000)
 .PARAM L2_value = 1m
 .PARAM R0_value = 10
 
-.model Ideal_switch SW (Ron=1m Roff=10Meg Vt=0 Vh=0 Lser=0 Vser=0)
+.model Ideal_switch SW (Ron=1m Roff=10Meg Vt=0 Vh=0)
 .model Ideal_D D
 
 
