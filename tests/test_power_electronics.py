@@ -9,7 +9,9 @@ from engibench.constraint import THEORY
 from engibench.constraint import Violations
 from engibench.problems.power_electronics.utils.process_log_file import InvalidNgSpiceOutputWarning
 from engibench.problems.power_electronics.utils.process_log_file import process_log_file
+from engibench.problems.power_electronics.v0 import DUTY_CYCLE
 from engibench.problems.power_electronics.v0 import PowerElectronics
+from engibench.problems.power_electronics.v0 import SWITCH_LEVELS
 
 VALID_DESIGN = np.array(
     [
@@ -64,7 +66,7 @@ def test_passive_components_must_be_positive(problem: PowerElectronics) -> None:
 
 def test_duty_cycle_must_be_a_fraction(problem: PowerElectronics) -> None:
     design = VALID_DESIGN.copy()
-    design[9] = -0.1
+    design[DUTY_CYCLE] = -0.1
 
     violations = problem.check_constraints(design, {})
 
@@ -75,7 +77,7 @@ def test_duty_cycle_must_be_a_fraction(problem: PowerElectronics) -> None:
 @pytest.mark.parametrize("duty_cycle", [0.001, 0.998])
 def test_duty_cycle_must_produce_increasing_pwl_times(problem: PowerElectronics, duty_cycle: float) -> None:
     design = VALID_DESIGN.copy()
-    design[9] = duty_cycle
+    design[DUTY_CYCLE] = duty_cycle
 
     violations = problem.check_constraints(design, {}).by_category(IMPL)
 
@@ -84,7 +86,7 @@ def test_duty_cycle_must_produce_increasing_pwl_times(problem: PowerElectronics,
 
 def test_switch_levels_must_be_binary(problem: PowerElectronics) -> None:
     design = VALID_DESIGN.copy()
-    design[10] = 0.5
+    design[SWITCH_LEVELS.start] = 0.5
 
     violations = problem.check_constraints(design, {}).by_category(THEORY)
 
