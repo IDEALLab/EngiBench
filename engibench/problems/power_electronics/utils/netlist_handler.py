@@ -58,7 +58,13 @@ def parse_topology(config: Config) -> tuple[Config, str, dict[str, list[int]], n
     return config, rewrite_netlist_str, edge_map, G
 
 
-def rewrite_netlist(config: Config, rewrite_netlist_str: str, edge_map: dict[str, list[int]]) -> None:  # noqa: C901, PLR0912
+def rewrite_netlist(  # noqa: C901, PLR0912
+    config: Config,
+    rewrite_netlist_str: str,
+    edge_map: dict[str, list[int]],
+    *,
+    include_raw_measurements: bool = False,
+) -> None:
     """Rewrite the netlist based on the topology and the sweep data.
 
     It creates the direct input file sent to ngSpice.
@@ -148,7 +154,13 @@ def rewrite_netlist(config: Config, rewrite_netlist_str: str, edge_map: dict[str
             cmp_edg_str += f"let Vdiff = V({edge_map['R0'][0]}) - V({edge_map['R0'][1]})\n"
             cmp_edg_str += "meas TRAN Vo_mean avg Vdiff from = 1m to = 1.06m\n"
             cmp_edg_str += "meas TRAN Vpp pp Vdiff from = 1m to = 1.06m\n"
-            cmp_edg_str += "let Gain = Vo_mean / 1000\nlet Vpp_ratio = Vpp / Vo_mean\nprint Gain, Vpp_ratio\nrun\nset filetype = binary\n"
+            printed_measurements = "Vo_mean, Vpp, Gain, Vpp_ratio" if include_raw_measurements else "Gain, Vpp_ratio"
+            cmp_edg_str += (
+                "let Gain = Vo_mean / 1000\n"
+                "let Vpp_ratio = Vpp / Vo_mean\n"
+                f"print {printed_measurements}\n"
+                "run\nset filetype = binary\n"
+            )
             cmp_edg_str += f"write {config.raw_file_path}\n"
 
             cmp_edg_str += "quit\n.endc\n\n.end"
