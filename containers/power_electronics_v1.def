@@ -39,6 +39,7 @@ From: debian@sha256:f3034a6ec3c1205360777c4aae76234998866ad18806ae62b63a3f84ccad
         --disable-openmp
     make -j2
     make install
+    cd /
     rm -rf "$work_dir"
 
     python3 -m venv /opt/power-electronics-v1
