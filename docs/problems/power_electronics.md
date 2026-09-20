@@ -98,6 +98,11 @@ The canonical v1 dataset backend is ngspice 44.2 in a frozen Linux x86_64
 Apptainer image. Dataset generation rejects a different ngspice version,
 operating system, CPU architecture, simulator checksum, or container checksum
 unless the caller explicitly selects the noncanonical development override.
+The image recipe is
+[`containers/power_electronics_v1.def`](../../containers/power_electronics_v1.def);
+it pins the amd64 base-image digest, the ngspice source archive checksum, and
+the Python package versions used by the generation entry point. The built SIF
+itself is also hashed and that hash is required by every canonical shard.
 
 This policy is narrower than the versions accepted by the interactive v0
 wrapper. It exists because transient results have differed materially across
