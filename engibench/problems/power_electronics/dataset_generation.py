@@ -301,12 +301,12 @@ def error_record(
 def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
     temporary_path = path.with_name(f".{path.name}.tmp-{os.getpid()}")
     try:
-        with temporary_path.open("w", encoding="utf-8") as output_file:
+        with temporary_path.open("x", encoding="utf-8") as output_file:
             json.dump(value, output_file, allow_nan=False, indent=2, sort_keys=True)
             output_file.write("\n")
             output_file.flush()
             os.fsync(output_file.fileno())
-        os.replace(temporary_path, path)
+        os.link(temporary_path, path)
     finally:
         temporary_path.unlink(missing_ok=True)
 
@@ -314,13 +314,13 @@ def _atomic_write_json(path: Path, value: Mapping[str, Any]) -> None:
 def _atomic_write_jsonl(path: Path, records: Iterable[Mapping[str, Any]]) -> None:
     temporary_path = path.with_name(f".{path.name}.tmp-{os.getpid()}")
     try:
-        with temporary_path.open("w", encoding="utf-8") as output_file:
+        with temporary_path.open("x", encoding="utf-8") as output_file:
             for record in records:
                 output_file.write(json.dumps(record, allow_nan=False, separators=(",", ":")))
                 output_file.write("\n")
             output_file.flush()
             os.fsync(output_file.fileno())
-        os.replace(temporary_path, path)
+        os.link(temporary_path, path)
     finally:
         temporary_path.unlink(missing_ok=True)
 
@@ -339,12 +339,11 @@ def generate_shard(
     expected_simulator_sha256: str | None,
     expected_container_sha256: str | None,
     allow_noncanonical_backend: bool,
-    overwrite: bool,
     problem_factory: Callable[..., PowerElectronicsRunner] = PowerElectronics,
 ) -> dict[str, Any]:
-    """Simulate selected v0 rows and atomically write one v1 JSONL shard plus manifest."""
+    """Simulate v0 rows and atomically create a v1 shard without overwriting files."""
     manifest_path = output_path.with_suffix(f"{output_path.suffix}.manifest.json")
-    if not overwrite and (output_path.exists() or manifest_path.exists()):
+    if output_path.exists() or manifest_path.exists():
         raise FileExistsError(f"Refusing to overwrite existing output: {output_path} or {manifest_path}")
 
     output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -462,7 +461,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--split", choices=SPLITS, required=True)
     parser.add_argument("--output", type=Path, required=True, help="Destination JSONL shard")
     parser.add_argument("--work-dir", type=Path, required=True, help="Scratch directory for ngspice files")
-    parser.add_argument("--source-revision", default=SOURCE_DATASET_REVISION)
     parser.add_argument("--indices", help="Comma-separated source row indices; cannot be combined with sharding")
     parser.add_argument("--limit", type=int, help="Limit rows after deterministic index selection")
     parser.add_argument("--shard-index", type=int, default=0)
@@ -492,7 +490,6 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Permit a backend other than ngspice 44.2 on Linux x86_64; comparison/development only",
     )
-    parser.add_argument("--overwrite", action="store_true")
     return parser
 
 
@@ -509,7 +506,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     )
     dataset = load_dataset(
         SOURCE_DATASET_ID,
-        revision=args.source_revision,
+        revision=SOURCE_DATASET_REVISION,
         split=args.split,
     )
     if not isinstance(dataset, Dataset):
@@ -527,14 +524,13 @@ def main(argv: Sequence[str] | None = None) -> int:
         indices=indices,
         output_path=args.output,
         work_dir=args.work_dir,
-        source_revision=args.source_revision,
+        source_revision=SOURCE_DATASET_REVISION,
         git_state=git_state,
         container_identity=container_identity,
         ngspice_path=args.ngspice_path,
         expected_simulator_sha256=args.expected_ngspice_sha256,
         expected_container_sha256=args.expected_container_sha256,
         allow_noncanonical_backend=args.allow_noncanonical_backend,
-        overwrite=args.overwrite,
     )
     print(json.dumps(manifest["output"], indent=2, sort_keys=True))
     return 0

@@ -139,7 +139,6 @@ def test_generate_shard_preserves_rows_failures_and_provenance(tmp_path: Path) -
         expected_simulator_sha256="simulator-digest",
         expected_container_sha256="container-digest",
         allow_noncanonical_backend=False,
-        overwrite=False,
         problem_factory=FakeProblem,
     )
 
@@ -167,6 +166,8 @@ def test_generate_shard_preserves_rows_failures_and_provenance(tmp_path: Path) -
     assert manifest["container"]["sha256"] == "container-digest"
     assert manifest["output"]["record_count"] == RECORD_COUNT
     assert manifest["output"]["status_counts"] == {"ok": 1, "simulation_error": 1}
+    original_output = output_path.read_text()
+    original_manifest = manifest_path.read_text()
 
     with pytest.raises(FileExistsError):
         generate_shard(
@@ -182,6 +183,7 @@ def test_generate_shard_preserves_rows_failures_and_provenance(tmp_path: Path) -
             expected_simulator_sha256="simulator-digest",
             expected_container_sha256="container-digest",
             allow_noncanonical_backend=False,
-            overwrite=False,
             problem_factory=FakeProblem,
         )
+    assert output_path.read_text() == original_output
+    assert manifest_path.read_text() == original_manifest
