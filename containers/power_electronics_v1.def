@@ -48,7 +48,7 @@ From: debian@sha256:f3034a6ec3c1205360777c4aae76234998866ad18806ae62b63a3f84ccad
         gymnasium==1.3.0 \
         matplotlib==3.11.2 \
         networkx==3.6.1 \
-        numpy==2.5.3 \
+        numpy==2.4.6 \
         pandas==3.0.6 \
         pyarrow==25.0.1
     /opt/power-electronics-v1/bin/pip freeze | sort > /opt/power-electronics-v1-requirements.txt
