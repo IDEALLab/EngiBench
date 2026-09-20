@@ -29,6 +29,8 @@ from engibench.problems.power_electronics.v1 import TARGET_DC_GAIN
 SOURCE_DATASET_ID = "IDEALLab/power_electronics_v0"
 SOURCE_DATASET_REVISION = "5c4adb2ec5cfc71794988b1297a7ff8ffe59daa5"
 CANONICAL_NGSPICE_VERSION = "44.2"
+CANONICAL_NGSPICE_SHA256 = "11a4334ee90509f5edfdceef541711a34a1943d26a14cf0928ac8d5947b72374"
+CANONICAL_CONTAINER_SHA256 = "40816f203b7e1c68ae37f4d9353bd302486d77988b98733c021f1ff71f48ae02"
 CANONICAL_PLATFORM_SYSTEM = "Linux"
 CANONICAL_PLATFORM_MACHINES = ("x86_64", "amd64")
 DATASET_SCHEMA_VERSION = 1
@@ -123,8 +125,6 @@ def validate_backend(
     simulator_system: str,
     simulator_machine: str,
     container_identity: ContainerIdentity,
-    expected_simulator_sha256: str | None,
-    expected_container_sha256: str | None,
     allow_noncanonical_backend: bool,
 ) -> bool:
     """Fail before simulation unless the backend matches the frozen canonical identity."""
@@ -135,14 +135,10 @@ def validate_backend(
         mismatches.append(f"platform system {simulator_system!r} != {CANONICAL_PLATFORM_SYSTEM!r}")
     if simulator_machine.lower() not in CANONICAL_PLATFORM_MACHINES:
         mismatches.append(f"platform machine {simulator_machine!r} is not x86_64")
-    if expected_simulator_sha256 is None:
-        mismatches.append("--expected-ngspice-sha256 was not supplied")
-    elif simulator_sha256 != expected_simulator_sha256:
-        mismatches.append(f"ngspice SHA-256 {simulator_sha256!r} != {expected_simulator_sha256!r}")
-    if expected_container_sha256 is None:
-        mismatches.append("--expected-container-sha256 was not supplied")
-    elif container_identity.sha256 != expected_container_sha256:
-        mismatches.append(f"container SHA-256 {container_identity.sha256!r} != {expected_container_sha256!r}")
+    if simulator_sha256 != CANONICAL_NGSPICE_SHA256:
+        mismatches.append(f"ngspice SHA-256 {simulator_sha256!r} != {CANONICAL_NGSPICE_SHA256!r}")
+    if container_identity.sha256 != CANONICAL_CONTAINER_SHA256:
+        mismatches.append(f"container SHA-256 {container_identity.sha256!r} != {CANONICAL_CONTAINER_SHA256!r}")
 
     if mismatches and not allow_noncanonical_backend:
         details = "\n- ".join(mismatches)
@@ -336,8 +332,6 @@ def generate_shard(
     git_state: GitState,
     container_identity: ContainerIdentity,
     ngspice_path: str | None,
-    expected_simulator_sha256: str | None,
-    expected_container_sha256: str | None,
     allow_noncanonical_backend: bool,
     problem_factory: Callable[..., PowerElectronicsRunner] = PowerElectronics,
 ) -> dict[str, Any]:
@@ -358,8 +352,6 @@ def generate_shard(
         simulator_system=simulator_identity.platform_system,
         simulator_machine=simulator_identity.platform_machine,
         container_identity=container_identity,
-        expected_simulator_sha256=expected_simulator_sha256,
-        expected_container_sha256=expected_container_sha256,
         allow_noncanonical_backend=allow_noncanonical_backend,
     )
     records: list[dict[str, Any]] = []
@@ -466,14 +458,6 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--shard-index", type=int, default=0)
     parser.add_argument("--num-shards", type=int, default=1)
     parser.add_argument("--ngspice-path")
-    parser.add_argument(
-        "--expected-ngspice-sha256",
-        help="Frozen SHA-256 of the ngspice executable; required for canonical generation",
-    )
-    parser.add_argument(
-        "--expected-container-sha256",
-        help="Frozen SHA-256 of the .sif image; required for canonical generation",
-    )
     parser.add_argument("--container-image", help="Exact .sif path; defaults to APPTAINER_CONTAINER")
     parser.add_argument(
         "--allow-uncontainerized",
@@ -528,8 +512,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         git_state=git_state,
         container_identity=container_identity,
         ngspice_path=args.ngspice_path,
-        expected_simulator_sha256=args.expected_ngspice_sha256,
-        expected_container_sha256=args.expected_container_sha256,
         allow_noncanonical_backend=args.allow_noncanonical_backend,
     )
     print(json.dumps(manifest["output"], indent=2, sort_keys=True))

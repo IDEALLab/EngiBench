@@ -5,6 +5,8 @@ from datasets import Dataset
 import numpy as np
 import pytest
 
+from engibench.problems.power_electronics.dataset_generation import CANONICAL_CONTAINER_SHA256
+from engibench.problems.power_electronics.dataset_generation import CANONICAL_NGSPICE_SHA256
 from engibench.problems.power_electronics.dataset_generation import ContainerIdentity
 from engibench.problems.power_electronics.dataset_generation import design_sha256
 from engibench.problems.power_electronics.dataset_generation import generate_shard
@@ -19,7 +21,7 @@ SIMULATOR_IDENTITY = NgSpiceIdentity(
     version="44.2",
     major_version=44,
     executable_path="/opt/ngspice/bin/ngspice",
-    executable_sha256="simulator-digest",
+    executable_sha256=CANONICAL_NGSPICE_SHA256,
     platform_system="Linux",
     platform_machine="x86_64",
     version_output="ngspice-44.2 : Circuit level simulation program",
@@ -91,26 +93,42 @@ def test_container_is_required_unless_explicitly_relaxed(monkeypatch: pytest.Mon
 
 
 def test_canonical_backend_requires_matching_architecture_and_frozen_hashes() -> None:
-    container = ContainerIdentity(path="/image.sif", sha256="container-digest")
+    container = ContainerIdentity(path="/image.sif", sha256=CANONICAL_CONTAINER_SHA256)
     assert validate_backend(
         simulator_version="44.2",
-        simulator_sha256="simulator-digest",
+        simulator_sha256=CANONICAL_NGSPICE_SHA256,
         simulator_system="Linux",
         simulator_machine="x86_64",
         container_identity=container,
-        expected_simulator_sha256="simulator-digest",
-        expected_container_sha256="container-digest",
         allow_noncanonical_backend=False,
     )
     with pytest.raises(RuntimeError, match="platform machine 'arm64' is not x86_64"):
         validate_backend(
             simulator_version="44.2",
-            simulator_sha256="simulator-digest",
+            simulator_sha256=CANONICAL_NGSPICE_SHA256,
             simulator_system="Darwin",
             simulator_machine="arm64",
             container_identity=container,
-            expected_simulator_sha256="simulator-digest",
-            expected_container_sha256="container-digest",
+            allow_noncanonical_backend=False,
+        )
+
+    with pytest.raises(RuntimeError, match="ngspice SHA-256 'other-simulator'"):
+        validate_backend(
+            simulator_version="44.2",
+            simulator_sha256="other-simulator",
+            simulator_system="Linux",
+            simulator_machine="x86_64",
+            container_identity=container,
+            allow_noncanonical_backend=False,
+        )
+
+    with pytest.raises(RuntimeError, match="container SHA-256 'other-container'"):
+        validate_backend(
+            simulator_version="44.2",
+            simulator_sha256=CANONICAL_NGSPICE_SHA256,
+            simulator_system="Linux",
+            simulator_machine="x86_64",
+            container_identity=ContainerIdentity(path="/image.sif", sha256="other-container"),
             allow_noncanonical_backend=False,
         )
 
@@ -134,10 +152,8 @@ def test_generate_shard_preserves_rows_failures_and_provenance(tmp_path: Path) -
         work_dir=tmp_path / "work",
         source_revision="source-revision",
         git_state=git_state,
-        container_identity=ContainerIdentity(path="/image.sif", sha256="container-digest"),
+        container_identity=ContainerIdentity(path="/image.sif", sha256=CANONICAL_CONTAINER_SHA256),
         ngspice_path="/ngspice",
-        expected_simulator_sha256="simulator-digest",
-        expected_container_sha256="container-digest",
         allow_noncanonical_backend=False,
         problem_factory=FakeProblem,
     )
@@ -151,7 +167,7 @@ def test_generate_shard_preserves_rows_failures_and_provenance(tmp_path: Path) -
     assert rows[0]["engibench_git_commit"] == "engibench-commit"
     assert rows[0]["simulator_version"] == "44.2"
     assert rows[0]["simulator_platform_machine"] == "x86_64"
-    assert rows[0]["container_sha256"] == "container-digest"
+    assert rows[0]["container_sha256"] == CANONICAL_CONTAINER_SHA256
     assert rows[0]["netlist_sha256"] == manifest["netlist"]["sha256"]
     assert rows[1]["simulation_status"] == "simulation_error"
     assert rows[1]["error_type"] == "RuntimeError"
@@ -162,8 +178,8 @@ def test_generate_shard_preserves_rows_failures_and_provenance(tmp_path: Path) -
     written_manifest = json.loads(manifest_path.read_text())
     assert written_manifest == manifest
     assert manifest["source"]["selected_indices"] == [0, 1]
-    assert manifest["simulator"]["executable_sha256"] == "simulator-digest"
-    assert manifest["container"]["sha256"] == "container-digest"
+    assert manifest["simulator"]["executable_sha256"] == CANONICAL_NGSPICE_SHA256
+    assert manifest["container"]["sha256"] == CANONICAL_CONTAINER_SHA256
     assert manifest["output"]["record_count"] == RECORD_COUNT
     assert manifest["output"]["status_counts"] == {"ok": 1, "simulation_error": 1}
     original_output = output_path.read_text()
@@ -178,10 +194,8 @@ def test_generate_shard_preserves_rows_failures_and_provenance(tmp_path: Path) -
             work_dir=tmp_path / "work",
             source_revision="source-revision",
             git_state=git_state,
-            container_identity=ContainerIdentity(path="/image.sif", sha256="container-digest"),
+            container_identity=ContainerIdentity(path="/image.sif", sha256=CANONICAL_CONTAINER_SHA256),
             ngspice_path="/ngspice",
-            expected_simulator_sha256="simulator-digest",
-            expected_container_sha256="container-digest",
             allow_noncanonical_backend=False,
             problem_factory=FakeProblem,
         )

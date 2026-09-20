@@ -102,7 +102,12 @@ The image recipe is
 [`containers/power_electronics_v1.def`](../../containers/power_electronics_v1.def);
 it pins the amd64 base-image digest, the ngspice source archive checksum, and
 the Python package versions used by the generation entry point. The built SIF
-itself is also hashed and that hash is required by every canonical shard.
+itself is also hashed. The canonical image SHA-256 is
+`40816f203b7e1c68ae37f4d9353bd302486d77988b98733c021f1ff71f48ae02`,
+and its ngspice binary SHA-256 is
+`11a4334ee90509f5edfdceef541711a34a1943d26a14cf0928ac8d5947b72374`.
+Both fingerprints are enforced by every canonical shard; an arbitrary
+caller-provided fingerprint cannot redefine the canonical backend.
 
 This policy is narrower than the versions accepted by the interactive v0
 wrapper. It exists because transient results have differed materially across
@@ -179,9 +184,7 @@ python -m engibench.problems.power_electronics.dataset_generation \
   --output /path/to/results/test-pilot.jsonl \
   --work-dir /path/to/work/test-pilot \
   --ngspice-path /usr/local/bin/ngspice \
-  --container-image /path/to/power-electronics-v1.sif \
-  --expected-ngspice-sha256 NGSPICE_BINARY_SHA256 \
-  --expected-container-sha256 APPTAINER_IMAGE_SHA256
+  --container-image /path/to/power-electronics-v1.sif
 ```
 
 For a full run, use `--num-shards` and `--shard-index` for deterministic,
