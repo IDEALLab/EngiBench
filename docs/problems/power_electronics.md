@@ -10,7 +10,11 @@ labels cannot be assumed to match a current ngspice installation, even when the
 ngspice version number is the same on two CPU architectures. Keep v0 immutable,
 and record the simulator version, binary checksum, operating system, CPU
 architecture, EngiBench commit, and output semantics for every regenerated
-result.
+result. On an ARM64/AArch64 host, EngiBench also emits a one-time per-process
+runtime warning; see
+[ngspice bug #622](https://sourceforge.net/p/ngspice/bugs/622/), which reports
+significant AArch64 and x86_64 differences for another numerically sensitive
+circuit and has status `closed-wont-fix`.
 ```
 
 ## Motivation
@@ -94,20 +98,28 @@ objective definition.
 This problem does not include environmental or operational conditions as part of its input specification. Unlike other domains where the simulation setup may vary based on conditions (e.g., load configurations or external temperatures), the circuit is simulated under fixed source voltage and switching behavior. As a result, the design optimization task focuses solely on tuning internal circuit parameters, with no external conditions to vary. More complex variants of this problem — involving multiple topologies or variable source voltages — may be considered in future releases.
 
 ## Simulator
-The canonical v1 dataset backend is ngspice 44.2 in a frozen Linux x86_64
-Apptainer image. Dataset generation rejects a different ngspice version,
+The canonical v1 dataset backend is ngspice 44.2 in a provenance-frozen Linux
+x86_64 Apptainer image. Dataset generation rejects a different ngspice version,
 operating system, CPU architecture, simulator checksum, or container checksum
 unless the caller explicitly selects the noncanonical development override.
 The image recipe is
 [`containers/power_electronics_v1.def`](../../containers/power_electronics_v1.def);
-it pins the amd64 base-image digest, the ngspice source archive checksum, and
-the Python package versions used by the generation entry point. The built SIF
-itself is also hashed. The canonical image SHA-256 is
+it records the amd64 base-image digest, the ngspice source archive checksum,
+and the Python package versions used by the generation entry point. Because
+Debian package repositories change over time, the recipe alone is not a claim
+of a byte-identical rebuild. The published SIF is the canonical runtime
+artifact. Its SHA-256 is
 `40816f203b7e1c68ae37f4d9353bd302486d77988b98733c021f1ff71f48ae02`,
 and its ngspice binary SHA-256 is
 `11a4334ee90509f5edfdceef541711a34a1943d26a14cf0928ac8d5947b72374`.
 Both fingerprints are enforced by every canonical shard; an arbitrary
 caller-provided fingerprint cannot redefine the canonical backend.
+
+The runtime publication also includes an SPDX SBOM, package manifests, the
+exact ngspice 44.2 source archive, and
+[`third-party notices`](source:containers/power_electronics_v1.NOTICES.md).
+Pull and verification instructions, including the immutable OCI digest, are in
+the [`runtime publication record`](source:containers/power_electronics_v1.PUBLICATION.md).
 
 This policy is narrower than the versions accepted by the interactive v0
 wrapper. It exists because transient results have differed materially across
@@ -162,11 +174,21 @@ train/validation/test membership. Each output row retains:
 - the exact v0 dataset revision, EngiBench commit, ngspice version, and ngspice
   executable checksum.
 
-The planned dataset ID is `IDEALLab/power_electronics_v1`. Until that dataset
-has been generated, audited, and published, the package-level
-`engibench.problems.power_electronics.PowerElectronics` import intentionally
-continues to select v0. Pilot code imports
-`engibench.problems.power_electronics.v1.PowerElectronics` explicitly.
+The audited dataset is published as
+[`IDEALLab/power_electronics_v1`](https://huggingface.co/datasets/IDEALLab/power_electronics_v1)
+at immutable tag
+[`v1.0.0`](https://huggingface.co/datasets/IDEALLab/power_electronics_v1/tree/v1.0.0)
+and commit `eefad7d727ea1e5bef5e1b7088dea20a9b0cd67f`. It contains all
+13,824 source rows in their original split membership. No values or rows were
+clipped, removed, or imputed. The two invalid training rows (source indices
+4,309 and 5,960) and one invalid validation row (source index 223) remain in
+the dataset with null measurements/objectives and explicit status fields.
+Consumers should retain those rows and mask them from objective losses.
+
+For backward compatibility,
+`engibench.problems.power_electronics.PowerElectronics` continues to select
+v0. New code selects v1 explicitly with
+`from engibench.problems.power_electronics.v1 import PowerElectronics`.
 
 Each atomically written JSONL shard has a companion manifest containing the
 selected source indices, Hugging Face dataset fingerprint, complete ngspice
@@ -175,7 +197,7 @@ counts. The generator refuses dirty EngiBench code and an uncontainerized or
 noncanonical backend by default. Development overrides are explicit and must
 not be used for the published dataset.
 
-The pilot entry point is:
+The generation entry point is:
 
 ```bash
 python -m engibench.problems.power_electronics.dataset_generation \

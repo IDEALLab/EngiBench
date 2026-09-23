@@ -32,7 +32,7 @@ class FakeNgSpice:
         Path(log_file_path).write_text("vo_mean = -250.0\nvpp = 25.0\n")
 
 
-def test_v1_is_explicit_while_v0_remains_the_public_default_until_publication() -> None:
+def test_v1_is_explicit_while_v0_remains_the_public_default() -> None:
     assert PublicPowerElectronics is PowerElectronicsV0
     assert PowerElectronics.version == 1
     assert PowerElectronics.dataset_id == "IDEALLab/power_electronics_v1"

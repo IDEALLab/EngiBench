@@ -41,7 +41,9 @@ user-facing documentation.
 Architecture-dependent transient results have also been reported in the
 [ngspice issue tracker](https://sourceforge.net/p/ngspice/bugs/622/). That
 report concerns a different circuit, but documents significant AArch64 and
-x86_64 differences in a numerically sensitive simulation.
+x86_64 differences in a numerically sensitive simulation and has status
+`closed-wont-fix`. EngiBench emits a one-time per-process runtime warning when
+this problem uses ngspice on an ARM64/AArch64 host.
 
 On every platform, an explicit `PowerElectronics(ngspice_path=...)` argument
 takes precedence over `NGSPICE_PATH`, which takes precedence over `PATH`.
@@ -117,7 +119,16 @@ The simulator is ngSpice circuit simulator. You can download it based on your op
 - Linux: `sudo apt-get install ngspice`
 
 ### Dataset
-The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/power_electronics).
+The historical v0 and provenance-frozen v1 datasets are hosted on the Hugging
+Face Datasets Hub:
+
+- [`IDEALLab/power_electronics_v0`](https://huggingface.co/datasets/IDEALLab/power_electronics_v0)
+- [`IDEALLab/power_electronics_v1`](https://huggingface.co/datasets/IDEALLab/power_electronics_v1/tree/v1.0.0)
+
+The v1 runtime's mixed-license disclosure is in
+[`containers/power_electronics_v1.NOTICES.md`](../../../containers/power_electronics_v1.NOTICES.md).
+Its digest-pinned pull and verification instructions are in
+[`containers/power_electronics_v1.PUBLICATION.md`](../../../containers/power_electronics_v1.PUBLICATION.md).
 
 ### v0
 
