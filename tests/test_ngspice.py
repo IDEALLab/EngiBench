@@ -1,17 +1,29 @@
 """Tests for locating and validating the ngspice executable."""
 
+from collections.abc import Iterator
 import hashlib
 from pathlib import Path
 import subprocess
+import warnings
 
 import pytest
 
 from engibench.problems.power_electronics.utils import ngspice as ngspice_module
 from engibench.problems.power_electronics.utils.ngspice import MAX_SUPPORTED_VERSION
 from engibench.problems.power_electronics.utils.ngspice import NgSpice
+from engibench.problems.power_electronics.utils.ngspice import NgSpiceArchitectureWarning
 
 VERSION_OUTPUT = "******\n** ngspice-44.2 : Circuit level simulation program\n******\n"
 EXPECTED_MAJOR_VERSION = 44
+
+
+@pytest.fixture(autouse=True)
+def reset_architecture_warning_state(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
+    """Keep architecture-warning tests independent of the host and each other."""
+    ngspice_module._warn_if_arm64.cache_clear()  # noqa: SLF001
+    monkeypatch.setattr(ngspice_module.platform, "machine", lambda: "x86_64")
+    yield
+    ngspice_module._warn_if_arm64.cache_clear()  # noqa: SLF001
 
 
 def mock_version(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -69,6 +81,26 @@ def test_path_lookup_is_cross_platform(monkeypatch: pytest.MonkeyPatch, tmp_path
     mock_version(monkeypatch)
 
     assert NgSpice().executable_path == str(discovered)
+
+
+@pytest.mark.parametrize("machine", ["arm64", "aarch64"])
+def test_arm64_warning_is_emitted_once_per_process(monkeypatch: pytest.MonkeyPatch, tmp_path: Path, machine: str) -> None:
+    """Repeated backend construction must not flood ARM users with warnings."""
+    configured = executable(tmp_path)
+    monkeypatch.setattr(ngspice_module.platform, "system", lambda: "Darwin")
+    monkeypatch.setattr(ngspice_module.platform, "machine", lambda: machine)
+    mock_version(monkeypatch)
+
+    with warnings.catch_warnings(record=True) as caught:
+        warnings.simplefilter("always")
+        NgSpice(ngspice_path=str(configured))
+        NgSpice(ngspice_path=str(configured))
+
+    architecture_warnings = [item for item in caught if item.category is NgSpiceArchitectureWarning]
+    assert len(architecture_warnings) == 1
+    assert "native ARM64/AArch64 and x86_64 binaries may differ" in str(architecture_warnings[0].message)
+    assert "closed-wont-fix" in str(architecture_warnings[0].message)
+    assert "https://sourceforge.net/p/ngspice/bugs/622/" in str(architecture_warnings[0].message)
 
 
 def test_invalid_configured_path_fails_clearly(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
