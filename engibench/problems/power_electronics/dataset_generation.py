@@ -21,6 +21,10 @@ from datasets import load_dataset
 import numpy as np
 
 from engibench.problems.power_electronics.utils.ngspice import NgSpiceIdentity
+from engibench.problems.power_electronics.v1 import CANONICAL_NGSPICE_SHA256
+from engibench.problems.power_electronics.v1 import CANONICAL_NGSPICE_VERSION
+from engibench.problems.power_electronics.v1 import CANONICAL_PLATFORM_MACHINES
+from engibench.problems.power_electronics.v1 import CANONICAL_PLATFORM_SYSTEM
 from engibench.problems.power_electronics.v1 import PowerElectronics
 from engibench.problems.power_electronics.v1 import PowerElectronicsSimulationResult
 from engibench.problems.power_electronics.v1 import SOURCE_VOLTAGE
@@ -28,11 +32,7 @@ from engibench.problems.power_electronics.v1 import TARGET_DC_GAIN
 
 SOURCE_DATASET_ID = "IDEALLab/power_electronics_v0"
 SOURCE_DATASET_REVISION = "5c4adb2ec5cfc71794988b1297a7ff8ffe59daa5"
-CANONICAL_NGSPICE_VERSION = "44.2"
-CANONICAL_NGSPICE_SHA256 = "11a4334ee90509f5edfdceef541711a34a1943d26a14cf0928ac8d5947b72374"
 CANONICAL_CONTAINER_SHA256 = "40816f203b7e1c68ae37f4d9353bd302486d77988b98733c021f1ff71f48ae02"
-CANONICAL_PLATFORM_SYSTEM = "Linux"
-CANONICAL_PLATFORM_MACHINES = ("x86_64", "amd64")
 DATASET_SCHEMA_VERSION = 1
 MANIFEST_SCHEMA_VERSION = 1
 SPLITS = ("train", "val", "test")

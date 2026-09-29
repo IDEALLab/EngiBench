@@ -6,8 +6,12 @@ and splits with a frozen ngspice 44.2 Linux x86_64 backend.
 """
 
 from dataclasses import dataclass
+from functools import cache
 from typing import Any
+import warnings
 
+from datasets import Dataset
+from datasets import load_dataset
 import numpy as np
 import numpy.typing as npt
 
@@ -23,6 +27,37 @@ from engibench.problems.power_electronics.v0 import PowerElectronics as PowerEle
 
 SOURCE_VOLTAGE = 1000.0
 TARGET_DC_GAIN = 0.25
+CANONICAL_NGSPICE_VERSION = "44.2"
+CANONICAL_NGSPICE_SHA256 = "11a4334ee90509f5edfdceef541711a34a1943d26a14cf0928ac8d5947b72374"
+CANONICAL_PLATFORM_SYSTEM = "Linux"
+CANONICAL_PLATFORM_MACHINES = ("x86_64", "amd64")
+DATASET_REVISION = "eefad7d727ea1e5bef5e1b7088dea20a9b0cd67f"
+
+
+class NoncanonicalPowerElectronicsBackendWarning(RuntimeWarning):
+    """Warn when interactive v1 results may differ from the published labels."""
+
+
+@cache
+def _warn_if_noncanonical_backend(version: str, sha256: str, system: str, machine: str) -> None:
+    """Warn once for each distinct noncanonical simulator identity in a process."""
+    if (
+        version == CANONICAL_NGSPICE_VERSION
+        and sha256 == CANONICAL_NGSPICE_SHA256
+        and system == CANONICAL_PLATFORM_SYSTEM
+        and machine.lower() in CANONICAL_PLATFORM_MACHINES
+    ):
+        return
+    warnings.warn(
+        "PowerElectronics v1 is running with a backend different from the "
+        "published dataset (ngspice 44.2, pinned binary SHA-256, Linux x86_64). "
+        f"Current backend: ngspice {version}, SHA-256 {sha256}, {system}/{machine}. "
+        "Results may differ from v1 labels. Use the pinned runtime for canonical "
+        "dataset reproduction; see https://sourceforge.net/p/ngspice/bugs/622/ "
+        "for a reported architecture-dependent ngspice discrepancy.",
+        NoncanonicalPowerElectronicsBackendWarning,
+        stacklevel=3,
+    )
 
 
 @dataclass(frozen=True)
@@ -111,13 +146,28 @@ class PowerElectronics(PowerElectronicsV0):
         ("relative_voltage_ripple", ObjectiveDirection.MINIMIZE),
     )
     dataset_id = "IDEALLab/power_electronics_v1"
+    dataset_revision = DATASET_REVISION
 
     _ngspice_backend: NgSpice | None = None
+
+    @property
+    def dataset(self) -> Dataset:
+        """Load the published v1 dataset at its immutable commit, not main."""
+        if self._dataset is None:
+            self._dataset = load_dataset(self.dataset_id, revision=self.dataset_revision)
+        return self._dataset
 
     def _backend(self) -> NgSpice:
         """Resolve ngspice lazily and reuse its immutable identity across simulations."""
         if self._ngspice_backend is None:
             self._ngspice_backend = NgSpice(ngspice_path=self.ngspice_path)
+        identity = self._ngspice_backend.identity
+        _warn_if_noncanonical_backend(
+            identity.version,
+            identity.executable_sha256,
+            identity.platform_system,
+            identity.platform_machine,
+        )
         return self._ngspice_backend
 
     @property

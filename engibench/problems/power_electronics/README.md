@@ -42,8 +42,9 @@ Architecture-dependent transient results have also been reported in the
 [ngspice issue tracker](https://sourceforge.net/p/ngspice/bugs/622/). That
 report concerns a different circuit, but documents significant AArch64 and
 x86_64 differences in a numerically sensitive simulation and has status
-`closed-wont-fix`. EngiBench emits a one-time per-process runtime warning when
-this problem uses ngspice on an ARM64/AArch64 host.
+`closed-wont-fix`. The default v0 problem warns once about its historical
+objectives and unknown dataset backend. Explicit v1 warns when its interactive
+ngspice identity differs from the published Linux x86_64/ngspice 44.2 backend.
 
 On every platform, an explicit `PowerElectronics(ngspice_path=...)` argument
 takes precedence over `NGSPICE_PATH`, which takes precedence over `PATH`.

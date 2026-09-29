@@ -5,16 +5,14 @@
 ```
 
 ```{warning}
-PowerElectronics results are numerically backend-dependent. The published v0
-labels cannot be assumed to match a current ngspice installation, even when the
-ngspice version number is the same on two CPU architectures. Keep v0 immutable,
-and record the simulator version, binary checksum, operating system, CPU
-architecture, EngiBench commit, and output semantics for every regenerated
-result. On an ARM64/AArch64 host, EngiBench also emits a one-time per-process
-runtime warning; see
-[ngspice bug #622](https://sourceforge.net/p/ngspice/bugs/622/), which reports
-significant AArch64 and x86_64 differences for another numerically sensitive
-circuit and has status `closed-wont-fix`.
+For new work, use v1:
+`from engibench.problems.power_electronics.v1 import PowerElectronics`.
+The plain `engibench.problems.power_electronics` import and problem registry
+still select v0 for compatibility. v0 has historical objective directions and
+labels whose original simulator environment is unknown; do not treat it as the
+corrected v1 benchmark. Interactive v1 simulations on a backend other than the
+published Linux x86_64/ngspice 44.2 binary warn because their numerical results
+may differ from the v1 labels.
 ```
 
 ## Motivation
@@ -98,6 +96,29 @@ objective definition.
 This problem does not include environmental or operational conditions as part of its input specification. Unlike other domains where the simulation setup may vary based on conditions (e.g., load configurations or external temperatures), the circuit is simulated under fixed source voltage and switching behavior. As a result, the design optimization task focuses solely on tuning internal circuit parameters, with no external conditions to vary. More complex variants of this problem — involving multiple topologies or variable source voltages — may be considered in future releases.
 
 ## Simulator
+For interactive use, install ngspice separately from the Python package:
+
+- Linux: install your distribution's `ngspice` package (for example,
+  `sudo apt-get install ngspice` on Ubuntu).
+- macOS: build the CI-tested ngspice 44.2 binary with
+  `scripts/install_ngspice_macos.sh /path/to/install` and set `NGSPICE_PATH` to
+  its `bin/ngspice` executable. On Apple Silicon this installer builds an
+  x86_64 binary for Rosetta 2.
+- Windows: install [ngspice 45.2](https://sourceforge.net/projects/ngspice/files/ng-spice-rework/old-releases/45.2/)
+  and put `ngspice.exe` on `PATH`, or point `NGSPICE_PATH` to it.
+
+`PowerElectronics(ngspice_path=...)` takes precedence over `NGSPICE_PATH`,
+which takes precedence over `PATH`. The wrapper accepts ngspice major versions
+42 through 45 for interactive use. v0 warns once when created because its
+historical labels have unknown simulator provenance. v1 warns once for each
+noncanonical simulator identity; using a supported ngspice version does **not**
+guarantee matching the published v1 labels. In particular, an ordinary Ubuntu
+package or an ngspice 44.2 build for another architecture may give different
+results. See [ngspice bug #622](https://sourceforge.net/p/ngspice/bugs/622/)
+for a reported AArch64/x86_64 discrepancy on another circuit.
+
+### Reproducing the v1 dataset
+
 The canonical v1 dataset backend is ngspice 44.2 in a provenance-frozen Linux
 x86_64 Apptainer image. Dataset generation rejects a different ngspice version,
 operating system, CPU architecture, simulator checksum, or container checksum
@@ -184,6 +205,19 @@ clipped, removed, or imputed. The two invalid training rows (source indices
 4,309 and 5,960) and one invalid validation row (source index 223) remain in
 the dataset with null measurements/objectives and explicit status fields.
 Consumers should retain those rows and mask them from objective losses.
+
+`simulation_status` describes why objectives may be null. `null` here means a
+missing field in the dataset, not a clipped or imputed value:
+
+| Status | Measurements and objectives | Validity flags |
+| --- | --- | --- |
+| `ok` | Signed measurements and both objectives are finite. | `simulation_valid=true`, `objectives_valid=true` |
+| `invalid_measurements` | At least one raw measurement is non-finite or peak-to-peak voltage is negative. Non-finite measurements and derived objectives are null; other raw measurements may remain. | Both false |
+| `undefined_relative_voltage_ripple` | Mean voltage is zero. Raw measurements, gain, and gain error remain; relative ripple is null. | `simulation_valid=true`, `objectives_valid=false` |
+| `simulation_error` | Simulation raised an error. All measurements and objectives are null; `error_type` and `error_message` are populated. | Both false |
+
+For an objective loss, use `objectives_valid` as the mask. Retain every source
+design and split row, including invalid rows, for auditing and reproducibility.
 
 For backward compatibility,
 `engibench.problems.power_electronics.PowerElectronics` continues to select

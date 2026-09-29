@@ -1,7 +1,6 @@
 """NgSpice wrapper for cross-platform support."""
 
 from dataclasses import dataclass
-from functools import cache
 from functools import cached_property
 import hashlib
 import os
@@ -14,30 +13,6 @@ import warnings
 MIN_SUPPORTED_VERSION: int = 42  # Major version number of ngspice
 MAX_SUPPORTED_VERSION: int = 45  # Major version number of ngspice
 NGSPICE_PATH_ENV = "NGSPICE_PATH"
-ARM64_MACHINES = frozenset({"aarch64", "arm64"})
-ARCHITECTURE_ISSUE_URL = "https://sourceforge.net/p/ngspice/bugs/622/"
-
-
-class NgSpiceArchitectureWarning(RuntimeWarning):
-    """Warn that ngspice results may differ between CPU architectures."""
-
-
-@cache
-def _warn_if_arm64(machine: str) -> None:
-    """Warn once per process when ngspice runs on a 64-bit ARM host."""
-    if machine not in ARM64_MACHINES:
-        return
-
-    warnings.warn(
-        "PowerElectronics is running on an ARM64/AArch64 host. ngspice "
-        "transient results are numerically backend-dependent, and native "
-        "ARM64/AArch64 and x86_64 binaries may differ. Do not assume that this "
-        "run reproduces published dataset labels; use the pinned Linux x86_64 "
-        "runtime for canonical v1 results. See ngspice bug #622 "
-        f"(closed-wont-fix): {ARCHITECTURE_ISSUE_URL}",
-        NgSpiceArchitectureWarning,
-        stacklevel=3,
-    )
 
 
 @dataclass(frozen=True)
@@ -84,7 +59,6 @@ class NgSpice:
         self._ngspice_path = self._get_ngspice_path()
         if not MIN_SUPPORTED_VERSION <= self.version <= MAX_SUPPORTED_VERSION:
             raise UnsupportedNgSpiceVersionError(self.version)
-        _warn_if_arm64(platform.machine().lower())
 
     def _get_ngspice_path(self) -> str:
         """Get the path to the ngspice executable based on the operating system.
