@@ -1,5 +1,9 @@
 # Title
 
+The maintained user-facing description, v0 provenance notes, v1 objective
+definitions, and reproducible dataset-generation command are in
+[`docs/problems/power_electronics.md`](../../../docs/problems/power_electronics.md).
+
 ## Environment
 `pip install -e ".[electronics]"`
 
@@ -29,14 +33,18 @@ scripts/install_ngspice_macos.sh "$HOME/.local/ngspice-44.2"
 export NGSPICE_PATH="$HOME/.local/ngspice-44.2/bin/ngspice"
 ```
 
-The installer builds the validated x86_64 binary. On Apple Silicon, it runs
-through Rosetta 2 so that simulation results remain consistent with the
-EngiBench reference values.
+The installer builds the x86_64 binary used by the macOS test reference. On
+Apple Silicon, it runs through Rosetta 2. This does not establish that the
+binary reproduces the published v0 dataset; see the provenance warning in the
+user-facing documentation.
 
 Architecture-dependent transient results have also been reported in the
 [ngspice issue tracker](https://sourceforge.net/p/ngspice/bugs/622/). That
 report concerns a different circuit, but documents significant AArch64 and
-x86_64 differences in a numerically sensitive simulation.
+x86_64 differences in a numerically sensitive simulation and has status
+`closed-wont-fix`. The default v0 problem warns once about its historical
+objectives and unknown dataset backend. Explicit v1 warns when its interactive
+ngspice identity differs from the published Linux x86_64/ngspice 44.2 backend.
 
 On every platform, an explicit `PowerElectronics(ngspice_path=...)` argument
 takes precedence over `NGSPICE_PATH`, which takes precedence over `PATH`.
@@ -93,9 +101,14 @@ The narrower capacitor, inductor, and duty-cycle ranges in the design space are 
 If ngSpice does not produce finite objective measurements, the simulation returns the non-finite values and emits an `InvalidNgSpiceOutputWarning` with the log-file path. This allows batch dataset generation to continue while making failed simulations visible. Python warning filters can promote this warning to an exception for strict workflows.
 
 ### Objectives
-The objectives are defined by the following parameters:
-- `DcGain-0.25`: The ratio of load vs. input voltage. It's desired to be as close to a preset constant, such as 0.25, as possible.
-- `Voltage Ripple`: Fluctuation of voltage on the load `R0`. The lower the better.
+v0 is retained with its historical API and dataset semantics. v1 stores the
+signed raw measurements and minimizes:
+
+- `dc_gain_error = abs(output_voltage_mean / 1000 - 0.25)`;
+- `relative_voltage_ripple = output_voltage_peak_to_peak / abs(output_voltage_mean)`.
+
+See the user-facing documentation for the provenance caveats and complete v0
+versus v1 distinction.
 
 ### Conditions
 There is no condition for this problem.
@@ -107,7 +120,16 @@ The simulator is ngSpice circuit simulator. You can download it based on your op
 - Linux: `sudo apt-get install ngspice`
 
 ### Dataset
-The dataset linked to this problem is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/power_electronics).
+The historical v0 and provenance-frozen v1 datasets are hosted on the Hugging
+Face Datasets Hub:
+
+- [`IDEALLab/power_electronics_v0`](https://huggingface.co/datasets/IDEALLab/power_electronics_v0)
+- [`IDEALLab/power_electronics_v1`](https://huggingface.co/datasets/IDEALLab/power_electronics_v1/tree/v1.0.0)
+
+The v1 runtime's mixed-license disclosure is in
+[`containers/power_electronics_v1.NOTICES.md`](../../../containers/power_electronics_v1.NOTICES.md).
+Its digest-pinned pull and verification instructions are in
+[`containers/power_electronics_v1.PUBLICATION.md`](../../../containers/power_electronics_v1.PUBLICATION.md).
 
 ### v0
 

@@ -1,5 +1,6 @@
 """Tests for locating and validating the ngspice executable."""
 
+import hashlib
 from pathlib import Path
 import subprocess
 
@@ -10,6 +11,7 @@ from engibench.problems.power_electronics.utils.ngspice import MAX_SUPPORTED_VER
 from engibench.problems.power_electronics.utils.ngspice import NgSpice
 
 VERSION_OUTPUT = "******\n** ngspice-44.2 : Circuit level simulation program\n******\n"
+EXPECTED_MAJOR_VERSION = 44
 
 
 def mock_version(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -92,3 +94,33 @@ def test_version_can_be_reported_on_stderr(monkeypatch: pytest.MonkeyPatch, tmp_
     )
 
     assert NgSpice(ngspice_path=str(configured)).version == MAX_SUPPORTED_VERSION
+
+
+def test_version_string_preserves_patch_version(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Provenance must distinguish ngspice 44 from the 44.2 bug-fix release."""
+    configured = executable(tmp_path)
+    monkeypatch.setattr(ngspice_module.platform, "system", lambda: "Linux")
+    mock_version(monkeypatch)
+
+    ngspice = NgSpice(ngspice_path=str(configured))
+
+    assert ngspice.version == EXPECTED_MAJOR_VERSION
+    assert ngspice.version_string == "44.2"
+
+
+def test_identity_fingerprints_binary_and_platform(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    """Dataset manifests need an immutable backend identity, not only a major version."""
+    configured = executable(tmp_path)
+    monkeypatch.setattr(ngspice_module.platform, "system", lambda: "Linux")
+    monkeypatch.setattr(ngspice_module.platform, "machine", lambda: "x86_64")
+    mock_version(monkeypatch)
+
+    identity = NgSpice(ngspice_path=str(configured)).identity
+
+    assert identity.version == "44.2"
+    assert identity.major_version == EXPECTED_MAJOR_VERSION
+    assert identity.executable_path == str(configured)
+    assert identity.executable_sha256 == hashlib.sha256(configured.read_bytes()).hexdigest()
+    assert identity.platform_system == "Linux"
+    assert identity.platform_machine == "x86_64"
+    assert "ngspice-44.2" in identity.version_output
