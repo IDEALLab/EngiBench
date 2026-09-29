@@ -235,10 +235,8 @@ class FeaModel3D:
             f0val = f0valm
 
             if self.eval_only:
-                vf_error = abs(np.mean(x) - volfrac)
                 return {
                     "structural_compliance": float(f0valm),
-                    "volume_fraction": vf_error,
                 }
 
             obj_values = np.array([f0valm])
@@ -323,12 +321,10 @@ class FeaModel3D:
             opti_steps[-1].obj_values_update = np.zeros_like(opti_steps[-1].obj_values)
 
         print("3D structural optimization finished.")
-        vf_error = abs(np.mean(x) - volfrac)
 
         return {
             "design": x,
             "bcs": bcs,
             "structural_compliance": float(f0valm),
-            "volume_fraction": vf_error,
             "opti_steps": opti_steps,
         }

@@ -12,6 +12,7 @@ import numpy.typing as npt
 
 from engibench.constraint import bounded
 from engibench.constraint import constraint
+from engibench.constraint import Criticality
 from engibench.constraint import IMPL
 from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
@@ -48,6 +49,16 @@ def _default_heatsink_elements(nelx: int, nely: int, nelz: int) -> npt.NDArray[n
     return out
 
 
+@constraint(categories=THEORY, criticality=Criticality.Warning)
+def volume_fraction_bound(design: npt.NDArray, volfrac: float) -> None:
+    """Constraint for volume fraction of the design."""
+    actual_volfrac = design.mean()
+    tolerance = 0.01
+    assert abs(actual_volfrac - volfrac) <= tolerance, (
+        f"Volume fraction of the design {actual_volfrac:.4f} does not match target {volfrac:.4f} specified in the conditions. While the optimizer might fix it, this is likely to affect objective values as the initial design is not feasible given the constraints."
+    )
+
+
 class ThermoElastic3D(Problem[npt.NDArray]):
     """Truss 3D integer optimization problem.
 
@@ -58,7 +69,6 @@ class ThermoElastic3D(Problem[npt.NDArray]):
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
         ("structural_compliance", ObjectiveDirection.MINIMIZE),
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
-        ("volume_fraction", ObjectiveDirection.MINIMIZE),
     )
 
     @dataclass
@@ -87,8 +97,9 @@ class ThermoElastic3D(Problem[npt.NDArray]):
         weight: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.5
         """Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization"""
 
+    design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY, NELZ), dtype=np.float32)
-    dataset_id = "IDEALLab/thermoelastic_3d_v0"
+    dataset_id = "IDEALLab/thermoelastic_3d_v1"
     container_id = None
 
     @dataclass
@@ -206,9 +217,7 @@ class ThermoElastic3D(Problem[npt.NDArray]):
                     boundary_dict[key] = value
 
         results = FeaModel3D(eval_only=True).run(boundary_dict, x_init=design)
-        return SimulationResult(
-            np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction"]])
-        )
+        return SimulationResult(np.array([results["structural_compliance"], results["thermal_compliance"]]))
 
     def optimize(
         self, starting_point: npt.NDArray, config: dict[str, Any] | None = None
