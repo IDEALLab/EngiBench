@@ -86,14 +86,17 @@ def test_v1_dataset_is_pinned_to_published_commit(monkeypatch: pytest.MonkeyPatc
     assert calls == [("IDEALLab/power_electronics_v1", DATASET_REVISION)]
 
 
-def test_v1_backend_warning_is_version_specific_and_once_per_backend(tmp_path: Path) -> None:
+def test_v1_backend_warning_is_version_specific_and_once_per_backend(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
     """Interactive v1 warns for noncanonical platforms, including x86 with another binary."""
     _warn_if_noncanonical_backend.cache_clear()
+    backend = FakeNgSpice()
+    monkeypatch.setattr(v1_module, "NgSpice", lambda *, ngspice_path: backend)
     with warnings.catch_warnings(record=True) as caught:
         warnings.simplefilter("always")
         for _ in range(2):
             problem = PowerElectronics(target_dir=str(tmp_path))
-            problem._ngspice_backend = FakeNgSpice()  # noqa: SLF001
             assert problem.simulator_identity == FakeNgSpice.identity
         _warn_if_noncanonical_backend("44.2", CANONICAL_NGSPICE_SHA256, "Linux", "x86_64")
     _warn_if_noncanonical_backend.cache_clear()
