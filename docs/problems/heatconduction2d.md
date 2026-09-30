@@ -25,7 +25,7 @@ The simulator is a docker container with the dolfin-adjoint software that comput
 We convert use intermediary files to convert from and to the simulator that is run from a Docker image.
 
 ## Dataset
-The dataset has been generated the dolfin-adjoint software. It is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v0).
+The dataset has been generated the dolfin-adjoint software. It is hosted on the [Hugging Face Datasets Hub](https://huggingface.co/datasets/IDEALLab/heat_conduction_2d_v1).
 
 ### v0
 
