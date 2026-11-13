@@ -668,11 +668,9 @@ Despite this simplification, determining the optimal parameter values remains hi
 <h2>Design Space<a class="headerlink" href="#design-space" title="Link to this heading">#</a></h2>
 <p>The design space for this problem is represented as a 10-dimensional bounded box, where each dimension corresponds to a specific circuit parameter. These parameters include values for capacitors, inductors, and a shared duty cycle for all switches. Each design can be expressed as a vector <strong>x</strong> of the form:</p>
 <div class="math notranslate nohighlight">
-\[
-x = \begin{bmatrix} C_1,\dots,C_6,L_1,L_2,L_3,T_1 \end{bmatrix}^{\top} \in \mathcal{X},
+\[x = \begin{bmatrix} C_1,\dots,C_6,L_1,L_2,L_3,T_1 \end{bmatrix}^{\top} \in \mathcal{X},
 \quad
-\mathcal{X} = [1\text{e}{-6}, 2\text{e}{-5}]^6 \times [1\text{e}{-6}, 1\text{e}{-3}]^3 \times [0.1, 0.9]
-\]</div>
+\mathcal{X} = [1\text{e}{-6}, 2\text{e}{-5}]^6 \times [1\text{e}{-6}, 1\text{e}{-3}]^3 \times [0.1, 0.9]\]</div>
 <p>Here, <span class="math notranslate nohighlight">\(C_1,\dots,C_6\)</span> are the capacitance values (in Farads), <span class="math notranslate nohighlight">\(L_1,L_2,L_3\)</span> are the inductance values (in Henries), and <span class="math notranslate nohighlight">\(T_1\)</span> is the duty cycle shared across all 5 switches. The duty cycle <span class="math notranslate nohighlight">\(T_1\)</span> denotes the fraction of time during which the switches are in the “on” state and governs a periodic on-off pattern repeated at high frequency throughout the simulation.</p>
 </section>
 <section id="objectives">
@@ -680,18 +678,14 @@ x = \begin{bmatrix} C_1,\dots,C_6,L_1,L_2,L_3,T_1 \end{bmatrix}^{\top} \in \math
 <p>The simulation outputs two scalar values: <em>DcGain</em> and <em>Voltage Ripple</em>. The former represents the ratio of load to input voltage and should ideally approximate a predefined constant, such as <span class="math notranslate nohighlight">\(0.25\)</span>, as closely as possible. Meanwhile, the latter quantifies the voltage fluctuation at the load.</p>
 <p><strong>DcGain objective:</strong></p>
 <div class="math notranslate nohighlight">
-\[
-\min_{\mathbf{x} \in \mathcal{X}} \; \bigg|\frac{\overline{V_{load}(t)}}{V_{source}} - 0.25\bigg|
-= \bigg|\frac{1}{V_{source}} \cdot \frac{1}{T} \sum_{i=1}^{N-1} \frac{V_{load}(t_{i+1}) + V_{load}(t_i)}{2} \cdot (t_{i+1} - t_i) - 0.25\bigg|
-\]</div>
+\[\min_{\mathbf{x} \in \mathcal{X}} \; \bigg|\frac{\overline{V_{load}(t)}}{V_{source}} - 0.25\bigg|
+= \bigg|\frac{1}{V_{source}} \cdot \frac{1}{T} \sum_{i=1}^{N-1} \frac{V_{load}(t_{i+1}) + V_{load}(t_i)}{2} \cdot (t_{i+1} - t_i) - 0.25\bigg|\]</div>
 <p>where <span class="math notranslate nohighlight">\(\overline{V_{load}(t)}\)</span> is the average load voltage, <span class="math notranslate nohighlight">\(V_{source} = 1000\)</span> volts, and <span class="math notranslate nohighlight">\(T = t_N - t_1\)</span> is the simulation duration.</p>
 <p><strong>Voltage Ripple objective:</strong></p>
 <div class="math notranslate nohighlight">
-\[
-\min_{\mathbf{x} \in \mathcal{X}} \; \text{Voltage Ripple}
+\[\min_{\mathbf{x} \in \mathcal{X}} \; \text{Voltage Ripple}
 = \frac{V_{pp}(t)}{\overline{V_{load}(t)}}
-= \frac{\max_{i \in [1, N]} V_{load}(t_i) - \min_{i \in [1, N]} V_{load}(t_i)}{\overline{V_{load}(t)}}
-\]</div>
+= \frac{\max_{i \in [1, N]} V_{load}(t_i) - \min_{i \in [1, N]} V_{load}(t_i)}{\overline{V_{load}(t)}}\]</div>
 <p>where <span class="math notranslate nohighlight">\(V_{pp}\)</span> is the peak-to-peak load voltage calculated during transient analysis.</p>
 </section>
 <section id="conditions">
