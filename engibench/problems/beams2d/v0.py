@@ -201,7 +201,7 @@ class Beams2D(Problem[npt.NDArray]):
         self.__st = State.new(base_config.nelx, base_config.nely, base_config.rmin, base_config.forcedist)
 
         # Returns the full history of the optimization instead of just the last step
-        optisteps_history = []
+        optisteps_history: list[ExtendedOptiStep] = []
 
         if starting_point is None:
             xPhys = base_config.volfrac * np.ones((base_config.nelx, base_config.nely), dtype=float)
@@ -226,11 +226,14 @@ class Beams2D(Problem[npt.NDArray]):
             self.reset_called = True  # override for multiple reset calls in optimize
             c = self.simulate(xPrint, ce=ce, config=dataclasses.asdict(simulate_config))
 
-            # The design this step was evaluated at, taken before the overhang
-            # filter below rebinds xPrint to the next one.
+            # The design this step was evaluated at, taken before xPrint is
+            # rebound below.
             design = np.array(xPrint)
 
             dc = (-base_config.penal * xPrint ** (base_config.penal - 1) * (self.__st.Emax - self.__st.Emin)) * ce
+            # The gradient of the compliance at the recorded design, kept before
+            # the filters below map dc into the optimizer's raw variables.
+            design_sensitivities = dc.copy()
             dv = np.ones(base_config.nely * base_config.nelx)
             # MATLAB implementation:
             if base_config.overhang_constraint:
@@ -253,9 +256,13 @@ class Beams2D(Problem[npt.NDArray]):
             # Record the current state in optisteps_history, now that the move
             # this design led to is known.
             #
-            # x_sensitivities is the filtered objective sensitivity alone, one
-            # value per design variable, so that it has the same shape as the
-            # design it belongs to. The volume sensitivity dv is deliberately not
+            # x_sensitivities is the gradient of the objective with respect to
+            # the recorded design, one value per design variable. It is taken
+            # before the overhang and density filters, because the recorded
+            # design is the printed density and the filtered dc is a gradient
+            # with respect to the raw optimizer variables instead. A finite
+            # difference of simulate() at the recorded design matches this
+            # value, and a test pins that. The volume sensitivity dv is not
             # stacked alongside it: consumers flatten this field, so an extra
             # channel doubles its length with nothing recording that it did, and
             # photonics2d -- the other 2D problem that reports sensitivities --
@@ -275,7 +282,7 @@ class Beams2D(Problem[npt.NDArray]):
                 obj_values=obj_values,
                 step=loop,
                 x=design,
-                x_sensitivities=dc.copy(),
+                x_sensitivities=design_sensitivities,
                 x_update=xPrint - design,
             )
             current_step.design = design
