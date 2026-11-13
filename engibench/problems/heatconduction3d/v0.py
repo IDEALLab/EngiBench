@@ -29,12 +29,12 @@ from engibench.utils import cli
 
 
 @constraint(categories=THEORY, criticality=Criticality.Warning)
-def volume_fraction_bound(design: npt.NDArray, volume: float) -> None:
+def volume_fraction_bound(design: npt.NDArray, volfrac: float) -> None:
     """Constraint for volume fraction of the design."""
     actual_volfrac = design.mean()
     tolerance = 0.01
-    assert abs(actual_volfrac - volume) <= tolerance, (
-        f"Volume fraction of the design {actual_volfrac:.4f} does not match target {volume:.4f} specified in the conditions. While the optimizer might fix it, this is likely to affect objective values as the initial design is not feasible given the constraints."
+    assert abs(actual_volfrac - volfrac) <= tolerance, (
+        f"Volume fraction of the design {actual_volfrac:.4f} does not match target {volfrac:.4f} specified in the conditions. While the optimizer might fix it, this is likely to affect objective values as the initial design is not feasible given the constraints."
     )
 
 
@@ -52,7 +52,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
     class Conditions:
         """Structured representation of the conditions."""
 
-        volume: Annotated[
+        volfrac: Annotated[
             float,
             bounded(lower=0.0, upper=1.0).category(THEORY),
             bounded(lower=0.3, upper=0.6).warning().category(IMPL),
@@ -76,7 +76,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
     design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(51, 51, 51), dtype=np.float64)
-    dataset_id = "IDEALLab/heat_conduction_3d_v0"
+    dataset_id = "IDEALLab/heat_conduction_3d_v1"
     container_id = "quay.io/dolfinadjoint/pyadjoint:master"
 
     def __init__(self, seed: int = 0, **kwargs) -> None:
@@ -89,7 +89,7 @@ class HeatConduction3D(Problem[npt.NDArray]):
         super().__init__(seed=seed)
         self.config = self.Config(**kwargs)
         resolution = self.config.resolution
-        self.conditions = self.Conditions(self.config.volume, self.config.area)
+        self.conditions = self.Conditions(self.config.volfrac, self.config.area)
         self.design_space = spaces.Box(low=0.0, high=1.0, shape=(resolution, resolution, resolution), dtype=np.float64)
 
     def simulate_verbose(self, design: npt.NDArray | None = None, config: dict[str, Any] | None = None) -> SimulationResult:
@@ -97,23 +97,23 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
         Args:
             design (Optional[np.ndarray]): The design to simulate.
-            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,area (float): Area constraint,resolution (int): Resolution of the design space) for the simulation.
+            config (dict): A dictionary with configuration (e.g., volfrac (float): Target volume fraction,area (float): Area constraint,resolution (int): Resolution of the design space) for the simulation.
 
         Returns:
             A `SimulationResult` instance containing the thermal compliance of the design.
         """
         config = config or {}
-        volume = config.get("volume", self.config.volume)
+        volfrac = config.get("volfrac", self.config.volfrac)
         area = config.get("area", self.config.area)
         resolution = config.get("resolution", self.config.resolution)
         if design is None:
-            design = self.initialize_design(volume, resolution)
+            design = self.initialize_design(volfrac, resolution)
 
         perf = load_float(
             run_container_script(
                 self.container_id,
                 Path(__file__).parent / "templates" / "simulate_heat_conduction_3d.py",
-                args=(resolution - 1, volume, area),
+                args=(resolution - 1, volfrac, area),
                 stdin=cli.np_array_to_bytes(design),
                 output_path="RES_SIM/Performance.txt",
             )
@@ -128,26 +128,26 @@ class HeatConduction3D(Problem[npt.NDArray]):
 
         Args:
             starting_point (npt.NDArray | None): The initial design for optimization.
-            config (dict): A dictionary with configuration (e.g., volume (float): Volume constraint,Area (float): Area constraint,resolution (int): Resolution of the design space) for the simulation.
+            config (dict): A dictionary with configuration (e.g., volfrac (float): Target volume fraction,Area (float): Area constraint,resolution (int): Resolution of the design space) for the simulation.
 
         Returns:
             Tuple[OptimalDesign, list[OptiStep]]: The optimized design and the optimization history.
         """
         config = config or {}
-        volume = config.get("volume", self.config.volume)
+        volfrac = config.get("volfrac", self.config.volfrac)
         area = config.get("area", self.config.area)
         resolution = config.get("resolution", self.config.resolution)
         max_iter = config.get("max_iter", self.config.max_iter)
         if starting_point is None:
-            starting_point = self.initialize_design(volume, resolution)
+            starting_point = self.initialize_design(volfrac, resolution)
 
         output = np.load(
             run_container_script(
                 self.container_id,
                 Path(__file__).parent / "templates" / "optimize_heat_conduction_3d.py",
-                args=(resolution - 1, volume, area, max_iter),
+                args=(resolution - 1, volfrac, area, max_iter),
                 stdin=cli.np_array_to_bytes(starting_point),
-                output_path=f"RES_OPT/OUTPUT={volume}_w={area}.npz",
+                output_path=f"RES_OPT/OUTPUT={volfrac}_w={area}.npz",
             )
         )
 
@@ -160,25 +160,25 @@ class HeatConduction3D(Problem[npt.NDArray]):
         """Reset the problem to a given seed."""
         super().reset(seed, **kwargs)
 
-    def initialize_design(self, volume: float | None = None, resolution: int | None = None) -> npt.NDArray:
+    def initialize_design(self, volfrac: float | None = None, resolution: int | None = None) -> npt.NDArray:
         """Initialize the design based on SIMP method.
 
         Args:
-            volume (Optional[float]): Volume constraint.
+            volfrac (Optional[float]): Target volume fraction.
             resolution (Optional[int]): Resolution of the design space.
 
         Returns:
             HeatConduction3D: The initialized design.
         """
-        volume = volume if volume is not None else self.config.volume
+        volfrac = volfrac if volfrac is not None else self.config.volfrac
         resolution = resolution if resolution is not None else self.config.resolution
 
         return np.load(
             run_container_script(
                 self.container_id,
                 Path(__file__).parent / "templates" / "initialize_design_3d.py",
-                args=(resolution - 1, volume),
-                output_path=f"initialize_design/initial_v={volume}_resol={resolution}.npy",
+                args=(resolution - 1, volfrac),
+                output_path=f"initialize_design/initial_v={volfrac}_resol={resolution}.npy",
             )
         )
 
