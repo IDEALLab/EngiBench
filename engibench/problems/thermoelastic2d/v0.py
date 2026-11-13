@@ -14,6 +14,7 @@ import numpy.typing as npt
 
 from engibench.constraint import bounded
 from engibench.constraint import constraint
+from engibench.constraint import Criticality
 from engibench.constraint import IMPL
 from engibench.constraint import THEORY
 from engibench.core import ObjectiveDirection
@@ -33,6 +34,16 @@ FORCE_ELEMENTS_Y = indices_to_binary_matrix([BRI[31]], NELX + 1, NELY + 1)
 HEATSINK_ELEMENTS = indices_to_binary_matrix([LCI[31], LCI[32], LCI[33]], NELX + 1, NELY + 1)
 
 
+@constraint(categories=THEORY, criticality=Criticality.Warning)
+def volume_fraction_bound(design: npt.NDArray, volfrac: float) -> None:
+    """Constraint for volume fraction of the design."""
+    actual_volfrac = design.mean()
+    tolerance = 0.01
+    assert abs(actual_volfrac - volfrac) <= tolerance, (
+        f"Volume fraction of the design {actual_volfrac:.4f} does not match target {volfrac:.4f} specified in the conditions. While the optimizer might fix it, this is likely to affect objective values as the initial design is not feasible given the constraints."
+    )
+
+
 class ThermoElastic2D(Problem[npt.NDArray]):
     r"""Truss 2D integer optimization problem.
 
@@ -43,7 +54,6 @@ class ThermoElastic2D(Problem[npt.NDArray]):
     objectives: tuple[tuple[str, ObjectiveDirection], ...] = (
         ("structural_compliance", ObjectiveDirection.MINIMIZE),
         ("thermal_compliance", ObjectiveDirection.MINIMIZE),
-        ("volume_fraction_error", ObjectiveDirection.MINIMIZE),
     )
 
     @dataclass
@@ -66,7 +76,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
             default_factory=lambda: HEATSINK_ELEMENTS
         )
         """Binary NxN matrix specifying elements that have a heat sink"""
-        volume_fraction_target: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
+        volfrac: Annotated[float, bounded(lower=0.0, upper=1.0).category(THEORY)] = 0.3
         """Target volume fraction for the volume fraction constraint"""
         rmin: Annotated[
             float, bounded(lower=1.0).category(THEORY), bounded(lower=0.0, upper=3.0).warning().category(IMPL)
@@ -76,8 +86,9 @@ class ThermoElastic2D(Problem[npt.NDArray]):
         """Control which objective is optimized for. 1.0 is pure structural optimization, while 0.0 is pure thermal optimization"""
 
     conditions = Conditions()
+    design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(NELX, NELY), dtype=np.float32)
-    dataset_id = "IDEALLab/thermoelastic_2d_v1"
+    dataset_id = "IDEALLab/thermoelastic_2d_v2"
     container_id = None
 
     @dataclass
@@ -130,9 +141,7 @@ class ThermoElastic2D(Problem[npt.NDArray]):
                     boundary_dict[key] = value
 
         results = FeaModel(plot=False, eval_only=True).run(boundary_dict, x_init=design)
-        return SimulationResult(
-            np.array([results["structural_compliance"], results["thermal_compliance"], results["volume_fraction_error"]])
-        )
+        return SimulationResult(np.array([results["structural_compliance"], results["thermal_compliance"]]))
 
     def optimize(
         self, starting_point: npt.NDArray, config: dict[str, Any] | None = None

@@ -82,6 +82,16 @@ Now, the design space is represented by a 20-dimensional vector that defines the
     For example, When `GS0_L1 = 0` and `GS0_L2 = 1`, `S0` is first turned off for time `T1 * Ts`, and then turned on for (approximately) `(1 - T1) * Ts`, where `Ts` is set to 5e-6.
     As a result, each switch can be on -> off, on -> on, off -> on, or off -> off independently.
 
+### Constraints
+
+The capacitor and inductor values must be positive, and the ten switch levels must be binary. These are theoretical error constraints because they define the physical components and discrete switch states represented by the problem.
+
+The duty cycle must be a fraction in `[0, 1]`. The generated ngSpice PWL sources impose the additional implementation bound `[0.002, 0.998)` so that their 10 ns transitions have increasing timestamps within the 5 us switching period.
+
+The narrower capacitor, inductor, and duty-cycle ranges in the design space are retained as the supported v0 benchmark and dataset domain. They are not universal physical bounds.
+
+If ngSpice does not produce finite objective measurements, the simulation returns the non-finite values and emits an `InvalidNgSpiceOutputWarning` with the log-file path. This allows batch dataset generation to continue while making failed simulations visible. Python warning filters can promote this warning to an exception for strict workflows.
+
 ### Objectives
 The objectives are defined by the following parameters:
 - `DcGain-0.25`: The ratio of load vs. input voltage. It's desired to be as close to a preset constant, such as 0.25, as possible.

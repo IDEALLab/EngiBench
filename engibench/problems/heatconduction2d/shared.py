@@ -27,6 +27,10 @@ def run_container_script(
     shutil.copy(cli_module_path, "templates/engibench/utils")
     shutil.copy(script, "templates/")
 
+    # Keep the FEniCS JIT cache on the host, otherwise every container run recompiles all forms.
+    jit_cache = Path(os.environ.get("SCRATCH") or Path.home(), ".cache", "engibench", "dijitso")
+    jit_cache.mkdir(parents=True, exist_ok=True)
+
     container.run(
         command=[
             "python3",
@@ -39,7 +43,9 @@ def run_container_script(
         mounts=[
             (os.getcwd(), "/home/fenics/shared"),
             (cli_module_path, "/home/fenics/shared/templates/engibench/utils/cli.py"),
+            (str(jit_cache), "/home/fenics/.cache/dijitso"),
         ],
+        env={"DIJITSO_CACHE_DIR": "/home/fenics/.cache/dijitso"},
         stdin=stdin,
     )
     return output_path
