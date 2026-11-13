@@ -161,7 +161,7 @@ class FeaModel:
         Args:
             bcs (dict[str, any]): A dictionary containing boundary conditions and problem parameters.
                 Expected keys include:
-                    - 'volume_fraction_target' (float): Target volume fraction.
+                    - 'volfrac' (float): Target volume fraction.
                     - 'fixed_elements' (np.ndarray): NxN binary array encoding the location of fixed elements.
                     - 'force_elements_x' (np.ndarray): NxN binary array encoding the location of loaded elements in the x direction.
                     - 'force_elements_y' (np.ndarray): NxN binary array encoding the location of loaded elements in the y direction.
@@ -174,10 +174,10 @@ class FeaModel:
             Dict[str, Any]: A dictionary containing the optimization results. The dictionary includes:
                 - 'design' (np.ndarray): Final design layout.
                 - 'bcs' (Dict[str, Any]): The input boundary conditions.
-                - 'sc' (float): Structural cost component.
-                - 'tc' (float): Thermal cost component.
-                - 'vf' (float): Volume fraction error.
-            If self.eval_only is True, returns a dictionary with keys 'sc', 'tc', and 'vf' only.
+                - 'structural_compliance' (float): Structural compliance.
+                - 'thermal_compliance' (float): Thermal compliance.
+                - 'opti_steps' (list[OptiStep]): The optimization history.
+            If self.eval_only is True, returns a dictionary with keys 'structural_compliance' and 'thermal_compliance' only.
         """
         # WEIGHTING
         w1 = bcs.get("weight", 0.5)
@@ -188,7 +188,7 @@ class FeaModel:
         nelx = fe_h - 1
         nely = fe_w - 1
 
-        volfrac = bcs["volume_fraction_target"]
+        volfrac = bcs["volfrac"]
         n = nely * nelx  # Total number of elements
 
         # OptiSteps records
@@ -326,16 +326,13 @@ class FeaModel:
             f0val = (f0valm * w1) + (f0valt * w2)
 
             if self.eval_only is True:
-                vf_error = np.abs(np.mean(x) - volfrac)
                 return {
                     "structural_compliance": f0valm,
                     "thermal_compliance": f0valt,
-                    "volume_fraction_error": vf_error,
                 }
 
             # OptiStep Information
-            vf_error = np.abs(np.mean(x) - volfrac)
-            obj_values = np.array([f0valm, f0valt, vf_error])
+            obj_values = np.array([f0valm, f0valt])
             x_curr = x.copy()  # Design variables before the gradient update (nely, nelx)
 
             df0dx = df0dx_mat.reshape(nely * nelx, 1)
@@ -414,14 +411,12 @@ class FeaModel:
                 extra_iter = True
 
         print("Optimization finished...")
-        vf_error = np.abs(np.mean(x) - volfrac)
 
         return {
             "design": x,
             "bcs": bcs,
             "structural_compliance": f0valm,
             "thermal_compliance": f0valt,
-            "volume_fraction_error": vf_error,
             "opti_steps": opti_steps,
         }
 
@@ -440,7 +435,7 @@ if __name__ == "__main__":
         "fixed_elements": [lci[21], lci[32], lci[43]],
         "force_elements_y": [bri[31]],
         "heatsink_elements": [lci[31], lci[32], lci[33]],
-        "volume_fraction_target": 0.2,
+        "volfrac": 0.2,
         "rmin": 1.1,
         "weight": 1.0,  # 1.0 for pure structural, 0.0 for pure thermal
     }

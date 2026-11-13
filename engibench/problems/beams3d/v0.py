@@ -14,6 +14,7 @@ import numpy.typing as npt
 
 from engibench.constraint import bounded
 from engibench.constraint import constraint
+from engibench.constraint import Criticality
 from engibench.constraint import greater_than
 from engibench.constraint import IMPL
 from engibench.constraint import THEORY
@@ -52,6 +53,16 @@ def _fixed_elements(nelx: int, nely: int, nelz: int) -> npt.NDArray[np.int64]:
     return out
 
 
+@constraint(categories=THEORY, criticality=Criticality.Warning)
+def volume_fraction_bound(design: npt.NDArray, volfrac: float) -> None:
+    """Constraint for volume fraction of the design."""
+    actual_volfrac = design.mean()
+    tolerance = 0.01
+    assert abs(actual_volfrac - volfrac) <= tolerance, (
+        f"Volume fraction of the design {actual_volfrac:.4f} does not match target {volfrac:.4f} specified in the conditions. While the optimizer might fix it, this is likely to affect objective values as the initial design is not feasible given the constraints."
+    )
+
+
 class Beams3D(Problem[npt.NDArray]):
     """3D structural topology optimization problem."""
 
@@ -75,6 +86,7 @@ class Beams3D(Problem[npt.NDArray]):
         """Fractional y-position of the vertical load on the top face."""
 
     conditions = Conditions()
+    design_constraints = (volume_fraction_bound,)
     design_space = spaces.Box(low=0.0, high=1.0, shape=(NELY, NELX, NELZ), dtype=np.float32)
     dataset_id = f"IDEALLab/beams_3d_{NELX}_v0"
     container_id = None

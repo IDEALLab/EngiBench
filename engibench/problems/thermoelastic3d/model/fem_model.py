@@ -198,10 +198,10 @@ class FeaModel3D:
             Dict[str, Any]: A dictionary containing the optimization results. The dictionary includes:
                 - 'design' (np.ndarray): Final design layout.
                 - 'bcs' (Dict[str, Any]): The input boundary conditions.
-                - 'sc' (float): Structural cost component.
-                - 'tc' (float): Thermal cost component.
-                - 'vf' (float): Volume fraction error.
-            If self.eval_only is True, returns a dictionary with keys 'sc', 'tc', and 'vf' only.
+                - 'structural_compliance' (float): Structural compliance.
+                - 'thermal_compliance' (float): Thermal compliance.
+                - 'opti_steps' (list[OptiStep]): The optimization history.
+            If self.eval_only is True, returns a dictionary with keys 'structural_compliance' and 'thermal_compliance' only.
         """
         # Weighting
         w1 = bcs.get("weight", 0.5)  # structural
@@ -368,14 +368,11 @@ class FeaModel3D:
             f0val = (f0valm * w1) + (f0valt * w2)
 
             if self.eval_only:
-                vf_error = abs(np.mean(x) - volfrac)
                 return {
                     "structural_compliance": float(f0valm),
                     "thermal_compliance": float(f0valt),
-                    "volume_fraction": vf_error,
                 }
-            vf_error = np.abs(np.mean(x) - volfrac)
-            obj_values = np.array([f0valm, f0valt, vf_error])
+            obj_values = np.array([f0valm, f0valt])
             x_curr = x.copy()
 
             xval = x.reshape(n, 1)
@@ -473,13 +470,11 @@ class FeaModel3D:
                 extra_iter = True
 
         print("3D optimization finished.")
-        vf_error = abs(np.mean(x) - volfrac)
 
         return {
             "design": x,
             "bcs": bcs,
             "structural_compliance": float(f0valm),
             "thermal_compliance": float(f0valt),
-            "volume_fraction": vf_error,
             "opti_steps": opti_steps,
         }
