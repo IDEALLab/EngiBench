@@ -9,6 +9,7 @@ from engibench.constraint import THEORY
 from engibench.constraint import Violations
 from engibench.problems.power_electronics.utils.process_log_file import InvalidNgSpiceOutputWarning
 from engibench.problems.power_electronics.utils.process_log_file import process_log_file
+from engibench.problems.power_electronics.utils.process_log_file import process_measurements
 from engibench.problems.power_electronics.v0 import DUTY_CYCLE
 from engibench.problems.power_electronics.v0 import PowerElectronics
 from engibench.problems.power_electronics.v0 import SWITCH_LEVELS
@@ -104,6 +105,18 @@ def test_process_log_file_reads_finite_objectives(tmp_path: Path) -> None:
     log_path.write_text("gain = 1.25\nvpp_ratio = 0.125\n")
 
     assert process_log_file(str(log_path)) == (1.25, 0.125)
+
+
+def test_process_measurements_preserves_signed_mean_voltage(tmp_path: Path) -> None:
+    log_path = tmp_path / "simulation.log"
+    log_path.write_text("vo_mean = -250.0\nvpp = 25.0\n")
+
+    measurements = process_measurements(str(log_path))
+
+    np.testing.assert_allclose(
+        (measurements.output_voltage_mean, measurements.output_voltage_peak_to_peak),
+        (-250.0, 25.0),
+    )
 
 
 @pytest.mark.parametrize(

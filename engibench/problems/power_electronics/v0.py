@@ -4,8 +4,10 @@
 """Power Electronics problem."""
 
 from dataclasses import dataclass
+from functools import cache
 import os
 from typing import Any, NoReturn
+import warnings
 
 from gymnasium import spaces
 from matplotlib.figure import Figure
@@ -34,6 +36,23 @@ SWITCHING_PERIOD = 5e-6
 TRANSITION_TIME = 10e-9
 MIN_PWL_DUTY_CYCLE = TRANSITION_TIME / SWITCHING_PERIOD
 MAX_PWL_DUTY_CYCLE = 1.0 - MIN_PWL_DUTY_CYCLE
+
+
+class HistoricalPowerElectronicsWarning(RuntimeWarning):
+    """Warn that the default v0 objectives are retained only for compatibility."""
+
+
+@cache
+def _warn_if_v0() -> None:
+    """Tell users once per process how to opt into the corrected v1 objectives."""
+    warnings.warn(
+        "PowerElectronics v0 uses historical objectives (minimize gain, maximize "
+        "ripple) and its original simulation environment is unknown. For new "
+        "work, use `from engibench.problems.power_electronics.v1 import "
+        "PowerElectronics`; v0 is retained for compatibility with existing results.",
+        HistoricalPowerElectronicsWarning,
+        stacklevel=3,
+    )
 
 
 def has_expected_shape(design: npt.NDArray) -> bool:
@@ -141,6 +160,8 @@ class PowerElectronics(Problem[npt.NDArray]):
                 ``NGSPICE_PATH`` and then ``PATH`` are used.
         """
         super().__init__(seed=seed)
+        if self.version == 0:
+            _warn_if_v0()
 
         self.config = Config(
             target_dir=target_dir,

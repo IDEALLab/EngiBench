@@ -1,5 +1,8 @@
 """NgSpice wrapper for cross-platform support."""
 
+from dataclasses import dataclass
+from functools import cached_property
+import hashlib
 import os
 import platform
 import re
@@ -10,6 +13,19 @@ import warnings
 MIN_SUPPORTED_VERSION: int = 42  # Major version number of ngspice
 MAX_SUPPORTED_VERSION: int = 45  # Major version number of ngspice
 NGSPICE_PATH_ENV = "NGSPICE_PATH"
+
+
+@dataclass(frozen=True)
+class NgSpiceIdentity:
+    """Immutable identity of the ngspice backend used for a simulation."""
+
+    version: str
+    major_version: int
+    executable_path: str
+    executable_sha256: str
+    platform_system: str
+    platform_machine: str
+    version_output: str
 
 
 class NgSpice:
@@ -113,6 +129,42 @@ class NgSpice:
         """Return the resolved ngspice executable path."""
         return self._ngspice_path
 
+    @cached_property
+    def version_output(self) -> str:
+        """Return the complete version banner emitted by ngspice."""
+        result = subprocess.run(
+            [self._ngspice_path, "--version"],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        return f"{result.stdout}\n{result.stderr}".strip()
+
+    @cached_property
+    def version_string(self) -> str:
+        """Return the complete ngspice version, including patch components."""
+        match = re.search(r"\bngspice-(\d+(?:\.\d+)*)\b", self.version_output, flags=re.IGNORECASE)
+        if match is None:
+            raise RuntimeError(f"Could not determine ngspice version from: {self.version_output!r}")
+        return match.group(1)
+
+    @cached_property
+    def identity(self) -> NgSpiceIdentity:
+        """Return the exact simulator and host identity used by this wrapper."""
+        digest = hashlib.sha256()
+        with open(self._ngspice_path, "rb") as executable:
+            for chunk in iter(lambda: executable.read(1024 * 1024), b""):
+                digest.update(chunk)
+        return NgSpiceIdentity(
+            version=self.version_string,
+            major_version=self.version,
+            executable_path=self._ngspice_path,
+            executable_sha256=digest.hexdigest(),
+            platform_system=platform.system(),
+            platform_machine=platform.machine(),
+            version_output=self.version_output,
+        )
+
     @property
     def version(self) -> int:
         """Get the version of ngspice.
@@ -140,24 +192,7 @@ class NgSpice:
             except OSError:
                 print(f"Could not read ngspice docs folder at {docs_path!r}, falling back to --version flag.")
 
-        cmd = [self._ngspice_path, "--version"]
-        result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-
-        # Example output:
-        # ******
-        # ** ngspice-44.2 : Circuit level simulation program
-        # ** Compiled with KLU Direct Linear Solver
-        # ** The U. C. Berkeley CAD Group
-        # ** Copyright 1985-1994, Regents of the University of California.
-        # ** Copyright 2001-2024, The ngspice team.
-        # ** Please get your ngspice manual from https://ngspice.sourceforge.io/docs.html
-        # ** Please file your bug-reports at http://ngspice.sourceforge.net/bugrep.html
-        # ******
-        output = f"{result.stdout}\n{result.stderr}"
-        match = re.search(r"\bngspice-(\d+)(?:\.\d+)*\b", output, flags=re.IGNORECASE)
-        if match is None:
-            raise RuntimeError(f"Could not determine ngspice version from: {output.strip()!r}")
-        return int(match.group(1))
+        return int(self.version_string.split(".", maxsplit=1)[0])
 
 
 class NgSpiceManualNotFoundError(FileNotFoundError):

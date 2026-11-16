@@ -1,0 +1,70 @@
+Bootstrap: docker
+From: debian@sha256:f3034a6ec3c1205360777c4aae76234998866ad18806ae62b63a3f84ccad782b
+
+%labels
+    org.opencontainers.image.title "EngiBench PowerElectronics v1 dataset backend"
+    org.opencontainers.image.base.digest "sha256:f3034a6ec3c1205360777c4aae76234998866ad18806ae62b63a3f84ccad782b"
+    org.opencontainers.image.ngspice.version "44.2"
+    org.opencontainers.image.ngspice.source.sha256 "e7dadfb7bd5474fd22409c1e5a67acdec19f77e597df68e17c5549bc1390d7fd"
+
+%post
+    set -eu
+    export DEBIAN_FRONTEND=noninteractive
+    apt-get update
+    apt-get install -y --no-install-recommends \
+        bison \
+        build-essential \
+        ca-certificates \
+        curl \
+        flex \
+        git \
+        libtool \
+        python3 \
+        python3-venv
+
+    work_dir="$(mktemp -d)"
+    archive="$work_dir/ngspice-44.2.tar.gz"
+    curl --fail --location --retry 3 \
+        --output "$archive" \
+        "https://sourceforge.net/projects/ngspice/files/ng-spice-rework/old-releases/44.2/ngspice-44.2.tar.gz/download"
+    echo "e7dadfb7bd5474fd22409c1e5a67acdec19f77e597df68e17c5549bc1390d7fd  $archive" | sha256sum --check
+    tar -xzf "$archive" -C "$work_dir"
+    cd "$work_dir/ngspice-44.2"
+    ./configure \
+        --prefix=/opt/ngspice-44.2 \
+        --enable-relpath \
+        --without-x \
+        --with-readline=no \
+        --with-fftw3=no \
+        --disable-openmp
+    make -j2
+    make install
+    cd /
+    rm -rf "$work_dir"
+
+    python3 -m venv /opt/power-electronics-v1
+    /opt/power-electronics-v1/bin/pip install --no-cache-dir \
+        datasets==5.0.1 \
+        gymnasium==1.3.0 \
+        matplotlib==3.11.2 \
+        networkx==3.6.1 \
+        numpy==2.4.6 \
+        pandas==3.0.6 \
+        pyarrow==25.0.1
+    /opt/power-electronics-v1/bin/pip freeze | sort > /opt/power-electronics-v1-requirements.txt
+
+    apt-get clean
+    rm -rf /var/lib/apt/lists/*
+
+%environment
+    export PATH=/opt/power-electronics-v1/bin:/opt/ngspice-44.2/bin:$PATH
+    export NGSPICE_PATH=/opt/ngspice-44.2/bin/ngspice
+    export PYTHONNOUSERSITE=1
+    export MPLBACKEND=Agg
+
+%test
+    set -eu
+    test "$(uname -m)" = "x86_64"
+    /opt/ngspice-44.2/bin/ngspice --version 2>&1 | grep -q "ngspice-44.2"
+    /opt/power-electronics-v1/bin/python -c \
+        "import datasets, gymnasium, matplotlib, networkx, numpy, pandas, pyarrow"

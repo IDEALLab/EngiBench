@@ -19,6 +19,7 @@ from numpy import typing as npt
 import pytest
 
 from engibench import Problem
+from engibench.problems.power_electronics.v1 import PowerElectronics as PowerElectronicsV1
 from engibench.utils.all_problems import BUILTIN_PROBLEMS
 from tests.problem_policies import problem_id
 from tests.problem_policies import problem_test_policy
@@ -27,7 +28,7 @@ if TYPE_CHECKING:
     from typing import Self
 
 
-@pytest.mark.parametrize("problem_class", BUILTIN_PROBLEMS.values())
+@pytest.mark.parametrize("problem_class", [*BUILTIN_PROBLEMS.values(), PowerElectronicsV1])
 def test_problem_impl(problem_class: type[Problem]) -> None:
     """Check that all builtin problems define all required class attributes and methods."""
     print(f"Testing {problem_class.__name__}...")
@@ -87,7 +88,7 @@ def _problem_params() -> list[Any]:
     return params
 
 
-@pytest.mark.parametrize("problem_class", _problem_params())
+@pytest.mark.parametrize("problem_class", [*_problem_params(), pytest.param(PowerElectronicsV1, id="PowerElectronicsV1")])
 def test_problem_dataset(problem_class: type[Problem]) -> None:
     """Check that each published dataset has the required splits and fields."""
     problem: Problem = problem_class()
