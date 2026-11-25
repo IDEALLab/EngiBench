@@ -12,6 +12,7 @@ from itertools import pairwise
 import numpy as np
 import pytest
 
+from engibench.problems.beams2d.backend import image_to_design
 from engibench.problems.beams2d.v0 import Beams2D as Beams2D_v0
 from engibench.problems.beams2d.v1 import Beams2D as Beams2D_v1
 
@@ -57,13 +58,23 @@ def test_history_is_numbered_from_zero(optimized: tuple) -> None:
 def test_every_step_records_design_sensitivities_and_update(optimized: tuple) -> None:
     _opt, history = optimized
     for step in history:
-        assert step.design.shape == (N_ELEMS,)
-        # `x` is the core field every generic consumer reads; `design` is kept
-        # for the callers that already use it.
-        assert step.x is step.design
-        # One sensitivity per design variable, so it is shaped like the design.
+        # `x` is the core field every generic consumer reads, so it has the
+        # layout of the design optimize() returns.
+        assert step.x.shape == (NELY, NELX)
+        # One sensitivity and one move per design variable.
         assert step.x_sensitivities.shape == step.x.shape
-        assert step.x_update.shape == (N_ELEMS,)
+        assert step.x_update.shape == step.x.shape
+        # `design` is the same density in the solver's flat order, kept for the
+        # callers that already use it.
+        assert step.design.shape == (N_ELEMS,)
+        np.testing.assert_array_equal(image_to_design(step.x), step.design)
+
+
+def test_the_last_step_moves_to_the_returned_design(optimized: tuple) -> None:
+    """A step has the returned design's layout, so the two compare element by element."""
+    returned, history = optimized
+    assert returned.shape == history[-1].x.shape
+    np.testing.assert_allclose(history[-1].x + history[-1].x_update, returned, atol=1e-12)
 
 
 def test_sensitivities_are_nonpositive(optimized: tuple) -> None:
@@ -82,7 +93,7 @@ def test_sensitivities_match_a_finite_difference_of_simulate(problem: Beams2D_v0
     recorded sensitivities projected onto that direction.
     """
     _opt, history = optimized
-    direction = np.random.default_rng(0).standard_normal(N_ELEMS)
+    direction = np.random.default_rng(0).standard_normal((NELY, NELX))
     nudge = 1e-6
     for step in history:
         problem.reset(seed=0)
@@ -90,7 +101,7 @@ def test_sensitivities_match_a_finite_difference_of_simulate(problem: Beams2D_v0
         problem.reset(seed=0)
         compliance_behind = problem.simulate(step.x - nudge * direction)
         measured_slope = (compliance_ahead - compliance_behind) / (2 * nudge)
-        recorded_slope = step.x_sensitivities @ direction
+        recorded_slope = np.sum(step.x_sensitivities * direction)
         np.testing.assert_allclose(measured_slope, recorded_slope, rtol=1e-4)
 
 

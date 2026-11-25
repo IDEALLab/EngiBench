@@ -46,7 +46,7 @@ class Beams2D(Beams2D_v0):
             config (dict): A dictionary with configuration (e.g., boundary conditions) for the optimization.
 
         Returns:
-            Tuple[np.ndarray, dict]: The optimized design and its performance.
+            tuple[np.ndarray, list[ExtendedOptiStep]]: The optimized design and the recorded steps.
         """
         base_config = self.Config(**{**dataclasses.asdict(self.simulate_config), **(config or {})})
 
@@ -124,6 +124,11 @@ class Beams2D(Beams2D_v0):
             # instead would mix the two spaces. The objective delta needs the
             # *next* step's objective, so it is filled in on the following pass,
             # and the last step keeps None rather than costing an extra solve.
+            #
+            # The three shared fields are stored as (nely, nelx) images, the
+            # layout of the design optimize() returns, so a step can be compared
+            # with a dataset design element by element. `design` keeps the
+            # solver's flat order for the callers that already read it.
             obj_values = np.array(c)
             if optisteps_history:
                 previous = optisteps_history[-1]
@@ -131,11 +136,11 @@ class Beams2D(Beams2D_v0):
             current_step = ExtendedOptiStep(
                 obj_values=obj_values,
                 step=loop,
-                x=design,
-                x_sensitivities=design_sensitivities,
-                x_update=xPrint - design,
+                x=design_to_image(design, base_config.nelx, base_config.nely),
+                x_sensitivities=design_to_image(design_sensitivities, base_config.nelx, base_config.nely),
+                x_update=design_to_image(xPrint - design, base_config.nelx, base_config.nely),
+                design=design,
             )
-            current_step.design = design
             optisteps_history.append(current_step)
 
             loop += 1
