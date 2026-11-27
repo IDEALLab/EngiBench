@@ -44,6 +44,12 @@ PROBLEM_TEST_POLICIES = {
         supported_machines=("x86_64", "amd64"),
         slow=True,
     ),
+    "problems.mto3d.v0.MTO3D": ProblemTestPolicy(
+        exercise_optimization=False,
+        optimization_reason="the external optimization runs up to 1,920 iterations on 16 ranks (hours)",
+        supported_machines=("x86_64", "amd64"),
+        slow=True,
+    ),
 }
 
 
