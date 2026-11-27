@@ -9,7 +9,7 @@ from matplotlib.cm import ScalarMappable
 from matplotlib.colors import Normalize
 from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection  # type: ignore[import-untyped]
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 import numpy as np
 import numpy.typing as npt
 

@@ -269,6 +269,7 @@ module = [
     "seaborn",
     "matplotlib",
     "matplotlib.*",
+    "mpl_toolkits.*",
     "pyoptsparse",
     "pandas",
     "cvxopt",
