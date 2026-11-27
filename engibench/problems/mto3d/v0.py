@@ -87,8 +87,8 @@ def _camera_facing_voxel_faces(
     for (axis, sign), corners in _VOXEL_FACES.items():
         if sign * camera[axis] <= 0:
             continue
-        neighbour = np.roll(padded, -sign, axis=axis)[1:-1, 1:-1, 1:-1]
-        cells = np.argwhere(filled & ~neighbour).astype(np.float32)
+        neighbor = np.roll(padded, -sign, axis=axis)[1:-1, 1:-1, 1:-1]
+        cells = np.argwhere(filled & ~neighbor).astype(np.float32)
         face = cells[:, None, :] + np.asarray(corners, dtype=np.float32)[None]
         quads.append(face)
         depth.append(face[:, :, 1].mean(axis=1))
@@ -205,12 +205,15 @@ class MTO3D(Problem[npt.NDArray]):
         """
 
         max_iter: Annotated[int, greater_than(0).category(IMPL)] = 3000
-        """Iteration cap for :meth:`MTO3D.optimize`; the legacy continuation stops by itself
-        (at most 1,920 iterations)."""
+        """Iteration cap for :meth:`MTO3D.optimize`. Both modes follow the solver's 20-level schedule and stop
+        by themselves after at most 1,920 iterations, so the default never binds; pass a smaller value for a
+        short warm start."""
         mode: str = "cold"
-        """``cold``: legacy 20-level continuation; ``warm``: final physics from the first iteration."""
+        """``cold``: legacy 20-level continuation; ``warm``: the same schedule with final physics at every level."""
         mpi_cores: Annotated[int, greater_than(0).category(IMPL)] = DEFAULT_MPI_CORES
-        """MPI ranks; 16 (the decomposition of every published case) is the parity-tested value."""
+        """MPI ranks. The default 16 (``simple (2 2 4)``, the decomposition of every published case) reproduces the
+        dataset's objectives exactly, because results depend on the rank count. On machines with fewer cores the
+        ranks are oversubscribed: slower, with the same results."""
         movement_limit: Annotated[float, bounded(lower=0.0, upper=1.0).category(IMPL)] = 0.4
         frozen_ns_max_iter: Annotated[int, greater_than(0).category(IMPL)] = DEFAULT_FROZEN_NS_MAX_ITER
         """SIMPLE-pass cap for :meth:`MTO3D.simulate`, which must converge the flow to 1e-6. A design

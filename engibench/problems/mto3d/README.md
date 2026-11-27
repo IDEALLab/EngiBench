@@ -58,7 +58,8 @@ campaigns effectively used (`decomposePar` wrote it at `writePrecision 3`). Pass
 `optimize()` runs the adjoint/MMA loop and returns `(design, history)`. `mode="cold"` uses the
 legacy 20-level continuation, which stops by itself after at most 1,920 iterations; starting from
 `uniform_starting_design(volfrac)` it reproduces the published initialization exactly (the runner
-then supplies no `0/xh`). `mode="warm"` applies final physics from the first iteration. It is not an
+then supplies no `0/xh`). `mode="warm"` follows the same schedule with final physics at every level, so it also stops by itself after at
+most 1,920 iterations; pass a smaller `max_iter` for a short warm start. It is not an
 exact restart of a finished run, because a stored design carries no optimizer state: the first warm
 step re-filters and re-projects the design. History row
 `k` describes the design evaluated in iteration `k`; the returned design is the subsequent MMA

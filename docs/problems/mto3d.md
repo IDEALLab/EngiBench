@@ -22,7 +22,7 @@ The model is one symmetric half of a liquid-cooled heat sink. The full plate is 
 long (z) and 1.2 mm thick (y); its 1 mm design layer, meshed as three stacked design bodies, lies
 between two 0.1 mm solid shells. Coolant (water) enters through a 2 mm by 1 mm channel at the top
 (`z = 5` to `6.5 mm`), flows along `-z` through the channels placed by the optimizer, and leaves
-through an identical channel at the bottom (`z = -1.5` to `0 mm`). The solid is aluminium.
+through an identical channel at the bottom (`z = -1.5` to `0 mm`). The solid is aluminum.
 
 The inlet has a fixed velocity and reference temperature (`T = 0`). The outlet has zero pressure and
 no normal temperature gradient. The heated wall (`force` patch, the shell face at `y = 1.2 mm`)
@@ -56,7 +56,7 @@ next to both faces, with its channels in the middle layers.
 The OpenFOAM field has 264,000 equal-volume cells: 200,000 design cells, 40,000 fixed solid shell
 cells and 24,000 fixed fluid inlet/outlet cells, copied unchanged from the case template. The
 `design_io` module owns this mapping; it was proven against the mesh's own cell zones and cell
-centres, so simulation never reshapes or resizes a design.
+centers, so simulation never reshapes or resizes a design.
 
 Datasets store `optimal_design` as a flat `list<float32>` of length 200,000 in C order, as for MTO2D;
 `random_design()` reshapes rows back to the native `(20, 100, 100)` representation.
@@ -91,7 +91,9 @@ input bound, not the measured objective. Because that constraint depends on simu
 
 The solver is an adjoint-based OpenFOAM 5 application (Yu et al. 2020) with Brinkman
 penalization, RAMP interpolation, a PDE density filter with Heaviside projection, and MMA. It runs
-in an external Linux/AMD64 container on 16 MPI ranks by default.
+in an external Linux/AMD64 container on 16 MPI ranks by default, the decomposition of every published case:
+it reproduces the dataset's objectives exactly, and on machines with fewer cores the ranks are oversubscribed,
+with the same results.
 
 `simulate()` performs a frozen final-physics evaluation: design updates are disabled, the flow is
 solved from rest until both initial residuals reach `1e-6`, and the energy equation is re-assembled
@@ -99,8 +101,9 @@ and re-solved for 100 iterations until its second-order (`linearUpwind`) convect
 which OpenFOAM applies explicitly from the current temperature, has converged. A single energy solve
 from the uniform initial field would give the first-order upwind temperature, up to 16% low. The
 design is verified to be unchanged. `optimize()` runs the native continuation (20 levels, adaptive
-stopping, at most 1,920 iterations) or, with `mode="warm"`, final physics from the first iteration.
-Because of adaptive stopping, a cold optimization can return fewer history entries than `max_iter`.
+stopping, at most 1,920 iterations); with `mode="warm"`, it follows the same schedule with final physics at
+every level. Because of adaptive stopping, an optimization can return fewer history entries than `max_iter`;
+pass a smaller `max_iter` for a short warm start.
 For the exact historical initialization, start a cold optimization from
 `uniform_starting_design(volfrac)`.
 
@@ -119,6 +122,9 @@ optimized designs over the condition ranges above, split 3,733/249/995 into trai
 as for MTO2D). It follows the format of MTO2D's dataset: the same six columns, in the same order and
 with the same types. `optimal_design` is a flat `float32` list of 200,000 values in
 C order; the three conditions are `float64` and both objectives `float32`.
+
+The source study does not document how its conditions were sampled. The dataset covers inlet velocities
+from -0.170 to -0.100 m/s, power-dissipation bounds from 5 to 25, and volume fractions from 0.25 to 0.55.
 
 The objectives are what `simulate()` returns for each stored design with that row's own conditions,
 stored as `float32`. The evaluation behind them is bitwise reproducible across toolchains and CPU types
