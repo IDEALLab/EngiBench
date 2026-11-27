@@ -329,6 +329,33 @@ def test_case_template_requires_runtime_marker(tmp_path: Path) -> None:
         MTO3D(runner=runner).simulate(np.full(dio.HALF_DESIGN_SHAPE, 0.25, dtype=np.float32))
 
 
+def test_case_template_requires_solver_executable(tmp_path: Path) -> None:
+    runner = _runner(tmp_path, _fake_solver())
+    assert runner.case_template is not None
+    (Path(runner.case_template) / "src" / "EXEC").unlink()
+    with pytest.raises(SolverRunError, match="compiled solver executable"):
+        MTO3D(runner=runner).simulate(np.full(dio.HALF_DESIGN_SHAPE, 0.25, dtype=np.float32))
+
+
+def test_case_template_rejects_unsupported_runtime_version(tmp_path: Path) -> None:
+    runner = _runner(tmp_path, _fake_solver())
+    assert runner.case_template is not None
+    (Path(runner.case_template) / RUNTIME_MARKER).write_text("0\n", encoding="ascii")
+    with pytest.raises(SolverRunError, match="Unsupported MTO3D runtime version: expected '1', got '0'"):
+        MTO3D(runner=runner).simulate(np.full(dio.HALF_DESIGN_SHAPE, 0.25, dtype=np.float32))
+
+
+def test_case_template_rejects_wrong_block_mesh_cell_count(tmp_path: Path) -> None:
+    runner = _runner(tmp_path, _fake_solver())
+    assert runner.case_template is not None
+    block_mesh = Path(runner.case_template) / "app" / "system" / "blockMeshDict"
+    block_mesh.write_text(
+        block_mesh.read_text(encoding="utf-8").replace("(100 20 132)", "(100 20 131)", 1), encoding="utf-8"
+    )
+    with pytest.raises(SolverRunError, match="must define 264,000 cells; parsed 262,000"):
+        MTO3D(runner=runner).simulate(np.full(dio.HALF_DESIGN_SHAPE, 0.25, dtype=np.float32))
+
+
 @pytest.mark.parametrize(("config", "message"), [({"mode": "lukewarm"}, "mode"), ({"mpi_cores": 12}, "mpi_cores")])
 def test_invalid_config_is_rejected(config: dict[str, Any], message: str) -> None:
     with pytest.raises(ValueError, match=message):
